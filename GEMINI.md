@@ -13,8 +13,9 @@ This project follows a domain-driven folder structure: code is grouped by *what 
   - `/history`: Components for browsing past workouts.
 - `/src/store`: **(Global State)** Zustand stores — the "Metronome Engine" (see §3).
 - `/src/services`: **(Infrastructure)** External communication adapters.
-  - `/ble`: Bluetooth adapters and parsers.
-  - `/health`: Apple HealthKit integrations.
+  - `/ble`: Bluetooth adapters and parsers (bike trainers + HR monitors).
+  - `/watch`: WatchConnectivity bridge for WatchOS companion app (Phase 3).
+  - `/health`: Apple HealthKit export for completed sessions (Phase 4).
   - `/db`: Drizzle ORM schemas, migrations, and repositories.
   - `/api`: Strava OAuth and sync.
 - `/src/types`: **(Shared Types)** Global TypeScript definitions and enums. Feature-specific types stay inside `/src/features/<name>/`.
@@ -63,7 +64,9 @@ This project follows a domain-driven folder structure: code is grouped by *what 
 Beyond the folder layout in §1, the key architectural concept is the **data flow**:
 
 ```
-Hardware (BLE/HealthKit) → pushes data → Zustand Store ← subscribes ← UI
+BLE Bike Adapter  ─┐
+BLE HR Monitor    ─┼─→ pushes data → Zustand Store ← subscribes ← UI
+Watch (Phase 3)   ─┘
 ```
 
 ### The "Metronome Engine" (`/src/store`)
@@ -73,10 +76,16 @@ Hardware (BLE/HealthKit) → pushes data → Zustand Store ← subscribes ← UI
 ### Adapter Pattern (`/src/services/ble`)
 - `BikeAdapter` interface defines what any bike must do (e.g., `subscribeToMetrics(callback)`).
 - Concrete adapters (e.g., `ZiproRaveAdapter`) implement it with device-specific UUIDs and byte-array parsing, then push into the store.
+- `HrAdapter` interface handles any BLE Heart Rate peripheral via the standard HR Service (`0x180D`).
+- In Phase 3, a `WatchHrAdapter` wraps WatchConnectivity to provide the same interface, enabling seamless HR source switching.
+
+### HR Source Priority
+- When multiple HR sources are connected, the highest-priority source is used: **Watch > BLE HR Monitor > Bike Pulse**.
 
 ### Storage & Sync (`/src/services/db`, `/src/services/api`)
 - Repository pattern via Drizzle ORM — no knowledge of React or BLE.
-- Sync services handle Strava OAuth/API and HealthKit export independently.
+- Strava sync handles OAuth/API upload of completed sessions.
+- HealthKit export (`react-native-health`) writes completed sessions to Apple Health — **not used for live HR**.
 
 ---
 
@@ -116,8 +125,9 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/). Common pref
 | Code Quality | `eslint` + `prettier` |
 | State | `zustand` |
 | Database | `expo-sqlite` + `drizzle-orm` |
-| BLE | `react-native-ble-plx` |
-| HealthKit | `react-native-health` |
+| BLE (Bike + HR) | `react-native-ble-plx` |
+| Watch (Phase 3) | Native WatchOS + WatchConnectivity |
+| HealthKit (export) | `react-native-health` |
 
 ---
 
