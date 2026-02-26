@@ -45,8 +45,22 @@
 - **Capture Rate**: Data should be captured and synchronized into the `TrainingDataPoint` array at a frequency of **1 Hz (Once per second)**. Since metrics like Time, Distance, and Speed come directly from the external devices, the app's primary role is an aggregator, not an accumulator.
 - **Connection Drops**: If the Bike drops connection, the app should continue the elapsed time counter (if supported by Watch) and show a "Reconnecting..." status, cleanly resuming the data stream when found.
 
-## 4. Project Roadmap / Phases
-- **Phase 1: Bike Connection & Data Discovery**
+## 4. CI/CD Pipeline
+### 4.1. Pull Request Quality Gate (GitHub Actions)
+Every Pull Request targeting `main` must pass the following automated checks before merge:
+1. **Lint** (`npm run lint`) — ESLint with strict TypeScript and Prettier rules
+2. **Type Check** (`npm run typecheck`) — TypeScript compiler with zero errors
+3. **Unit Tests** (`npm test`) — Jest test suite with all tests passing
+
+### 4.2. Workflow Configuration
+- **Trigger**: On `pull_request` events targeting `main`
+- **Runner**: `ubuntu-latest` (latest LTS)
+- **Node version**: Use `.nvmrc` or `engines` field for consistency
+- **Caching**: Cache `node_modules` via `actions/cache` or `actions/setup-node` built-in caching for faster CI runs
+- **Branch protection**: Enable "Require status checks to pass before merging" on `main` in GitHub repo settings
+
+## 5. Project Roadmap / Phases
+- **Phase 1: Project Foundation & BLE Core** (includes CI pipeline setup)
 - **Phase 2: Core Training Loop & Dashboard**
 - **Phase 3: Watch Integration & Data Merging**
 - **Phase 4: History & External Sync**

@@ -13,7 +13,50 @@ const compat = new FlatCompat({
 });
 
 export default [
+  // ── Layer 1: Expo defaults (React, React Native, TypeScript, import rules) ──
   ...compat.extends('expo'),
+
+  // ── Layer 2: Strict TypeScript rules (aligned with GEMINI.md) ──
+  {
+    files: ['**/*.ts', '**/*.tsx'],
+    rules: {
+      // ── Type Safety (GEMINI.md Rule 2: no casting, strict types) ──
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-non-null-assertion': 'warn',
+      '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+
+      // ── Code Quality ──
+      '@typescript-eslint/no-shadow': 'error',
+      '@typescript-eslint/no-redeclare': 'error',
+      '@typescript-eslint/naming-convention': [
+        'warn',
+        { selector: 'interface', format: ['PascalCase'] },
+        { selector: 'typeAlias', format: ['PascalCase'] },
+        { selector: 'enum', format: ['PascalCase'] },
+        { selector: 'enumMember', format: ['UPPER_CASE', 'PascalCase'] },
+      ],
+
+      // ── Disable base rules replaced by TS equivalents ──
+      'no-shadow': 'off',
+      'no-redeclare': 'off',
+      'no-unused-vars': 'off',
+    },
+  },
+
+  // ── Layer 3: General best practices ──
+  {
+    rules: {
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
+      eqeqeq: ['error', 'always'],
+      curly: ['error', 'all'],
+      'no-var': 'error',
+      'prefer-const': 'error',
+      'no-duplicate-imports': 'error',
+    },
+  },
+
+  // ── Layer 4: Prettier (as ESLint module, not standalone) ──
   prettier,
   {
     rules: {
@@ -27,7 +70,6 @@ export default [
           trailingComma: 'all',
         },
       ],
-      'no-console': ['warn', { allow: ['warn', 'error'] }],
     },
   },
 ];
