@@ -101,7 +101,8 @@ When the agent claims a feature is complete, it MUST follow this pipeline in ord
 ### 4.2. Human PR Review
 When the user shares PR feedback, the agent checks out the branch, applies changes, re-runs CI Gate, and pushes.
 
----
+### 4.3. Communication Rules
+- **Interviews / Requirement Gathering**: When interviewing the user or asking for clarification, the agent MUST ask **only one question at a time**. Do not present long lists of questions; wait for the user to answer the first before proceeding to the next.
 
 ## 5. Git Conventions
 
