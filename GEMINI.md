@@ -106,10 +106,10 @@ When the user shares PR feedback, the agent checks out the branch, applies chang
 ## 5. Git Conventions
 
 ### 5.1. Branching Strategy
-- **`main`**: Always stable. Must pass CI Gate.
+- **`main`**: Always stable. Must pass CI Gate. **Direct commits to `main` are STRICTLY FORBIDDEN.** All changes must go through a PR.
 - **`feature/<name>`**: New features. Follows the Agent Feature Completion Pipeline (§4.1).
 - **`bugfix/<name>`**: Non-critical fixes. Same pipeline.
-- **`hotfix/<issue>`**: Urgent fixes targeting `main`.
+- **`hotfix/<issue>`**: Urgent fixes. Must still be branched and PR'd.
 
 ### 5.2. Commit Messages
 Follow [Conventional Commits](https://www.conventionalcommits.org/). Common prefixes: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`.
