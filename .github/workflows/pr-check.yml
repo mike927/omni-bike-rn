@@ -2,7 +2,10 @@ name: PR Check
 
 on:
   pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
     branches: [main]
+  issue_comment:
+    types: [created, edited]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -10,9 +13,8 @@ concurrency:
 
 jobs:
   quality:
-    name: Lint, Typecheck & Test
+    name: CI Gate (Lint, Type, Test)
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -37,3 +39,28 @@ jobs:
 
       - name: Smoke build
         run: npm run build:smoke
+
+  pr_agent_review:
+    name: AI Review (Gemini 3.1 Pro)
+    runs-on: ubuntu-latest
+    if: ${{ github.event.sender.type != 'Bot' }}
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: write
+    steps:
+      - name: PR Agent action step
+        uses: qodo-ai/pr-agent@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Latest Gemini 3.1 Models (Released Feb/March 2026)
+          config.model: "gemini/gemini-3.1-pro-preview"
+          config.fallback_models: '["gemini/gemini-3.1-flash-lite-preview"]'
+          # Google AI Studio API Key
+          GOOGLE_AI_STUDIO.GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # Automation & Behavior
+          github_action_config.auto_review: "true"
+          github_action_config.auto_describe: "true"
+          github_action_config.auto_improve: "true"
+          # Context-specific instructions for Gemini 3.1 reasoning
+          pr_reviewer.extra_instructions: "Strictly enforce TypeScript best practices, the 1Hz Metronome Engine architecture, and Expo SDK 54 New Architecture (JSI) synchronous patterns."
