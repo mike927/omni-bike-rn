@@ -19,5 +19,5 @@ When the user says "proceed with next task":
 3.  **Testing:** Write Jest tests for all logic. Mock hardware at the adapter boundary.
 
 ## Workflow Execution
-Once you have written the code and tests, you MUST automatically run the CI Gate (`npm run lint && npm run typecheck && npm test`). 
+Once you have written the code and tests, you MUST automatically run the CI Gate (`npm run lint && npm run typecheck && npm test && npm run build:smoke`). 
 If it passes, you MUST explicitly output: "Spawning Code Review Agent..." to trigger the Reviewer rule via the system's model decision router.

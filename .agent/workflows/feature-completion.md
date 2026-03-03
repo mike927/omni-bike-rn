@@ -7,7 +7,7 @@ The Developer Agent MUST adhere to these branch naming conventions:
 ## Feature Completion Pipeline
 Every feature, bugfix, or task MUST follow this exact pipeline:
 1.  **Write Tests:** Write comprehensive Jest unit tests covering success, failure, and edge cases.
-2.  **Pass CI Gate:** Run and pass `npm run lint && npm run typecheck && npm test`.
+2.  **Pass CI Gate:** Run and pass `npm run lint && npm run typecheck && npm test && npm run build:smoke`.
 3.  **Internal Review Loop:** The Developer Agent spawns the Code Review Agent to analyze the `git diff main...HEAD`. Apply feedback until the Reviewer approves.
 4.  **Final CI Check:** Re-run the CI Gate after review changes are applied.
 5.  **User Notification:** Notify the human user to manually create the GitHub Pull Request.
