@@ -92,11 +92,12 @@ Watch (Phase 3)   ─┘
 ## 4. Agent Workflow
 
 ### 4.1. Feature Completion Pipeline
-When the agent claims a feature is complete, it MUST follow this pipeline in order:
+When the agent claims a feature or task is complete, it MUST follow this pipeline in order:
 
-1. **CI Gate**: Run `npm run lint`, `npm run typecheck`, `npm test`. All must pass.
-2. **Internal Code Review Loop**: Delegate a review to a separate agent. Apply feedback, re-run CI Gate. Repeat until clean.
-3. **Open GitHub PR**: Push the branch and open a PR with structured format (Title, Description, Testing Checklist). The human merges.
+1. **Comprehensive Unit Tests**: Write comprehensive Jest tests covering various test cases (success, failure, edge cases) for all new code.
+2. **CI Gate**: Run `npm run lint`, `npm run typecheck`, `npm test`. All must pass.
+3. **Internal Code Review Loop**: Delegate a review to a separate agent. Apply feedback, re-run CI Gate. Repeat until clean.
+4. **Open GitHub PR**: Push the branch and open a PR with structured format (Title, Description, Testing Checklist). The human merges.
 
 ### 4.2. Human PR Review
 When the user shares PR feedback, the agent checks out the branch, applies changes, re-runs CI Gate, and pushes.
