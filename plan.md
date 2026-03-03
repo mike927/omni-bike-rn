@@ -123,7 +123,6 @@ Every Pull Request targeting `main` must pass the following automated checks bef
 - [ ] Raw metric parsing (confirm which of the 7 console metrics are available over BLE)
 - [ ] BLE HR monitor support (standard HR Service `0x180D`)
 - [ ] Add comprehensive unit tests covering various test cases
-- [ ] Code Review Protocol: delegate to a code review agent and address all feedback before PR.
 - **Done when**: Can connect to the bike, log parsed metrics, and read HR from a BLE monitor.
 
 ### Phase 2: Training Loop & Dashboard
@@ -132,7 +131,6 @@ Every Pull Request targeting `main` must pass the following automated checks bef
 - [ ] Live Dashboard UI (Time, Speed, HR + extensible grid for future metrics)
 - [ ] Local DB schema + session persistence (Drizzle + expo-sqlite)
 - [ ] Add comprehensive unit tests covering various test cases
-- [ ] Code Review Protocol: delegate to a code review agent and address all feedback before PR.
 - **Done when**: Can start/pause/stop a session and see it saved locally.
 
 ### Phase 3: Watch Integration
@@ -141,7 +139,6 @@ Every Pull Request targeting `main` must pass the following automated checks bef
 - [ ] HR source priority logic (Watch > BLE HR monitor > Bike pulse)
 - [ ] Background recording with BLE + Watch
 - [ ] Add comprehensive unit tests covering various test cases
-- [ ] Code Review Protocol: delegate to a code review agent and address all feedback before PR.
 - **Done when**: Combined bike + watch HR data appears in a single session.
 
 ### Phase 4: History & External Sync
@@ -150,7 +147,6 @@ Every Pull Request targeting `main` must pass the following automated checks bef
 - [ ] Strava OAuth + session upload
 - [ ] Apple Health export via `react-native-health` (completed sessions only)
 - [ ] Add comprehensive unit tests covering various test cases
-- [ ] Code Review Protocol: delegate to a code review agent and address all feedback before PR.
 - **Done when**: A completed session can be viewed, deleted, or synced to Strava / Apple Health.
 
 ## 7. Known Limitations (MVP)
