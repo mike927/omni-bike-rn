@@ -97,13 +97,13 @@ When the agent claims a feature or task is complete, it MUST follow this pipelin
 1. **Comprehensive Unit Tests**: Write comprehensive Jest tests covering various test cases (success, failure, edge cases) for all new code.
 2. **CI Gate**: Run `npm run lint`, `npm run typecheck`, `npm test`. All must pass.
 3. **Internal Code Review Loop**:
-   - The development agent (Gemini 3.1 Pro High) MUST halt its execution and wait for the user to invoke the **Code Review Agent**.
-   - The Code Review Agent MUST strictly be run using the **Claude Opus** model.
-   - The Claude Opus Code Review Agent retrieves the differences between the current feature branch and `main` using `git diff main...HEAD` and analyzes this local diff for architectural alignment, best practices, and bugs.
-   - The Code Review Agent provides its feedback to the user and halts.
-   - The user then returns to the development agent (Gemini 3.1 Pro High) to address and apply the Code Review Agent's feedback.
-   - If the Gemini development agent disagrees with a specific suggestion from Claude Opus, it leaves a comment/note specifically for the Claude Opus agent to decide whether the suggestion should be ignored or enforced.
-   - Re-run CI Gate to ensure nothing broke. Repeat this cross-agent loop until the Code Review Agent (Claude Opus) approves the changes.
+   - The development agent (Gemini 3.1 Pro High) finishes the feature and MUST spawn the code-reviewer agent using the appropriate command (e.g. `npx` or the platform's CLI tool) configured to use the **Claude Opus (latest)** model.
+   - The spawned Claude Opus Code Review Agent retrieves the differences between the current feature branch and `main` using `git diff main...HEAD`.
+   - The Code Review Agent analyzes this local diff for architectural alignment, best practices, and bugs.
+   - The Code Review Agent provides its feedback/report and terminates.
+   - The Gemini development agent regains control, addresses, and applies the Code Review Agent's feedback.
+   - If the Gemini development agent disagrees with a specific suggestion, it leaves a comment/note for the Claude Opus agent to decide whether the suggestion should be ignored or enforced.
+   - Re-run CI Gate to ensure nothing broke. Repeat this cross-agent loop until the Code Review Agent approves the changes.
 4. **Human Pull Request**: **The agent NEVER creates the GitHub Pull Request.** Once the Internal Code Review Loop passes and the CI Gate is clean, the agent notifies the user. The human user handles the PR creation manually.
 
 ### 4.2. Human PR Review
