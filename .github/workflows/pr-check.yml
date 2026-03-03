@@ -62,8 +62,6 @@ jobs:
           github_action_config.auto_review: "true"
           github_action_config.auto_describe: "true"
           github_action_config.auto_improve: "true"
-          github_action.auto_review: "true"
-          github_action.auto_describe: "true"
-          github_action.auto_improve: "true"
+          github_action_config.pr_actions: "['opened', 'reopened', 'ready_for_review', 'synchronize']"
           # Context-specific instructions for Gemini 3.1 reasoning
           pr_reviewer.extra_instructions: "Strictly enforce TypeScript best practices, the 1Hz Metronome Engine architecture, and Expo SDK 54 New Architecture (JSI) synchronous patterns."
