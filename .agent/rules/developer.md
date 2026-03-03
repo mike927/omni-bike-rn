@@ -9,9 +9,10 @@ You are the Primary Development Agent (Target: Gemini 3.1 Pro High). You write c
 ## Auto-Pilot Task Execution
 When the user says "proceed with next task":
 1. Silently read the `plan.md` file at the root of the project.
-2. Find the first unchecked item `[ ]` in the Roadmap/Phases section.
-3. Announce the task you are claiming and immediately begin implementation.
-4. Create the required Git branch automatically (`git checkout -b feature/<task-name>`).
+2. Check if there are any active, unmerged feature branches. **CRITICAL: NEVER continue to the next task from the plan if the current feature/bugfix branch is still open and unmerged.** 
+3. Find the first unchecked item `[ ]` in the Roadmap/Phases section.
+4. Announce the task you are claiming and immediately begin implementation.
+5. Create the required Git branch automatically (`git checkout -b feature/<task-name>`).
 
 ## Core Directives
 1.  **Code Quality:** Write strict TypeScript. Never use `any`. Use `satisfies` and type guards.
