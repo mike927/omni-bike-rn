@@ -4,26 +4,32 @@ on:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
     branches: [main]
-  issue_comment:
-    types: [created, edited]
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: pr-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   quality:
-    name: CI Gate (Lint, Type, Test)
+    name: CI Gate (Lint, Type, Test, Build)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
@@ -35,33 +41,44 @@ jobs:
         run: npm run typecheck
 
       - name: Run tests
-        run: npm test
+        run: npm test -- --ci --runInBand
 
       - name: Smoke build
         run: npm run build:smoke
 
   pr_agent_review:
-    name: AI Review (Gemini 3.1 Pro)
+    name: AI Review
     runs-on: ubuntu-latest
-    if: ${{ github.event.sender.type != 'Bot' }}
+    needs: quality
+    if: >
+      github.event_name == 'pull_request' &&
+      github.event.sender.type != 'Bot' &&
+      github.event.pull_request.draft == false
+
     permissions:
-      issues: write
+      contents: read
       pull-requests: write
-      contents: write
+      issues: write
+
     steps:
-      - name: PR Agent action step
-        uses: qodo-ai/pr-agent@main
+      - name: PR Agent
+        uses: qodo-ai/pr-agent@v0.22
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Default Gemini Models
-          config.model: "gemini/gemini-1.5-pro"
-          config.fallback_models: '["gemini/gemini-1.5-flash"]'
-          # Google AI Studio API Key
+
+          # Google AI Studio Key
           GOOGLE_AI_STUDIO.GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          # Automation & Behavior
+
+          # Automation
           github_action_config.auto_review: "true"
           github_action_config.auto_describe: "true"
           github_action_config.auto_improve: "true"
-          github_action_config.pr_actions: "['opened', 'reopened', 'ready_for_review', 'synchronize']"
-          # Context-specific instructions for Gemini 3.1 reasoning
-          pr_reviewer.extra_instructions: "Strictly enforce TypeScript best practices, the 1Hz Metronome Engine architecture, and Expo SDK 54 New Architecture (JSI) synchronous patterns."
+
+          github_action_config.pr_actions: >
+            ["opened", "reopened", "ready_for_review", "synchronize"]
+
+          # Context-specific instructions
+          pr_reviewer.extra_instructions: >
+            Enforce strict TypeScript best practices,
+            validate 1Hz Metronome Engine architecture consistency,
+            and ensure Expo SDK 54 New Architecture (JSI) synchronous patterns.
