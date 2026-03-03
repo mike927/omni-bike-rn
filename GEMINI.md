@@ -97,11 +97,14 @@ When the agent claims a feature or task is complete, it MUST follow this pipelin
 1. **Comprehensive Unit Tests**: Write comprehensive Jest tests covering various test cases (success, failure, edge cases) for all new code.
 2. **CI Gate**: Run `npm run lint`, `npm run typecheck`, `npm test`. All must pass.
 3. **Internal Code Review Loop**:
-   - Delegate a review to a separate agent (the Code Review Agent).
-   - Address and apply the code review comments left by the Code Review Agent.
-   - If the implementing agent disagrees with a specific suggestion, leave a comment/note specifically for the Code Review Agent to decide whether the suggestion should be ignored or enforced.
-   - Re-run CI Gate to ensure nothing broke. Repeat until the Code Review Agent approves the PR.
-4. **Open GitHub PR**: Push the branch and open a PR with structured format (Title, Description, Testing Checklist). The human merges.
+   - The development agent (Gemini 3.1 Pro High) MUST halt its execution and wait for the user to invoke the **Code Review Agent**.
+   - The Code Review Agent MUST strictly be run using the **Claude Opus** model.
+   - The Claude Opus Code Review Agent retrieves the differences between the current feature branch and `main` using `git diff main...HEAD` and analyzes this local diff for architectural alignment, best practices, and bugs.
+   - The Code Review Agent provides its feedback to the user and halts.
+   - The user then returns to the development agent (Gemini 3.1 Pro High) to address and apply the Code Review Agent's feedback.
+   - If the Gemini development agent disagrees with a specific suggestion from Claude Opus, it leaves a comment/note specifically for the Claude Opus agent to decide whether the suggestion should be ignored or enforced.
+   - Re-run CI Gate to ensure nothing broke. Repeat this cross-agent loop until the Code Review Agent (Claude Opus) approves the changes.
+4. **Human Pull Request**: **The agent NEVER creates the GitHub Pull Request.** Once the Internal Code Review Loop passes and the CI Gate is clean, the agent notifies the user. The human user handles the PR creation manually.
 
 ### 4.2. Human PR Review
 When the user shares PR feedback, the agent checks out the branch, applies changes, re-runs CI Gate, and pushes.
