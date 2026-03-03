@@ -4,11 +4,9 @@ on:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
     branches: [main]
-  issue_comment:
-    types: [created, edited]
 
 concurrency:
-  group: pr-${{ github.event.pull_request.number || github.event.issue.number }}
+  group: pr-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -47,41 +45,3 @@ jobs:
 
       - name: Smoke build
         run: npm run build:smoke
-
-  pr_agent_review:
-    name: AI Review (Gemini 3.1)
-    runs-on: ubuntu-latest
-    needs: quality
-    # Allow running automatically on PRs OR when a command is typed in a comment
-    if: >
-      (github.event_name == 'pull_request' && github.event.sender.type != 'Bot' && github.event.pull_request.draft == false) ||
-      (github.event_name == 'issue_comment' && github.event.issue.pull_request != null && github.event.sender.type != 'Bot')
-
-    permissions:
-      contents: read
-      pull-requests: write
-      issues: write
-
-    steps:
-      - name: PR Agent
-        uses: qodo-ai/pr-agent@v0.22
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-          # 1. Map to Google AI Studio Key
-          GOOGLE_AI_STUDIO.GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-
-          # 2. Explicitly define Gemini 3.1 Models
-          config.model: "gemini/gemini-3.1-pro-preview"
-          config.fallback_models: '["gemini/gemini-3.1-flash-lite-preview"]'
-
-          # 3. Automation Settings
-          github_action_config.auto_review: "true"
-          github_action_config.auto_describe: "true"
-          github_action_config.auto_improve: "true"
-
-          # 4. Strict JSON formatting for PR actions
-          github_action_config.pr_actions: '["opened", "reopened", "ready_for_review", "synchronize"]'
-
-          # 5. Clean string formatting for instructions
-          pr_reviewer.extra_instructions: "Enforce strict TypeScript best practices, validate 1Hz Metronome Engine architecture consistency, and ensure Expo SDK 54 New Architecture (JSI) synchronous patterns."
