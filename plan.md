@@ -40,8 +40,9 @@
 - **Session Completion Flow**: When the user taps Stop, the app transitions to a **Session Summary** screen showing key stats (duration, avg/max speed, avg/max HR, distance, calories). From there, the user can Save (with optional rename) or Discard the session.
 - **Session Naming**: Sessions are auto-titled using time-of-day context (e.g., "Morning Ride — Feb 26, 2026", "Evening Ride — Feb 26, 2026"). Users can optionally rename on the Summary screen or later from History.
 - **Live Dashboard**: 
-  - **Initial Metrics (MVP)**: Display large, clean, easy-to-read numbers for Elapsed Time, Speed, and Heart Rate.
-  - **Extensibility**: The UI layout (e.g., a dynamic grid system) and the underlying State (Zustand store) must be designed to easily accept and render new data points (e.g., Power, Cadence, Elevation) in the future without major refactoring.
+  - **Priority Metrics**: Display large, clean, easy-to-read numbers for **Speed, Time, Heart Rate, Power, and Calories Burned**.
+  - **No Zones (MVP)**: Heart Rate and Power zones (color-coding based on effort) are explicitly out of scope for the MVP.
+  - **Extensibility**: The UI layout (e.g., a dynamic grid system) and the underlying State (Zustand store) must be designed to easily accept and render new data points in the future without major refactoring.
 
 ### 2.4. Data Model
 - **Units**: Metric only for MVP (KPH, km, Watt, bpm). All display values must flow through a formatting/units utility layer so imperial support can be added later without touching business logic.
@@ -73,8 +74,9 @@
 - Onboarding state persisted locally so it only runs once. Devices can be re-paired later from the Devices tab.
 
 ## 3. System Behaviors & Edge Cases
-### 3.1. Background Processing
-- Like the native Apple Fitness app, the application must continue to actively record the training session, maintain Bluetooth connections, and sync data when the app is backgrounded or the screen is locked.
+### 3.1. Background Processing & Screen State
+- **Screen On**: When the app is in the foreground during a session, it should prevent the device screen from sleeping (using e.g., `expo-keep-awake`).
+- **Background Persistence**: If the user backgrounds the app (screen locked or using another app like Spotify), the application **MUST** continue to actively record the training session, maintain Bluetooth connections, and sync data without interruption.
 - **Requires Custom Dev Client** (not Expo Go) with `UIBackgroundModes` (`bluetooth-central`) configured in `Info.plist`.
 
 ### 3.2. Sync Frequency & Reconnection
