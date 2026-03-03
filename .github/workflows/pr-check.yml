@@ -53,10 +53,9 @@ jobs:
         uses: qodo-ai/pr-agent@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Latest Gemini 3.1 Models (Released Feb/March 2026)
-          config.model: "gemini/gemini-3.1-pro-preview"
-          config.fallback_models: '["gemini/gemini-3.1-flash-lite-preview"]'
-          config.custom_model_max_tokens: "1000000"
+          # Default Gemini Models
+          config.model: "gemini/gemini-1.5-pro"
+          config.fallback_models: '["gemini/gemini-1.5-flash"]'
           # Google AI Studio API Key
           GOOGLE_AI_STUDIO.GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           # Automation & Behavior
