@@ -51,6 +51,8 @@ describe('useBleScanner', () => {
     });
 
     it('should handle scan errors correctly', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
       (bleManager.state as jest.Mock).mockResolvedValue('PoweredOn');
       (bleManager.startDeviceScan as jest.Mock).mockImplementation((_uuids, _options, listener) => {
         listener(new Error('Scan failed'), null);
@@ -67,6 +69,7 @@ describe('useBleScanner', () => {
       });
 
       expect(result.current.isScanning).toBe(false);
+      consoleSpy.mockRestore();
     });
 
     it('should add discovered devices to the list', async () => {
