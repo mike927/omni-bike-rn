@@ -45,7 +45,7 @@ async function run() {
     // Initialize Gemini
     const genAI = new GoogleGenerativeAI(geminiApiKey);
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-pro',
+      model: 'gemini-1.5-flash',
       systemInstruction: `You are the Omni Bike App Senior Code Review Agent. You audit code for architectural integrity and the CI Definition of Done. 
       
 Core Directives:
