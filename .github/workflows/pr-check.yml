@@ -71,7 +71,7 @@ jobs:
           # Model configuration for Gemini
           config.model: "gemini/gemini-3.1-pro"
           config.fallback_models: '["gemini/gemini-3.1-flash"]'
-          config.custom_model_max_tokens: '{"gemini/gemini-3.1-pro": 1000000, "gemini/gemini-3.1-flash": 1000000}'
+          config.custom_model_max_tokens: "1000000"
           
           # Enable/disable automatic tools
           github_action_config.auto_review: "true"
