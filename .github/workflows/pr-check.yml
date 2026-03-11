@@ -44,3 +44,33 @@ jobs:
 
       - name: Smoke build
         run: npm run build:smoke
+
+  ai_code_review:
+    name: AI Review (Gemini 3.1 Pro)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.event.sender.type != 'Bot'
+
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Review Dependencies
+        run: npm install @google/generative-ai @actions/github @actions/core --no-save
+
+      - name: Run Review Script
+        run: node .github/scripts/ai-review.mjs
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
