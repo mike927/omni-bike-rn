@@ -33,13 +33,13 @@
 ## 4. Roadmap / Phases
 
 ### Phase 1: Foundation & BLE Core
-- [ ] Expo project scaffold, TypeScript, ESLint, Prettier (Enforce New Architecture/JSI)
-- [ ] CI pipeline (GitHub Actions: lint, typecheck, test)
-- [ ] Domain-driven folder structure (`/src/features`, `/src/services`, etc.)
+- [x] Expo project scaffold, TypeScript, ESLint, Prettier (Enforce New Architecture/JSI)
+- [x] CI pipeline (GitHub Actions: lint, typecheck, test)
+- [x] Domain-driven folder structure (`/src/features`, `/src/services`, etc.)
 - [x] BLE scanning & connection to Zipro Rave
 - [ ] Raw metric parsing (confirm available console metrics over BLE)
-- [ ] BLE HR monitor support (standard HR Service `0x180D`)
-- [ ] Add comprehensive unit tests covering various test cases
+- [x] BLE HR monitor support (standard HR Service `0x180D`)
+- [x] Add comprehensive unit tests covering various test cases
 
 ### Phase 2: Training Loop & Dashboard
 - [ ] Zustand store + Metronome engine (1 Hz sampling, JSI optimized)
