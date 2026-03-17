@@ -31,9 +31,6 @@
       ],
       "package": "com.anonymous.omnibikern"
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
     "plugins": [
       "expo-router",
       [

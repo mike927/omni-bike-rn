@@ -13,11 +13,13 @@ export default function HomeScreen() {
       // Determine adapter based on name (very basic heuristic for the testing screen)
       if (
         name?.toLowerCase().includes('zipro') ||
+        name?.toLowerCase().includes('rave') ||
         name?.toLowerCase().includes('bike') ||
         name?.toLowerCase().includes('ic')
       ) {
         const adapter = new ZiproRaveAdapter(deviceId);
         await adapter.connect();
+        adapter.subscribeToMetrics(() => {}); // The logs are in the adapter itself
         Alert.alert('Connected', `Connected to Bike: ${name}`);
       } else {
         const adapter = new StandardHrAdapter(deviceId);

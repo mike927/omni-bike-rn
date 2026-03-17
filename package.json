@@ -10,7 +10,7 @@
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
     "test": "jest --passWithNoTests",
-    "build:smoke": "expo prebuild --clean && expo export",
+    "build:smoke": "expo prebuild --clean && expo export -p ios -p android",
     "prepare": "husky"
   },
   "dependencies": {
