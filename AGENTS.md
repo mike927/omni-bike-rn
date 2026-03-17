@@ -93,6 +93,7 @@ Examples:
 
 - If GitHub access is available, open a pull request with a concise summary.
 - If GitHub access is not available, prepare the pull request summary for a human to open manually.
+- While the pull request is open and waiting for review, keep the related plan item at `[R]`.
 - Include:
   - what changed
   - why it changed
@@ -103,6 +104,11 @@ Examples:
 - Only mark work as `[x]` after approval.
 - Use `[-]` only when work is intentionally skipped or deferred, with a short reason.
 - Keep `plan.md` aligned with accepted progress, not only local code state.
+- Record the approval update in a separate small commit, not inside the original implementation commit.
+
+Example:
+
+- `docs: mark harness refactor as approved in plan`
 
 ### 8. Human Merge
 
