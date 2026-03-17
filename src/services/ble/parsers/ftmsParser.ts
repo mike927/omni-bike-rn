@@ -99,6 +99,7 @@ export function parseFtmsMachineStatus(bytes: Uint8Array): 'started' | 'paused' 
   if (bytes.length < 1) return undefined;
 
   const opCode = bytes[0];
+  console.log(`[ZiproRave] Raw Machine Status OP Code: 0x${opCode!.toString(16).toUpperCase()} (Dec: ${opCode})`);
 
   switch (opCode) {
     case 0x01: // Reset
