@@ -1,5 +1,11 @@
 import type { Subscription } from 'react-native-ble-plx';
 
+export enum BikeStatus {
+  Started = 'started',
+  Paused = 'paused',
+  Stopped = 'stopped',
+}
+
 export interface BikeMetrics {
   speed: number; // km/h
   cadence: number; // RPM
@@ -7,7 +13,7 @@ export interface BikeMetrics {
   distance?: number; // Total distance in meters
   resistance?: number; // Resistance level (varies by machine)
   heartRate?: number; // BPM (if the bike has built-in sensors)
-  status?: 'started' | 'paused' | 'stopped'; // Machine status events
+  status?: BikeStatus; // Machine status events
 }
 
 export interface BikeAdapter {

@@ -1,3 +1,4 @@
+import { BikeStatus } from '../BikeAdapter';
 import { ZiproRaveAdapter } from '../ZiproRaveAdapter';
 import { bleManager } from '../bleClient';
 
@@ -132,7 +133,7 @@ describe('ZiproRaveAdapter', () => {
 
       expect(callback).toHaveBeenLastCalledWith(
         expect.objectContaining({
-          status: 'stopped',
+          status: BikeStatus.Stopped,
           speed: 15.5, // Should retain previous metrics state
         }),
       );

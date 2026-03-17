@@ -1,4 +1,14 @@
-import type { BikeMetrics } from '../BikeAdapter';
+import { BikeStatus, type BikeMetrics } from '../BikeAdapter';
+
+export enum FtmsMachineStatusOpCode {
+  Reset = 0x01,
+  StoppedOrPausedByUser = 0x02,
+  StartedOrResumedZipro = 0x04,
+  TargetResistanceChanged = 0x07,
+  StartedOrResumedStandard = 0x07,
+  SpeedRangeChanged = 0x08,
+  SpinDownStatus = 0x0a,
+}
 
 /**
  * Parses a standard Bluetooth Fitness Machine Service (FTMS) Indoor Bike Data payload.
@@ -93,22 +103,22 @@ export function parseFtmsIndoorBikeData(bytes: Uint8Array): Partial<BikeMetrics>
  * and "Fitness Machine Started".
  *
  * @param bytes The Uint8Array containing the raw Machine Status payload
- * @returns A status string if recognized, otherwise undefined.
+ * @returns A BikeStatus enum if recognized, otherwise undefined.
  */
-export function parseFtmsMachineStatus(bytes: Uint8Array): 'started' | 'paused' | 'stopped' | undefined {
+export function parseFtmsMachineStatus(bytes: Uint8Array): BikeStatus | undefined {
   if (bytes.length < 1) return undefined;
 
-  const opCode = bytes[0];
+  const opCode = bytes[0] as FtmsMachineStatusOpCode;
 
   switch (opCode) {
-    case 0x01: // Reset
-    case 0x02: // Fitness Machine Stopped or Paused by the User
-      return 'stopped';
-    case 0x0a: // Spin Down Status
-      return 'paused';
-    case 0x04: // Fitness Machine Started or Resumed (Zipro Rave mapping)
-    case 0x08: // Speed Range Changed
-      return 'started';
+    case FtmsMachineStatusOpCode.Reset:
+    case FtmsMachineStatusOpCode.StoppedOrPausedByUser:
+      return BikeStatus.Stopped;
+    case FtmsMachineStatusOpCode.SpinDownStatus:
+      return BikeStatus.Paused;
+    case FtmsMachineStatusOpCode.StartedOrResumedZipro:
+    case FtmsMachineStatusOpCode.SpeedRangeChanged:
+      return BikeStatus.Started;
     default:
       // Other events like 0x07 (Target Resistance Changed) don't map to a strict session state
       return undefined;
