@@ -99,18 +99,16 @@ export function parseFtmsMachineStatus(bytes: Uint8Array): 'started' | 'paused' 
   if (bytes.length < 1) return undefined;
 
   const opCode = bytes[0];
-  console.log(`[ZiproRave] Raw Machine Status OP Code: 0x${opCode!.toString(16).toUpperCase()} (Dec: ${opCode})`);
 
   switch (opCode) {
     case 0x01: // Reset
     case 0x02: // Fitness Machine Stopped or Paused by the User
-    case 0x04: // Fitness Machine Stopped by Safety Key
       return 'stopped';
-    case 0x03: // Fitness Machine Stopped by Safety Key (Pause condition based on extension)
-    case 0x0a: // Spin Down Status (Often used for Pausing in simple bikes)
+    case 0x0a: // Spin Down Status
       return 'paused';
-    case 0x07: // Fitness Machine Started or Resumed by the User
-    case 0x08: // Speed Range Changed (Often broadcast when user actively resumes pedaling)
+    case 0x04: // Fitness Machine Started or Resumed (Zipro Rave mapping)
+    case 0x07: // Fitness Machine Started or Resumed (Standard FTMS)
+    case 0x08: // Speed Range Changed
       return 'started';
     default:
       return undefined;
