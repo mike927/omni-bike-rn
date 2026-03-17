@@ -95,7 +95,6 @@ export class ZiproRaveAdapter implements BikeAdapter {
             const statusEvent = parseFtmsMachineStatus(bytes);
             if (statusEvent) {
               latestMetrics = { ...latestMetrics, status: statusEvent };
-              console.log(`[ZiproRave] FTMS Status Event: ${statusEvent}`);
               callback(latestMetrics);
             }
           } catch (err) {
