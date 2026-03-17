@@ -100,12 +100,14 @@ describe('ZiproRaveAdapter', () => {
       const monitorCallback = mockDevice.monitorCharacteristicForService.mock.calls[0][2];
 
       // Simulate FTMS Indoor Bike Data payload:
-      // Flags: Bit 0=0 (Speed), Bit 2=1 (Cadence), Bit 6=1 (Power).
-      // Decimal 68 -> 0x44. Two bytes: [0x44, 0x00]
+      // Flags (16-bit) -> 0x0074 (Binary: 0000 0000 0111 0100) -> Speed(0), Cadence(1), Distance(1), Resistance(1), Power(1)
+      // Two bytes: [0x74, 0x00]
       // Speed (15.5 km/h) -> 1550 (0x060E). Bytes: [14, 6]
       // Cadence (85 RPM) -> 170 (resol 0.5) (0x00AA). Bytes: [170, 0]
+      // Distance (1200 meters) -> 1200 (0x0004B0). Bytes: [176, 4, 0]
+      // Resistance (12) -> 12 (0x000C). Bytes: [12, 0]
       // Power (150 W) -> 150 (0x0096). Bytes: [150, 0]
-      const mockBytes = new Uint8Array([0x44, 0x00, 14, 6, 170, 0, 150, 0]);
+      const mockBytes = new Uint8Array([0x74, 0x00, 14, 6, 170, 0, 176, 4, 0, 12, 0, 150, 0]);
       // Convert to base64
       let binaryString = '';
       for (let i = 0; i < mockBytes.length; i++) {
@@ -113,12 +115,16 @@ describe('ZiproRaveAdapter', () => {
       }
       const base64Value = btoa(binaryString);
 
-      monitorCallback(null, { value: base64Value });
+      const mockChar = { value: base64Value };
+      monitorCallback(null, mockChar);
 
       expect(callback).toHaveBeenCalledWith({
         speed: 15.5,
         cadence: 85,
         power: 150,
+        distance: 1200,
+        resistance: 12,
+        heartRate: undefined, // Not in flags
       });
     });
   });

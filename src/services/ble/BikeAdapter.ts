@@ -1,13 +1,12 @@
 import type { Subscription } from 'react-native-ble-plx';
 
 export interface BikeMetrics {
-  power?: number;
-  cadence?: number;
-  speed?: number;
-  distance?: number;
-  time?: number;
-  calories?: number;
-  hr?: number;
+  speed: number; // km/h
+  cadence: number; // RPM
+  power: number; // Watts
+  distance?: number; // Total distance in meters
+  resistance?: number; // Resistance level (varies by machine)
+  heartRate?: number; // BPM (if the bike has built-in sensors)
 }
 
 export interface BikeAdapter {

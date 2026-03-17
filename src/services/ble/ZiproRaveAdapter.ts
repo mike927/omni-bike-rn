@@ -51,12 +51,15 @@ export class ZiproRaveAdapter implements BikeAdapter {
 
           const parsedMetrics = parseFtmsIndoorBikeData(bytes);
 
-          // Our App's domain model requires numbers, but the parser returns a partial optionally-undefined object.
-          // We'll fill in zeros for any sensors the bike didn't report.
+          // Our App's domain model requires numbers for core metrics, but the parser returns a partial optionally-undefined object.
+          // We'll fill in zeros for any core sensors the bike didn't report, and pass through the optional ones.
           const metrics: BikeMetrics = {
             speed: parsedMetrics.speed ?? 0,
             cadence: parsedMetrics.cadence ?? 0,
             power: parsedMetrics.power ?? 0,
+            distance: parsedMetrics.distance,
+            resistance: parsedMetrics.resistance,
+            heartRate: parsedMetrics.heartRate,
           };
 
           callback(metrics);

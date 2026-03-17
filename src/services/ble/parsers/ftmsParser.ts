@@ -42,29 +42,46 @@ export function parseFtmsIndoorBikeData(bytes: Uint8Array): Partial<BikeMetrics>
     offset += 2;
   }
 
-  // Total Distance is present if Bit 4 is 1
-  if ((flags & 0x0010) !== 0) {
-    offset += 3; // 24-bit UINT
+  let distance: number | undefined;
+  // Total Distance is present if Bit 4 is 1 (24-bit UINT)
+  if ((flags & 0x0010) !== 0 && offset + 2 < bytes.length) {
+    distance = bytes[offset]! | (bytes[offset + 1]! << 8) | (bytes[offset + 2]! << 16);
+    offset += 3;
   }
 
-  // Resistance Level is present if Bit 5 is 1
-  if ((flags & 0x0020) !== 0) {
-    offset += 2; // INT16
-  }
-
-  let power: number | undefined;
-  // Instantaneous Power is present if Bit 6 is 1
-  if ((flags & 0x0040) !== 0 && offset + 1 < bytes.length) {
-    power = bytes[offset]! | (bytes[offset + 1]! << 8); // SINT16
+  let resistance: number | undefined;
+  // Resistance Level is present if Bit 5 is 1 (SINT16)
+  if ((flags & 0x0020) !== 0 && offset + 1 < bytes.length) {
+    const rawResist = bytes[offset]! | (bytes[offset + 1]! << 8);
+    // Handle signed 16-bit integer
+    resistance = rawResist >= 32768 ? rawResist - 65536 : rawResist;
     offset += 2;
   }
 
-  // There are more flags (Heart Rate, Energy, Elapsed Time)
-  // that can be added here if needed in the future.
+  let power: number | undefined;
+  // Instantaneous Power is present if Bit 6 is 1 (SINT16)
+  if ((flags & 0x0040) !== 0 && offset + 1 < bytes.length) {
+    const rawPower = bytes[offset]! | (bytes[offset + 1]! << 8);
+    power = rawPower >= 32768 ? rawPower - 65536 : rawPower;
+    offset += 2;
+  }
+
+  let heartRate: number | undefined;
+  // Heart Rate is present if Bit 9 is 1 (UINT8)
+  if ((flags & 0x0200) !== 0 && offset < bytes.length) {
+    heartRate = bytes[offset]!;
+    offset += 1;
+  }
+
+  // Energy is present if Bit 10 is 1 (UINT16 x 5)
+  // Elapsed Time is present if Bit 11 is 1 (UINT16)
 
   return {
     ...(speed !== undefined && { speed }),
     ...(cadence !== undefined && { cadence }),
     ...(power !== undefined && { power }),
+    ...(distance !== undefined && { distance }),
+    ...(resistance !== undefined && { resistance }),
+    ...(heartRate !== undefined && { heartRate }),
   };
 }
