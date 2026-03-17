@@ -7,6 +7,7 @@ export interface BikeMetrics {
   distance?: number; // Total distance in meters
   resistance?: number; // Resistance level (varies by machine)
   heartRate?: number; // BPM (if the bike has built-in sensors)
+  status?: 'started' | 'paused' | 'stopped'; // Machine status events
 }
 
 export interface BikeAdapter {

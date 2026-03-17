@@ -96,27 +96,20 @@ describe('ZiproRaveAdapter', () => {
       const callback = jest.fn();
       adapter.subscribeToMetrics(callback);
 
-      // Extract the callback that the adapter passed to monitorCharacteristicForService
-      const monitorCallback = mockDevice.monitorCharacteristicForService.mock.calls[0][2];
+      // Extract the callbacks that the adapter passed to monitorCharacteristicForService
+      const dataCallback = mockDevice.monitorCharacteristicForService.mock.calls[0][2];
+      const statusCallback = mockDevice.monitorCharacteristicForService.mock.calls[1][2];
 
-      // Simulate FTMS Indoor Bike Data payload:
+      // 1. Simulate FTMS Indoor Bike Data payload:
       // Flags (16-bit) -> 0x0074 (Binary: 0000 0000 0111 0100) -> Speed(0), Cadence(1), Distance(1), Resistance(1), Power(1)
-      // Two bytes: [0x74, 0x00]
-      // Speed (15.5 km/h) -> 1550 (0x060E). Bytes: [14, 6]
-      // Cadence (85 RPM) -> 170 (resol 0.5) (0x00AA). Bytes: [170, 0]
-      // Distance (1200 meters) -> 1200 (0x0004B0). Bytes: [176, 4, 0]
-      // Resistance (12) -> 12 (0x000C). Bytes: [12, 0]
-      // Power (150 W) -> 150 (0x0096). Bytes: [150, 0]
       const mockBytes = new Uint8Array([0x74, 0x00, 14, 6, 170, 0, 176, 4, 0, 12, 0, 150, 0]);
-      // Convert to base64
       let binaryString = '';
       for (let i = 0; i < mockBytes.length; i++) {
         binaryString += String.fromCharCode(mockBytes[i]!);
       }
-      const base64Value = btoa(binaryString);
 
-      const mockChar = { value: base64Value };
-      monitorCallback(null, mockChar);
+      const mockDataChar = { value: btoa(binaryString) };
+      dataCallback(null, mockDataChar);
 
       expect(callback).toHaveBeenCalledWith({
         speed: 15.5,
@@ -126,6 +119,23 @@ describe('ZiproRaveAdapter', () => {
         resistance: 12,
         heartRate: undefined, // Not in flags
       });
+
+      // 2. Simulate Machine Status Event: User Paused (0x02)
+      const mockStatusBytes = new Uint8Array([0x02]);
+      let statusBinaryString = '';
+      for (let i = 0; i < mockStatusBytes.length; i++) {
+        statusBinaryString += String.fromCharCode(mockStatusBytes[i]!);
+      }
+
+      const mockStatusChar = { value: btoa(statusBinaryString) };
+      statusCallback(null, mockStatusChar);
+
+      expect(callback).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          status: 'stopped',
+          speed: 15.5, // Should retain previous metrics state
+        }),
+      );
     });
   });
 });

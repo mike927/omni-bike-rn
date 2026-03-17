@@ -1,7 +1,7 @@
 import type { Device, Subscription } from 'react-native-ble-plx';
 import type { BikeAdapter, BikeMetrics } from './BikeAdapter';
 import { bleManager } from './bleClient';
-import { parseFtmsIndoorBikeData } from './parsers/ftmsParser';
+import { parseFtmsIndoorBikeData, parseFtmsMachineStatus } from './parsers/ftmsParser';
 
 export class ZiproRaveAdapter implements BikeAdapter {
   private device: Device | null = null;
@@ -29,44 +29,87 @@ export class ZiproRaveAdapter implements BikeAdapter {
       throw new Error('Device not connected');
     }
 
-    // Standard FTMS Service and Indoor Bike Data Characteristic
+    // Standard FTMS Service, Indoor Bike Data Characteristic, and Machine Status Characteristic
     const SERVICE_UUID = '00001826-0000-1000-8000-00805f9b34fb';
-    const CHAR_UUID = '00002ad2-0000-1000-8000-00805f9b34fb';
+    const CHAR_UUID_DATA = '00002ad2-0000-1000-8000-00805f9b34fb';
+    const CHAR_UUID_STATUS = '00002ada-0000-1000-8000-00805f9b34fb';
 
-    console.log(`[ZiproRave] Subscribing to FTMS Indoor Bike Data (${CHAR_UUID})...`);
+    let latestMetrics: BikeMetrics = { speed: 0, cadence: 0, power: 0 };
 
-    return this.device.monitorCharacteristicForService(SERVICE_UUID, CHAR_UUID, (error, characteristic) => {
-      if (error) {
-        console.error('[ZiproRave] FTMS Monitoring error:', error);
-        return;
-      }
-
-      if (characteristic?.value) {
-        try {
-          const binaryString = atob(characteristic.value);
-          const bytes = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-          }
-
-          const parsedMetrics = parseFtmsIndoorBikeData(bytes);
-
-          // Our App's domain model requires numbers for core metrics, but the parser returns a partial optionally-undefined object.
-          // We'll fill in zeros for any core sensors the bike didn't report, and pass through the optional ones.
-          const metrics: BikeMetrics = {
-            speed: parsedMetrics.speed ?? 0,
-            cadence: parsedMetrics.cadence ?? 0,
-            power: parsedMetrics.power ?? 0,
-            distance: parsedMetrics.distance,
-            resistance: parsedMetrics.resistance,
-            heartRate: parsedMetrics.heartRate,
-          };
-
-          callback(metrics);
-        } catch (err) {
-          console.error('[ZiproRave] Error parsing FTMS metrics:', err);
+    const dataSub = this.device.monitorCharacteristicForService(
+      SERVICE_UUID,
+      CHAR_UUID_DATA,
+      (error, characteristic) => {
+        if (error) {
+          console.error('[ZiproRave] FTMS Data Monitoring error:', error);
+          return;
         }
-      }
-    });
+
+        if (characteristic?.value) {
+          try {
+            const binaryString = atob(characteristic.value);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+
+            const parsedMetrics = parseFtmsIndoorBikeData(bytes);
+
+            // Update latest metrics state
+            latestMetrics = {
+              ...latestMetrics,
+              speed: parsedMetrics.speed ?? 0,
+              cadence: parsedMetrics.cadence ?? 0,
+              power: parsedMetrics.power ?? 0,
+              ...(parsedMetrics.distance !== undefined && { distance: parsedMetrics.distance }),
+              ...(parsedMetrics.resistance !== undefined && { resistance: parsedMetrics.resistance }),
+              ...(parsedMetrics.heartRate !== undefined && { heartRate: parsedMetrics.heartRate }),
+            };
+
+            console.log('[ZiproRave] Decoded FTMS Metrics:', latestMetrics);
+            callback(latestMetrics);
+          } catch (err) {
+            console.error('[ZiproRave] Error parsing FTMS metrics:', err);
+          }
+        }
+      },
+    );
+
+    const statusSub = this.device.monitorCharacteristicForService(
+      SERVICE_UUID,
+      CHAR_UUID_STATUS,
+      (error, characteristic) => {
+        if (error) {
+          console.error('[ZiproRave] FTMS Status Monitoring error:', error);
+          return;
+        }
+
+        if (characteristic?.value) {
+          try {
+            const binaryString = atob(characteristic.value);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+
+            const statusEvent = parseFtmsMachineStatus(bytes);
+            if (statusEvent) {
+              latestMetrics = { ...latestMetrics, status: statusEvent };
+              console.log(`[ZiproRave] FTMS Status Event: ${statusEvent}`);
+              callback(latestMetrics);
+            }
+          } catch (err) {
+            console.error('[ZiproRave] Error parsing FTMS status:', err);
+          }
+        }
+      },
+    );
+
+    return {
+      remove: () => {
+        dataSub.remove();
+        statusSub.remove();
+      },
+    };
   }
 }

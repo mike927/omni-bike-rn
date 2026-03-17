@@ -85,3 +85,33 @@ export function parseFtmsIndoorBikeData(bytes: Uint8Array): Partial<BikeMetrics>
     ...(heartRate !== undefined && { heartRate }),
   };
 }
+
+/**
+ * Parses a standard Bluetooth Fitness Machine Service (FTMS) Machine Status payload.
+ *
+ * This characteristic broadcasts events like "Start/Resume", "Stop/Pause",
+ * and "Fitness Machine Started".
+ *
+ * @param bytes The Uint8Array containing the raw Machine Status payload
+ * @returns A status string if recognized, otherwise undefined.
+ */
+export function parseFtmsMachineStatus(bytes: Uint8Array): 'started' | 'paused' | 'stopped' | undefined {
+  if (bytes.length < 1) return undefined;
+
+  const opCode = bytes[0];
+
+  switch (opCode) {
+    case 0x01: // Reset
+    case 0x02: // Fitness Machine Stopped or Paused by the User
+    case 0x04: // Fitness Machine Stopped by Safety Key
+      return 'stopped';
+    case 0x03: // Fitness Machine Stopped by Safety Key (Pause condition based on extension)
+    case 0x0a: // Spin Down Status (Often used for Pausing in simple bikes)
+      return 'paused';
+    case 0x07: // Fitness Machine Started or Resumed by the User
+    case 0x08: // Speed Range Changed (Often broadcast when user actively resumes pedaling)
+      return 'started';
+    default:
+      return undefined;
+  }
+}
