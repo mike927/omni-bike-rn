@@ -99,6 +99,11 @@ export function parseFtmsMachineStatus(bytes: Uint8Array): 'started' | 'paused' 
   if (bytes.length < 1) return undefined;
 
   const opCode = bytes[0];
+  const hexBytes = Array.from(bytes)
+    .map((b) => `0x${b.toString(16).toUpperCase().padStart(2, '0')}`)
+    .join(', ');
+
+  console.log(`[ZiproRave] Raw Machine Status Payload: [${hexBytes}]`);
 
   switch (opCode) {
     case 0x01: // Reset
@@ -106,10 +111,7 @@ export function parseFtmsMachineStatus(bytes: Uint8Array): 'started' | 'paused' 
       return 'stopped';
     case 0x0a: // Spin Down Status
       return 'paused';
-    case 0x04: // Fitness Machine Started or Resumed (Zipro Rave mapping)
-    case 0x07: // Fitness Machine Started or Resumed (Standard FTMS)
-    case 0x08: // Speed Range Changed
-      return 'started';
+    // We are temporarily removing 'started' mappings until we confirm the exact Zipro byte
     default:
       return undefined;
   }
