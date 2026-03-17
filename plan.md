@@ -32,12 +32,20 @@
 
 ## 4. Roadmap / Phases
 
+### Task State Legend
+- `[ ]` not started
+- `[~]` in progress
+- `[?]` blocked or needs clarification
+- `[R]` implemented and in review / waiting for approval
+- `[x]` completed and approved
+- `[-]` intentionally skipped or deferred
+
 ### Phase 1: Foundation & BLE Core
 - [x] Expo project scaffold, TypeScript, ESLint, Prettier (Enforce New Architecture/JSI)
 - [x] CI pipeline (GitHub Actions: lint, typecheck, test)
 - [x] Domain-driven folder structure (`/src/features`, `/src/services`, etc.)
 - [x] BLE scanning & connection to Zipro Rave
-- [ ] Raw metric parsing (confirm available console metrics over BLE)
+- [~] Raw metric parsing (FTMS parser exists; on-device metric confirmation is still pending)
 - [x] BLE HR monitor support (standard HR Service `0x180D`)
 - [x] Add comprehensive unit tests covering various test cases
 
