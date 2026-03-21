@@ -6,13 +6,41 @@ description: Use this skill for iOS-specific app behavior, native integration, b
 
 Use this skill when the task is specifically about iOS behavior or Apple platform integration.
 
-Read these files first:
+## Current State
 
-- `plan.md`
-- `AGENTS.md`
+- **Expo SDK 54** with New Architecture (JSI) enforced
+- **expo-router** for file-based navigation
+- iOS is the **primary and only target** for the MVP
 
-Focus on:
+## Planned Integrations
 
-- iOS-specific setup
-- background behavior
-- Apple platform integration paths when they become relevant
+### Live Activities & Dynamic Island (Phase 2)
+
+- Package: `react-native-activity-kit`
+- Surface live training metrics (speed, HR, time) on the Lock Screen and Dynamic Island when the app is backgrounded
+- Requires an Activity Attributes definition and a Widget Extension in the native iOS project
+
+### Apple Health Export (Phase 4)
+
+- Package: `react-native-health`
+- Export completed sessions only (not live streaming)
+- Requires HealthKit entitlement and `NSHealthShareUsageDescription` / `NSHealthUpdateUsageDescription` in `Info.plist`
+
+### WatchOS Companion (Phase 3)
+
+- Native SwiftUI app using HealthKit workout sessions
+- Real-time HR streaming via WatchConnectivity framework
+- Requires a Watch target in the Xcode project and shared App Group for data passing
+
+## Background Modes
+
+When background recording is implemented (Phase 3), the app will need:
+
+- `bluetooth-central` background mode (already implied by BLE usage)
+- `processing` background mode for session persistence
+- Careful handling of iOS suspension — BLE connections can be maintained but callbacks may be delayed
+
+## Key Native Files
+
+- `ios/` — managed by Expo prebuild; avoid manual edits unless necessary
+- `app.json` — Expo config including iOS-specific settings (bundleId, entitlements)

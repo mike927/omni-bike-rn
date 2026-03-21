@@ -6,9 +6,10 @@ This file contains the always-on instructions for agents working in this reposit
 
 Read these in this order before feature work:
 
-1. `plan.md`
-2. This `AGENTS.md` file
-3. Relevant files under `ai/skills/*/SKILL.md`
+1. `PROJECT.md`
+2. `plan.md`
+3. This `AGENTS.md` file
+4. Relevant files under `ai/skills/*/SKILL.md`
 
 `plan.md` is the single source of truth for project scope and progress.
 
@@ -49,6 +50,38 @@ Examples:
 - `feat: add BLE metronome engine`
 - `fix: correct FTMS machine status parsing`
 - `docs: update project progress in plan`
+
+## Coding Conventions
+
+### TypeScript
+
+- Strict mode is enforced. `noUncheckedIndexedAccess` and `noFallthroughCasesInSwitch` are on.
+- Never use `as any`. Use the actual schema or type returned by a given service.
+- Use `type` imports for type-only values. Enforced by ESLint (`consistent-type-imports`).
+- Prefer `interface` for contracts and public API shapes. Use `type` for unions, intersections, and utility types.
+- Interfaces and type aliases use `PascalCase`. Enum members use `UPPER_CASE` or `PascalCase`.
+
+### Architecture
+
+- Use the adapter pattern for external integrations. Define a contract interface (e.g., `BikeAdapter`, `HrAdapter`) and implement it per device or provider.
+- Feature logic lives in `src/features/<domain>/`. Service and transport logic lives in `src/services/<domain>/`.
+- Hooks are the public API of a feature. They live in `src/features/<domain>/hooks/`.
+- Parsers are pure functions that live in `src/services/<domain>/parsers/`.
+- Keep layers directional: features → services → parsers. Never import upward.
+
+### Testing
+
+- Use Jest. Test files live in `__tests__/` directories next to the source they test.
+- Name test files `<Module>.test.ts`.
+- Mock external dependencies (e.g., `bleClient`) at the module level using `jest.mock()`.
+- Use `describe` blocks per method or behavior. Use `it` for individual cases.
+
+### Style
+
+- Use tagged logging: `console.error('[ClassName] message')`.
+- Use `unknown` for caught errors, not `any`. Narrow with `instanceof Error`.
+- Prefer `const` and `prefer-const` is enforced.
+- Prettier is integrated via ESLint (120 char width, single quotes, trailing commas).
 
 ## Feature Workflow
 
@@ -138,4 +171,18 @@ Examples:
 - `ai/skills/quality-review/SKILL.md` for internal review and quality checks
 - `ai/skills/architecture/SKILL.md` for boundaries, ownership, and structure
 - `ai/skills/ios-native/SKILL.md` for iOS-specific behavior
-- `ai/skills/ai-setup/SKILL.md` for work on the harness itself
+
+### Adding A New Skill
+
+1. Create a folder at `ai/skills/<skill-name>/`.
+2. Add a `SKILL.md` file with YAML frontmatter (`name`, `description`).
+3. Write domain-specific content: context, key files, patterns, known issues.
+4. Reference it from this section.
+
+Skills are optional helpers. They support this file, not replace it.
+
+## Provider-Specific Configuration
+
+This harness is provider-agnostic. All instructions live in plain markdown.
+
+If a specific AI tool requires its own config file (e.g., `.gemini/settings.json`, `CLAUDE.md`, `.cursor/rules`), that file should contain **only provider configuration** (model selection, context settings, etc.). Never duplicate instructions from `AGENTS.md` or skills into provider config files.
