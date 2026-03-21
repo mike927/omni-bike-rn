@@ -12,17 +12,9 @@ Use this skill when the task is about BLE scanning, FTMS parsing, bike devices, 
 - `src/services/ble/` — BLE transport, adapters, and client
 - `src/services/ble/parsers/` — Pure parsing functions
 
-## Adapter Pattern
-
-Device integrations follow a contract-first adapter pattern:
-
-- `BikeAdapter` interface: `connect()`, `disconnect()`, `subscribeToMetrics()`
-- `HrAdapter` interface: `connect()`, `disconnect()`, `subscribeToHeartRate()`
-- Each physical device gets its own adapter class (e.g., `ZiproRaveAdapter`, `StandardHrAdapter`)
-
 ## FTMS (Fitness Machine Service)
 
-The primary bike protocol. Key details:
+The primary bike protocol. Key UUIDs:
 
 | Item | UUID |
 |---|---|
@@ -56,3 +48,7 @@ Defined in `FtmsMachineStatusOpCode` enum. Known Zipro Rave quirk: the bike uses
 - Uses `atob`/`charCodeAt` for base64 → byte conversion (no `Buffer` available in this path).
 - `StandardHrAdapter` uses `Buffer.from()` instead (polyfilled via `buffer` package).
 - The bike sends BLE notifications on two characteristics simultaneously (data + status). The adapter merges them into a single `BikeMetrics` callback.
+
+## See Also
+
+- `ai/skills/architecture/SKILL.md` for the adapter pattern and layer rules that apply to all BLE code.

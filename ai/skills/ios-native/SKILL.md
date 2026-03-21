@@ -32,15 +32,8 @@ Use this skill when the task is specifically about iOS behavior or Apple platfor
 - Real-time HR streaming via WatchConnectivity framework
 - Requires a Watch target in the Xcode project and shared App Group for data passing
 
-## Background Modes
+## Known Issues
 
-When background recording is implemented (Phase 3), the app will need:
-
-- `bluetooth-central` background mode (already implied by BLE usage)
-- `processing` background mode for session persistence
-- Careful handling of iOS suspension — BLE connections can be maintained but callbacks may be delayed
-
-## Key Native Files
-
-- `ios/` — managed by Expo prebuild; avoid manual edits unless necessary
-- `app.json` — Expo config including iOS-specific settings (bundleId, entitlements)
+- `ios/` is managed by Expo prebuild — avoid manual edits unless necessary
+- `app.json` holds iOS-specific settings (bundleId, entitlements)
+- When background recording lands (Phase 3), the app will need `bluetooth-central` and `processing` background modes. BLE connections survive suspension but callbacks may be delayed.

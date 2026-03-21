@@ -29,20 +29,6 @@ src/
   utils/             ← shared utility functions
 ```
 
-## Layer Rules
-
-Imports flow **downward only**:
-
-```
-features → services → parsers
-   ↓          ↓
-  hooks     adapters
-```
-
-- Features may import from services but never the reverse.
-- Parsers are pure functions with no side effects and no BLE library imports.
-- Adapters implement a contract interface and encapsulate device-specific transport.
-
 ## Adapter Pattern
 
 External integrations use a contract interface + concrete implementation:
@@ -67,3 +53,7 @@ New devices get a new adapter class, not changes to existing ones.
 - **expo-router**: File-based routing under `app/`.
 - **No barrel exports**: Import directly from the module file.
 - **Hooks as public API**: Feature logic is only consumed through hooks, never by importing services directly from UI.
+
+## See Also
+
+- `AGENTS.md` § Coding Conventions for layer rules, import direction, and naming conventions.
