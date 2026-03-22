@@ -1,7 +1,12 @@
 import type { Device, Subscription } from 'react-native-ble-plx';
 import type { BikeAdapter, BikeMetrics, BikeStatus } from './BikeAdapter';
 import { bleManager } from './bleClient';
-import { parseFtmsIndoorBikeData, parseFtmsMachineStatus } from './parsers/ftmsParser';
+import {
+  parseFtmsIndoorBikeData,
+  parseFtmsMachineStatus,
+  FtmsControlPointOpCode,
+  FtmsStopPauseCmd,
+} from './parsers/ftmsParser';
 
 export class ZiproRaveAdapter implements BikeAdapter {
   private device: Device | null = null;
@@ -123,12 +128,15 @@ export class ZiproRaveAdapter implements BikeAdapter {
 
     try {
       let command: number[] | null = null;
-      if (status === 'started') command = [0x07];
-      else if (status === 'paused')
-        command = [0x08, 0x02]; // 0x08 = Stop/Pause, 0x02 = Pause
-      else if (status === 'stopped')
-        command = [0x08, 0x01]; // 0x08 = Stop/Pause, 0x01 = Stop
-      else if (status === 'reset') command = [0x01]; // 0x01 = Reset metrics
+      if (status === 'started') {
+        command = [FtmsControlPointOpCode.StartOrResume];
+      } else if (status === 'paused') {
+        command = [FtmsControlPointOpCode.StopOrPause, FtmsStopPauseCmd.Pause];
+      } else if (status === 'stopped') {
+        command = [FtmsControlPointOpCode.StopOrPause, FtmsStopPauseCmd.Stop];
+      } else if (status === 'reset') {
+        command = [FtmsControlPointOpCode.Reset];
+      }
 
       if (command) {
         // Many fitness machines crash or drop the BLE connection if you send the
