@@ -17,7 +17,7 @@ See `PROJECT.md` for business requirements, functional requirements, and technol
 - [x] CI pipeline (GitHub Actions: lint, typecheck, test)
 - [x] Domain-driven folder structure (`/src/features`, `/src/services`, etc.)
 - [x] BLE scanning & connection to Zipro Rave
-- [~] Raw metric parsing (FTMS parser exists; on-device metric confirmation is still pending)
+- [x] Raw metric parsing (FTMS Indoor Bike Data + Machine Status)
 - [x] BLE HR monitor support (standard HR Service `0x180D`)
 - [x] Add comprehensive unit tests covering various test cases
 
