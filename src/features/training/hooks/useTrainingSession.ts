@@ -1,8 +1,10 @@
-import { useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 
 import { MetronomeEngine } from '../../../services/metronome/MetronomeEngine';
 import { useTrainingSessionStore } from '../../../store/trainingSessionStore';
-import type { TrainingPhase, MetricSnapshot } from '../../../types/training';
+import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
+import { BikeStatus } from '../../../services/ble/BikeAdapter';
+import { TrainingPhase, type MetricSnapshot } from '../../../types/training';
 
 interface UseTrainingSessionReturn {
   // ── Read-only state ────────────────────────────────────
@@ -38,6 +40,7 @@ export function useTrainingSession(): UseTrainingSessionReturn {
 
   const start = useCallback(() => {
     useTrainingSessionStore.getState().start();
+    useDeviceConnectionStore.getState().bikeAdapter?.setControlState(BikeStatus.Started);
 
     if (!engineRef.current) {
       engineRef.current = new MetronomeEngine();
@@ -47,16 +50,19 @@ export function useTrainingSession(): UseTrainingSessionReturn {
 
   const pause = useCallback(() => {
     useTrainingSessionStore.getState().pause();
+    useDeviceConnectionStore.getState().bikeAdapter?.setControlState(BikeStatus.Paused);
     engineRef.current?.stop();
   }, []);
 
   const resume = useCallback(() => {
     useTrainingSessionStore.getState().resume();
+    useDeviceConnectionStore.getState().bikeAdapter?.setControlState(BikeStatus.Started);
     engineRef.current?.start();
   }, []);
 
   const finish = useCallback(() => {
     useTrainingSessionStore.getState().finish();
+    useDeviceConnectionStore.getState().bikeAdapter?.setControlState(BikeStatus.Stopped);
     engineRef.current?.stop();
     engineRef.current = null;
   }, []);
@@ -64,8 +70,33 @@ export function useTrainingSession(): UseTrainingSessionReturn {
   const reset = useCallback(() => {
     engineRef.current?.stop();
     engineRef.current = null;
+    useDeviceConnectionStore.getState().bikeAdapter?.setControlState(BikeStatus.Reset);
     useTrainingSessionStore.getState().reset();
   }, []);
+
+  // ── Sync from Bike to App ──────────────────────────────
+  const latestBikeStatus = useDeviceConnectionStore((s) => s.latestBikeMetrics?.status);
+
+  useEffect(() => {
+    if (!latestBikeStatus) return;
+    const currentPhase = useTrainingSessionStore.getState().phase;
+
+    if (latestBikeStatus === BikeStatus.Started) {
+      if (currentPhase === TrainingPhase.Idle) {
+        start();
+      } else if (currentPhase === TrainingPhase.Paused) {
+        resume();
+      }
+    } else if (latestBikeStatus === BikeStatus.Paused) {
+      if (currentPhase === TrainingPhase.Active) {
+        pause();
+      }
+    } else if (latestBikeStatus === BikeStatus.Stopped) {
+      if (currentPhase === TrainingPhase.Active || currentPhase === TrainingPhase.Paused) {
+        finish();
+      }
+    }
+  }, [latestBikeStatus, start, resume, pause, finish]);
 
   return {
     phase,

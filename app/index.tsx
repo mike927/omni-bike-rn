@@ -1,8 +1,8 @@
 import { View, Text, StyleSheet, Button, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { useBleScanner } from '../src/features/devices/hooks/useBleScanner';
-import { ZiproRaveAdapter } from '../src/services/ble/ZiproRaveAdapter';
-import { StandardHrAdapter } from '../src/services/ble/StandardHrAdapter';
+
 import { useTrainingSession } from '../src/features/training/hooks/useTrainingSession';
+import { useDeviceConnection } from '../src/features/training/hooks/useDeviceConnection';
 
 function DashboardPreview() {
   const session = useTrainingSession();
@@ -12,7 +12,9 @@ function DashboardPreview() {
       <Text style={styles.dashboardTitle}>Live Store Data</Text>
       <Text style={styles.dashboardText}>Phase: {session.phase}</Text>
       <Text style={styles.dashboardText}>Time: {session.elapsedSeconds} sec</Text>
+      <Text style={styles.dashboardText}>Distance: {(session.totalDistance / 1000).toFixed(2)} km</Text>
       <Text style={styles.dashboardText}>Speed: {session.currentMetrics.speed.toFixed(1)} km/h</Text>
+      <Text style={styles.dashboardText}>Resistance (Level): {session.currentMetrics.resistance ?? '--'}</Text>
       <Text style={styles.dashboardText}>Power: {session.currentMetrics.power} W</Text>
       <Text style={styles.dashboardText}>HR: {session.currentMetrics.heartRate ?? '--'} bpm</Text>
       <Text style={styles.dashboardText}>Calories: {session.totalCalories.toFixed(1)} kcal</Text>
@@ -32,6 +34,7 @@ function DashboardPreview() {
 
 export default function HomeScreen() {
   const { devices, isScanning, error, scanForDevices, stopScanning } = useBleScanner();
+  const { connectBike, connectHr } = useDeviceConnection();
 
   const handleConnect = async (deviceId: string, name: string | null) => {
     try {
@@ -44,13 +47,10 @@ export default function HomeScreen() {
         name?.toLowerCase().includes('bike') ||
         name?.toLowerCase().includes('ic')
       ) {
-        const adapter = new ZiproRaveAdapter(deviceId);
-        await adapter.connect();
-        adapter.subscribeToMetrics(() => {}); // The logs are in the adapter itself
+        await connectBike(deviceId);
         Alert.alert('Connected', `Connected to Bike: ${name}`);
       } else {
-        const adapter = new StandardHrAdapter(deviceId);
-        await adapter.connect();
+        await connectHr(deviceId);
         Alert.alert('Connected', `Connected to HR Monitor: ${name}`);
       }
     } catch (err: unknown) {

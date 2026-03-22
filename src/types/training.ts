@@ -25,6 +25,8 @@ export interface MetricSnapshot {
   heartRate: number | null;
   /** Resistance level (machine-specific), null when not reported. */
   resistance: number | null;
+  /** Total distance in meters, reported by the machine. Null if not reported. */
+  distance: number | null;
 }
 
 /** Allowed transitions for the training state machine. */

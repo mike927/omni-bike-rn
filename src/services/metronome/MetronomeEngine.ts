@@ -65,10 +65,11 @@ export class MetronomeEngine {
     const cadence = bikeMetrics?.cadence ?? 0;
     const power = bikeMetrics?.power ?? 0;
     const resistance = bikeMetrics?.resistance ?? null;
+    const distance = bikeMetrics?.distance ?? null;
 
     // HR priority: external HR strap > bike built-in sensor
     const heartRate = externalHr ?? bikeMetrics?.heartRate ?? null;
 
-    return { speed, cadence, power, heartRate, resistance };
+    return { speed, cadence, power, heartRate, resistance, distance };
   }
 }

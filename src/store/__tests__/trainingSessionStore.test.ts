@@ -11,7 +11,7 @@ describe('trainingSessionStore', () => {
       elapsedSeconds: 0,
       totalDistance: 0,
       totalCalories: 0,
-      currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null },
+      currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: null },
     });
     void store; // suppress unused
   });
@@ -22,6 +22,7 @@ describe('trainingSessionStore', () => {
     power: 150,
     heartRate: 140,
     resistance: 8,
+    distance: null,
     ...overrides,
   });
 
@@ -178,6 +179,7 @@ describe('trainingSessionStore', () => {
         power: 0,
         heartRate: null,
         resistance: null,
+        distance: null,
       });
     });
   });

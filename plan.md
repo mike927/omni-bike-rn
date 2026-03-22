@@ -23,9 +23,9 @@ See `PROJECT.md` for business requirements, functional requirements, and technol
 
 ## Phase 2: Training Loop & Dashboard
 
-- [R] Zustand store + Metronome engine (1 Hz sampling, JSI optimized)
-- [ ] Training state machine (Idle → Active → Paused → Finished)
-- [ ] Auto-pause/resume via FTMS Machine Status (pause when bike detects no pedaling)
+- [x] Zustand store + Metronome engine (1 Hz sampling, JSI optimized)
+- [x] Training state machine (Idle → Active → Paused → Finished)
+- [x] Auto-pause/resume via FTMS Machine Status (pause when bike detects no pedaling)
 - [ ] Live Dashboard UI (Time, Speed, HR, Power, Calories - Portrait & Landscape)
 - [ ] Live Activities & Dynamic Island integration (`react-native-activity-kit`)
 - [ ] Local DB schema + session persistence (Drizzle + expo-sqlite)

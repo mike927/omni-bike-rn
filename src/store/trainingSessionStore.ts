@@ -8,6 +8,7 @@ const INITIAL_METRICS: MetricSnapshot = {
   power: 0,
   heartRate: null,
   resistance: null,
+  distance: null,
 };
 
 /** Joules-to-kcal conversion factor (1 kcal ≈ 4 186 J). */
@@ -20,6 +21,7 @@ export interface TrainingSessionStore {
   totalDistance: number; // meters
   totalCalories: number; // kcal
   currentMetrics: MetricSnapshot;
+  initialDistance: number | null;
 
   // ── Actions ────────────────────────────────────────────
   start: () => void;
@@ -52,7 +54,8 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
   elapsedSeconds: 0,
   totalDistance: 0,
   totalCalories: 0,
-  currentMetrics: { ...INITIAL_METRICS },
+  initialDistance: null,
+  currentMetrics: { ...INITIAL_METRICS, distance: null },
 
   // ── Transitions ────────────────────────────────────────
   start: () => set({ phase: transitionTo(get().phase, TrainingPhase.Active) }),
@@ -72,23 +75,38 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
       elapsedSeconds: 0,
       totalDistance: 0,
       totalCalories: 0,
-      currentMetrics: { ...INITIAL_METRICS },
+      initialDistance: null,
+      currentMetrics: { ...INITIAL_METRICS, distance: null },
     }),
 
   // ── Tick (called by MetronomeEngine every 1 s) ─────────
   tick: (metrics) => {
-    const { phase, elapsedSeconds, totalDistance, totalCalories } = get();
+    const { phase, elapsedSeconds, totalDistance, totalCalories, initialDistance } = get();
     if (phase !== TrainingPhase.Active) return;
 
-    // Distance delta: speed is km/h → m/s = speed / 3.6, for 1 second interval
-    const distanceDelta = (metrics.speed / 3.6) * 1;
+    // Distance logic: Prefer raw hardware output over derived speed integration
+    let newTotalDistance = totalDistance;
+    let newInitialDistance = initialDistance;
+
+    if (metrics.distance !== null && metrics.distance !== undefined) {
+      // Capture the distance the moment the session actually starts receiving data
+      if (initialDistance === null) {
+        newInitialDistance = metrics.distance;
+      }
+      newTotalDistance = metrics.distance - (newInitialDistance ?? metrics.distance);
+    } else {
+      // Fallback: Distance delta (speed is km/h → m/s = speed / 3.6 for 1s)
+      const distanceDelta = (metrics.speed / 3.6) * 1;
+      newTotalDistance += distanceDelta;
+    }
 
     // Calorie delta: power (W) × 1 s = joules → kcal
     const calorieDelta = metrics.power / JOULES_PER_KCAL;
 
     set({
       elapsedSeconds: elapsedSeconds + 1,
-      totalDistance: totalDistance + distanceDelta,
+      totalDistance: newTotalDistance,
+      initialDistance: newInitialDistance,
       totalCalories: totalCalories + calorieDelta,
       currentMetrics: metrics,
     });

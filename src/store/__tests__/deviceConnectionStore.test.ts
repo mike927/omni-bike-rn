@@ -11,6 +11,7 @@ describe('deviceConnectionStore', () => {
     connect: jest.fn().mockResolvedValue(undefined),
     disconnect: jest.fn().mockResolvedValue(undefined),
     subscribeToMetrics: jest.fn().mockReturnValue({ remove: jest.fn() }),
+    setControlState: jest.fn().mockResolvedValue(undefined),
   };
 
   const mockHrAdapter: HrAdapter = {

@@ -1,5 +1,5 @@
 import type { Device, Subscription } from 'react-native-ble-plx';
-import type { BikeAdapter, BikeMetrics } from './BikeAdapter';
+import type { BikeAdapter, BikeMetrics, BikeStatus } from './BikeAdapter';
 import { bleManager } from './bleClient';
 import { parseFtmsIndoorBikeData, parseFtmsMachineStatus } from './parsers/ftmsParser';
 
@@ -110,5 +110,44 @@ export class ZiproRaveAdapter implements BikeAdapter {
         statusSub.remove();
       },
     };
+  }
+
+  async setControlState(status: BikeStatus): Promise<void> {
+    if (!this.device) {
+      console.warn('[ZiproRave] Cannot set control state: device not connected');
+      return;
+    }
+
+    const SERVICE_UUID = '00001826-0000-1000-8000-00805f9b34fb';
+    const CHAR_UUID_CONTROL_POINT = '00002ad9-0000-1000-8000-00805f9b34fb';
+
+    try {
+      let command: number[] | null = null;
+      if (status === 'started') command = [0x07];
+      else if (status === 'paused')
+        command = [0x08, 0x02]; // 0x08 = Stop/Pause, 0x02 = Pause
+      else if (status === 'stopped')
+        command = [0x08, 0x01]; // 0x08 = Stop/Pause, 0x01 = Stop
+      else if (status === 'reset') command = [0x01]; // 0x01 = Reset metrics
+
+      if (command) {
+        // Many fitness machines crash or drop the BLE connection if you send the
+        // strict "Gain Control" (0x00) FTMS preamble. We send the action command directly.
+
+        // Base64 encode the command array
+        // (Buffer is available in typical RN environments; btoa can fail with raw bytes)
+        let base64Cmd = '';
+        if (typeof Buffer !== 'undefined') {
+          base64Cmd = Buffer.from(command).toString('base64');
+        } else {
+          base64Cmd = btoa(String.fromCharCode(...command));
+        }
+
+        await this.device.writeCharacteristicWithResponseForService(SERVICE_UUID, CHAR_UUID_CONTROL_POINT, base64Cmd);
+        console.log(`[ZiproRave] Successfully sent control state: ${status}`);
+      }
+    } catch (err) {
+      console.error('[ZiproRave] Failed to set control state:', err);
+    }
   }
 }

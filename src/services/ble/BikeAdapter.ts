@@ -4,6 +4,7 @@ export enum BikeStatus {
   Started = 'started',
   Paused = 'paused',
   Stopped = 'stopped',
+  Reset = 'reset',
 }
 
 export interface BikeMetrics {
@@ -20,4 +21,5 @@ export interface BikeAdapter {
   connect(): Promise<void>;
   disconnect(): Promise<void>;
   subscribeToMetrics(callback: (metrics: BikeMetrics) => void): Subscription;
+  setControlState(status: BikeStatus): Promise<void>;
 }
