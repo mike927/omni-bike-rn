@@ -34,7 +34,7 @@ See `PROJECT.md` for business requirements, functional requirements, and technol
 Functional UI only in this phase: focus on usable layouts, controls, and required page elements; defer visual polish to the final phase.
 Bike-first product UX in this phase: support a single main bike for now, while keeping the gear model extensible for future FTMS equipment types such as treadmills.
 
-- [ ] App shell and bottom-tab navigation (`Home`, `History`, `Settings`) with dedicated `Training` and `Summary` screens
+- [~] App shell and bottom-tab navigation (`Home`, `History`, `Settings`) with dedicated `Training` and `Summary` screens
 - [ ] Functional home / setup screen (resume interrupted session, My Bike, Heart Rate, Start training, History / Settings entry points)
 - [ ] Functional gear setup flow (select single main bike and HR source)
 - [ ] Support standard Bluetooth HR sensors (for example chest straps such as Garmin HRM-Dual), including compatible watches that can broadcast heart rate as sensors
