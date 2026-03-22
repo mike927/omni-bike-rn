@@ -10,6 +10,20 @@ export enum FtmsMachineStatusOpCode {
   SpinDownStatus = 0x0a,
 }
 
+export enum FtmsControlPointOpCode {
+  RequestControl = 0x00,
+  Reset = 0x01,
+  SetTargetResistance = 0x04,
+  SetTargetPower = 0x05,
+  StartOrResume = 0x07,
+  StopOrPause = 0x08,
+}
+
+export enum FtmsStopPauseCmd {
+  Stop = 0x01,
+  Pause = 0x02,
+}
+
 /**
  * Parses a standard Bluetooth Fitness Machine Service (FTMS) Indoor Bike Data payload.
  *

@@ -17,14 +17,15 @@ See `PROJECT.md` for business requirements, functional requirements, and technol
 - [x] CI pipeline (GitHub Actions: lint, typecheck, test)
 - [x] Domain-driven folder structure (`/src/features`, `/src/services`, etc.)
 - [x] BLE scanning & connection to Zipro Rave
-- [~] Raw metric parsing (FTMS parser exists; on-device metric confirmation is still pending)
+- [x] Raw metric parsing (FTMS Indoor Bike Data + Machine Status)
 - [x] BLE HR monitor support (standard HR Service `0x180D`)
 - [x] Add comprehensive unit tests covering various test cases
 
 ## Phase 2: Training Loop & Dashboard
 
-- [ ] Zustand store + Metronome engine (1 Hz sampling, JSI optimized)
-- [ ] Training state machine (Idle → Active → Paused → Finished)
+- [x] Zustand store + Metronome engine (1 Hz sampling, JSI optimized)
+- [x] Training state machine (Idle → Active → Paused → Finished)
+- [x] Auto-pause/resume via FTMS Machine Status (pause when bike detects no pedaling)
 - [ ] Live Dashboard UI (Time, Speed, HR, Power, Calories - Portrait & Landscape)
 - [ ] Live Activities & Dynamic Island integration (`react-native-activity-kit`)
 - [ ] Local DB schema + session persistence (Drizzle + expo-sqlite)
