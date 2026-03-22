@@ -11,6 +11,7 @@ describe('trainingSessionStore', () => {
       elapsedSeconds: 0,
       totalDistance: 0,
       totalCalories: 0,
+      initialDistance: null,
       currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: null },
     });
     void store; // suppress unused
@@ -161,6 +162,35 @@ describe('trainingSessionStore', () => {
   });
 
   describe('reset()', () => {
+    it('should reset an active session back to Idle', () => {
+      useTrainingSessionStore.getState().start();
+      useTrainingSessionStore.getState().tick(makeSample({ distance: 500 }));
+
+      useTrainingSessionStore.getState().reset();
+
+      const state = useTrainingSessionStore.getState();
+      expect(state.phase).toBe(TrainingPhase.Idle);
+      expect(state.elapsedSeconds).toBe(0);
+      expect(state.totalDistance).toBe(0);
+      expect(state.totalCalories).toBe(0);
+      expect(state.initialDistance).toBeNull();
+    });
+
+    it('should reset a paused session back to Idle', () => {
+      useTrainingSessionStore.getState().start();
+      useTrainingSessionStore.getState().tick(makeSample({ distance: 500 }));
+      useTrainingSessionStore.getState().pause();
+
+      useTrainingSessionStore.getState().reset();
+
+      const state = useTrainingSessionStore.getState();
+      expect(state.phase).toBe(TrainingPhase.Idle);
+      expect(state.elapsedSeconds).toBe(0);
+      expect(state.totalDistance).toBe(0);
+      expect(state.totalCalories).toBe(0);
+      expect(state.initialDistance).toBeNull();
+    });
+
     it('should return all values to initial state', () => {
       useTrainingSessionStore.getState().start();
       useTrainingSessionStore.getState().tick(makeSample());
@@ -173,6 +203,7 @@ describe('trainingSessionStore', () => {
       expect(state.elapsedSeconds).toBe(0);
       expect(state.totalDistance).toBe(0);
       expect(state.totalCalories).toBe(0);
+      expect(state.initialDistance).toBeNull();
       expect(state.currentMetrics).toEqual({
         speed: 0,
         cadence: 0,

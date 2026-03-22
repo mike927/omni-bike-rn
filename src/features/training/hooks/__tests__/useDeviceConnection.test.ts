@@ -1,0 +1,89 @@
+import { act, renderHook } from '@testing-library/react-native';
+
+import { useDeviceConnection } from '../useDeviceConnection';
+import { useDeviceConnectionStore } from '../../../../store/deviceConnectionStore';
+
+const mockBikeConnect = jest.fn();
+const mockBikeDisconnect = jest.fn();
+const mockBikeSubscribe = jest.fn();
+const mockHrConnect = jest.fn();
+const mockHrDisconnect = jest.fn();
+const mockHrSubscribe = jest.fn();
+
+jest.mock('../../../../services/ble/ZiproRaveAdapter', () => ({
+  ZiproRaveAdapter: jest.fn().mockImplementation(() => ({
+    connect: mockBikeConnect,
+    disconnect: mockBikeDisconnect,
+    subscribeToMetrics: mockBikeSubscribe,
+    setControlState: jest.fn().mockResolvedValue(undefined),
+  })),
+}));
+
+jest.mock('../../../../services/ble/StandardHrAdapter', () => ({
+  StandardHrAdapter: jest.fn().mockImplementation(() => ({
+    connect: mockHrConnect,
+    disconnect: mockHrDisconnect,
+    subscribeToHeartRate: mockHrSubscribe,
+  })),
+}));
+
+describe('useDeviceConnection', () => {
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    useDeviceConnectionStore.getState().clearAll();
+
+    const { result, unmount } = renderHook(() => useDeviceConnection());
+    await act(async () => {
+      await result.current.disconnectAll();
+    });
+    unmount();
+  });
+
+  it('should disconnect the previous bike before reconnecting', async () => {
+    const firstBikeSubscription = { remove: jest.fn() };
+    const secondBikeSubscription = { remove: jest.fn() };
+
+    mockBikeConnect.mockResolvedValue(undefined);
+    mockBikeDisconnect.mockResolvedValue(undefined);
+    mockBikeSubscribe.mockReturnValueOnce(firstBikeSubscription).mockReturnValueOnce(secondBikeSubscription);
+
+    const { result } = renderHook(() => useDeviceConnection());
+
+    await act(async () => {
+      await result.current.connectBike('bike-1');
+    });
+
+    await act(async () => {
+      await result.current.connectBike('bike-2');
+    });
+
+    expect(firstBikeSubscription.remove).toHaveBeenCalledTimes(1);
+    expect(mockBikeDisconnect).toHaveBeenCalledTimes(1);
+    expect(useDeviceConnectionStore.getState().bikeAdapter).not.toBeNull();
+    expect(useDeviceConnectionStore.getState().latestBikeMetrics).toBeNull();
+  });
+
+  it('should disconnect the previous HR monitor before reconnecting', async () => {
+    const firstHrSubscription = { remove: jest.fn() };
+    const secondHrSubscription = { remove: jest.fn() };
+
+    mockHrConnect.mockResolvedValue(undefined);
+    mockHrDisconnect.mockResolvedValue(undefined);
+    mockHrSubscribe.mockReturnValueOnce(firstHrSubscription).mockReturnValueOnce(secondHrSubscription);
+
+    const { result } = renderHook(() => useDeviceConnection());
+
+    await act(async () => {
+      await result.current.connectHr('hr-1');
+    });
+
+    await act(async () => {
+      await result.current.connectHr('hr-2');
+    });
+
+    expect(firstHrSubscription.remove).toHaveBeenCalledTimes(1);
+    expect(mockHrDisconnect).toHaveBeenCalledTimes(1);
+    expect(useDeviceConnectionStore.getState().hrAdapter).not.toBeNull();
+    expect(useDeviceConnectionStore.getState().latestHr).toBeNull();
+  });
+});

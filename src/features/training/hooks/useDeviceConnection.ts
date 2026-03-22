@@ -36,66 +36,84 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
   const latestBikeMetrics = useDeviceConnectionStore((s) => s.latestBikeMetrics);
   const latestHr = useDeviceConnectionStore((s) => s.latestHr);
 
-  const connectBike = useCallback(async (deviceId: string) => {
-    try {
-      const adapter = new ZiproRaveAdapter(deviceId);
-      await adapter.connect();
-
-      useDeviceConnectionStore.getState().setBikeAdapter(adapter);
-
-      bikeMetricsSub = adapter.subscribeToMetrics((metrics: BikeMetrics) => {
-        useDeviceConnectionStore.getState().updateBikeMetrics(metrics);
-      });
-
-      console.log('[useDeviceConnection] Bike connected and subscribed:', deviceId);
-    } catch (err: unknown) {
-      console.error('[useDeviceConnection] Bike connection error:', err);
-      throw err;
-    }
-  }, []);
-
-  const connectHr = useCallback(async (deviceId: string) => {
-    try {
-      const adapter = new StandardHrAdapter(deviceId);
-      await adapter.connect();
-
-      useDeviceConnectionStore.getState().setHrAdapter(adapter);
-
-      hrSub = adapter.subscribeToHeartRate((hr: number) => {
-        useDeviceConnectionStore.getState().updateHr(hr);
-      });
-
-      console.log('[useDeviceConnection] HR monitor connected and subscribed:', deviceId);
-    } catch (err: unknown) {
-      console.error('[useDeviceConnection] HR connection error:', err);
-      throw err;
-    }
-  }, []);
-
-  const disconnectAll = useCallback(async () => {
-    // Tear down subscriptions first
+  const disconnectBike = useCallback(async () => {
     bikeMetricsSub?.remove();
     bikeMetricsSub = null;
+
+    const store = useDeviceConnectionStore.getState();
+    const existingBikeAdapter = store.bikeAdapter;
+
+    store.clearBikeConnection();
+
+    try {
+      await existingBikeAdapter?.disconnect();
+    } catch (err: unknown) {
+      console.error('[useDeviceConnection] Bike disconnect error:', err);
+    }
+  }, []);
+
+  const disconnectHr = useCallback(async () => {
     hrSub?.remove();
     hrSub = null;
 
     const store = useDeviceConnectionStore.getState();
+    const existingHrAdapter = store.hrAdapter;
+
+    store.clearHrConnection();
 
     try {
-      await store.bikeAdapter?.disconnect();
-    } catch (err: unknown) {
-      console.error('[useDeviceConnection] Bike disconnect error:', err);
-    }
-
-    try {
-      await store.hrAdapter?.disconnect();
+      await existingHrAdapter?.disconnect();
     } catch (err: unknown) {
       console.error('[useDeviceConnection] HR disconnect error:', err);
     }
-
-    store.clearAll();
-    console.log('[useDeviceConnection] All devices disconnected');
   }, []);
+
+  const connectBike = useCallback(
+    async (deviceId: string) => {
+      try {
+        await disconnectBike();
+
+        const adapter = new ZiproRaveAdapter(deviceId);
+        await adapter.connect();
+
+        useDeviceConnectionStore.getState().setBikeAdapter(adapter);
+
+        bikeMetricsSub = adapter.subscribeToMetrics((metrics: BikeMetrics) => {
+          useDeviceConnectionStore.getState().updateBikeMetrics(metrics);
+        });
+      } catch (err: unknown) {
+        console.error('[useDeviceConnection] Bike connection error:', err);
+        throw err;
+      }
+    },
+    [disconnectBike],
+  );
+
+  const connectHr = useCallback(
+    async (deviceId: string) => {
+      try {
+        await disconnectHr();
+
+        const adapter = new StandardHrAdapter(deviceId);
+        await adapter.connect();
+
+        useDeviceConnectionStore.getState().setHrAdapter(adapter);
+
+        hrSub = adapter.subscribeToHeartRate((hr: number) => {
+          useDeviceConnectionStore.getState().updateHr(hr);
+        });
+      } catch (err: unknown) {
+        console.error('[useDeviceConnection] HR connection error:', err);
+        throw err;
+      }
+    },
+    [disconnectHr],
+  );
+
+  const disconnectAll = useCallback(async () => {
+    await disconnectBike();
+    await disconnectHr();
+  }, [disconnectBike, disconnectHr]);
 
   return {
     bikeConnected: bikeAdapter !== null,

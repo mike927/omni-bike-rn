@@ -93,5 +93,35 @@ describe('deviceConnectionStore', () => {
       expect(state.latestBikeMetrics).toBeNull();
       expect(state.latestHr).toBeNull();
     });
+
+    it('should clear only the bike connection state', () => {
+      useDeviceConnectionStore.getState().setBikeAdapter(mockBikeAdapter);
+      useDeviceConnectionStore.getState().setHrAdapter(mockHrAdapter);
+      useDeviceConnectionStore.getState().updateBikeMetrics(sampleMetrics);
+      useDeviceConnectionStore.getState().updateHr(145);
+
+      useDeviceConnectionStore.getState().clearBikeConnection();
+
+      const state = useDeviceConnectionStore.getState();
+      expect(state.bikeAdapter).toBeNull();
+      expect(state.latestBikeMetrics).toBeNull();
+      expect(state.hrAdapter).toBe(mockHrAdapter);
+      expect(state.latestHr).toBe(145);
+    });
+
+    it('should clear only the HR connection state', () => {
+      useDeviceConnectionStore.getState().setBikeAdapter(mockBikeAdapter);
+      useDeviceConnectionStore.getState().setHrAdapter(mockHrAdapter);
+      useDeviceConnectionStore.getState().updateBikeMetrics(sampleMetrics);
+      useDeviceConnectionStore.getState().updateHr(145);
+
+      useDeviceConnectionStore.getState().clearHrConnection();
+
+      const state = useDeviceConnectionStore.getState();
+      expect(state.hrAdapter).toBeNull();
+      expect(state.latestHr).toBeNull();
+      expect(state.bikeAdapter).toBe(mockBikeAdapter);
+      expect(state.latestBikeMetrics).toEqual(sampleMetrics);
+    });
   });
 });

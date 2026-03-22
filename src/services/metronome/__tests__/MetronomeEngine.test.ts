@@ -29,6 +29,7 @@ describe('MetronomeEngine', () => {
       elapsedSeconds: 0,
       totalDistance: 0,
       totalCalories: 0,
+      initialDistance: null,
       currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: null },
     });
   });

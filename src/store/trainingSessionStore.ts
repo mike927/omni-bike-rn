@@ -71,7 +71,7 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
 
   reset: () =>
     set({
-      phase: transitionTo(get().phase, TrainingPhase.Idle),
+      phase: TrainingPhase.Idle,
       elapsedSeconds: 0,
       totalDistance: 0,
       totalCalories: 0,

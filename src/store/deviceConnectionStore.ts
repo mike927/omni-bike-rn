@@ -25,6 +25,8 @@ export interface DeviceConnectionStore {
   setHrAdapter: (adapter: HrAdapter | null) => void;
   updateBikeMetrics: (metrics: BikeMetrics) => void;
   updateHr: (hr: number) => void;
+  clearBikeConnection: () => void;
+  clearHrConnection: () => void;
   clearAll: () => void;
 }
 
@@ -38,6 +40,16 @@ export const useDeviceConnectionStore = create<DeviceConnectionStore>((set) => (
   setHrAdapter: (adapter) => set({ hrAdapter: adapter }),
   updateBikeMetrics: (metrics) => set({ latestBikeMetrics: metrics }),
   updateHr: (hr) => set({ latestHr: hr }),
+  clearBikeConnection: () =>
+    set({
+      bikeAdapter: null,
+      latestBikeMetrics: null,
+    }),
+  clearHrConnection: () =>
+    set({
+      hrAdapter: null,
+      latestHr: null,
+    }),
   clearAll: () =>
     set({
       bikeAdapter: null,

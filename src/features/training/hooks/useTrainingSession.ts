@@ -38,65 +38,110 @@ export function useTrainingSession(): UseTrainingSessionReturn {
   const totalCalories = useTrainingSessionStore((s) => s.totalCalories);
   const currentMetrics = useTrainingSessionStore((s) => s.currentMetrics);
 
-  const start = useCallback(() => {
-    useTrainingSessionStore.getState().start();
-    useDeviceConnectionStore.getState().bikeAdapter?.setControlState(BikeStatus.Started);
-
+  const ensureEngineRunning = useCallback(() => {
     if (!engineRef.current) {
       engineRef.current = new MetronomeEngine();
     }
+
     engineRef.current.start();
   }, []);
 
-  const pause = useCallback(() => {
-    useTrainingSessionStore.getState().pause();
-    useDeviceConnectionStore.getState().bikeAdapter?.setControlState(BikeStatus.Paused);
+  const stopEngine = useCallback((clearRef: boolean) => {
     engineRef.current?.stop();
+
+    if (clearRef) {
+      engineRef.current = null;
+    }
   }, []);
+
+  const start = useCallback(() => {
+    if (useTrainingSessionStore.getState().phase !== TrainingPhase.Idle) {
+      return;
+    }
+
+    useTrainingSessionStore.getState().start();
+    void useDeviceConnectionStore.getState().bikeAdapter?.setControlState(BikeStatus.Started);
+    ensureEngineRunning();
+  }, [ensureEngineRunning]);
+
+  const pause = useCallback(() => {
+    if (useTrainingSessionStore.getState().phase !== TrainingPhase.Active) {
+      return;
+    }
+
+    useTrainingSessionStore.getState().pause();
+    void useDeviceConnectionStore.getState().bikeAdapter?.setControlState(BikeStatus.Paused);
+    stopEngine(false);
+  }, [stopEngine]);
 
   const resume = useCallback(() => {
+    if (useTrainingSessionStore.getState().phase !== TrainingPhase.Paused) {
+      return;
+    }
+
     useTrainingSessionStore.getState().resume();
-    useDeviceConnectionStore.getState().bikeAdapter?.setControlState(BikeStatus.Started);
-    engineRef.current?.start();
-  }, []);
+    void useDeviceConnectionStore.getState().bikeAdapter?.setControlState(BikeStatus.Started);
+    ensureEngineRunning();
+  }, [ensureEngineRunning]);
 
   const finish = useCallback(() => {
+    const currentPhase = useTrainingSessionStore.getState().phase;
+    if (currentPhase !== TrainingPhase.Active && currentPhase !== TrainingPhase.Paused) {
+      return;
+    }
+
     useTrainingSessionStore.getState().finish();
-    useDeviceConnectionStore.getState().bikeAdapter?.setControlState(BikeStatus.Stopped);
-    engineRef.current?.stop();
-    engineRef.current = null;
-  }, []);
+    void useDeviceConnectionStore.getState().bikeAdapter?.setControlState(BikeStatus.Stopped);
+    stopEngine(true);
+  }, [stopEngine]);
 
   const reset = useCallback(() => {
-    engineRef.current?.stop();
-    engineRef.current = null;
-    useDeviceConnectionStore.getState().bikeAdapter?.setControlState(BikeStatus.Reset);
+    stopEngine(true);
+    void useDeviceConnectionStore.getState().bikeAdapter?.setControlState(BikeStatus.Reset);
     useTrainingSessionStore.getState().reset();
-  }, []);
+  }, [stopEngine]);
+
+  const syncFromBikeStatus = useCallback(
+    (status: BikeStatus) => {
+      const currentPhase = useTrainingSessionStore.getState().phase;
+
+      if (status === BikeStatus.Started) {
+        if (currentPhase === TrainingPhase.Idle) {
+          useTrainingSessionStore.getState().start();
+          ensureEngineRunning();
+        } else if (currentPhase === TrainingPhase.Paused) {
+          useTrainingSessionStore.getState().resume();
+          ensureEngineRunning();
+        }
+      } else if (status === BikeStatus.Paused) {
+        if (currentPhase === TrainingPhase.Active) {
+          useTrainingSessionStore.getState().pause();
+          stopEngine(false);
+        }
+      } else if (status === BikeStatus.Stopped) {
+        if (currentPhase === TrainingPhase.Active || currentPhase === TrainingPhase.Paused) {
+          useTrainingSessionStore.getState().finish();
+          stopEngine(true);
+        }
+      }
+    },
+    [ensureEngineRunning, stopEngine],
+  );
 
   // ── Sync from Bike to App ──────────────────────────────
   const latestBikeStatus = useDeviceConnectionStore((s) => s.latestBikeMetrics?.status);
 
   useEffect(() => {
     if (!latestBikeStatus) return;
-    const currentPhase = useTrainingSessionStore.getState().phase;
+    syncFromBikeStatus(latestBikeStatus);
+  }, [latestBikeStatus, syncFromBikeStatus]);
 
-    if (latestBikeStatus === BikeStatus.Started) {
-      if (currentPhase === TrainingPhase.Idle) {
-        start();
-      } else if (currentPhase === TrainingPhase.Paused) {
-        resume();
-      }
-    } else if (latestBikeStatus === BikeStatus.Paused) {
-      if (currentPhase === TrainingPhase.Active) {
-        pause();
-      }
-    } else if (latestBikeStatus === BikeStatus.Stopped) {
-      if (currentPhase === TrainingPhase.Active || currentPhase === TrainingPhase.Paused) {
-        finish();
-      }
-    }
-  }, [latestBikeStatus, start, resume, pause, finish]);
+  useEffect(
+    () => () => {
+      stopEngine(true);
+    },
+    [stopEngine],
+  );
 
   return {
     phase,
