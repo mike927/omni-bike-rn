@@ -120,9 +120,16 @@ Examples:
 - Address review findings with the main implementation agent.
 - Repeat the review/fix loop up to 3 times.
 - Stop earlier if the review is already clean.
-- When implementation is complete and waiting for approval, update the plan item to `[R]`.
 
-### 6. Open A Pull Request
+### 6. Manual Human Testing
+
+- Before opening a Pull Request, the agent MUST pause and ask the human to manually test the changes on their device/simulator.
+- Provide clear, step-by-step instructions on how the human can test the new functionality.
+- Wait for the human's feedback. Address any issues they find.
+- Only proceed to the next step once the human explicitly approves the manual test.
+- When implementation is complete and approved locally, update the plan item to `[R]`.
+
+### 7. Open A Pull Request
 
 - If GitHub access is available, open a pull request with a concise summary.
 - If GitHub access is not available, prepare the pull request summary for a human to open manually.
@@ -132,7 +139,7 @@ Examples:
   - why it changed
   - what was validated
 
-### 7. Update The Plan After Approval
+### 8. Update The Plan After Approval
 
 - Only mark work as `[x]` after approval.
 - Use `[-]` only when work is intentionally skipped or deferred, with a short reason.
@@ -143,7 +150,7 @@ Example:
 
 - `docs: mark harness refactor as approved in plan`
 
-### 8. Human Merge
+### 9. Human Merge
 
 - Merge is done by a human.
 - After merge, switch back to `main`.

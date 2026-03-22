@@ -2,6 +2,33 @@ import { View, Text, StyleSheet, Button, FlatList, TouchableOpacity, Alert } fro
 import { useBleScanner } from '../src/features/devices/hooks/useBleScanner';
 import { ZiproRaveAdapter } from '../src/services/ble/ZiproRaveAdapter';
 import { StandardHrAdapter } from '../src/services/ble/StandardHrAdapter';
+import { useTrainingSession } from '../src/features/training/hooks/useTrainingSession';
+
+function DashboardPreview() {
+  const session = useTrainingSession();
+
+  return (
+    <View style={styles.dashboardPreview}>
+      <Text style={styles.dashboardTitle}>Live Store Data</Text>
+      <Text style={styles.dashboardText}>Phase: {session.phase}</Text>
+      <Text style={styles.dashboardText}>Time: {session.elapsedSeconds} sec</Text>
+      <Text style={styles.dashboardText}>Speed: {session.currentMetrics.speed.toFixed(1)} km/h</Text>
+      <Text style={styles.dashboardText}>Power: {session.currentMetrics.power} W</Text>
+      <Text style={styles.dashboardText}>HR: {session.currentMetrics.heartRate ?? '--'} bpm</Text>
+      <Text style={styles.dashboardText}>Calories: {session.totalCalories.toFixed(1)} kcal</Text>
+
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
+        {session.phase === 'idle' && <Button title="Start" onPress={session.start} color="#4CAF50" />}
+        {session.phase === 'active' && <Button title="Pause" onPress={session.pause} color="#FF9800" />}
+        {session.phase === 'paused' && <Button title="Resume" onPress={session.resume} color="#2196F3" />}
+        {session.phase !== 'idle' && session.phase !== 'finished' && (
+          <Button title="Finish" onPress={session.finish} color="#F44336" />
+        )}
+        <Button title="Reset" onPress={session.reset} color="#9E9E9E" />
+      </View>
+    </View>
+  );
+}
 
 export default function HomeScreen() {
   const { devices, isScanning, error, scanForDevices, stopScanning } = useBleScanner();
@@ -53,6 +80,8 @@ export default function HomeScreen() {
         )}
         ListEmptyComponent={<Text style={styles.empty}>No devices found</Text>}
       />
+
+      <DashboardPreview />
     </View>
   );
 }
@@ -96,5 +125,23 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 20,
     color: '#999',
+  },
+  dashboardPreview: {
+    marginTop: 30,
+    padding: 15,
+    backgroundColor: '#333',
+    borderRadius: 8,
+  },
+  dashboardTitle: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  dashboardText: {
+    color: '#ccc',
+    fontSize: 14,
+    fontFamily: 'Courier',
+    marginBottom: 5,
   },
 });
