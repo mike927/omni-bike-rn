@@ -19,7 +19,17 @@ See `PROJECT.md` for business requirements, functional requirements, and technol
 - Manual in-app pause takes precedence over automatic bike-driven resume. Bike-reported stop should freeze the workout and prompt the user to finish rather than auto-completing immediately.
 - Completed workouts should use simple upload states: `ready to upload`, `uploading`, `uploaded`, `failed`.
 
-## Phase 1: Foundation & BLE Core
+## Architecture Decisions
+
+- **Device-agnostic adapter pattern**: `BikeAdapter` / `HrAdapter` interfaces allow adding new device types without changing core logic. Zipro Rave is the first implementation; future FTMS bikes or treadmills plug in via new adapters.
+- **Gear persistence before DB**: Saved devices use lightweight key-value storage (`expo-secure-store` or `AsyncStorage`) since gear preferences are simple key-value pairs. The full SQLite schema is introduced only when session recording needs it.
+- **1 Hz tick model**: The MetronomeEngine samples all sources at 1 Hz — standard for fitness apps. Higher resolution is unnecessary for the metrics displayed.
+- **HR source priority**: Watch HR > BLE chest strap HR > Bike-reported pulse. Resolved at merge time in the MetronomeEngine, not in the UI.
+- **Offline-first**: All session data persists locally. Network failures never block the training flow. Uploads happen post-workout and can be retried.
+
+---
+
+## Phase 1: Foundation & BLE Core ✅
 
 - [x] Expo project scaffold, TypeScript, ESLint, Prettier (Enforce New Architecture/JSI)
 - [x] CI pipeline (GitHub Actions: lint, typecheck, test)
@@ -27,85 +37,120 @@ See `PROJECT.md` for business requirements, functional requirements, and technol
 - [x] BLE scanning & connection to Zipro Rave
 - [x] Raw metric parsing (FTMS Indoor Bike Data + Machine Status)
 - [x] BLE HR monitor support (standard HR Service `0x180D`)
-- [x] Add comprehensive unit tests covering various test cases
-
-## Phase 2: App Shell, Onboarding & Gear Setup
-
-Functional UI only in this phase: focus on usable layouts, controls, and required page elements; defer visual polish to the final phase.
-Bike-first product UX in this phase: support a single main bike for now, while keeping the gear model extensible for future FTMS equipment types such as treadmills.
-
-- [ ] App shell and bottom-tab navigation (`Home`, `History`, `Settings`) with dedicated `Training` and `Summary` screens
-- [ ] Functional home / setup screen (resume interrupted session, My Bike, Heart Rate, Start training, History / Settings entry points)
-- [ ] Functional gear setup flow (select single main bike and HR source)
-- [ ] Support standard Bluetooth HR sensors (for example chest straps such as Garmin HRM-Dual), including compatible watches that can broadcast heart rate as sensors
-- [ ] Validate selected bike and HR devices during gear setup against the required sensor mode
-- [ ] Explain unsupported or incompatible devices clearly and prevent saving gear that does not provide the required live data mode
-- [ ] Require live metric / HR signal before saving preferred gear
-- [ ] Remember selected main bike and preferred Bluetooth HR source
-- [ ] Auto-reconnect saved main bike and preferred Bluetooth HR source on app launch / setup screen
-- [ ] Inline reconnect failure states on Home / My Gear with actions such as `Retry`, `Choose another device`, and `Forget device`
-- [ ] Minimal My Gear management in Settings (view saved bike and HR source, replace device, forget device, reconnect)
-- [ ] Extensible gear model for future FTMS equipment types (bike first, treadmill later)
-- [ ] Functional Settings screen
-- [ ] Just-in-time permission UX for Bluetooth scanning / connection
-- [ ] Add comprehensive unit tests covering various test cases
-
-## Phase 3: Core Training UX & Persistence
-
 - [x] Zustand store + Metronome engine (1 Hz sampling, JSI optimized)
 - [x] Training state machine (Idle → Active → Paused → Finished)
 - [x] Auto-pause/resume via FTMS Machine Status (pause when bike detects no pedaling)
-- [ ] Functional training dashboard screen (Time, Speed, HR, Power, Calories)
-- [ ] Portrait and landscape training layouts
-- [ ] Local DB schema + session persistence (Drizzle + expo-sqlite)
-- [ ] Crash recovery / interrupted session restore
-- [ ] Finish flow from app: confirmation before completing, then navigate to summary and auto-save the completed workout
-- [ ] Bike stop handling: freeze the session and prompt the user to finish instead of auto-completing immediately
-- [ ] Finished workout summary screen (save, upload, export entry points)
-- [ ] Live Activities & Dynamic Island integration (`react-native-activity-kit`)
-- [ ] Add comprehensive unit tests covering various test cases
+- [x] Unit tests for BLE parsers, adapters, stores, MetronomeEngine, and hooks
 
-## Phase 4: Advanced HR Sources & Watch Integration
+## Phase 2: App Shell & Navigation
 
-Standard Bluetooth HR sensors are expected to work via the BLE HR flow before this phase. This phase focuses on watch-specific integrations and advanced HR-source behavior.
+Set up the screen structure and navigation skeleton. No business logic beyond routing.
 
-- [ ] Extend gear setup and Settings to support watch-based HR sources
-- [ ] Support Apple Watch as a native selectable HR source
-- [ ] Support compatible broadcast-capable watches (for example Garmin) as Bluetooth HR sources when the watch can transmit HR without owning the workout
-- [ ] Native WatchOS companion app (SwiftUI + HealthKit workout session)
-- [ ] Real-time HR streaming via WatchConnectivity
-- [ ] HR source priority logic (Watch > BLE HR monitor > Bike pulse)
-- [ ] Background recording with BLE + Watch
-- [ ] Just-in-time permission UX for watch / health integrations
-- [ ] Minimal UI elements needed for watch status and source visibility
-- [ ] Add comprehensive unit tests covering various test cases
+- [ ] Bottom-tab navigation (`Home`, `History`, `Settings`) via `expo-router`
+- [ ] Dedicated stack screens for `Training` and `Summary` (outside tab bar)
+- [ ] Placeholder content for each screen
+- [ ] Just-in-time Bluetooth permission request (trigger on first scan action)
+- [ ] Tests for navigation guards and permission flow
 
-## Phase 5: Workout History & Management
+## Phase 3: Gear Setup & Device Memory
 
-- [ ] Functional session history list + detail view with summary statistics
+Let the user find, validate, and save preferred devices. Gear data persists via lightweight key-value storage (no SQLite yet).
+
+- [ ] Gear setup flow: scan → select bike → verify live FTMS signal → save
+- [ ] Gear setup flow: scan → select HR source → verify live HR signal → save
+- [ ] Persist saved bike and HR source identifiers (`expo-secure-store` or `AsyncStorage`)
+- [ ] Auto-reconnect saved devices on app launch and on Home screen focus
+- [ ] Reconnection failure handling: inline states with `Retry`, `Choose another`, `Forget device`
+- [ ] My Gear section in Settings: view saved devices, replace, forget
+- [ ] Reject unsupported devices during setup with clear explanation (e.g. device without FTMS service)
+- [ ] Tests for gear persistence, reconnection logic, and validation
+
+## Phase 4: Training Dashboard
+
+The core workout experience. User starts training, sees live metrics, controls the session.
+
+- [ ] Functional training dashboard: elapsed time, speed, cadence, power, HR, calories, distance
+- [ ] Portrait and landscape layouts for dashboard
+- [ ] Start training from Home (only enabled when bike is connected)
+- [ ] In-app pause / resume controls
+- [ ] Bike stop handling: freeze session and prompt user to finish (not auto-complete)
+- [ ] Finish flow: confirmation dialog → navigate to Summary
+- [ ] BLE disconnection during workout: show warning, attempt reconnect, preserve session data
+- [ ] Tests for dashboard state rendering and session control flows
+
+## Phase 5: Session Persistence & History
+
+Introduce SQLite for session storage. Record completed workouts and display them.
+
+- [ ] Local DB schema with `drizzle-orm` + `expo-sqlite` (sessions table with metrics summary + upload status)
+- [ ] Auto-save completed workout on finish
+- [ ] DB migration strategy (versioned schema via Drizzle)
+- [ ] Crash recovery: persist active session snapshots periodically, restore interrupted session on next launch
+- [ ] Summary screen after workout: duration, distance, avg/max speed, avg/max HR, avg/max power, calories
+- [ ] Session history list on History tab: date, duration, distance, upload status icon
+- [ ] Session detail view with full summary
 - [ ] Session deletion
-- [ ] Minimal UI elements needed for history flows
-- [ ] Add comprehensive unit tests covering various test cases
+- [ ] Tests for DB operations, crash recovery, and history queries
 
-## Phase 6: Integrations & External Provider Sync
+## Phase 6: Strava Integration
 
-- [ ] Functional Integrations screen
-- [ ] External training provider contract / adapter architecture for finished session uploads
-- [ ] Provider connection management (connect, disconnect, sync status)
-- [ ] Generic export payload mapping for completed training sessions
-- [ ] Upload flow for completed workouts with states: `ready to upload`, `uploading`, `uploaded`, `failed`
-- [ ] If a user taps `Upload` without a connected provider, redirect to the relevant provider connection flow
-- [ ] Retry flow for failed uploads
-- [ ] First provider integration: Strava OAuth + finished session upload
-- [ ] Apple Health export via `react-native-health` (completed sessions only)
-- [ ] Raw `.FIT` binary file export generation
-- [ ] Minimal UI elements needed for integrations, export, and provider sync flows
-- [ ] Add comprehensive unit tests covering various test cases
+Primary external sync. Upload completed workouts to Strava.
 
-## Phase 7: UX & Visual Design Polish
+- [ ] Provider adapter interface (connect, disconnect, check status, upload session)
+- [ ] Strava OAuth flow (login, token storage, token refresh)
+- [ ] Map completed session data to Strava activity upload format
+- [ ] Upload flow with states: `ready to upload`, `uploading`, `uploaded`, `failed`
+- [ ] Upload trigger from Summary screen and from History list
+- [ ] If user taps Upload without connected Strava, redirect to Strava login flow
+- [ ] Retry for failed uploads
+- [ ] Upload status visible in History list (per-session icon)
+- [ ] Strava connection management in Settings (connect, disconnect, view sync status)
+- [ ] Tests for OAuth flow, upload mapping, retry logic, and status transitions
 
-- [ ] Visual design pass across training, history, and sync screens
-- [ ] Refine dashboard information hierarchy, spacing, and responsiveness
-- [ ] Polish empty, loading, error, paused, and finished states
-- [ ] Add motion, typography, theming, and interaction polish
-- [ ] Final cross-screen QA for portrait, landscape, and iOS live surfaces
+## Phase 7: Live Activities & Background Mode
+
+Keep the workout visible when the app is backgrounded.
+
+- [ ] Live Activities & Dynamic Island integration (`react-native-activity-kit`)
+- [ ] Display key metrics on Lock Screen: elapsed time, HR, speed, power
+- [ ] Start/update/end Live Activity tied to training session lifecycle
+- [ ] Background BLE data collection (maintain bike + HR connections while backgrounded)
+- [ ] Just-in-time permission for Live Activities
+- [ ] Tests for Live Activity lifecycle sync with training state
+
+## Phase 8: Apple Watch Companion
+
+Native WatchOS app for HR streaming. This is a standalone sub-project within the repo.
+
+- [ ] WatchOS app target setup (SwiftUI)
+- [ ] HealthKit workout session on Watch (request permissions, start/stop mirroring phone session)
+- [ ] Real-time HR streaming from Watch → Phone via WatchConnectivity
+- [ ] Integrate Watch HR into MetronomeEngine (highest priority HR source)
+- [ ] Watch as selectable HR source in gear setup
+- [ ] Phone → Watch session status sync (show active workout state on Watch)
+- [ ] Handle Watch disconnection gracefully (fall back to next HR source)
+- [ ] Just-in-time permission UX for HealthKit and WatchConnectivity
+- [ ] Tests for WatchConnectivity messaging and HR source fallback
+
+## Phase 9: UX & Visual Design Polish
+
+Refine all screens for a release-quality feel.
+
+- [ ] Visual design pass: consistent spacing, typography, and color theme across all screens
+- [ ] Dashboard information hierarchy and responsiveness refinement
+- [ ] Polish all transient states: empty, loading, error, paused, disconnected, finished
+- [ ] Animations and transitions (screen transitions, metric updates, connection states)
+- [ ] Accessibility pass (VoiceOver labels, dynamic type, contrast)
+- [ ] Final QA: portrait, landscape, Dynamic Island, Live Activities, Watch
+
+---
+
+## Future (post-MVP, not scheduled)
+
+- Apple Health export (`react-native-health`, completed sessions only)
+- Raw `.FIT` binary file export
+- Additional provider integrations (Garmin Connect, TrainingPeaks)
+- Additional FTMS device support (other bikes, treadmills)
+- Cloud backup / cross-device sync
+- Android support
+- App Store / TestFlight release pipeline
