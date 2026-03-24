@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, StyleSheet, Text, View } from 'react-native';
 
+import { useBlePermission } from '../../devices/hooks/useBlePermission';
 import { useBleScanner } from '../../devices/hooks/useBleScanner';
 import { useTrainingSession } from '../../training/hooks/useTrainingSession';
 import { useDeviceConnection } from '../../training/hooks/useDeviceConnection';
@@ -34,8 +35,21 @@ function inferDeviceType(name: string | null): string {
 export function HomeScreen() {
   const router = useRouter();
   const session = useTrainingSession();
+  const { requestBlePermission } = useBlePermission();
   const { devices, isScanning, error, scanForDevices, stopScanning } = useBleScanner();
   const { bikeConnected, hrConnected, latestBikeMetrics, latestHr, connectBike, connectHr } = useDeviceConnection();
+
+  const handleScanPress = async () => {
+    const result = await requestBlePermission();
+    if (result === 'denied') {
+      Alert.alert('Bluetooth Permission Required', 'Allow Omni Bike to access Bluetooth in Settings.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Open Settings', onPress: () => void Linking.openSettings() },
+      ]);
+      return;
+    }
+    await scanForDevices();
+  };
 
   const handleConnect = async (deviceId: string, name: string | null) => {
     try {
@@ -97,7 +111,7 @@ export function HomeScreen() {
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
         <ActionButton
           label={isScanning ? 'Stop Scan' : 'Start Scan'}
-          onPress={isScanning ? stopScanning : scanForDevices}
+          onPress={isScanning ? stopScanning : handleScanPress}
           fullWidth
         />
 
