@@ -23,7 +23,7 @@ src/
     db/              ← (planned) local database (Drizzle + expo-sqlite)
     health/          ← (planned) Apple Health integration
     watch/           ← (planned) WatchConnectivity
-  store/             ← (planned) Zustand stores
+  store/             ← Zustand stores (deviceConnectionStore, trainingSessionStore)
   types/             ← shared type definitions
   ui/                ← shared UI components
   utils/             ← shared utility functions

@@ -172,12 +172,15 @@ npm run build:smoke
 
 Use a skill when the task clearly matches that domain.
 
-Examples:
+Available skills:
 
-- `ai/skills/ble-hardware/SKILL.md` for BLE, FTMS, bike devices, or heart-rate work
-- `ai/skills/quality-review/SKILL.md` for internal review and quality checks
 - `ai/skills/architecture/SKILL.md` for boundaries, ownership, and structure
+- `ai/skills/ble-hardware/SKILL.md` for BLE, FTMS, bike devices, or heart-rate work
+- `ai/skills/expo-ui/SKILL.md` for Expo Router UI, navigation, styling, and components
+- `ai/skills/expo-upgrade/SKILL.md` for Expo SDK upgrades and dependency migrations
 - `ai/skills/ios-native/SKILL.md` for iOS-specific behavior
+- `ai/skills/quality-review/SKILL.md` for internal review and quality checks
+- `ai/skills/react-native-perf/SKILL.md` for performance optimization, profiling, and bundle size
 
 ### Adding A New Skill
 
