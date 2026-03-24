@@ -1,7 +1,5 @@
 # Omni Bike - Project Plan
 
-See `PROJECT.md` for business requirements, functional requirements, and technology stack.
-
 ## Task State Legend
 
 - `[ ]` not started
@@ -18,14 +16,6 @@ See `PROJECT.md` for business requirements, functional requirements, and technol
 - Permissions should be requested just-in-time when the user starts a relevant action (for example scan/connect gear, enable live activities, or connect a health/watch integration).
 - Manual in-app pause takes precedence over automatic bike-driven resume. Bike-reported stop should freeze the workout and prompt the user to finish rather than auto-completing immediately.
 - Completed workouts should use simple upload states: `ready to upload`, `uploading`, `uploaded`, `failed`.
-
-## Architecture Decisions
-
-- **Device-agnostic adapter pattern**: `BikeAdapter` / `HrAdapter` interfaces allow adding new device types without changing core logic. Zipro Rave is the first implementation; future FTMS bikes or treadmills plug in via new adapters.
-- **Gear persistence before DB**: Saved devices use lightweight key-value storage (`expo-secure-store` or `AsyncStorage`) since gear preferences are simple key-value pairs. The full SQLite schema is introduced only when session recording needs it.
-- **1 Hz tick model**: The MetronomeEngine samples all sources at 1 Hz — standard for fitness apps. Higher resolution is unnecessary for the metrics displayed.
-- **HR source priority**: Watch HR > BLE chest strap HR > Bike-reported pulse. Resolved at merge time in the MetronomeEngine, not in the UI.
-- **Offline-first**: All session data persists locally. Network failures never block the training flow. Uploads happen post-workout and can be retried.
 
 ---
 
