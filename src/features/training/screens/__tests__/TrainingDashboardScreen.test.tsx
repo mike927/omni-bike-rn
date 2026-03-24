@@ -50,4 +50,14 @@ describe('TrainingDashboardScreen', () => {
     const { getByText } = render(<TrainingDashboardScreen />);
     expect(getByText('Training')).toBeTruthy();
   });
+
+  it('does not expose a reset action', () => {
+    const { queryByText } = render(<TrainingDashboardScreen />);
+    expect(queryByText('Reset')).toBeNull();
+  });
+
+  it('shows a disconnected-bike hint before a workout starts', () => {
+    const { getByText } = render(<TrainingDashboardScreen />);
+    expect(getByText('Connect your bike before starting a workout.')).toBeTruthy();
+  });
 });

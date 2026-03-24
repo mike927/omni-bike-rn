@@ -1,5 +1,5 @@
 import type { Device, Subscription } from 'react-native-ble-plx';
-import type { BikeAdapter, BikeMetrics, BikeStatus } from './BikeAdapter';
+import { BikeStatus, type BikeAdapter, type BikeMetrics } from './BikeAdapter';
 import { bleManager } from './bleClient';
 import {
   parseFtmsIndoorBikeData,
@@ -11,6 +11,13 @@ import {
 export class ZiproRaveAdapter implements BikeAdapter {
   private device: Device | null = null;
   private readonly deviceId: string;
+  private hasControl = false;
+  private metricsCallback: ((metrics: BikeMetrics) => void) | null = null;
+  private dataSub: Subscription | null = null;
+  private statusSub: Subscription | null = null;
+  private latestMetrics: BikeMetrics = { speed: 0, cadence: 0, power: 0 };
+  private static readonly OPERATION_CANCELLED_ERROR_CODE = 2;
+  private static readonly DEVICE_DISCONNECTED_ERROR_CODE = 201;
 
   /**
    * Initializes the adapter for a specific BLE device ID without connecting.
@@ -28,6 +35,7 @@ export class ZiproRaveAdapter implements BikeAdapter {
   async connect(): Promise<void> {
     this.device = await bleManager.connectToDevice(this.deviceId);
     await this.device.discoverAllServicesAndCharacteristics();
+    this.hasControl = false;
   }
 
   /**
@@ -35,9 +43,171 @@ export class ZiproRaveAdapter implements BikeAdapter {
    * device reference. Safe to call even if the device is already disconnected.
    */
   async disconnect(): Promise<void> {
+    this.clearMetricSubscriptions();
+
     if (this.device) {
       await bleManager.cancelDeviceConnection(this.deviceId);
       this.device = null;
+      this.hasControl = false;
+    }
+  }
+
+  private clearMetricSubscriptions(): void {
+    this.dataSub?.remove();
+    this.statusSub?.remove();
+    this.dataSub = null;
+    this.statusSub = null;
+  }
+
+  private isExpectedMonitorCancellation(error: unknown): boolean {
+    if (!(error instanceof Error)) {
+      return false;
+    }
+
+    const bleError = error as Error & { errorCode?: number };
+    return (
+      bleError.errorCode === ZiproRaveAdapter.OPERATION_CANCELLED_ERROR_CODE ||
+      bleError.message.includes('Operation was cancelled')
+    );
+  }
+
+  private isExpectedControlDisconnect(error: unknown): boolean {
+    if (!(error instanceof Error)) {
+      return false;
+    }
+
+    const bleError = error as Error & { errorCode?: number };
+    return (
+      bleError.errorCode === ZiproRaveAdapter.DEVICE_DISCONNECTED_ERROR_CODE ||
+      bleError.message.includes('was disconnected')
+    );
+  }
+
+  private async writeControlCommand(command: number[]): Promise<void> {
+    if (!this.device) {
+      throw new Error('Device not connected');
+    }
+
+    const SERVICE_UUID = '00001826-0000-1000-8000-00805f9b34fb';
+    const CHAR_UUID_CONTROL_POINT = '00002ad9-0000-1000-8000-00805f9b34fb';
+
+    let base64Cmd = '';
+    if (typeof Buffer !== 'undefined') {
+      base64Cmd = Buffer.from(command).toString('base64');
+    } else {
+      base64Cmd = btoa(String.fromCharCode(...command));
+    }
+
+    await this.device.writeCharacteristicWithResponseForService(SERVICE_UUID, CHAR_UUID_CONTROL_POINT, base64Cmd);
+  }
+
+  private async requestControlIfNeeded(): Promise<void> {
+    if (!this.device || this.hasControl) {
+      return;
+    }
+
+    try {
+      await this.writeControlCommand([FtmsControlPointOpCode.RequestControl]);
+      this.hasControl = true;
+    } catch (err) {
+      console.warn('[ZiproRave] Request control failed, continuing with direct command:', err);
+    }
+  }
+
+  private startMetricSubscriptions(): void {
+    if (!this.device || !this.metricsCallback) {
+      throw new Error('Device not connected');
+    }
+
+    const SERVICE_UUID = '00001826-0000-1000-8000-00805f9b34fb';
+    const CHAR_UUID_DATA = '00002ad2-0000-1000-8000-00805f9b34fb';
+    const CHAR_UUID_STATUS = '00002ada-0000-1000-8000-00805f9b34fb';
+
+    this.clearMetricSubscriptions();
+    this.latestMetrics = { speed: 0, cadence: 0, power: 0 };
+
+    this.dataSub = this.device.monitorCharacteristicForService(
+      SERVICE_UUID,
+      CHAR_UUID_DATA,
+      (error, characteristic) => {
+        if (error) {
+          if (this.isExpectedMonitorCancellation(error)) {
+            return;
+          }
+          console.error('[ZiproRave] FTMS Data Monitoring error:', error);
+          return;
+        }
+
+        if (characteristic?.value) {
+          try {
+            const binaryString = atob(characteristic.value);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+
+            const parsedMetrics = parseFtmsIndoorBikeData(bytes);
+
+            this.latestMetrics = {
+              ...this.latestMetrics,
+              speed: parsedMetrics.speed ?? 0,
+              cadence: parsedMetrics.cadence ?? 0,
+              power: parsedMetrics.power ?? 0,
+              ...(parsedMetrics.distance !== undefined && { distance: parsedMetrics.distance }),
+              ...(parsedMetrics.resistance !== undefined && { resistance: parsedMetrics.resistance }),
+              ...(parsedMetrics.heartRate !== undefined && { heartRate: parsedMetrics.heartRate }),
+            };
+
+            console.log('[ZiproRave] Decoded FTMS Metrics:', this.latestMetrics);
+            this.metricsCallback?.(this.latestMetrics);
+          } catch (err) {
+            console.error('[ZiproRave] Error parsing FTMS metrics:', err);
+          }
+        }
+      },
+    );
+
+    this.statusSub = this.device.monitorCharacteristicForService(
+      SERVICE_UUID,
+      CHAR_UUID_STATUS,
+      (error, characteristic) => {
+        if (error) {
+          if (this.isExpectedMonitorCancellation(error)) {
+            return;
+          }
+          console.error('[ZiproRave] FTMS Status Monitoring error:', error);
+          return;
+        }
+
+        if (characteristic?.value) {
+          try {
+            const binaryString = atob(characteristic.value);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+
+            const statusEvent = parseFtmsMachineStatus(bytes);
+            if (statusEvent) {
+              this.latestMetrics = { ...this.latestMetrics, status: statusEvent };
+              this.metricsCallback?.(this.latestMetrics);
+            }
+          } catch (err) {
+            console.error('[ZiproRave] Error parsing FTMS status:', err);
+          }
+        }
+      },
+    );
+  }
+
+  private async reconnectAfterReset(): Promise<void> {
+    const shouldResumeMetrics = this.metricsCallback !== null;
+
+    await this.disconnect();
+    await this.connect();
+
+    if (shouldResumeMetrics) {
+      this.startMetricSubscriptions();
     }
   }
 
@@ -54,86 +224,13 @@ export class ZiproRaveAdapter implements BikeAdapter {
       console.error('[ZiproRave] Failed to subscribe: Device is not connected!');
       throw new Error('Device not connected');
     }
-
-    // Standard FTMS Service, Indoor Bike Data Characteristic, and Machine Status Characteristic
-    const SERVICE_UUID = '00001826-0000-1000-8000-00805f9b34fb';
-    const CHAR_UUID_DATA = '00002ad2-0000-1000-8000-00805f9b34fb';
-    const CHAR_UUID_STATUS = '00002ada-0000-1000-8000-00805f9b34fb';
-
-    let latestMetrics: BikeMetrics = { speed: 0, cadence: 0, power: 0 };
-
-    const dataSub = this.device.monitorCharacteristicForService(
-      SERVICE_UUID,
-      CHAR_UUID_DATA,
-      (error, characteristic) => {
-        if (error) {
-          console.error('[ZiproRave] FTMS Data Monitoring error:', error);
-          return;
-        }
-
-        if (characteristic?.value) {
-          try {
-            const binaryString = atob(characteristic.value);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-              bytes[i] = binaryString.charCodeAt(i);
-            }
-
-            const parsedMetrics = parseFtmsIndoorBikeData(bytes);
-
-            // Update latest metrics state
-            latestMetrics = {
-              ...latestMetrics,
-              speed: parsedMetrics.speed ?? 0,
-              cadence: parsedMetrics.cadence ?? 0,
-              power: parsedMetrics.power ?? 0,
-              ...(parsedMetrics.distance !== undefined && { distance: parsedMetrics.distance }),
-              ...(parsedMetrics.resistance !== undefined && { resistance: parsedMetrics.resistance }),
-              ...(parsedMetrics.heartRate !== undefined && { heartRate: parsedMetrics.heartRate }),
-            };
-
-            console.log('[ZiproRave] Decoded FTMS Metrics:', latestMetrics);
-            callback(latestMetrics);
-          } catch (err) {
-            console.error('[ZiproRave] Error parsing FTMS metrics:', err);
-          }
-        }
-      },
-    );
-
-    const statusSub = this.device.monitorCharacteristicForService(
-      SERVICE_UUID,
-      CHAR_UUID_STATUS,
-      (error, characteristic) => {
-        if (error) {
-          console.error('[ZiproRave] FTMS Status Monitoring error:', error);
-          return;
-        }
-
-        if (characteristic?.value) {
-          try {
-            const binaryString = atob(characteristic.value);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-              bytes[i] = binaryString.charCodeAt(i);
-            }
-
-            const statusEvent = parseFtmsMachineStatus(bytes);
-            if (statusEvent) {
-              latestMetrics = { ...latestMetrics, status: statusEvent };
-              callback(latestMetrics);
-            }
-          } catch (err) {
-            console.error('[ZiproRave] Error parsing FTMS status:', err);
-          }
-        }
-      },
-    );
+    this.metricsCallback = callback;
+    this.startMetricSubscriptions();
 
     return {
       remove: () => {
-        dataSub.remove();
-        statusSub.remove();
+        this.metricsCallback = null;
+        this.clearMetricSubscriptions();
       },
     };
   }
@@ -151,9 +248,6 @@ export class ZiproRaveAdapter implements BikeAdapter {
       return;
     }
 
-    const SERVICE_UUID = '00001826-0000-1000-8000-00805f9b34fb';
-    const CHAR_UUID_CONTROL_POINT = '00002ad9-0000-1000-8000-00805f9b34fb';
-
     try {
       let command: number[] | null = null;
       if (status === 'started') {
@@ -167,22 +261,20 @@ export class ZiproRaveAdapter implements BikeAdapter {
       }
 
       if (command) {
-        // Many fitness machines crash or drop the BLE connection if you send the
-        // strict "Gain Control" (0x00) FTMS preamble. We send the action command directly.
-
-        // Base64 encode the command array
-        // (Buffer is available in typical RN environments; btoa can fail with raw bytes)
-        let base64Cmd = '';
-        if (typeof Buffer !== 'undefined') {
-          base64Cmd = Buffer.from(command).toString('base64');
-        } else {
-          base64Cmd = btoa(String.fromCharCode(...command));
+        if (status === BikeStatus.Reset) {
+          await this.requestControlIfNeeded();
         }
-
-        await this.device.writeCharacteristicWithResponseForService(SERVICE_UUID, CHAR_UUID_CONTROL_POINT, base64Cmd);
+        await this.writeControlCommand(command);
+        if (status === BikeStatus.Reset) {
+          this.hasControl = false;
+          await this.reconnectAfterReset();
+        }
         console.log(`[ZiproRave] Successfully sent control state: ${status}`);
       }
     } catch (err) {
+      if (this.isExpectedControlDisconnect(err)) {
+        return;
+      }
       console.error('[ZiproRave] Failed to set control state:', err);
     }
   }

@@ -59,8 +59,14 @@ export function useTrainingSession(): UseTrainingSessionReturn {
       return;
     }
 
+    const bikeAdapter = useDeviceConnectionStore.getState().bikeAdapter;
+    if (!bikeAdapter) {
+      console.warn('[useTrainingSession] Cannot start session: bike not connected');
+      return;
+    }
+
     useTrainingSessionStore.getState().start();
-    void useDeviceConnectionStore.getState().bikeAdapter?.setControlState(BikeStatus.Started);
+    void bikeAdapter.setControlState(BikeStatus.Started);
     ensureEngineRunning();
   }, [ensureEngineRunning]);
 
@@ -90,14 +96,28 @@ export function useTrainingSession(): UseTrainingSessionReturn {
       return;
     }
 
+    const bikeAdapter = useDeviceConnectionStore.getState().bikeAdapter;
     useTrainingSessionStore.getState().finish();
-    void useDeviceConnectionStore.getState().bikeAdapter?.setControlState(BikeStatus.Stopped);
+    void (async () => {
+      void bikeAdapter?.setControlState(BikeStatus.Stopped);
+      try {
+        await bikeAdapter?.disconnect();
+      } catch (err: unknown) {
+        console.error('[useTrainingSession] Bike disconnect after finish failed:', err);
+      } finally {
+        useDeviceConnectionStore.getState().clearBikeConnection();
+      }
+    })();
     stopEngine(true);
   }, [stopEngine]);
 
   const reset = useCallback(() => {
+    const currentPhase = useTrainingSessionStore.getState().phase;
+
     stopEngine(true);
-    void useDeviceConnectionStore.getState().bikeAdapter?.setControlState(BikeStatus.Reset);
+    if (currentPhase !== TrainingPhase.Idle) {
+      void useDeviceConnectionStore.getState().bikeAdapter?.setControlState(BikeStatus.Reset);
+    }
     useTrainingSessionStore.getState().reset();
   }, [stopEngine]);
 

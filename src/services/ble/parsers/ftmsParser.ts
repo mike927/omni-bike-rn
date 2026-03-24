@@ -5,7 +5,6 @@ export enum FtmsMachineStatusOpCode {
   StoppedOrPausedByUser = 0x02,
   StartedOrResumedZipro = 0x04,
   TargetResistanceChanged = 0x07,
-  StartedOrResumedStandard = 0x07,
   SpeedRangeChanged = 0x08,
   SpinDownStatus = 0x0a,
 }
@@ -128,13 +127,11 @@ export function parseFtmsMachineStatus(bytes: Uint8Array): BikeStatus | undefine
     case FtmsMachineStatusOpCode.Reset:
     case FtmsMachineStatusOpCode.StoppedOrPausedByUser:
       return BikeStatus.Stopped;
-    case FtmsMachineStatusOpCode.SpinDownStatus:
-      return BikeStatus.Paused;
     case FtmsMachineStatusOpCode.StartedOrResumedZipro:
-    case FtmsMachineStatusOpCode.SpeedRangeChanged:
       return BikeStatus.Started;
     default:
-      // Other events like 0x07 (Target Resistance Changed) don't map to a strict session state
+      // Zipro emits non-state events such as resistance changes; those should not
+      // drive the workout state machine unless we verify a stable mapping.
       return undefined;
   }
 }

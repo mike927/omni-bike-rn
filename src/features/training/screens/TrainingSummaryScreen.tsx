@@ -19,6 +19,11 @@ export function TrainingSummaryScreen() {
     session.totalDistance === 0 &&
     session.totalCalories === 0;
 
+  const handleDone = () => {
+    session.reset();
+    router.replace('/');
+  };
+
   return (
     <AppScreen
       title="Summary"
@@ -65,8 +70,11 @@ export function TrainingSummaryScreen() {
           integrations are implemented.
         </Text>
         <View style={styles.actionRow}>
-          <ActionButton label="Back Home" onPress={() => router.replace('/')} variant="secondary" />
-          <ActionButton label="Reset Session" onPress={session.reset} variant="ghost" />
+          {session.phase === 'finished' ? (
+            <ActionButton label="Done" onPress={handleDone} />
+          ) : (
+            <ActionButton label="Back Home" onPress={() => router.replace('/')} variant="secondary" />
+          )}
         </View>
       </SectionCard>
     </AppScreen>

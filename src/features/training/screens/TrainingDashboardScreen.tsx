@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { useDeviceConnection } from '../hooks/useDeviceConnection';
 import { useTrainingSession } from '../hooks/useTrainingSession';
@@ -8,6 +8,7 @@ import { MetricTile } from '../../../ui/components/MetricTile';
 import { SectionCard } from '../../../ui/components/SectionCard';
 import { formatDistanceKm, formatDuration, formatMetricValue } from '../../../ui/formatters';
 import { AppScreen } from '../../../ui/layout/AppScreen';
+import { palette } from '../../../ui/theme';
 
 export function TrainingDashboardScreen() {
   const router = useRouter();
@@ -26,7 +27,9 @@ export function TrainingDashboardScreen() {
           <MetricTile label="Calories" value={`${session.totalCalories.toFixed(1)} kcal`} style={styles.metricTile} />
         </View>
         <View style={styles.actionRow}>
-          {session.phase === 'idle' ? <ActionButton label="Start" onPress={session.start} /> : null}
+          {session.phase === 'idle' ? (
+            <ActionButton label="Start" onPress={session.start} disabled={!bikeConnected} />
+          ) : null}
           {session.phase === 'active' ? (
             <ActionButton label="Pause" onPress={session.pause} variant="secondary" />
           ) : null}
@@ -37,8 +40,10 @@ export function TrainingDashboardScreen() {
           {session.phase === 'finished' ? (
             <ActionButton label="View Summary" onPress={() => router.push('/summary')} />
           ) : null}
-          <ActionButton label="Reset" onPress={session.reset} variant="ghost" />
         </View>
+        {session.phase === 'idle' && !bikeConnected ? (
+          <Text style={styles.helperText}>Connect your bike before starting a workout.</Text>
+        ) : null}
       </SectionCard>
 
       <SectionCard title="Live Metrics">
@@ -86,5 +91,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
+  },
+  helperText: {
+    color: palette.textMuted,
+    fontSize: 13,
+    lineHeight: 20,
   },
 });
