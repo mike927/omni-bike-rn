@@ -5,6 +5,7 @@ import { useBlePermission } from '../../devices/hooks/useBlePermission';
 import { useBleScanner } from '../../devices/hooks/useBleScanner';
 import { useTrainingSession } from '../../training/hooks/useTrainingSession';
 import { useDeviceConnection } from '../../training/hooks/useDeviceConnection';
+import { TrainingPhase } from '../../../types/training';
 import { ActionButton } from '../../../ui/components/ActionButton';
 import { MetricTile } from '../../../ui/components/MetricTile';
 import { SectionCard } from '../../../ui/components/SectionCard';
@@ -12,6 +13,7 @@ import { formatDistanceKm, formatDuration, formatMetricValue } from '../../../ui
 import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
 
+// Temporary heuristic until the dedicated gear setup flow can route devices by validated capabilities.
 function inferDeviceType(name: string | null): string {
   const normalizedName = name?.toLowerCase() ?? '';
 
@@ -32,12 +34,26 @@ function inferDeviceType(name: string | null): string {
   return 'Unknown device';
 }
 
+function getTrainingButtonLabel(phase: TrainingPhase): string {
+  if (phase === TrainingPhase.Active || phase === TrainingPhase.Paused) {
+    return 'Resume Training';
+  }
+
+  return 'Start Training';
+}
+
+function canOpenTraining(phase: TrainingPhase, bikeConnected: boolean): boolean {
+  return bikeConnected && phase !== TrainingPhase.Finished;
+}
+
 export function HomeScreen() {
   const router = useRouter();
   const session = useTrainingSession();
   const { requestBlePermission } = useBlePermission();
   const { devices, isScanning, error, scanForDevices, stopScanning } = useBleScanner();
   const { bikeConnected, hrConnected, latestBikeMetrics, latestHr, connectBike, connectHr } = useDeviceConnection();
+  const hasInterruptedSession = session.phase === TrainingPhase.Active || session.phase === TrainingPhase.Paused;
+  const isTrainingEnabled = canOpenTraining(session.phase, bikeConnected);
 
   const handleScanPress = async () => {
     const result = await requestBlePermission();
@@ -72,10 +88,10 @@ export function HomeScreen() {
   return (
     <AppScreen
       title="Ride Setup"
-      subtitle="Phase 2 starts with the app shell. You can scan, connect test gear, and move into the dedicated training and summary routes from here.">
+      subtitle="Home is the bike-first setup surface for training, current device readiness, and quick access to the rest of the app shell.">
       <SectionCard
-        title="Session"
-        description="The shell is in place, while the deeper workout finish flow and persistence land in later plan items.">
+        title="Quick Start"
+        description="Start or resume training once the bike is ready, and jump straight to History or Settings from the same surface.">
         <View style={styles.metricGrid}>
           <MetricTile label="Phase" value={session.phase} style={styles.metricTile} />
           <MetricTile label="Elapsed" value={formatDuration(session.elapsedSeconds)} style={styles.metricTile} />
@@ -83,31 +99,78 @@ export function HomeScreen() {
           <MetricTile label="Calories" value={`${session.totalCalories.toFixed(1)} kcal`} style={styles.metricTile} />
         </View>
         <View style={styles.actionRow}>
-          <ActionButton label="Open Training" onPress={() => router.push('/training')} />
-          <ActionButton label="Open Summary" onPress={() => router.push('/summary')} variant="secondary" />
+          <ActionButton
+            label={getTrainingButtonLabel(session.phase)}
+            onPress={() => router.push('/training')}
+            disabled={!isTrainingEnabled}
+          />
+          <ActionButton label="History" onPress={() => router.push('/history')} variant="secondary" />
+          <ActionButton label="Settings" onPress={() => router.push('/settings')} variant="secondary" />
         </View>
+        {!bikeConnected ? <Text style={styles.helperText}>Connect your bike before starting a workout.</Text> : null}
       </SectionCard>
 
-      <SectionCard title="My Gear" description="Live connection state from the BLE hooks and Zustand stores.">
+      <SectionCard
+        title="Resume Interrupted Session"
+        description="Only the current in-memory active or paused workout can be resumed from Home until persistence arrives in a later phase.">
+        {hasInterruptedSession ? (
+          <>
+            <View style={styles.metricGrid}>
+              <MetricTile label="Status" value={session.phase} style={styles.metricTile} />
+              <MetricTile label="Elapsed" value={formatDuration(session.elapsedSeconds)} style={styles.metricTile} />
+              <MetricTile label="Distance" value={formatDistanceKm(session.totalDistance)} style={styles.metricTile} />
+            </View>
+            <ActionButton label="Resume Workout" onPress={() => router.push('/training')} />
+          </>
+        ) : (
+          <Text style={styles.bodyText}>No interrupted workout is ready to resume right now.</Text>
+        )}
+      </SectionCard>
+
+      <SectionCard
+        title="My Bike"
+        description="Live bike readiness and FTMS samples are surfaced here until the dedicated gear setup flow is implemented.">
         <View style={styles.metricGrid}>
           <MetricTile label="Bike" value={bikeConnected ? 'Connected' : 'Not connected'} style={styles.metricTile} />
-          <MetricTile
-            label="Heart Rate"
-            value={hrConnected ? 'Connected' : 'Not connected'}
-            style={styles.metricTile}
-          />
           <MetricTile
             label="Latest Speed"
             value={latestBikeMetrics ? `${latestBikeMetrics.speed.toFixed(1)} km/h` : '--'}
             style={styles.metricTile}
           />
+          <MetricTile
+            label="Latest Power"
+            value={latestBikeMetrics ? `${latestBikeMetrics.power} W` : '--'}
+            style={styles.metricTile}
+          />
+        </View>
+        <Text style={styles.bodyText}>
+          {bikeConnected
+            ? 'Bike is connected and ready for training.'
+            : 'Scan nearby devices below to connect your bike trainer.'}
+        </Text>
+      </SectionCard>
+
+      <SectionCard
+        title="Heart Rate"
+        description="Current live HR readiness stays visible on Home even before preferred-device memory is built.">
+        <View style={styles.metricGrid}>
+          <MetricTile
+            label="Heart Rate"
+            value={hrConnected ? 'Connected' : 'Not connected'}
+            style={styles.metricTile}
+          />
           <MetricTile label="Latest HR" value={formatMetricValue(latestHr, ' bpm')} style={styles.metricTile} />
         </View>
+        <Text style={styles.bodyText}>
+          {hrConnected
+            ? 'Heart-rate source is connected and feeding live data.'
+            : 'Connect a heart-rate source from the scan list when available.'}
+        </Text>
       </SectionCard>
 
       <SectionCard
         title="Scan Nearby Devices"
-        description="This keeps the existing BLE smoke-test behavior available until the dedicated gear setup flow is built.">
+        description="Temporary inline scan and connect behavior stays on Home until the dedicated gear setup flow is implemented.">
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
         <ActionButton
           label={isScanning ? 'Stop Scan' : 'Start Scan'}
@@ -163,6 +226,16 @@ const styles = StyleSheet.create({
     color: palette.textMuted,
     fontSize: 14,
     lineHeight: 20,
+  },
+  helperText: {
+    color: palette.textMuted,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  bodyText: {
+    color: palette.textMuted,
+    fontSize: 14,
+    lineHeight: 22,
   },
   deviceRow: {
     gap: 12,
