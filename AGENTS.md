@@ -118,11 +118,14 @@ Examples:
 - Create the feature, bugfix, or hotfix branch first.
 - When active implementation starts, update the relevant plan item to `[~]`.
 
-### 2. Clarify Business Requirements Only When Needed
+### 2. Clarify Business Requirements And Prepare A Detailed Plan
 
 - Ask questions only when the missing detail is a business or product decision.
 - Do not ask questions that can be answered from the repository.
-- Technical implementation choices are left to the agent.
+- Before implementation, prepare a detailed plan in Plan Mode based on the relevant raw task in `plan.md`.
+- The detailed plan must be specific enough to execute without further design decisions during implementation.
+- The detailed plan must be shown to the user and explicitly accepted before implementation starts.
+- Technical implementation choices are left to the agent unless the detailed plan exposes a product or business tradeoff that requires user input.
 - If work is blocked on a business decision, update the plan item to `[?]` with a short reason.
 
 ### 3. Implement Autonomously
@@ -145,6 +148,7 @@ Examples:
 ### 6. Manual Human Testing
 
 - Before opening a Pull Request, the agent MUST pause and ask the human to manually test the changes on their device/simulator.
+- Along with the testing request, provide a concise summary of what was implemented and how the change affects the user experience or behavior.
 - Provide clear, step-by-step instructions on how the human can test the new functionality.
 - Wait for the human's feedback. Address any issues they find.
 - Only proceed to the next step once the human explicitly approves the manual test.
