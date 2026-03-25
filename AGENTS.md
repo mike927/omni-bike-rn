@@ -124,11 +124,12 @@ Examples:
 - Ask questions only when the missing detail is a business or product decision.
 - Do not ask questions that can be answered from the repository.
 - **Ask product/business questions interactively: always offer 2–4 concrete options per question plus a free-text escape hatch. Use the best mechanism available in your environment (e.g. `AskUserQuestion` tool, numbered list, etc.). Never ask open-ended questions when choices can be offered.**
-- Before implementation, prepare a detailed plan in Plan Mode based on the relevant raw task in `plan.md`.
+- Before implementation, write a detailed plan to `ai/plans/<branch-name>.md` based on the relevant raw task in `plan.md`.
 - The detailed plan must be specific enough to execute without further design decisions during implementation.
-- The detailed plan must be shown to the user and explicitly accepted before implementation starts.
+- Share the plan file with the user and wait for explicit approval before writing any code. Discuss and iterate on the plan until approved.
 - Technical implementation choices are left to the agent unless the detailed plan exposes a product or business tradeoff that requires user input.
 - If work is blocked on a business decision, update the plan item to `[?]` with a short reason.
+- Delete the plan file after the feature is merged.
 
 ### 3. Implement Autonomously
 
