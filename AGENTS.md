@@ -115,7 +115,8 @@ Examples:
 
 ### 1. Create A Branch
 
-- Create the feature, bugfix, or hotfix branch first.
+- **Create the branch immediately — before reading any code, planning, or asking questions.**
+- This is the very first action when starting any new task.
 - When active implementation starts, update the relevant plan item to `[~]`.
 
 ### 2. Clarify Business Requirements And Prepare A Detailed Plan
