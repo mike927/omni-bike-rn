@@ -2,14 +2,32 @@
 
 This file contains the always-on instructions for agents working in this repository.
 
+## Project Context
+
+Omni Bike is an iOS indoor cycling companion app. It connects to a BLE stationary bike and optional HR sources, records training sessions, and syncs completed workouts to Strava.
+
+### Tech Stack
+
+- **Framework**: Expo SDK 54 (New Architecture enforced) + `expo-router`
+- **State**: `zustand`
+- **Database**: `expo-sqlite` + `drizzle-orm`
+- **BLE**: `react-native-ble-plx`
+- **iOS Native**: `react-native-activity-kit` (Live Activities), `react-native-health`
+
+### Key Constraints
+
+- **HR source priority**: Watch HR > BLE chest strap HR > Bike-reported pulse. Resolved at merge time in the MetronomeEngine, not in the UI.
+- **1 Hz tick model**: The MetronomeEngine samples all sources at 1 Hz. Higher resolution is unnecessary for the metrics displayed.
+- **Gear persistence before DB**: Saved devices use lightweight key-value storage. The full SQLite schema is introduced only when session recording needs it.
+- **Offline-first**: All session data persists locally. Network failures never block the training flow. Uploads happen post-workout and can be retried.
+
 ## Core Sources
 
 Read these in this order before feature work:
 
-1. `PROJECT.md`
-2. `plan.md`
-3. This `AGENTS.md` file
-4. Relevant files under `ai/skills/*/SKILL.md`
+1. `plan.md`
+2. This `AGENTS.md` file
+3. Relevant files under `ai/skills/*/SKILL.md`
 
 `plan.md` is the single source of truth for project scope and progress.
 
@@ -175,12 +193,15 @@ npm run build:smoke
 
 Use a skill when the task clearly matches that domain.
 
-Examples:
+Available skills:
 
-- `ai/skills/ble-hardware/SKILL.md` for BLE, FTMS, bike devices, or heart-rate work
-- `ai/skills/quality-review/SKILL.md` for internal review and quality checks
 - `ai/skills/architecture/SKILL.md` for boundaries, ownership, and structure
+- `ai/skills/ble-hardware/SKILL.md` for BLE, FTMS, bike devices, or heart-rate work
+- `ai/skills/expo-ui/SKILL.md` for Expo Router UI, navigation, styling, and components
+- `ai/skills/expo-upgrade/SKILL.md` for Expo SDK upgrades and dependency migrations
 - `ai/skills/ios-native/SKILL.md` for iOS-specific behavior
+- `ai/skills/quality-review/SKILL.md` for internal review and quality checks
+- `ai/skills/react-native-perf/SKILL.md` for performance optimization, profiling, and bundle size
 
 ### Adding A New Skill
 
