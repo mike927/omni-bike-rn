@@ -123,6 +123,7 @@ Examples:
 
 - Ask questions only when the missing detail is a business or product decision.
 - Do not ask questions that can be answered from the repository.
+- **Use the `AskUserQuestion` tool for all product/business questions. Always provide 2–4 concrete options per question, plus the built-in "Other" escape hatch. Never ask open-ended questions in plain text when choices can be offered.**
 - Before implementation, prepare a detailed plan in Plan Mode based on the relevant raw task in `plan.md`.
 - The detailed plan must be specific enough to execute without further design decisions during implementation.
 - The detailed plan must be shown to the user and explicitly accepted before implementation starts.
