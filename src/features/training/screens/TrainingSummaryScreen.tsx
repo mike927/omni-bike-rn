@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useTrainingSession } from '../hooks/useTrainingSession';
+import { TrainingPhase } from '../../../types/training';
 import { ActionButton } from '../../../ui/components/ActionButton';
 import { MetricTile } from '../../../ui/components/MetricTile';
 import { SectionCard } from '../../../ui/components/SectionCard';
@@ -14,7 +15,7 @@ export function TrainingSummaryScreen() {
   const session = useTrainingSession();
 
   const isEmptySummary =
-    session.phase === 'idle' &&
+    session.phase === TrainingPhase.Idle &&
     session.elapsedSeconds === 0 &&
     session.totalDistance === 0 &&
     session.totalCalories === 0;
@@ -70,7 +71,7 @@ export function TrainingSummaryScreen() {
           integrations are implemented.
         </Text>
         <View style={styles.actionRow}>
-          {session.phase === 'finished' ? (
+          {session.phase === TrainingPhase.Finished ? (
             <ActionButton label="Done" onPress={handleDone} />
           ) : (
             <ActionButton label="Back Home" onPress={() => router.replace('/')} variant="secondary" />

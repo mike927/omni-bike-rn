@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { useDeviceConnection } from '../hooks/useDeviceConnection';
 import { useTrainingSession } from '../hooks/useTrainingSession';
+import { TrainingPhase } from '../../../types/training';
 import { ActionButton } from '../../../ui/components/ActionButton';
 import { MetricTile } from '../../../ui/components/MetricTile';
 import { SectionCard } from '../../../ui/components/SectionCard';
@@ -27,21 +28,21 @@ export function TrainingDashboardScreen() {
           <MetricTile label="Calories" value={`${session.totalCalories.toFixed(1)} kcal`} style={styles.metricTile} />
         </View>
         <View style={styles.actionRow}>
-          {session.phase === 'idle' ? (
+          {session.phase === TrainingPhase.Idle ? (
             <ActionButton label="Start" onPress={session.start} disabled={!bikeConnected} />
           ) : null}
-          {session.phase === 'active' ? (
+          {session.phase === TrainingPhase.Active ? (
             <ActionButton label="Pause" onPress={session.pause} variant="secondary" />
           ) : null}
-          {session.phase === 'paused' ? <ActionButton label="Resume" onPress={session.resume} /> : null}
-          {(session.phase === 'active' || session.phase === 'paused') && (
+          {session.phase === TrainingPhase.Paused ? <ActionButton label="Resume" onPress={session.resume} /> : null}
+          {(session.phase === TrainingPhase.Active || session.phase === TrainingPhase.Paused) && (
             <ActionButton label="Finish" onPress={session.finish} variant="danger" />
           )}
-          {session.phase === 'finished' ? (
+          {session.phase === TrainingPhase.Finished ? (
             <ActionButton label="View Summary" onPress={() => router.push('/summary')} />
           ) : null}
         </View>
-        {session.phase === 'idle' && !bikeConnected ? (
+        {session.phase === TrainingPhase.Idle && !bikeConnected ? (
           <Text style={styles.helperText}>Connect your bike before starting a workout.</Text>
         ) : null}
       </SectionCard>

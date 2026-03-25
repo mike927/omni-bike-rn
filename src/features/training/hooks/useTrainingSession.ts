@@ -90,26 +90,40 @@ export function useTrainingSession(): UseTrainingSessionReturn {
     ensureEngineRunning();
   }, [ensureEngineRunning]);
 
+  const disconnectAll = useCallback(() => {
+    const { bikeAdapter, hrAdapter } = useDeviceConnectionStore.getState();
+    void bikeAdapter?.setControlState(BikeStatus.Stopped);
+    void (async () => {
+      const tasks: Promise<void>[] = [];
+      if (bikeAdapter) {
+        tasks.push(
+          bikeAdapter.disconnect().catch((err: unknown) => {
+            console.error('[useTrainingSession] Bike disconnect failed:', err);
+          }),
+        );
+      }
+      if (hrAdapter) {
+        tasks.push(
+          hrAdapter.disconnect().catch((err: unknown) => {
+            console.error('[useTrainingSession] HR disconnect failed:', err);
+          }),
+        );
+      }
+      await Promise.allSettled(tasks);
+      useDeviceConnectionStore.getState().clearAll();
+    })();
+  }, []);
+
   const finish = useCallback(() => {
     const currentPhase = useTrainingSessionStore.getState().phase;
     if (currentPhase !== TrainingPhase.Active && currentPhase !== TrainingPhase.Paused) {
       return;
     }
 
-    const bikeAdapter = useDeviceConnectionStore.getState().bikeAdapter;
     useTrainingSessionStore.getState().finish();
-    void (async () => {
-      void bikeAdapter?.setControlState(BikeStatus.Stopped);
-      try {
-        await bikeAdapter?.disconnect();
-      } catch (err: unknown) {
-        console.error('[useTrainingSession] Bike disconnect after finish failed:', err);
-      } finally {
-        useDeviceConnectionStore.getState().clearBikeConnection();
-      }
-    })();
+    disconnectAll();
     stopEngine(true);
-  }, [stopEngine]);
+  }, [disconnectAll, stopEngine]);
 
   const reset = useCallback(() => {
     const currentPhase = useTrainingSessionStore.getState().phase;
@@ -139,9 +153,11 @@ export function useTrainingSession(): UseTrainingSessionReturn {
           stopEngine(false);
         }
       } else if (status === BikeStatus.Stopped) {
-        if (currentPhase === TrainingPhase.Active || currentPhase === TrainingPhase.Paused) {
-          useTrainingSessionStore.getState().finish();
-          stopEngine(true);
+        // Ignore when already Paused — this echo is from our own setControlState(Stopped) call.
+        // When Active, freeze the session. Phase 3 will add the "prompt to finish" UX.
+        if (currentPhase === TrainingPhase.Active) {
+          useTrainingSessionStore.getState().pause();
+          stopEngine(false);
         }
       }
     },

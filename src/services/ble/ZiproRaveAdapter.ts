@@ -1,5 +1,6 @@
 import type { Device, Subscription } from 'react-native-ble-plx';
 import { BikeStatus, type BikeAdapter, type BikeMetrics } from './BikeAdapter';
+import type { BleError } from './BleError';
 import { bleManager } from './bleClient';
 import {
   parseFtmsIndoorBikeData,
@@ -60,11 +61,8 @@ export class ZiproRaveAdapter implements BikeAdapter {
   }
 
   private isExpectedMonitorCancellation(error: unknown): boolean {
-    if (!(error instanceof Error)) {
-      return false;
-    }
-
-    const bleError = error as Error & { errorCode?: number };
+    if (!(error instanceof Error)) return false;
+    const bleError = error as BleError;
     return (
       bleError.errorCode === ZiproRaveAdapter.OPERATION_CANCELLED_ERROR_CODE ||
       bleError.message.includes('Operation was cancelled')
@@ -72,11 +70,8 @@ export class ZiproRaveAdapter implements BikeAdapter {
   }
 
   private isExpectedControlDisconnect(error: unknown): boolean {
-    if (!(error instanceof Error)) {
-      return false;
-    }
-
-    const bleError = error as Error & { errorCode?: number };
+    if (!(error instanceof Error)) return false;
+    const bleError = error as BleError;
     return (
       bleError.errorCode === ZiproRaveAdapter.DEVICE_DISCONNECTED_ERROR_CODE ||
       bleError.message.includes('was disconnected')
@@ -91,12 +86,8 @@ export class ZiproRaveAdapter implements BikeAdapter {
     const SERVICE_UUID = '00001826-0000-1000-8000-00805f9b34fb';
     const CHAR_UUID_CONTROL_POINT = '00002ad9-0000-1000-8000-00805f9b34fb';
 
-    let base64Cmd = '';
-    if (typeof Buffer !== 'undefined') {
-      base64Cmd = Buffer.from(command).toString('base64');
-    } else {
-      base64Cmd = btoa(String.fromCharCode(...command));
-    }
+    const base64Cmd =
+      typeof Buffer !== 'undefined' ? Buffer.from(command).toString('base64') : btoa(String.fromCharCode(...command));
 
     await this.device.writeCharacteristicWithResponseForService(SERVICE_UUID, CHAR_UUID_CONTROL_POINT, base64Cmd);
   }
@@ -158,7 +149,7 @@ export class ZiproRaveAdapter implements BikeAdapter {
               ...(parsedMetrics.heartRate !== undefined && { heartRate: parsedMetrics.heartRate }),
             };
 
-            console.log('[ZiproRave] Decoded FTMS Metrics:', this.latestMetrics);
+            console.warn('[ZiproRave] Decoded FTMS Metrics:', this.latestMetrics);
             this.metricsCallback?.(this.latestMetrics);
           } catch (err) {
             console.error('[ZiproRave] Error parsing FTMS metrics:', err);
@@ -269,7 +260,7 @@ export class ZiproRaveAdapter implements BikeAdapter {
           this.hasControl = false;
           await this.reconnectAfterReset();
         }
-        console.log(`[ZiproRave] Successfully sent control state: ${status}`);
+        console.warn(`[ZiproRave] Successfully sent control state: ${status}`);
       }
     } catch (err) {
       if (this.isExpectedControlDisconnect(err)) {

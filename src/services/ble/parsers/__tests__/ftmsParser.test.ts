@@ -1,5 +1,59 @@
 import { BikeStatus } from '../../BikeAdapter';
-import { parseFtmsMachineStatus } from '../ftmsParser';
+import { parseFtmsIndoorBikeData, parseFtmsMachineStatus } from '../ftmsParser';
+
+// Helpers to build FTMS Indoor Bike Data payloads
+function buildPayload(flags: number, ...fieldBytes: number[]): Uint8Array {
+  return new Uint8Array([flags & 0xff, (flags >> 8) & 0xff, ...fieldBytes]);
+}
+
+describe('parseFtmsIndoorBikeData', () => {
+  it('returns empty object for payloads shorter than 2 bytes', () => {
+    expect(parseFtmsIndoorBikeData(new Uint8Array([]))).toEqual({});
+    expect(parseFtmsIndoorBikeData(new Uint8Array([0x00]))).toEqual({});
+  });
+
+  it('parses instantaneous speed when More Data bit (0) is 0', () => {
+    // flags = 0x0000 (bit 0 = 0 → speed present), speed = 2500 → 25.00 km/h
+    const payload = buildPayload(0x0000, 0xc4, 0x09);
+    expect(parseFtmsIndoorBikeData(payload).speed).toBeCloseTo(25.0);
+  });
+
+  it('omits speed when More Data bit (0) is 1', () => {
+    const payload = buildPayload(0x0001, 0xc4, 0x09);
+    expect(parseFtmsIndoorBikeData(payload).speed).toBeUndefined();
+  });
+
+  it('parses instantaneous cadence when bit 2 is set', () => {
+    // flags = 0x0004 (bit 0 = 0 → speed, bit 2 → cadence), speed = 0, cadence = 160 → 80 rpm
+    const payload = buildPayload(0x0004, 0x00, 0x00, 0xa0, 0x00);
+    const result = parseFtmsIndoorBikeData(payload);
+    expect(result.cadence).toBe(80);
+  });
+
+  it('parses 24-bit total distance when bit 4 is set', () => {
+    // flags = 0x0011 (bit 0 = 1 → no speed, bit 4 → distance), distance = 1234 m
+    const payload = buildPayload(0x0011, 0xd2, 0x04, 0x00);
+    expect(parseFtmsIndoorBikeData(payload).distance).toBe(1234);
+  });
+
+  it('parses negative signed resistance (SINT16) when bit 5 is set', () => {
+    // flags = 0x0021 (bit 0 = 1, bit 5 → resistance), resistance = -1 (0xFFFF)
+    const payload = buildPayload(0x0021, 0xff, 0xff);
+    expect(parseFtmsIndoorBikeData(payload).resistance).toBe(-1);
+  });
+
+  it('parses negative signed power (SINT16) when bit 6 is set', () => {
+    // flags = 0x0041 (bit 0 = 1, bit 6 → power), power = -10 (0xFFF6)
+    const payload = buildPayload(0x0041, 0xf6, 0xff);
+    expect(parseFtmsIndoorBikeData(payload).power).toBe(-10);
+  });
+
+  it('parses heart rate (UINT8) when bit 9 is set', () => {
+    // flags = 0x0201 (bit 0 = 1, bit 9 → HR), HR = 142
+    const payload = buildPayload(0x0201, 0x8e);
+    expect(parseFtmsIndoorBikeData(payload).heartRate).toBe(142);
+  });
+});
 
 describe('parseFtmsMachineStatus', () => {
   it('maps reset and stopped op codes to a stopped bike status', () => {

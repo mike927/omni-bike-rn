@@ -121,7 +121,7 @@ export function parseFtmsIndoorBikeData(bytes: Uint8Array): Partial<BikeMetrics>
 export function parseFtmsMachineStatus(bytes: Uint8Array): BikeStatus | undefined {
   if (bytes.length < 1) return undefined;
 
-  const opCode = bytes[0] as FtmsMachineStatusOpCode;
+  const opCode: number = bytes[0]!;
 
   switch (opCode) {
     case FtmsMachineStatusOpCode.Reset:
