@@ -264,6 +264,10 @@ export class ZiproRaveAdapter implements BikeAdapter {
       }
     } catch (err) {
       if (this.isExpectedControlDisconnect(err)) {
+        if (status === BikeStatus.Reset) {
+          this.hasControl = false;
+          await this.reconnectAfterReset();
+        }
         return;
       }
       console.error('[ZiproRave] Failed to set control state:', err);

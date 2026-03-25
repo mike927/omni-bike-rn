@@ -201,6 +201,21 @@ describe('ZiproRaveAdapter', () => {
       );
     });
 
+    it('should reconnect after reset when the write itself triggers a disconnect', async () => {
+      const disconnectError = Object.assign(new Error(`Device ${DEVICE_ID} was disconnected`), { errorCode: 201 });
+      const mockDevice = createMockDevice();
+      mockDevice.writeCharacteristicWithResponseForService
+        .mockResolvedValueOnce(undefined) // requestControl succeeds
+        .mockRejectedValueOnce(disconnectError); // reset write triggers disconnect
+      (bleManager.connectToDevice as jest.Mock).mockResolvedValue(mockDevice);
+
+      await adapter.connect();
+      await adapter.setControlState(BikeStatus.Reset);
+
+      expect(bleManager.cancelDeviceConnection).toHaveBeenCalledWith(DEVICE_ID);
+      expect(bleManager.connectToDevice).toHaveBeenCalledTimes(2);
+    });
+
     it('should ignore expected disconnect errors while a control write is in flight', async () => {
       const disconnectError = Object.assign(new Error(`Device ${DEVICE_ID} was disconnected`), { errorCode: 201 });
       const mockDevice = createMockDevice();

@@ -91,9 +91,15 @@ export function useTrainingSession(): UseTrainingSessionReturn {
   }, [ensureEngineRunning]);
 
   const disconnectAll = useCallback(() => {
-    const { bikeAdapter, hrAdapter } = useDeviceConnectionStore.getState();
-    void bikeAdapter?.setControlState(BikeStatus.Stopped);
     void (async () => {
+      const { bikeAdapter, hrAdapter } = useDeviceConnectionStore.getState();
+      if (bikeAdapter) {
+        try {
+          await bikeAdapter.setControlState(BikeStatus.Stopped);
+        } catch {
+          // best-effort: proceed to disconnect even if the stop command fails
+        }
+      }
       const tasks: Promise<void>[] = [];
       if (bikeAdapter) {
         tasks.push(

@@ -119,6 +119,36 @@ describe('useTrainingSession', () => {
     expect(mockEngineStop).toHaveBeenCalledTimes(1);
   });
 
+  it('should await the stop command before disconnecting on finish', async () => {
+    let resolveStop!: () => void;
+    const stopPromise = new Promise<void>((resolve) => {
+      resolveStop = resolve;
+    });
+    mockSetControlState.mockReturnValueOnce(stopPromise);
+
+    const { result } = renderHook(() => useTrainingSession());
+
+    act(() => {
+      result.current.start();
+    });
+
+    mockSetControlState.mockClear();
+    mockDisconnect.mockClear();
+
+    act(() => {
+      result.current.finish();
+    });
+
+    // disconnect must not be initiated while the stop write is still in flight
+    expect(mockDisconnect).not.toHaveBeenCalled();
+
+    resolveStop();
+
+    await waitFor(() => {
+      expect(mockDisconnect).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('should disconnect bike and HR after finishing an active session', async () => {
     const { result } = renderHook(() => useTrainingSession());
 
