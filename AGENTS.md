@@ -142,8 +142,12 @@ Examples:
 ### 5. Review Loop
 
 - Address review findings with the main implementation agent.
+- For each review point, either:
+  - apply a fix, or
+  - explicitly decide that the suggestion is not needed and leave it intentionally unchanged.
 - Repeat the review/fix loop up to 3 times.
 - Stop earlier if the review is already clean.
+- If a review file under `ai/reviews/` is removed, that means every point in that file has already been touched: fixed, acknowledged, or intentionally skipped. Do not remove a review file while any point still needs action or a decision.
 
 ### 6. Manual Human Testing
 
