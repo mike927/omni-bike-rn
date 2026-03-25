@@ -13,6 +13,8 @@ Read these in this order before feature work:
 
 `plan.md` is the single source of truth for project scope and progress.
 
+When a task depends on vendor-specific behavior, specifications, or hardware setup details, check `docs/README.md` and the relevant files under `docs/vendor/` for trusted local reference material before relying on memory or third-party summaries.
+
 ## Task States In `plan.md`
 
 Use these task states consistently:
@@ -60,6 +62,7 @@ Examples:
 - Use `type` imports for type-only values. Enforced by ESLint (`consistent-type-imports`).
 - Prefer `interface` for contracts and public API shapes. Use `type` for unions, intersections, and utility types.
 - Interfaces and type aliases use `PascalCase`. Enum members use `UPPER_CASE` or `PascalCase`.
+- Do not declare reusable interfaces or type aliases inside implementation files such as adapters, hooks, screens, or components. Put them in a dedicated sibling file, contract file, or `src/types/` module and import them where needed.
 
 ### Architecture
 
