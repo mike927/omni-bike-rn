@@ -13,6 +13,7 @@ import { formatDistanceKm, formatDuration, formatMetricValue } from '../../../ui
 import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
 
+// Temporary heuristic until the dedicated gear setup flow can route devices by validated capabilities.
 function inferDeviceType(name: string | null): string {
   const normalizedName = name?.toLowerCase() ?? '';
 
@@ -41,6 +42,10 @@ function getTrainingButtonLabel(phase: TrainingPhase): string {
   return 'Start Training';
 }
 
+function canOpenTraining(phase: TrainingPhase, bikeConnected: boolean): boolean {
+  return bikeConnected && phase !== TrainingPhase.Finished;
+}
+
 export function HomeScreen() {
   const router = useRouter();
   const session = useTrainingSession();
@@ -48,11 +53,7 @@ export function HomeScreen() {
   const { devices, isScanning, error, scanForDevices, stopScanning } = useBleScanner();
   const { bikeConnected, hrConnected, latestBikeMetrics, latestHr, connectBike, connectHr } = useDeviceConnection();
   const hasInterruptedSession = session.phase === TrainingPhase.Active || session.phase === TrainingPhase.Paused;
-  const canOpenTraining =
-    bikeConnected &&
-    (session.phase === TrainingPhase.Idle ||
-      session.phase === TrainingPhase.Active ||
-      session.phase === TrainingPhase.Paused);
+  const isTrainingEnabled = canOpenTraining(session.phase, bikeConnected);
 
   const handleScanPress = async () => {
     const result = await requestBlePermission();
@@ -101,7 +102,7 @@ export function HomeScreen() {
           <ActionButton
             label={getTrainingButtonLabel(session.phase)}
             onPress={() => router.push('/training')}
-            disabled={!canOpenTraining}
+            disabled={!isTrainingEnabled}
           />
           <ActionButton label="History" onPress={() => router.push('/history')} variant="secondary" />
           <ActionButton label="Settings" onPress={() => router.push('/settings')} variant="secondary" />

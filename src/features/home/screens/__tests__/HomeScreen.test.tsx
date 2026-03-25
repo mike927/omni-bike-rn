@@ -121,6 +121,16 @@ describe('HomeScreen', () => {
     expect(mockPush).toHaveBeenCalledWith('/training');
   });
 
+  it('keeps training entry disabled once the session is finished', () => {
+    Object.assign(mockConnection, { bikeConnected: true });
+    Object.assign(mockSession, { phase: 'finished' });
+
+    const { getByText } = render(<HomeScreen />);
+
+    fireEvent.press(getByText('Start Training'));
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
   it('shows Resume Training and the interrupted workout CTA when the session is paused', () => {
     Object.assign(mockConnection, { bikeConnected: true });
     Object.assign(mockSession, {
