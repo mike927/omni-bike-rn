@@ -16,6 +16,7 @@ describe('ZiproRaveAdapter', () => {
   const createMockDevice = () => ({
     name: 'Test Bike',
     discoverAllServicesAndCharacteristics: jest.fn().mockResolvedValue(undefined),
+    writeCharacteristicWithResponseForService: jest.fn().mockResolvedValue(undefined),
     services: jest.fn().mockResolvedValue([{ uuid: 'service-1' }]),
     characteristicsForService: jest.fn().mockImplementation((uuid) => {
       if (uuid === 'service-1') {
@@ -137,6 +138,97 @@ describe('ZiproRaveAdapter', () => {
           speed: 15.5, // Should retain previous metrics state
         }),
       );
+    });
+
+    it('should ignore expected monitor cancellation errors during teardown', async () => {
+      const mockDevice = createMockDevice();
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      (bleManager.connectToDevice as jest.Mock).mockResolvedValue(mockDevice);
+
+      await adapter.connect();
+      adapter.subscribeToMetrics(jest.fn());
+
+      const dataCallback = mockDevice.monitorCharacteristicForService.mock.calls[0][2];
+      const statusCallback = mockDevice.monitorCharacteristicForService.mock.calls[1][2];
+      const cancelledError = Object.assign(new Error('Operation was cancelled'), { errorCode: 2 });
+
+      dataCallback(cancelledError, null);
+      statusCallback(cancelledError, null);
+
+      expect(consoleErrorSpy).not.toHaveBeenCalledWith('[ZiproRave] FTMS Data Monitoring error:', cancelledError);
+      expect(consoleErrorSpy).not.toHaveBeenCalledWith('[ZiproRave] FTMS Status Monitoring error:', cancelledError);
+
+      consoleErrorSpy.mockRestore();
+    });
+  });
+
+  describe('setControlState', () => {
+    it('should request control before sending a reset command', async () => {
+      const mockDevice = createMockDevice();
+      (bleManager.connectToDevice as jest.Mock).mockResolvedValue(mockDevice);
+
+      await adapter.connect();
+      await adapter.setControlState(BikeStatus.Reset);
+
+      expect(mockDevice.writeCharacteristicWithResponseForService).toHaveBeenNthCalledWith(
+        1,
+        '00001826-0000-1000-8000-00805f9b34fb',
+        '00002ad9-0000-1000-8000-00805f9b34fb',
+        'AA==',
+      );
+      expect(mockDevice.writeCharacteristicWithResponseForService).toHaveBeenNthCalledWith(
+        2,
+        '00001826-0000-1000-8000-00805f9b34fb',
+        '00002ad9-0000-1000-8000-00805f9b34fb',
+        'AQ==',
+      );
+      expect(bleManager.cancelDeviceConnection).toHaveBeenCalledWith(DEVICE_ID);
+      expect(bleManager.connectToDevice).toHaveBeenCalledTimes(2);
+    });
+
+    it('should send start directly without requesting control first', async () => {
+      const mockDevice = createMockDevice();
+      (bleManager.connectToDevice as jest.Mock).mockResolvedValue(mockDevice);
+
+      await adapter.connect();
+      await adapter.setControlState(BikeStatus.Started);
+
+      expect(mockDevice.writeCharacteristicWithResponseForService).toHaveBeenCalledTimes(1);
+      expect(mockDevice.writeCharacteristicWithResponseForService).toHaveBeenCalledWith(
+        '00001826-0000-1000-8000-00805f9b34fb',
+        '00002ad9-0000-1000-8000-00805f9b34fb',
+        'Bw==',
+      );
+    });
+
+    it('should reconnect after reset when the write itself triggers a disconnect', async () => {
+      const disconnectError = Object.assign(new Error(`Device ${DEVICE_ID} was disconnected`), { errorCode: 201 });
+      const mockDevice = createMockDevice();
+      mockDevice.writeCharacteristicWithResponseForService
+        .mockResolvedValueOnce(undefined) // requestControl succeeds
+        .mockRejectedValueOnce(disconnectError); // reset write triggers disconnect
+      (bleManager.connectToDevice as jest.Mock).mockResolvedValue(mockDevice);
+
+      await adapter.connect();
+      await adapter.setControlState(BikeStatus.Reset);
+
+      expect(bleManager.cancelDeviceConnection).toHaveBeenCalledWith(DEVICE_ID);
+      expect(bleManager.connectToDevice).toHaveBeenCalledTimes(2);
+    });
+
+    it('should ignore expected disconnect errors while a control write is in flight', async () => {
+      const disconnectError = Object.assign(new Error(`Device ${DEVICE_ID} was disconnected`), { errorCode: 201 });
+      const mockDevice = createMockDevice();
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      mockDevice.writeCharacteristicWithResponseForService.mockRejectedValue(disconnectError);
+      (bleManager.connectToDevice as jest.Mock).mockResolvedValue(mockDevice);
+
+      await adapter.connect();
+      await adapter.setControlState(BikeStatus.Stopped);
+
+      expect(consoleErrorSpy).not.toHaveBeenCalledWith('[ZiproRave] Failed to set control state:', disconnectError);
+
+      consoleErrorSpy.mockRestore();
     });
   });
 });

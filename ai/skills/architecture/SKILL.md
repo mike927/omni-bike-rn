@@ -53,6 +53,7 @@ New devices get a new adapter class, not changes to existing ones.
 - **expo-router**: File-based routing under `app/`.
 - **No barrel exports**: Import directly from the module file.
 - **Hooks as public API**: Feature logic is only consumed through hooks, never by importing services directly from UI.
+- **Dedicated type modules**: Reusable interfaces and type aliases belong in a dedicated type/contract file, not inside adapter, hook, screen, or component implementation files.
 
 ## See Also
 
