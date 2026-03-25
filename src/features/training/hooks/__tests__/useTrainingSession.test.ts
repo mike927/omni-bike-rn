@@ -117,9 +117,11 @@ describe('useTrainingSession', () => {
 
     expect(result.current.phase).toBe(TrainingPhase.Finished);
     expect(mockEngineStop).toHaveBeenCalledTimes(1);
+    expect(useDeviceConnectionStore.getState().bikeAdapter).not.toBeNull();
+    expect(useDeviceConnectionStore.getState().hrAdapter).not.toBeNull();
   });
 
-  it('should await the stop command before disconnecting on finish', async () => {
+  it('should not disconnect bike or HR when finishing an active session', async () => {
     let resolveStop!: () => void;
     const stopPromise = new Promise<void>((resolve) => {
       resolveStop = resolve;
@@ -139,17 +141,21 @@ describe('useTrainingSession', () => {
       result.current.finish();
     });
 
-    // disconnect must not be initiated while the stop write is still in flight
     expect(mockDisconnect).not.toHaveBeenCalled();
+    expect(mockHrDisconnect).not.toHaveBeenCalled();
 
     resolveStop();
 
     await waitFor(() => {
-      expect(mockDisconnect).toHaveBeenCalledTimes(1);
+      expect(result.current.phase).toBe(TrainingPhase.Finished);
     });
+
+    expect(mockDisconnect).not.toHaveBeenCalled();
+    expect(mockHrDisconnect).not.toHaveBeenCalled();
+    expect(useDeviceConnectionStore.getState().bikeAdapter).not.toBeNull();
   });
 
-  it('should disconnect bike and HR after finishing an active session', async () => {
+  it('should keep the bike adapter connected after finish so summary can reset the bike', async () => {
     const { result } = renderHook(() => useTrainingSession());
 
     act(() => {
@@ -165,13 +171,13 @@ describe('useTrainingSession', () => {
     });
 
     await waitFor(() => {
-      expect(mockDisconnect).toHaveBeenCalledTimes(1);
+      expect(result.current.phase).toBe(TrainingPhase.Finished);
     });
 
-    expect(mockHrDisconnect).toHaveBeenCalledTimes(1);
-    expect(useDeviceConnectionStore.getState().bikeAdapter).toBeNull();
-    expect(useDeviceConnectionStore.getState().hrAdapter).toBeNull();
-    expect(useDeviceConnectionStore.getState().latestBikeMetrics).toBeNull();
+    expect(mockDisconnect).not.toHaveBeenCalled();
+    expect(mockHrDisconnect).not.toHaveBeenCalled();
+    expect(useDeviceConnectionStore.getState().bikeAdapter).not.toBeNull();
+    expect(useDeviceConnectionStore.getState().hrAdapter).not.toBeNull();
   });
 
   it('should freeze (pause) the session when the bike reports Stopped while Active', async () => {
@@ -226,7 +232,7 @@ describe('useTrainingSession', () => {
     expect(mockDisconnect).not.toHaveBeenCalled();
   });
 
-  it('should reset local state and send a bike reset command for an active session', () => {
+  it('should reset local state, send a bike reset command, and disconnect adapters for an active session', async () => {
     const { result } = renderHook(() => useTrainingSession());
 
     act(() => {
@@ -240,9 +246,51 @@ describe('useTrainingSession', () => {
       result.current.reset();
     });
 
-    expect(result.current.phase).toBe(TrainingPhase.Idle);
+    await waitFor(() => {
+      expect(result.current.phase).toBe(TrainingPhase.Idle);
+    });
+
     expect(mockEngineStop).toHaveBeenCalledTimes(1);
     expect(mockSetControlState).toHaveBeenCalledWith(BikeStatus.Reset);
+    expect(mockDisconnect).toHaveBeenCalledTimes(1);
+    expect(mockHrDisconnect).toHaveBeenCalledTimes(1);
+    expect(useDeviceConnectionStore.getState().bikeAdapter).toBeNull();
+    expect(useDeviceConnectionStore.getState().hrAdapter).toBeNull();
+  });
+
+  it('should reset and disconnect after a finished session when summary done is pressed', async () => {
+    const { result } = renderHook(() => useTrainingSession());
+
+    act(() => {
+      result.current.start();
+    });
+
+    act(() => {
+      result.current.finish();
+    });
+
+    await waitFor(() => {
+      expect(result.current.phase).toBe(TrainingPhase.Finished);
+    });
+
+    mockSetControlState.mockClear();
+    mockDisconnect.mockClear();
+    mockHrDisconnect.mockClear();
+
+    act(() => {
+      result.current.reset();
+    });
+
+    await waitFor(() => {
+      expect(result.current.phase).toBe(TrainingPhase.Idle);
+    });
+
+    expect(mockSetControlState).toHaveBeenCalledWith(BikeStatus.Reset);
+    expect(mockDisconnect).toHaveBeenCalledTimes(1);
+    expect(mockHrDisconnect).toHaveBeenCalledTimes(1);
+    expect(useDeviceConnectionStore.getState().bikeAdapter).toBeNull();
+    expect(useDeviceConnectionStore.getState().hrAdapter).toBeNull();
+    expect(useDeviceConnectionStore.getState().latestBikeMetrics).toBeNull();
   });
 
   it('should avoid issuing a bike reset command when already idle', () => {

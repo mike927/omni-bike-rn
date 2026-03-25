@@ -90,35 +90,56 @@ export function useTrainingSession(): UseTrainingSessionReturn {
     ensureEngineRunning();
   }, [ensureEngineRunning]);
 
-  const disconnectAll = useCallback(() => {
+  const teardownConnectionsAfterReset = useCallback(async () => {
+    const { bikeAdapter, hrAdapter } = useDeviceConnectionStore.getState();
+    const tasks: Promise<void>[] = [];
+
+    if (bikeAdapter) {
+      tasks.push(
+        bikeAdapter.disconnect().catch((err: unknown) => {
+          console.error('[useTrainingSession] Bike disconnect failed:', err);
+        }),
+      );
+    }
+
+    if (hrAdapter) {
+      tasks.push(
+        hrAdapter.disconnect().catch((err: unknown) => {
+          console.error('[useTrainingSession] HR disconnect failed:', err);
+        }),
+      );
+    }
+
+    await Promise.allSettled(tasks);
+    useDeviceConnectionStore.getState().clearAll();
+  }, []);
+
+  const finishSession = useCallback(() => {
+    const bikeAdapter = useDeviceConnectionStore.getState().bikeAdapter;
+    if (bikeAdapter) {
+      void bikeAdapter.setControlState(BikeStatus.Stopped);
+    }
+
+    useTrainingSessionStore.getState().finish();
+    stopEngine(true);
+  }, [stopEngine]);
+
+  const resetSessionAndConnections = useCallback(() => {
     void (async () => {
-      const { bikeAdapter, hrAdapter } = useDeviceConnectionStore.getState();
+      const { bikeAdapter } = useDeviceConnectionStore.getState();
+
       if (bikeAdapter) {
         try {
-          await bikeAdapter.setControlState(BikeStatus.Stopped);
-        } catch {
-          // best-effort: proceed to disconnect even if the stop command fails
+          await bikeAdapter.setControlState(BikeStatus.Reset);
+        } catch (err: unknown) {
+          console.error('[useTrainingSession] Bike reset failed:', err);
         }
       }
-      const tasks: Promise<void>[] = [];
-      if (bikeAdapter) {
-        tasks.push(
-          bikeAdapter.disconnect().catch((err: unknown) => {
-            console.error('[useTrainingSession] Bike disconnect failed:', err);
-          }),
-        );
-      }
-      if (hrAdapter) {
-        tasks.push(
-          hrAdapter.disconnect().catch((err: unknown) => {
-            console.error('[useTrainingSession] HR disconnect failed:', err);
-          }),
-        );
-      }
-      await Promise.allSettled(tasks);
-      useDeviceConnectionStore.getState().clearAll();
+
+      await teardownConnectionsAfterReset();
+      useTrainingSessionStore.getState().reset();
     })();
-  }, []);
+  }, [teardownConnectionsAfterReset]);
 
   const finish = useCallback(() => {
     const currentPhase = useTrainingSessionStore.getState().phase;
@@ -126,20 +147,19 @@ export function useTrainingSession(): UseTrainingSessionReturn {
       return;
     }
 
-    useTrainingSessionStore.getState().finish();
-    disconnectAll();
-    stopEngine(true);
-  }, [disconnectAll, stopEngine]);
+    finishSession();
+  }, [finishSession]);
 
   const reset = useCallback(() => {
     const currentPhase = useTrainingSessionStore.getState().phase;
 
     stopEngine(true);
-    if (currentPhase !== TrainingPhase.Idle) {
-      void useDeviceConnectionStore.getState().bikeAdapter?.setControlState(BikeStatus.Reset);
+    if (currentPhase === TrainingPhase.Idle) {
+      return;
     }
-    useTrainingSessionStore.getState().reset();
-  }, [stopEngine]);
+
+    resetSessionAndConnections();
+  }, [resetSessionAndConnections, stopEngine]);
 
   const syncFromBikeStatus = useCallback(
     (status: BikeStatus) => {
