@@ -8,6 +8,7 @@ Indoor cycling companion app built with Expo Router and React Native.
 - Project progress and current status live in [`plan.md`](plan.md).
 - Agent instructions and workflow rules live in [`AGENTS.md`](AGENTS.md).
 - AI setup elements and file roles live in [`ai/docs/elements.md`](ai/docs/elements.md).
+- Trusted local reference documents live in [`docs/README.md`](docs/README.md).
 
 ## Core Commands
 
