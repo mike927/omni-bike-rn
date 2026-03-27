@@ -1,8 +1,8 @@
 import { useRouter } from 'expo-router';
-import { Alert, Linking, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
-import { useBlePermission } from '../../devices/hooks/useBlePermission';
-import { useBleScanner } from '../../devices/hooks/useBleScanner';
+import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
+import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { useTrainingSession } from '../../training/hooks/useTrainingSession';
 import { useDeviceConnection } from '../../training/hooks/useDeviceConnection';
 import { TrainingPhase } from '../../../types/training';
@@ -12,33 +12,12 @@ import { SectionCard } from '../../../ui/components/SectionCard';
 import { formatDistanceKm, formatDuration, formatMetricValue } from '../../../ui/formatters';
 import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
-
-// Temporary heuristic until the dedicated gear setup flow can route devices by validated capabilities.
-function inferDeviceType(name: string | null): string {
-  const normalizedName = name?.toLowerCase() ?? '';
-
-  if (
-    normalizedName.includes('zipro') ||
-    normalizedName.includes('rave') ||
-    normalizedName.includes('bike') ||
-    normalizedName.includes('trainer') ||
-    normalizedName.includes('ic')
-  ) {
-    return 'Bike trainer';
-  }
-
-  if (normalizedName.includes('hr') || normalizedName.includes('heart') || normalizedName.includes('garmin')) {
-    return 'Heart-rate sensor';
-  }
-
-  return 'Unknown device';
-}
+import type { ReconnectState } from '../../../types/gear';
 
 function getTrainingButtonLabel(phase: TrainingPhase): string {
   if (phase === TrainingPhase.Active || phase === TrainingPhase.Paused) {
     return 'Resume Training';
   }
-
   return 'Start Training';
 }
 
@@ -46,52 +25,26 @@ function canOpenTraining(phase: TrainingPhase, bikeConnected: boolean): boolean 
   return bikeConnected && phase !== TrainingPhase.Finished;
 }
 
+function reconnectLabel(state: ReconnectState): string {
+  if (state === 'connecting') return 'Connecting…';
+  if (state === 'connected') return 'Connected';
+  if (state === 'failed') return 'Connection failed';
+  return 'Not connected';
+}
+
 export function HomeScreen() {
   const router = useRouter();
   const session = useTrainingSession();
-  const { requestBlePermission } = useBlePermission();
-  const { devices, isScanning, error, scanForDevices, stopScanning } = useBleScanner();
-  const { bikeConnected, hrConnected, latestBikeMetrics, latestHr, connectBike, connectHr } = useDeviceConnection();
+  const { bikeConnected, hrConnected, latestBikeMetrics, latestHr } = useDeviceConnection();
+  const { savedBike, savedHrSource, forgetBike, forgetHr } = useSavedGear();
+  const { bikeReconnectState, hrReconnectState, retryBike, retryHr } = useAutoReconnect();
+
   const hasInterruptedSession = session.phase === TrainingPhase.Active || session.phase === TrainingPhase.Paused;
   const isTrainingEnabled = canOpenTraining(session.phase, bikeConnected);
 
-  const handleScanPress = async () => {
-    const result = await requestBlePermission();
-    if (result === 'denied') {
-      Alert.alert('Bluetooth Permission Required', 'Allow Omni Bike to access Bluetooth in Settings.', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Open Settings', onPress: () => void Linking.openSettings() },
-      ]);
-      return;
-    }
-    await scanForDevices();
-  };
-
-  const handleConnect = async (deviceId: string, name: string | null) => {
-    try {
-      stopScanning();
-
-      if (inferDeviceType(name) === 'Bike trainer') {
-        await connectBike(deviceId);
-        Alert.alert('Connected', `Connected to bike: ${name ?? deviceId}`);
-        return;
-      }
-
-      await connectHr(deviceId);
-      Alert.alert('Connected', `Connected to heart-rate source: ${name ?? deviceId}`);
-    } catch (err: unknown) {
-      console.error('[HomeScreen] Connection error:', err);
-      Alert.alert('Connection Failed', err instanceof Error ? err.message : String(err));
-    }
-  };
-
   return (
-    <AppScreen
-      title="Ride Setup"
-      subtitle="Home is the bike-first setup surface for training, current device readiness, and quick access to the rest of the app shell.">
-      <SectionCard
-        title="Quick Start"
-        description="Start or resume training once the bike is ready, and jump straight to History or Settings from the same surface.">
+    <AppScreen title="Ride Setup" subtitle="Set up your gear and start training.">
+      <SectionCard title="Quick Start">
         <View style={styles.metricGrid}>
           <MetricTile label="Phase" value={session.phase} style={styles.metricTile} />
           <MetricTile label="Elapsed" value={formatDuration(session.elapsedSeconds)} style={styles.metricTile} />
@@ -110,9 +63,7 @@ export function HomeScreen() {
         {!bikeConnected ? <Text style={styles.helperText}>Connect your bike before starting a workout.</Text> : null}
       </SectionCard>
 
-      <SectionCard
-        title="Resume Interrupted Session"
-        description="Only the current in-memory active or paused workout can be resumed from Home until persistence arrives in a later phase.">
+      <SectionCard title="Resume Interrupted Session">
         {hasInterruptedSession ? (
           <>
             <View style={styles.metricGrid}>
@@ -127,11 +78,13 @@ export function HomeScreen() {
         )}
       </SectionCard>
 
-      <SectionCard
-        title="My Bike"
-        description="Live bike readiness and FTMS samples are surfaced here until the dedicated gear setup flow is implemented.">
+      <SectionCard title="My Bike">
         <View style={styles.metricGrid}>
-          <MetricTile label="Bike" value={bikeConnected ? 'Connected' : 'Not connected'} style={styles.metricTile} />
+          <MetricTile
+            label="Status"
+            value={bikeConnected ? 'Connected' : reconnectLabel(bikeReconnectState)}
+            style={styles.metricTile}
+          />
           <MetricTile
             label="Latest Speed"
             value={latestBikeMetrics ? `${latestBikeMetrics.speed.toFixed(1)} km/h` : '--'}
@@ -143,61 +96,67 @@ export function HomeScreen() {
             style={styles.metricTile}
           />
         </View>
-        <Text style={styles.bodyText}>
-          {bikeConnected
-            ? 'Bike is connected and ready for training.'
-            : 'Scan nearby devices below to connect your bike trainer.'}
-        </Text>
+        {savedBike ? (
+          <Text style={styles.bodyText}>{savedBike.name}</Text>
+        ) : (
+          <Text style={styles.bodyText}>No bike saved yet.</Text>
+        )}
+        <View style={styles.actionRow}>
+          {!savedBike ? (
+            <ActionButton
+              label="Set Up Bike"
+              onPress={() => router.push('/gear-setup?target=bike')}
+              variant="secondary"
+            />
+          ) : null}
+          {savedBike && bikeReconnectState === 'failed' ? (
+            <>
+              <ActionButton label="Retry" onPress={retryBike} variant="secondary" />
+              <ActionButton
+                label="Choose Another"
+                onPress={() => router.push('/gear-setup?target=bike')}
+                variant="secondary"
+              />
+              <ActionButton label="Forget" onPress={() => void forgetBike()} variant="danger" />
+            </>
+          ) : null}
+        </View>
       </SectionCard>
 
-      <SectionCard
-        title="Heart Rate"
-        description="Current live HR readiness stays visible on Home even before preferred-device memory is built.">
+      <SectionCard title="Heart Rate">
         <View style={styles.metricGrid}>
           <MetricTile
-            label="Heart Rate"
-            value={hrConnected ? 'Connected' : 'Not connected'}
+            label="Status"
+            value={hrConnected ? 'Connected' : reconnectLabel(hrReconnectState)}
             style={styles.metricTile}
           />
           <MetricTile label="Latest HR" value={formatMetricValue(latestHr, ' bpm')} style={styles.metricTile} />
         </View>
-        <Text style={styles.bodyText}>
-          {hrConnected
-            ? 'Heart-rate source is connected and feeding live data.'
-            : 'Connect a heart-rate source from the scan list when available.'}
-        </Text>
-      </SectionCard>
-
-      <SectionCard
-        title="Scan Nearby Devices"
-        description="Temporary inline scan and connect behavior stays on Home until the dedicated gear setup flow is implemented.">
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-        <ActionButton
-          label={isScanning ? 'Stop Scan' : 'Start Scan'}
-          onPress={isScanning ? stopScanning : handleScanPress}
-          fullWidth
-        />
-
-        {devices.length === 0 ? (
-          <Text style={styles.emptyText}>
-            {isScanning ? 'Scanning for nearby BLE devices…' : 'No devices discovered yet.'}
-          </Text>
+        {savedHrSource ? (
+          <Text style={styles.bodyText}>{savedHrSource.name}</Text>
         ) : (
-          devices.map((device) => {
-            const deviceType = inferDeviceType(device.name);
-
-            return (
-              <View key={device.id} style={styles.deviceRow}>
-                <View style={styles.deviceText}>
-                  <Text style={styles.deviceName}>{device.name ?? 'Unknown Device'}</Text>
-                  <Text style={styles.deviceMeta}>{deviceType}</Text>
-                  <Text style={styles.deviceId}>{device.id}</Text>
-                </View>
-                <ActionButton label="Connect" onPress={() => handleConnect(device.id, device.name)} variant="ghost" />
-              </View>
-            );
-          })
+          <Text style={styles.bodyText}>No HR source saved. HR is optional.</Text>
         )}
+        <View style={styles.actionRow}>
+          {!savedHrSource ? (
+            <ActionButton
+              label="Add HR Source"
+              onPress={() => router.push('/gear-setup?target=hr')}
+              variant="secondary"
+            />
+          ) : null}
+          {savedHrSource && hrReconnectState === 'failed' ? (
+            <>
+              <ActionButton label="Retry" onPress={retryHr} variant="secondary" />
+              <ActionButton
+                label="Choose Another"
+                onPress={() => router.push('/gear-setup?target=hr')}
+                variant="secondary"
+              />
+              <ActionButton label="Forget" onPress={() => void forgetHr()} variant="danger" />
+            </>
+          ) : null}
+        </View>
       </SectionCard>
     </AppScreen>
   );
@@ -217,16 +176,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 12,
   },
-  errorText: {
-    color: palette.danger,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  emptyText: {
-    color: palette.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
-  },
   helperText: {
     color: palette.textMuted,
     fontSize: 13,
@@ -236,30 +185,5 @@ const styles = StyleSheet.create({
     color: palette.textMuted,
     fontSize: 14,
     lineHeight: 22,
-  },
-  deviceRow: {
-    gap: 12,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: palette.border,
-    backgroundColor: palette.surfaceMuted,
-    padding: 14,
-  },
-  deviceText: {
-    gap: 4,
-  },
-  deviceName: {
-    color: palette.text,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  deviceMeta: {
-    color: palette.accent,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  deviceId: {
-    color: palette.textMuted,
-    fontSize: 12,
   },
 });
