@@ -4,6 +4,8 @@ module.exports = {
   clearMocks: true,
   moduleNameMapper: {
     '^react-native-ble-plx$': '<rootDir>/src/__mocks__/react-native-ble-plx.ts',
+    '^@react-native-async-storage/async-storage$':
+      '<rootDir>/src/__mocks__/@react-native-async-storage/async-storage.ts',
   },
   roots: ['<rootDir>/src'],
   testMatch: ['**/*.test.ts', '**/*.test.tsx'],
