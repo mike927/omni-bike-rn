@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import Storage from 'expo-sqlite/kv-store';
 
 import type { SavedDevice, SavedGear } from '../../types/gear';
 
@@ -11,7 +11,7 @@ const DEFAULT_GEAR: SavedGear = {
 
 export async function loadSavedGear(): Promise<SavedGear> {
   try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    const raw = await Storage.getItem(STORAGE_KEY);
     if (!raw) return { ...DEFAULT_GEAR };
     return JSON.parse(raw) as SavedGear;
   } catch (err: unknown) {
@@ -21,7 +21,7 @@ export async function loadSavedGear(): Promise<SavedGear> {
 }
 
 async function persist(gear: SavedGear): Promise<void> {
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(gear));
+  await Storage.setItem(STORAGE_KEY, JSON.stringify(gear));
 }
 
 export async function saveBikeDevice(device: SavedDevice): Promise<void> {

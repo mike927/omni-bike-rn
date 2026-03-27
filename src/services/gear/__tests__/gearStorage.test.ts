@@ -1,15 +1,15 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import Storage from 'expo-sqlite/kv-store';
 
 import { loadSavedGear, saveBikeDevice, saveHrDevice, forgetBikeDevice, forgetHrDevice } from '../gearStorage';
 import type { SavedDevice } from '../../../types/gear';
 
-jest.mock('@react-native-async-storage/async-storage', () => ({
+jest.mock('expo-sqlite/kv-store', () => ({
   getItem: jest.fn(),
   setItem: jest.fn(),
 }));
 
-const mockGetItem = AsyncStorage.getItem as jest.Mock;
-const mockSetItem = AsyncStorage.setItem as jest.Mock;
+const mockGetItem = Storage.getItem as jest.Mock;
+const mockSetItem = Storage.setItem as jest.Mock;
 
 const bike: SavedDevice = { id: 'bike-uuid', name: 'Zipro Rave', type: 'bike' };
 const hr: SavedDevice = { id: 'hr-uuid', name: 'Garmin HRM', type: 'hr' };
