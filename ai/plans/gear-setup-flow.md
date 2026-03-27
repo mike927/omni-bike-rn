@@ -218,4 +218,4 @@ Reconnect state transitions: `idle → connecting → connected | failed → (re
 
 ## Status
 
-- [ ] Approved by user
+- [x] Approved by user

@@ -36,18 +36,18 @@ Bike-first product UX in this phase: support a single main bike for now, while k
 
 - [R] App shell and bottom-tab navigation (`Home`, `History`, `Settings`) with dedicated `Training` and `Summary` screens
 - [x] Functional home / setup screen (resume interrupted session, My Bike, Heart Rate, Start training, History / Settings entry points)
-- [ ] Functional gear setup flow (select single main bike and HR source)
-- [ ] Support standard Bluetooth HR sensors (for example chest straps such as Garmin HRM-Dual), including compatible watches that can broadcast heart rate as sensors
-- [ ] Validate selected bike and HR devices during gear setup against the required sensor mode
-- [ ] Explain unsupported or incompatible devices clearly and prevent saving gear that does not provide the required live data mode
-- [ ] Require live metric / HR signal before saving preferred gear
-- [ ] Remember selected main bike and preferred Bluetooth HR source
-- [ ] Auto-reconnect saved main bike and preferred Bluetooth HR source on app launch / setup screen
-- [ ] Inline reconnect failure states on Home / My Gear with actions such as `Retry`, `Choose another device`, and `Forget device`
-- [ ] Minimal My Gear management in Settings (view saved bike and HR source, replace device, forget device, reconnect)
-- [ ] Extensible gear model for future FTMS equipment types (bike first, treadmill later)
-- [ ] Functional Settings screen
-- [ ] Just-in-time permission UX for Bluetooth scanning / connection
+- [~] Functional gear setup flow (select single main bike and HR source)
+- [~] Support standard Bluetooth HR sensors (for example chest straps such as Garmin HRM-Dual), including compatible watches that can broadcast heart rate as sensors
+- [~] Validate selected bike and HR devices during gear setup against the required sensor mode
+- [~] Explain unsupported or incompatible devices clearly and prevent saving gear that does not provide the required live data mode
+- [~] Require live metric / HR signal before saving preferred gear
+- [~] Remember selected main bike and preferred Bluetooth HR source
+- [~] Auto-reconnect saved main bike and preferred Bluetooth HR source on app launch / setup screen
+- [~] Inline reconnect failure states on Home / My Gear with actions such as `Retry`, `Choose another device`, and `Forget device`
+- [~] Minimal My Gear management in Settings (view saved bike and HR source, replace device, forget device, reconnect)
+- [~] Extensible gear model for future FTMS equipment types (bike first, treadmill later)
+- [~] Functional Settings screen
+- [~] Just-in-time permission UX for Bluetooth scanning / connection
 - [ ] Add comprehensive unit tests covering various test cases
 
 ## Phase 3: Core Training UX & Persistence
