@@ -213,6 +213,7 @@ Available skills:
 - `ai/skills/ios-native/SKILL.md` for iOS-specific behavior
 - `ai/skills/quality-review/SKILL.md` for internal review and quality checks
 - `ai/skills/react-native-perf/SKILL.md` for performance optimization, profiling, and bundle size
+- `ai/skills/stitch-design/SKILL.md` for UI design with Google Stitch, MCP integration, and design-to-code conversion
 
 ### Adding A New Skill
 
