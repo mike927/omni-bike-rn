@@ -1,0 +1,178 @@
+import { useState, useCallback, useRef, useEffect } from 'react';
+import type { Device } from 'react-native-ble-plx';
+
+import { useBleScanner } from '../../devices/hooks/useBleScanner';
+import { useBlePermission } from '../../devices/hooks/useBlePermission';
+import { useDeviceConnection } from '../../training/hooks/useDeviceConnection';
+import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
+import { useSavedGearStore } from '../../../store/savedGearStore';
+import { validateBikeDevice, validateHrDevice } from '../../../services/ble/bleDeviceValidator';
+import type { GearType, ValidationFailureReason } from '../../../types/gear';
+
+const SIGNAL_TIMEOUT_MS = 8000;
+
+const BIKE_SERVICE_UUIDS = ['00001826-0000-1000-8000-00805f9b34fb'];
+const HR_SERVICE_UUIDS = ['0000180d-0000-1000-8000-00805f9b34fb'];
+
+export type GearSetupStep = 'scanning' | 'validating' | 'connecting' | 'awaiting_signal' | 'ready' | 'error';
+
+interface UseGearSetupReturn {
+  step: GearSetupStep;
+  devices: Device[];
+  isScanning: boolean;
+  scanError: string | null;
+  selectedDevice: Device | null;
+  validationError: ValidationFailureReason | null;
+  signalConfirmed: boolean;
+  startScan: () => Promise<void>;
+  stopScan: () => void;
+  selectDevice: (device: Device) => Promise<void>;
+  save: () => Promise<void>;
+  reset: () => void;
+}
+
+export function useGearSetup(target: GearType): UseGearSetupReturn {
+  const { requestBlePermission } = useBlePermission();
+  const {
+    devices,
+    isScanning,
+    error: scanError,
+    scanForDevices,
+    stopScanning,
+  } = useBleScanner(target === 'bike' ? BIKE_SERVICE_UUIDS : HR_SERVICE_UUIDS);
+  const { connectBike, connectHr } = useDeviceConnection();
+  const persistBike = useSavedGearStore((s) => s.persistBike);
+  const persistHr = useSavedGearStore((s) => s.persistHr);
+
+  const [step, setStep] = useState<GearSetupStep>('scanning');
+  const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
+  const [validationError, setValidationError] = useState<ValidationFailureReason | null>(null);
+  const [signalConfirmed, setSignalConfirmed] = useState(false);
+  const signalTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const signalConfirmedRef = useRef(false);
+
+  const clearSignalTimeout = useCallback(() => {
+    if (signalTimeoutRef.current !== null) {
+      clearTimeout(signalTimeoutRef.current);
+      signalTimeoutRef.current = null;
+    }
+  }, []);
+
+  const reset = useCallback(() => {
+    clearSignalTimeout();
+    setStep('scanning');
+    setSelectedDevice(null);
+    setValidationError(null);
+    setSignalConfirmed(false);
+    signalConfirmedRef.current = false;
+  }, [clearSignalTimeout]);
+
+  const startScan = useCallback(async () => {
+    const permission = await requestBlePermission();
+    if (permission === 'denied') return;
+    await scanForDevices();
+  }, [requestBlePermission, scanForDevices]);
+
+  const stopScan = useCallback(() => {
+    stopScanning();
+  }, [stopScanning]);
+
+  const selectDevice = useCallback(
+    async (device: Device) => {
+      stopScanning();
+      setSelectedDevice(device);
+      setValidationError(null);
+      setSignalConfirmed(false);
+      signalConfirmedRef.current = false;
+      setStep('validating');
+
+      const result = target === 'bike' ? await validateBikeDevice(device.id) : await validateHrDevice(device.id);
+
+      if (!result.valid) {
+        setValidationError(result.reason ?? 'missing_ftms_service');
+        setStep('error');
+        return;
+      }
+
+      setStep('connecting');
+
+      try {
+        if (target === 'bike') {
+          await connectBike(device.id);
+        } else {
+          await connectHr(device.id);
+        }
+      } catch {
+        setValidationError('missing_ftms_service');
+        setStep('error');
+        return;
+      }
+
+      setStep('awaiting_signal');
+
+      signalTimeoutRef.current = setTimeout(() => {
+        if (!signalConfirmedRef.current) {
+          setValidationError('no_live_signal');
+          setStep('error');
+        }
+      }, SIGNAL_TIMEOUT_MS);
+    },
+    [target, stopScanning, connectBike, connectHr],
+  );
+
+  // Watch for first live signal after connection
+  useEffect(() => {
+    if (step !== 'awaiting_signal') return;
+
+    const latestBikeMetrics = useDeviceConnectionStore.getState().latestBikeMetrics;
+    const latestHr = useDeviceConnectionStore.getState().latestHr;
+
+    const hasSignal = target === 'bike' ? latestBikeMetrics !== null : latestHr !== null;
+    if (hasSignal) {
+      clearSignalTimeout();
+      signalConfirmedRef.current = true;
+      setSignalConfirmed(true);
+      setStep('ready');
+      return;
+    }
+
+    return useDeviceConnectionStore.subscribe((state) => {
+      if (signalConfirmedRef.current) return;
+      const signal = target === 'bike' ? state.latestBikeMetrics : state.latestHr;
+      if (signal !== null) {
+        clearSignalTimeout();
+        signalConfirmedRef.current = true;
+        setSignalConfirmed(true);
+        setStep('ready');
+      }
+    });
+  }, [step, target, clearSignalTimeout]);
+
+  const save = useCallback(async () => {
+    if (!selectedDevice || !signalConfirmed) return;
+
+    const deviceName = selectedDevice.name ?? selectedDevice.id;
+    const device = { id: selectedDevice.id, name: deviceName, type: target };
+
+    if (target === 'bike') {
+      await persistBike(device);
+    } else {
+      await persistHr(device);
+    }
+  }, [selectedDevice, signalConfirmed, target, persistBike, persistHr]);
+
+  return {
+    step,
+    devices,
+    isScanning,
+    scanError,
+    selectedDevice,
+    validationError,
+    signalConfirmed,
+    startScan,
+    stopScan,
+    selectDevice,
+    save,
+    reset,
+  };
+}
