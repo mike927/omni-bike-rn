@@ -1,15 +1,17 @@
+import { useRouter } from 'expo-router';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
+import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { useDeviceConnection } from '../../training/hooks/useDeviceConnection';
 import { ActionButton } from '../../../ui/components/ActionButton';
-import { MetricTile } from '../../../ui/components/MetricTile';
 import { SectionCard } from '../../../ui/components/SectionCard';
-import { formatMetricValue } from '../../../ui/formatters';
 import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
 
 export function SettingsScreen() {
-  const { bikeConnected, hrConnected, latestBikeMetrics, latestHr, disconnectAll } = useDeviceConnection();
+  const router = useRouter();
+  const { bikeConnected, hrConnected, disconnectAll } = useDeviceConnection();
+  const { savedBike, savedHrSource, forgetBike, forgetHr } = useSavedGear();
 
   const handleDisconnect = async () => {
     try {
@@ -22,54 +24,80 @@ export function SettingsScreen() {
   };
 
   return (
-    <AppScreen
-      title="Settings"
-      subtitle="The shell now includes a stable settings destination. Device preferences, permissions, and saved gear management will expand here next.">
-      <SectionCard title="Connection Status">
-        <View style={styles.metricGrid}>
-          <MetricTile label="Bike" value={bikeConnected ? 'Connected' : 'Not connected'} style={styles.metricTile} />
-          <MetricTile
-            label="Heart Rate"
-            value={hrConnected ? 'Connected' : 'Not connected'}
-            style={styles.metricTile}
-          />
-          <MetricTile
-            label="Bike Power"
-            value={latestBikeMetrics ? `${latestBikeMetrics.power} W` : '--'}
-            style={styles.metricTile}
-          />
-          <MetricTile label="Latest HR" value={formatMetricValue(latestHr, ' bpm')} style={styles.metricTile} />
+    <AppScreen title="Settings" subtitle="Manage your saved gear and active connections.">
+      <SectionCard title="My Gear">
+        <View style={styles.gearRow}>
+          <View style={styles.gearInfo}>
+            <Text style={styles.gearLabel}>Bike</Text>
+            <Text style={styles.gearName}>{savedBike ? savedBike.name : 'Not set'}</Text>
+          </View>
+          <View style={styles.gearActions}>
+            <ActionButton
+              label={savedBike ? 'Replace' : 'Set Up'}
+              onPress={() => router.push('/gear-setup?target=bike')}
+              variant="secondary"
+            />
+            {savedBike ? <ActionButton label="Forget" onPress={() => void forgetBike()} variant="danger" /> : null}
+          </View>
         </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.gearRow}>
+          <View style={styles.gearInfo}>
+            <Text style={styles.gearLabel}>Heart Rate</Text>
+            <Text style={styles.gearName}>{savedHrSource ? savedHrSource.name : 'Not set'}</Text>
+          </View>
+          <View style={styles.gearActions}>
+            <ActionButton
+              label={savedHrSource ? 'Replace' : 'Add HR Source'}
+              onPress={() => router.push('/gear-setup?target=hr')}
+              variant="secondary"
+            />
+            {savedHrSource ? <ActionButton label="Forget" onPress={() => void forgetHr()} variant="danger" /> : null}
+          </View>
+        </View>
+
         <ActionButton
           label="Disconnect Active Gear"
-          onPress={handleDisconnect}
+          onPress={() => void handleDisconnect()}
           variant="danger"
           disabled={!bikeConnected && !hrConnected}
         />
-      </SectionCard>
-
-      <SectionCard title="Upcoming Settings Work">
-        <Text style={styles.bodyText}>
-          Saved-bike preferences, reconnect actions, and just-in-time Bluetooth permission messaging are intentionally
-          deferred to later Phase 2 plan items.
-        </Text>
       </SectionCard>
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  metricGrid: {
+  gearRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     gap: 12,
   },
-  metricTile: {
-    minWidth: 150,
+  gearInfo: {
+    flex: 1,
+    gap: 2,
   },
-  bodyText: {
+  gearLabel: {
     color: palette.textMuted,
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  gearName: {
+    color: palette.text,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  gearActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: palette.border,
   },
 });
