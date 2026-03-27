@@ -1,6 +1,8 @@
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 
 import { SettingsScreen } from '../SettingsScreen';
+import { useSavedGearStore } from '../../../../store/savedGearStore';
 
 jest.mock('react-native-safe-area-context', () => {
   const { View } = jest.requireActual('react-native');
@@ -48,6 +50,7 @@ describe('SettingsScreen', () => {
     jest.clearAllMocks();
     Object.assign(mockConnection, { bikeConnected: false, hrConnected: false });
     Object.assign(mockSavedGear, { savedBike: null, savedHrSource: null });
+    useSavedGearStore.setState({ bikeReconnectState: 'idle', hrReconnectState: 'idle' });
   });
 
   it('renders without crashing', () => {
@@ -101,5 +104,23 @@ describe('SettingsScreen', () => {
     const { getByText } = render(<SettingsScreen />);
     const btn = getByText('Disconnect Active Gear');
     expect(btn).toBeTruthy();
+  });
+
+  it('marks saved gear as disconnected after manual disconnect', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+    Object.assign(mockConnection, { bikeConnected: true, hrConnected: true });
+    Object.assign(mockSavedGear, {
+      savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' },
+      savedHrSource: { id: 'hr', name: 'Garmin HRM', type: 'hr' },
+    });
+
+    const { getByText } = render(<SettingsScreen />);
+    fireEvent.press(getByText('Disconnect Active Gear'));
+
+    await waitFor(() => {
+      expect(useSavedGearStore.getState().bikeReconnectState).toBe('disconnected');
+      expect(useSavedGearStore.getState().hrReconnectState).toBe('disconnected');
+      expect(alertSpy).toHaveBeenCalledWith('Disconnected', 'Cleared the active bike and heart-rate connections.');
+    });
   });
 });

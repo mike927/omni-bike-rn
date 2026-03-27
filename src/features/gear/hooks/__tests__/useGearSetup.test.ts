@@ -7,22 +7,29 @@ import { useSavedGearStore } from '../../../../store/savedGearStore';
 
 jest.mock('../../../../services/ble/bleDeviceValidator');
 jest.mock('../../../../services/gear/gearStorage');
+const mockRequestBlePermission = jest.fn();
+const mockScanForDevices = jest.fn();
+const mockStopScanning = jest.fn();
 jest.mock('../../../../features/devices/hooks/useBlePermission', () => ({
-  useBlePermission: () => ({ requestBlePermission: jest.fn().mockResolvedValue('granted') }),
+  useBlePermission: () => ({ requestBlePermission: mockRequestBlePermission }),
 }));
 jest.mock('../../../../features/devices/hooks/useBleScanner', () => ({
   useBleScanner: () => ({
     devices: [],
     isScanning: false,
     error: null,
-    scanForDevices: jest.fn(),
-    stopScanning: jest.fn(),
+    scanForDevices: mockScanForDevices,
+    stopScanning: mockStopScanning,
   }),
 }));
+const mockDisconnectBike = jest.fn();
+const mockDisconnectHr = jest.fn();
 jest.mock('../../../../features/training/hooks/useDeviceConnection', () => ({
   useDeviceConnection: () => ({
     connectBike: mockConnectBike,
     connectHr: mockConnectHr,
+    disconnectBike: mockDisconnectBike,
+    disconnectHr: mockDisconnectHr,
   }),
 }));
 
@@ -47,6 +54,10 @@ beforeEach(() => {
   });
   mockConnectBike.mockResolvedValue(undefined);
   mockConnectHr.mockResolvedValue(undefined);
+  mockDisconnectBike.mockResolvedValue(undefined);
+  mockDisconnectHr.mockResolvedValue(undefined);
+  mockRequestBlePermission.mockResolvedValue('granted');
+  mockScanForDevices.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -104,6 +115,23 @@ describe('invalid device sets error', () => {
   });
 });
 
+describe('scan permissions', () => {
+  it('does not start scanning when Bluetooth permission is denied', async () => {
+    mockRequestBlePermission.mockResolvedValue('denied');
+
+    const { result } = renderHook(() => useGearSetup('bike'));
+
+    let permissionResult: Awaited<ReturnType<typeof result.current.startScan>> | undefined;
+
+    await act(async () => {
+      permissionResult = await result.current.startScan();
+    });
+
+    expect(permissionResult).toBe('denied');
+    expect(mockScanForDevices).not.toHaveBeenCalled();
+  });
+});
+
 describe('signal timeout', () => {
   it('sets no_live_signal error after 8s with no data', async () => {
     mockValidateBike.mockResolvedValue({ valid: true });
@@ -122,6 +150,43 @@ describe('signal timeout', () => {
 
     expect(result.current.step).toBe('error');
     expect(result.current.validationError).toBe('no_live_signal');
+    await act(async () => {});
+    expect(mockDisconnectBike).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('connection failures', () => {
+  it('uses a generic connection_failed reason for HR connection errors', async () => {
+    mockValidateHr.mockResolvedValue({ valid: true });
+    mockConnectHr.mockRejectedValue(new Error('BLE timeout'));
+
+    const { result } = renderHook(() => useGearSetup('hr'));
+
+    await act(async () => {
+      await result.current.selectDevice(hrDevice as never);
+    });
+
+    expect(result.current.step).toBe('error');
+    expect(result.current.validationError).toBe('connection_failed');
+    expect(mockDisconnectHr).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('cleanup', () => {
+  it('disconnects an unsaved setup connection when the hook unmounts', async () => {
+    mockValidateBike.mockResolvedValue({ valid: true });
+
+    const { result, unmount } = renderHook(() => useGearSetup('bike'));
+
+    await act(async () => {
+      await result.current.selectDevice(bikeDevice as never);
+    });
+
+    unmount();
+
+    await act(async () => {});
+
+    expect(mockDisconnectBike).toHaveBeenCalledTimes(1);
   });
 });
 

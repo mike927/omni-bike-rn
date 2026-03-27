@@ -47,12 +47,12 @@ export const useSavedGearStore = create<SavedGearStore>((set, get) => ({
 
   persistBike: async (device) => {
     await saveBikeDevice(device);
-    set({ savedBike: device });
+    set({ savedBike: device, bikeReconnectState: 'connected' });
   },
 
   persistHr: async (device) => {
     await saveHrDevice(device);
-    set({ savedHrSource: device });
+    set({ savedHrSource: device, hrReconnectState: 'connected' });
   },
 
   removeBike: async () => {

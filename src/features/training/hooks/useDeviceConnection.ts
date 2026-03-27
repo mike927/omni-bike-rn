@@ -20,6 +20,8 @@ interface UseDeviceConnectionReturn {
   // ── Actions ────────────────────────────────────────────
   connectBike: (deviceId: string) => Promise<void>;
   connectHr: (deviceId: string) => Promise<void>;
+  disconnectBike: () => Promise<void>;
+  disconnectHr: () => Promise<void>;
   disconnectAll: () => Promise<void>;
 }
 
@@ -122,6 +124,8 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
     latestHr,
     connectBike,
     connectHr,
+    disconnectBike,
+    disconnectHr,
     disconnectAll,
   };
 }

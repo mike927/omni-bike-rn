@@ -16,6 +16,7 @@ export type ValidationFailureReason =
   | 'missing_indoor_bike_characteristic'
   | 'missing_hr_service'
   | 'missing_hr_characteristic'
+  | 'connection_failed'
   | 'no_live_signal';
 
 export interface GearValidationResult {
@@ -23,4 +24,4 @@ export interface GearValidationResult {
   reason?: ValidationFailureReason;
 }
 
-export type ReconnectState = 'idle' | 'connecting' | 'connected' | 'failed';
+export type ReconnectState = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'failed';

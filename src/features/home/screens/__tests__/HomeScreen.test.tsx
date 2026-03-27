@@ -210,4 +210,15 @@ describe('HomeScreen', () => {
 
     expect(mockAutoReconnect.retryBike).toHaveBeenCalled();
   });
+
+  it('shows reconnect actions when bike was manually disconnected', () => {
+    Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
+    Object.assign(mockAutoReconnect, { bikeReconnectState: 'disconnected' });
+
+    const { getByText } = render(<HomeScreen />);
+
+    expect(getByText('Retry')).toBeTruthy();
+    expect(getByText('Choose Another')).toBeTruthy();
+    expect(getByText('Forget')).toBeTruthy();
+  });
 });

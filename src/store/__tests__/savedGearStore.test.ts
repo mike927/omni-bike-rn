@@ -64,6 +64,7 @@ describe('persistBike', () => {
     await useSavedGearStore.getState().persistBike(bike);
     expect(mockSaveBikeDevice).toHaveBeenCalledWith(bike);
     expect(useSavedGearStore.getState().savedBike).toEqual(bike);
+    expect(useSavedGearStore.getState().bikeReconnectState).toBe('connected');
   });
 });
 
@@ -72,6 +73,7 @@ describe('persistHr', () => {
     await useSavedGearStore.getState().persistHr(hr);
     expect(mockSaveHrDevice).toHaveBeenCalledWith(hr);
     expect(useSavedGearStore.getState().savedHrSource).toEqual(hr);
+    expect(useSavedGearStore.getState().hrReconnectState).toBe('connected');
   });
 });
 
@@ -105,6 +107,8 @@ describe('reconnect state transitions', () => {
     expect(useSavedGearStore.getState().bikeReconnectState).toBe('connected');
     useSavedGearStore.getState().setBikeReconnectState('failed');
     expect(useSavedGearStore.getState().bikeReconnectState).toBe('failed');
+    useSavedGearStore.getState().setBikeReconnectState('disconnected');
+    expect(useSavedGearStore.getState().bikeReconnectState).toBe('disconnected');
     useSavedGearStore.getState().setBikeReconnectState('idle');
     expect(useSavedGearStore.getState().bikeReconnectState).toBe('idle');
   });
@@ -114,5 +118,7 @@ describe('reconnect state transitions', () => {
     expect(useSavedGearStore.getState().hrReconnectState).toBe('connecting');
     useSavedGearStore.getState().setHrReconnectState('failed');
     expect(useSavedGearStore.getState().hrReconnectState).toBe('failed');
+    useSavedGearStore.getState().setHrReconnectState('disconnected');
+    expect(useSavedGearStore.getState().hrReconnectState).toBe('disconnected');
   });
 });

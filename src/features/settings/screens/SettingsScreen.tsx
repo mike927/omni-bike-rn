@@ -3,6 +3,7 @@ import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { useDeviceConnection } from '../../training/hooks/useDeviceConnection';
+import { useSavedGearStore } from '../../../store/savedGearStore';
 import { ActionButton } from '../../../ui/components/ActionButton';
 import { SectionCard } from '../../../ui/components/SectionCard';
 import { AppScreen } from '../../../ui/layout/AppScreen';
@@ -12,10 +13,18 @@ export function SettingsScreen() {
   const router = useRouter();
   const { bikeConnected, hrConnected, disconnectAll } = useDeviceConnection();
   const { savedBike, savedHrSource, forgetBike, forgetHr } = useSavedGear();
+  const setBikeReconnectState = useSavedGearStore((s) => s.setBikeReconnectState);
+  const setHrReconnectState = useSavedGearStore((s) => s.setHrReconnectState);
 
   const handleDisconnect = async () => {
     try {
       await disconnectAll();
+      if (savedBike) {
+        setBikeReconnectState('disconnected');
+      }
+      if (savedHrSource) {
+        setHrReconnectState('disconnected');
+      }
       Alert.alert('Disconnected', 'Cleared the active bike and heart-rate connections.');
     } catch (err: unknown) {
       console.error('[SettingsScreen] Disconnect error:', err);

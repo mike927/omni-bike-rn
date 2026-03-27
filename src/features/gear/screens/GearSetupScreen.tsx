@@ -16,8 +16,10 @@ const INCOMPATIBILITY_MESSAGES: Record<ValidationFailureReason, string> = {
   missing_hr_service:
     'This device does not broadcast a standard heart-rate signal. Only HR monitors and compatible watches in broadcast mode are supported.',
   missing_hr_characteristic: 'This device has the HR service but is missing the HR Measurement characteristic.',
+  connection_failed:
+    'Could not complete the Bluetooth connection. Make sure the device is awake and in sensor mode, then try again.',
   no_live_signal:
-    'Device connected but no data received within 8 seconds. Make sure the bike is powered on, then try again.',
+    'Device connected but no data arrived within 8 seconds. Make sure it is awake and actively sending data, then try again.',
 };
 
 const SAVE_LABEL: Record<GearType, string> = {
@@ -47,12 +49,14 @@ export function GearSetupScreen({ target }: GearSetupScreenProps) {
   } = useGearSetup(target);
 
   const handleScanPress = async () => {
-    await startScan().catch(() => {
+    const permission = await startScan();
+
+    if (permission === 'denied') {
       Alert.alert('Bluetooth Permission Required', 'Allow Omni Bike to access Bluetooth in Settings.', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Open Settings', onPress: () => void Linking.openSettings() },
       ]);
-    });
+    }
   };
 
   const handleSave = async () => {

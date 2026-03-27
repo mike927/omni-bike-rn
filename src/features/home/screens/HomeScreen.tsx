@@ -29,6 +29,7 @@ function reconnectLabel(state: ReconnectState): string {
   if (state === 'connecting') return 'Connecting…';
   if (state === 'connected') return 'Connected';
   if (state === 'failed') return 'Connection failed';
+  if (state === 'disconnected') return 'Not connected';
   return 'Not connected';
 }
 
@@ -109,7 +110,7 @@ export function HomeScreen() {
               variant="secondary"
             />
           ) : null}
-          {savedBike && bikeReconnectState === 'failed' ? (
+          {savedBike && (bikeReconnectState === 'failed' || bikeReconnectState === 'disconnected') ? (
             <>
               <ActionButton label="Retry" onPress={retryBike} variant="secondary" />
               <ActionButton
@@ -145,7 +146,7 @@ export function HomeScreen() {
               variant="secondary"
             />
           ) : null}
-          {savedHrSource && hrReconnectState === 'failed' ? (
+          {savedHrSource && (hrReconnectState === 'failed' || hrReconnectState === 'disconnected') ? (
             <>
               <ActionButton label="Retry" onPress={retryHr} variant="secondary" />
               <ActionButton

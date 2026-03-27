@@ -93,6 +93,19 @@ describe('failed state', () => {
 
     expect(result.current.bikeReconnectState).toBe('failed');
   });
+
+  it('marks bike as disconnected when the adapter disappears after a successful reconnect', async () => {
+    useSavedGearStore.setState({ savedBike: bike, hydrated: true, bikeReconnectState: 'connected' });
+    useDeviceConnectionStore.setState({ bikeAdapter: {} as never });
+
+    const { result } = renderHook(() => useAutoReconnect());
+
+    act(() => {
+      useDeviceConnectionStore.setState({ bikeAdapter: null });
+    });
+
+    expect(result.current.bikeReconnectState).toBe('disconnected');
+  });
 });
 
 describe('retry', () => {
