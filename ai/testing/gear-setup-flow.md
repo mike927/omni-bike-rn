@@ -48,7 +48,9 @@ Branch: `feature/gear-setup-flow`
 - [ ] Set up bike → start training → pedal → pause → resume → finish workout
 - [ ] On the Training screen, tap **View Summary**
 - [ ] On the Summary screen, verify totals are shown and tap **Done**
-- [ ] App returns to Home; My Bike no longer shows an active connection
+- [ ] **Done** changes to **Disconnecting…** and ignores repeated taps while teardown is in progress
+- [ ] App returns to Home only after the bike teardown finishes
+- [ ] My Bike no longer shows an active connection
 - [ ] My Bike status settles to **Not connected** / `disconnected` rather than surfacing a reconnect failure
 - [ ] Tap **Retry** on the My Bike card
 - [ ] Bike reconnects successfully and live metrics resume on Home
@@ -60,16 +62,17 @@ Branch: `feature/gear-setup-flow`
 - [ ] Connect the bike and confirm Home shows **Connected**
 - [ ] Start a short workout and pedal long enough to receive live metrics
 - [ ] Finish the workout and tap **Done** on the Summary screen
-- [ ] Back on Home, wait a moment for the bike state to settle
+- [ ] Confirm **Done** switches to **Disconnecting…** until Home navigation completes
+- [ ] Back on Home, wait for the bike state to settle
 - [ ] Confirm the physical bike has left the prior app-controlled state and is ready for a fresh BLE session
 - [ ] Confirm the My Bike card does not show **Connection failed**
 - [ ] Tap **Retry**
 - [ ] Confirm the My Bike card does not get stuck on **Connecting…** with no recovery
-- [ ] Confirm reconnect begins cleanly, without a redbox or error log for `Operation was cancelled` or `Reconnect timeout`
-- [ ] If the first native reconnect is cancelled, confirm the card stays on **Connecting…** long enough for an internal retry instead of flashing straight back to **Not connected**
+- [ ] Confirm reconnect begins cleanly, without a redbox or error log for `Operation was cancelled`, `Reconnect timeout`, or `Operation timed out`
+- [ ] If the first native reconnect times out, confirm the card stays on **Connecting…** long enough for one internal retry instead of flashing straight back to **Not connected**
 - [ ] Confirm the final state is **Connected**
 
-> **Bug 4 regression check:** After `Done`, retry now forces a fresh native BLE connection instead of reusing a stale half-disconnected session. The bike should reconnect cleanly rather than hanging on **Connecting…**.
+> **Bug 4 regression check:** After `Done`, retry now forces a fresh native BLE connection instead of reusing a stale half-disconnected session. The bike should reconnect cleanly rather than hanging on **Connecting…** or failing with `Operation timed out`.
 
 ## Auto-Reconnect on Launch — Happy Path
 
@@ -106,6 +109,7 @@ Branch: `feature/gear-setup-flow`
 - [ ] Connect bike, go to Settings → tap **Disconnect Active Gear**
 - [ ] Returns to Home; My Bike card shows reconnect actions (Retry / Choose Another / Forget)
 - [ ] Bike reconnect state is `disconnected`, not `failed`
+- [ ] If the disconnect itself fails, Home should surface **Connection failed** instead of pretending the bike is cleanly disconnected
 
 ## Settings — My Gear
 
