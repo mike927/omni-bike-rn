@@ -157,11 +157,11 @@ Examples:
 ### 6. Manual Human Testing
 
 - Before opening a Pull Request, the agent MUST pause and ask the human to manually test the changes on their device/simulator.
-- Write the full testing checklist to `ai/testing/<branch-name>.md` before asking the human to test.
 - Along with the testing request, provide a concise summary of what was implemented and how the change affects the user experience or behavior.
 - Every manual testing request must explicitly say whether the human needs to restart the Metro/server, rebuild the app, both, or neither before testing. If no restart or rebuild is needed, say that explicitly.
-- After updating the checklist file, also output a concise inline testing path in the conversation — a short numbered list of the key steps the human should walk through to validate the changes. This is a quick-reference complement to the full checklist, not a replacement.
-- Point the human to the checklist file at `ai/testing/<branch-name>.md` for the complete checklist.
+- Provide the testing checklist directly in the conversation window. Use a short numbered list for the key validation path, and expand it only as much as needed for the current change.
+- For follow-up fixes after initial manual testing, provide only the incremental retest steps that matter for the latest change unless the full flow needs to be re-run.
+- Do not create or update `ai/testing/<branch-name>.md` unless the human explicitly asks for a saved checklist file.
 - Wait for the human's feedback. Address any issues they find.
 - Only proceed to the next step once the human explicitly approves the manual test.
 - When implementation is complete and approved locally, update the plan item to `[R]`.
