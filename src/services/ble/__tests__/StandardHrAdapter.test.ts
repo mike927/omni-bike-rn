@@ -1,11 +1,14 @@
 import { StandardHrAdapter } from '../StandardHrAdapter';
 import { bleManager } from '../bleClient';
+import { HR_SERVICE_UUID } from '../bleUuids';
 
 jest.mock('../bleClient', () => ({
   bleManager: {
     connectToDevice: jest.fn(),
     cancelDeviceConnection: jest.fn(),
     monitorCharacteristicForDevice: jest.fn(),
+    isDeviceConnected: jest.fn().mockResolvedValue(false),
+    connectedDevices: jest.fn().mockResolvedValue([]),
   },
 }));
 
@@ -21,6 +24,7 @@ describe('StandardHrAdapter', () => {
   describe('connect', () => {
     it('should connect to the device and discover services', async () => {
       const mockDevice = {
+        id: DEVICE_ID,
         name: 'Test HR Monitor',
         discoverAllServicesAndCharacteristics: jest.fn().mockResolvedValue(undefined),
       };
@@ -28,7 +32,39 @@ describe('StandardHrAdapter', () => {
 
       await adapter.connect();
 
-      expect(bleManager.connectToDevice).toHaveBeenCalledWith(DEVICE_ID);
+      expect(bleManager.connectToDevice).toHaveBeenCalledWith(DEVICE_ID, { timeout: 10000 });
+      expect(mockDevice.discoverAllServicesAndCharacteristics).toHaveBeenCalled();
+    });
+
+    it('should cancel a lingering native connection before reconnecting', async () => {
+      const mockDevice = {
+        id: DEVICE_ID,
+        name: 'Test HR Monitor',
+        discoverAllServicesAndCharacteristics: jest.fn().mockResolvedValue(undefined),
+      };
+      (bleManager.connectToDevice as jest.Mock).mockResolvedValue(mockDevice);
+      (bleManager.isDeviceConnected as jest.Mock).mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+
+      await adapter.connect();
+
+      expect(bleManager.cancelDeviceConnection).toHaveBeenCalledWith(DEVICE_ID);
+      expect(bleManager.connectToDevice).toHaveBeenCalledWith(DEVICE_ID, { timeout: 10000 });
+    });
+
+    it('should reuse an existing validation connection when requested', async () => {
+      const mockDevice = {
+        id: DEVICE_ID,
+        name: 'Test HR Monitor',
+        discoverAllServicesAndCharacteristics: jest.fn().mockResolvedValue(undefined),
+      };
+      (bleManager.isDeviceConnected as jest.Mock).mockResolvedValueOnce(true);
+      (bleManager.connectedDevices as jest.Mock).mockResolvedValue([mockDevice]);
+
+      await adapter.connect({ reuseExistingConnection: true });
+
+      expect(bleManager.connectedDevices).toHaveBeenCalledWith([HR_SERVICE_UUID]);
+      expect(bleManager.cancelDeviceConnection).not.toHaveBeenCalled();
+      expect(bleManager.connectToDevice).not.toHaveBeenCalled();
       expect(mockDevice.discoverAllServicesAndCharacteristics).toHaveBeenCalled();
     });
   });
@@ -36,6 +72,7 @@ describe('StandardHrAdapter', () => {
   describe('disconnect', () => {
     it('should cancel device connection if connected', async () => {
       const mockDevice = {
+        id: DEVICE_ID,
         name: 'Test HR Monitor',
         discoverAllServicesAndCharacteristics: jest.fn().mockResolvedValue(undefined),
       };

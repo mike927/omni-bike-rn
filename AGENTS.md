@@ -82,6 +82,8 @@ Examples:
 - Interfaces and type aliases use `PascalCase`. Enum members use `UPPER_CASE` or `PascalCase`.
 - Do not declare reusable interfaces or type aliases inside implementation files such as adapters, hooks, screens, or components. Put them in a dedicated sibling file, contract file, or `src/types/` module and import them where needed.
 
+- Do not use magic values (inline UUIDs, URLs, numeric constants). Define them as named constants at module scope and reference the constant everywhere. If the same value is needed in multiple files, define it once and import it.
+
 ### Architecture
 
 - Use the adapter pattern for external integrations. Define a contract interface (e.g., `BikeAdapter`, `HrAdapter`) and implement it per device or provider.
@@ -155,9 +157,11 @@ Examples:
 ### 6. Manual Human Testing
 
 - Before opening a Pull Request, the agent MUST pause and ask the human to manually test the changes on their device/simulator.
-- Write the testing checklist to `ai/testing/<branch-name>.md` before asking the human to test. Always use this path — never output the checklist inline only.
+- Write the full testing checklist to `ai/testing/<branch-name>.md` before asking the human to test.
 - Along with the testing request, provide a concise summary of what was implemented and how the change affects the user experience or behavior.
-- Point the human to the checklist file at `ai/testing/<branch-name>.md`.
+- Every manual testing request must explicitly say whether the human needs to restart the Metro/server, rebuild the app, both, or neither before testing. If no restart or rebuild is needed, say that explicitly.
+- After updating the checklist file, also output a concise inline testing path in the conversation — a short numbered list of the key steps the human should walk through to validate the changes. This is a quick-reference complement to the full checklist, not a replacement.
+- Point the human to the checklist file at `ai/testing/<branch-name>.md` for the complete checklist.
 - Wait for the human's feedback. Address any issues they find.
 - Only proceed to the next step once the human explicitly approves the manual test.
 - When implementation is complete and approved locally, update the plan item to `[R]`.

@@ -1,10 +1,11 @@
 import { bleManager } from './bleClient';
 import type { GearValidationResult } from '../../types/gear';
-
-const FTMS_SERVICE = '00001826-0000-1000-8000-00805f9b34fb';
-const INDOOR_BIKE_CHARACTERISTIC = '00002ad2-0000-1000-8000-00805f9b34fb';
-const HR_SERVICE = '0000180d-0000-1000-8000-00805f9b34fb';
-const HR_MEASUREMENT_CHARACTERISTIC = '00002a37-0000-1000-8000-00805f9b34fb';
+import {
+  FTMS_INDOOR_BIKE_DATA_UUID,
+  FTMS_SERVICE_UUID,
+  HR_MEASUREMENT_CHARACTERISTIC_UUID,
+  HR_SERVICE_UUID,
+} from './bleUuids';
 
 async function connectAndDiscover(deviceId: string) {
   const device = await bleManager.connectToDevice(deviceId);
@@ -29,25 +30,27 @@ export async function validateBikeDevice(deviceId: string): Promise<GearValidati
     const services = await device.services();
     const serviceUUIDs = services.map((s) => s.uuid.toLowerCase());
 
-    if (!serviceUUIDs.includes(FTMS_SERVICE)) {
+    if (!serviceUUIDs.includes(FTMS_SERVICE_UUID)) {
+      await disconnect(deviceId);
       return { valid: false, reason: 'missing_ftms_service' };
     }
 
-    const characteristics = await device.characteristicsForService(FTMS_SERVICE);
+    const characteristics = await device.characteristicsForService(FTMS_SERVICE_UUID);
     const charUUIDs = characteristics.map((c) => c.uuid.toLowerCase());
 
-    if (!charUUIDs.includes(INDOOR_BIKE_CHARACTERISTIC)) {
+    if (!charUUIDs.includes(FTMS_INDOOR_BIKE_DATA_UUID)) {
+      await disconnect(deviceId);
       return { valid: false, reason: 'missing_indoor_bike_characteristic' };
     }
 
+    // Keep connection alive — the adapter will reuse it
     return { valid: true };
   } catch (err: unknown) {
     console.error('[bleDeviceValidator] Bike validation error:', err);
-    return { valid: false, reason: 'missing_ftms_service' };
-  } finally {
     if (connected) {
       await disconnect(deviceId);
     }
+    return { valid: false, reason: 'missing_ftms_service' };
   }
 }
 
@@ -60,24 +63,26 @@ export async function validateHrDevice(deviceId: string): Promise<GearValidation
     const services = await device.services();
     const serviceUUIDs = services.map((s) => s.uuid.toLowerCase());
 
-    if (!serviceUUIDs.includes(HR_SERVICE)) {
+    if (!serviceUUIDs.includes(HR_SERVICE_UUID)) {
+      await disconnect(deviceId);
       return { valid: false, reason: 'missing_hr_service' };
     }
 
-    const characteristics = await device.characteristicsForService(HR_SERVICE);
+    const characteristics = await device.characteristicsForService(HR_SERVICE_UUID);
     const charUUIDs = characteristics.map((c) => c.uuid.toLowerCase());
 
-    if (!charUUIDs.includes(HR_MEASUREMENT_CHARACTERISTIC)) {
+    if (!charUUIDs.includes(HR_MEASUREMENT_CHARACTERISTIC_UUID)) {
+      await disconnect(deviceId);
       return { valid: false, reason: 'missing_hr_characteristic' };
     }
 
+    // Keep connection alive — the adapter will reuse it
     return { valid: true };
   } catch (err: unknown) {
     console.error('[bleDeviceValidator] HR validation error:', err);
-    return { valid: false, reason: 'missing_hr_service' };
-  } finally {
     if (connected) {
       await disconnect(deviceId);
     }
+    return { valid: false, reason: 'missing_hr_service' };
   }
 }

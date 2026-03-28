@@ -2,6 +2,7 @@ import { act, renderHook } from '@testing-library/react-native';
 
 import { useDeviceConnection } from '../useDeviceConnection';
 import { useDeviceConnectionStore } from '../../../../store/deviceConnectionStore';
+import { useSavedGearStore } from '../../../../store/savedGearStore';
 
 const mockBikeConnect = jest.fn();
 const mockBikeDisconnect = jest.fn();
@@ -31,6 +32,13 @@ describe('useDeviceConnection', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     useDeviceConnectionStore.getState().clearAll();
+    useSavedGearStore.setState({
+      savedBike: null,
+      savedHrSource: null,
+      hydrated: true,
+      bikeReconnectState: 'idle',
+      hrReconnectState: 'idle',
+    });
 
     const { result, unmount } = renderHook(() => useDeviceConnection());
     await act(async () => {
@@ -85,5 +93,61 @@ describe('useDeviceConnection', () => {
     expect(mockHrDisconnect).toHaveBeenCalledTimes(1);
     expect(useDeviceConnectionStore.getState().hrAdapter).not.toBeNull();
     expect(useDeviceConnectionStore.getState().latestHr).toBeNull();
+  });
+
+  it('should remove active subscriptions and clear connection state when disconnecting all devices', async () => {
+    const bikeSubscription = { remove: jest.fn() };
+    const hrSubscription = { remove: jest.fn() };
+
+    mockBikeConnect.mockResolvedValue(undefined);
+    mockBikeDisconnect.mockResolvedValue(undefined);
+    mockBikeSubscribe.mockReturnValue(bikeSubscription);
+    mockHrConnect.mockResolvedValue(undefined);
+    mockHrDisconnect.mockResolvedValue(undefined);
+    mockHrSubscribe.mockReturnValue(hrSubscription);
+    useSavedGearStore.setState({
+      savedBike: { id: 'bike-1', name: 'Zipro Rave', type: 'bike' },
+      savedHrSource: { id: 'hr-1', name: 'Garmin HRM', type: 'hr' },
+      bikeReconnectState: 'connected',
+      hrReconnectState: 'connected',
+    });
+
+    const { result } = renderHook(() => useDeviceConnection());
+
+    await act(async () => {
+      await result.current.connectBike('bike-1');
+      await result.current.connectHr('hr-1');
+    });
+
+    act(() => {
+      useDeviceConnectionStore.getState().updateBikeMetrics({ speed: 32, cadence: 90, power: 210 });
+      useDeviceConnectionStore.getState().updateHr(145);
+    });
+
+    await act(async () => {
+      await result.current.disconnectAll();
+    });
+
+    expect(bikeSubscription.remove).toHaveBeenCalledTimes(1);
+    expect(hrSubscription.remove).toHaveBeenCalledTimes(1);
+    expect(mockBikeDisconnect).toHaveBeenCalledTimes(1);
+    expect(mockHrDisconnect).toHaveBeenCalledTimes(1);
+    expect(useDeviceConnectionStore.getState().bikeAdapter).toBeNull();
+    expect(useDeviceConnectionStore.getState().hrAdapter).toBeNull();
+    expect(useDeviceConnectionStore.getState().latestBikeMetrics).toBeNull();
+    expect(useDeviceConnectionStore.getState().latestHr).toBeNull();
+    expect(useSavedGearStore.getState().bikeReconnectState).toBe('disconnected');
+    expect(useSavedGearStore.getState().hrReconnectState).toBe('disconnected');
+  });
+
+  it('should leave reconnect state idle when intentionally disconnecting without saved gear', async () => {
+    const { result } = renderHook(() => useDeviceConnection());
+
+    await act(async () => {
+      await result.current.disconnectAll();
+    });
+
+    expect(useSavedGearStore.getState().bikeReconnectState).toBe('idle');
+    expect(useSavedGearStore.getState().hrReconnectState).toBe('idle');
   });
 });

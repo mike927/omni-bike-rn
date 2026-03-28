@@ -110,6 +110,9 @@ export function HomeScreen() {
               variant="secondary"
             />
           ) : null}
+          {savedBike && bikeReconnectState === 'connecting' ? (
+            <ActionButton label="Forget" onPress={() => void forgetBike()} variant="danger" />
+          ) : null}
           {savedBike && (bikeReconnectState === 'failed' || bikeReconnectState === 'disconnected') ? (
             <>
               <ActionButton label="Retry" onPress={retryBike} variant="secondary" />
@@ -145,6 +148,9 @@ export function HomeScreen() {
               onPress={() => router.push('/gear-setup?target=hr')}
               variant="secondary"
             />
+          ) : null}
+          {savedHrSource && hrReconnectState === 'connecting' ? (
+            <ActionButton label="Forget" onPress={() => void forgetHr()} variant="danger" />
           ) : null}
           {savedHrSource && (hrReconnectState === 'failed' || hrReconnectState === 'disconnected') ? (
             <>

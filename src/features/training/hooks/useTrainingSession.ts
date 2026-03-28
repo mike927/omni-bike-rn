@@ -5,6 +5,7 @@ import { useTrainingSessionStore } from '../../../store/trainingSessionStore';
 import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
 import { BikeStatus } from '../../../services/ble/BikeAdapter';
 import { TrainingPhase, type MetricSnapshot } from '../../../types/training';
+import { disconnectAllDeviceConnections } from './useDeviceConnection';
 
 interface UseTrainingSessionReturn {
   // ── Read-only state ────────────────────────────────────
@@ -19,7 +20,7 @@ interface UseTrainingSessionReturn {
   pause: () => void;
   resume: () => void;
   finish: () => void;
-  reset: () => void;
+  reset: () => Promise<void>;
 }
 
 /**
@@ -90,30 +91,6 @@ export function useTrainingSession(): UseTrainingSessionReturn {
     ensureEngineRunning();
   }, [ensureEngineRunning]);
 
-  const teardownConnectionsAfterReset = useCallback(async () => {
-    const { bikeAdapter, hrAdapter } = useDeviceConnectionStore.getState();
-    const tasks: Promise<void>[] = [];
-
-    if (bikeAdapter) {
-      tasks.push(
-        bikeAdapter.disconnect().catch((err: unknown) => {
-          console.error('[useTrainingSession] Bike disconnect failed:', err);
-        }),
-      );
-    }
-
-    if (hrAdapter) {
-      tasks.push(
-        hrAdapter.disconnect().catch((err: unknown) => {
-          console.error('[useTrainingSession] HR disconnect failed:', err);
-        }),
-      );
-    }
-
-    await Promise.allSettled(tasks);
-    useDeviceConnectionStore.getState().clearAll();
-  }, []);
-
   const finishSession = useCallback(() => {
     const bikeAdapter = useDeviceConnectionStore.getState().bikeAdapter;
     if (bikeAdapter) {
@@ -124,22 +101,10 @@ export function useTrainingSession(): UseTrainingSessionReturn {
     stopEngine(true);
   }, [stopEngine]);
 
-  const resetSessionAndConnections = useCallback(() => {
-    void (async () => {
-      const { bikeAdapter } = useDeviceConnectionStore.getState();
-
-      if (bikeAdapter) {
-        try {
-          await bikeAdapter.setControlState(BikeStatus.Reset);
-        } catch (err: unknown) {
-          console.error('[useTrainingSession] Bike reset failed:', err);
-        }
-      }
-
-      await teardownConnectionsAfterReset();
-      useTrainingSessionStore.getState().reset();
-    })();
-  }, [teardownConnectionsAfterReset]);
+  const resetSessionAndConnections = useCallback(async () => {
+    await disconnectAllDeviceConnections({ updateReconnectState: true });
+    useTrainingSessionStore.getState().reset();
+  }, []);
 
   const finish = useCallback(() => {
     const currentPhase = useTrainingSessionStore.getState().phase;
@@ -150,7 +115,7 @@ export function useTrainingSession(): UseTrainingSessionReturn {
     finishSession();
   }, [finishSession]);
 
-  const reset = useCallback(() => {
+  const reset = useCallback(async () => {
     const currentPhase = useTrainingSessionStore.getState().phase;
 
     stopEngine(true);
@@ -158,7 +123,7 @@ export function useTrainingSession(): UseTrainingSessionReturn {
       return;
     }
 
-    resetSessionAndConnections();
+    await resetSessionAndConnections();
   }, [resetSessionAndConnections, stopEngine]);
 
   const syncFromBikeStatus = useCallback(

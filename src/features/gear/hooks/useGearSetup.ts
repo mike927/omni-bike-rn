@@ -7,12 +7,10 @@ import { useDeviceConnection } from '../../training/hooks/useDeviceConnection';
 import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
 import { useSavedGearStore } from '../../../store/savedGearStore';
 import { validateBikeDevice, validateHrDevice } from '../../../services/ble/bleDeviceValidator';
+import { BIKE_SCAN_SERVICE_UUIDS, HR_SCAN_SERVICE_UUIDS } from '../../../services/ble/bleUuids';
 import type { GearType, ValidationFailureReason } from '../../../types/gear';
 
 const SIGNAL_TIMEOUT_MS = 8000;
-
-const BIKE_SERVICE_UUIDS = ['00001826-0000-1000-8000-00805f9b34fb'];
-const HR_SERVICE_UUIDS = ['0000180d-0000-1000-8000-00805f9b34fb'];
 
 export type GearSetupStep = 'scanning' | 'validating' | 'connecting' | 'awaiting_signal' | 'ready' | 'error';
 
@@ -39,7 +37,7 @@ export function useGearSetup(target: GearType): UseGearSetupReturn {
     error: scanError,
     scanForDevices,
     stopScanning,
-  } = useBleScanner(target === 'bike' ? BIKE_SERVICE_UUIDS : HR_SERVICE_UUIDS);
+  } = useBleScanner(target === 'bike' ? BIKE_SCAN_SERVICE_UUIDS : HR_SCAN_SERVICE_UUIDS);
   const { connectBike, connectHr, disconnectBike, disconnectHr } = useDeviceConnection();
   const persistBike = useSavedGearStore((s) => s.persistBike);
   const persistHr = useSavedGearStore((s) => s.persistHr);
@@ -118,9 +116,9 @@ export function useGearSetup(target: GearType): UseGearSetupReturn {
 
       try {
         if (target === 'bike') {
-          await connectBike(device.id);
+          await connectBike(device.id, { reuseExistingConnection: true });
         } else {
-          await connectHr(device.id);
+          await connectHr(device.id, { reuseExistingConnection: true });
         }
         connectedDuringSetupRef.current = true;
       } catch {

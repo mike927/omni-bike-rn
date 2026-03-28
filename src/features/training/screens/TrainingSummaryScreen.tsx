@@ -20,8 +20,8 @@ export function TrainingSummaryScreen() {
     session.totalDistance === 0 &&
     session.totalCalories === 0;
 
-  const handleDone = () => {
-    session.reset();
+  const handleDone = async () => {
+    await session.reset();
     router.replace('/');
   };
 

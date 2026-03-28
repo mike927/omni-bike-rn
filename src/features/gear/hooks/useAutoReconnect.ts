@@ -1,8 +1,13 @@
 import { useEffect, useRef, useCallback } from 'react';
 
 import { useDeviceConnection } from '../../training/hooks/useDeviceConnection';
+import { isExpectedBleDisconnectError } from '../../../services/ble/isExpectedBleDisconnectError';
 import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
 import { useSavedGearStore } from '../../../store/savedGearStore';
+
+function toReconnectFailureState(err: unknown): 'failed' | 'disconnected' {
+  return isExpectedBleDisconnectError(err) ? 'disconnected' : 'failed';
+}
 
 export function useAutoReconnect() {
   const { connectBike, connectHr } = useDeviceConnection();
@@ -19,6 +24,21 @@ export function useAutoReconnect() {
   const bikeAttemptingRef = useRef(false);
   const hrAttemptingRef = useRef(false);
 
+  const runBikeConnect = useCallback(
+    async (deviceId: string) => {
+      await connectBike(deviceId);
+    },
+    [connectBike],
+  );
+
+  const runHrConnect = useCallback(
+    async (deviceId: string) => {
+      await connectHr(deviceId);
+    },
+    [connectHr],
+  );
+
+  // ── Initial auto-connect on mount ──────────────────────────────────
   useEffect(() => {
     if (!hydrated) return;
     if (!savedBike) return;
@@ -29,18 +49,21 @@ export function useAutoReconnect() {
     bikeAttemptingRef.current = true;
     setBikeReconnectState('connecting');
 
-    connectBike(savedBike.id)
+    runBikeConnect(savedBike.id)
       .then(() => {
         setBikeReconnectState('connected');
       })
       .catch((err: unknown) => {
-        console.error('[useAutoReconnect] Bike reconnect failed:', err);
-        setBikeReconnectState('failed');
+        const nextState = toReconnectFailureState(err);
+        if (nextState === 'failed') {
+          console.error('[useAutoReconnect] Bike connect failed:', err);
+        }
+        setBikeReconnectState(nextState);
       })
       .finally(() => {
         bikeAttemptingRef.current = false;
       });
-  }, [hydrated, savedBike, bikeReconnectState, bikeAdapter, connectBike, setBikeReconnectState]);
+  }, [hydrated, savedBike, bikeReconnectState, bikeAdapter, runBikeConnect, setBikeReconnectState]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -52,19 +75,40 @@ export function useAutoReconnect() {
     hrAttemptingRef.current = true;
     setHrReconnectState('connecting');
 
-    connectHr(savedHrSource.id)
+    runHrConnect(savedHrSource.id)
       .then(() => {
         setHrReconnectState('connected');
       })
       .catch((err: unknown) => {
-        console.error('[useAutoReconnect] HR reconnect failed:', err);
-        setHrReconnectState('failed');
+        const nextState = toReconnectFailureState(err);
+        if (nextState === 'failed') {
+          console.error('[useAutoReconnect] HR connect failed:', err);
+        }
+        setHrReconnectState(nextState);
       })
       .finally(() => {
         hrAttemptingRef.current = false;
       });
-  }, [hydrated, savedHrSource, hrReconnectState, hrAdapter, connectHr, setHrReconnectState]);
+  }, [hydrated, savedHrSource, hrReconnectState, hrAdapter, runHrConnect, setHrReconnectState]);
 
+  // ── Adapter appeared externally (e.g. gear setup flow) ─────────────
+  useEffect(() => {
+    if (bikeReconnectState !== 'connecting') return;
+    if (bikeAdapter === null) return;
+
+    bikeAttemptingRef.current = false;
+    setBikeReconnectState('connected');
+  }, [bikeReconnectState, bikeAdapter, setBikeReconnectState]);
+
+  useEffect(() => {
+    if (hrReconnectState !== 'connecting') return;
+    if (hrAdapter === null) return;
+
+    hrAttemptingRef.current = false;
+    setHrReconnectState('connected');
+  }, [hrReconnectState, hrAdapter, setHrReconnectState]);
+
+  // ── Adapter disappeared (post-workout disconnect) ──────────────────
   useEffect(() => {
     if (!savedBike) return;
     if (bikeReconnectState !== 'connected') return;

@@ -1,10 +1,10 @@
 import type { Device, Subscription } from 'react-native-ble-plx';
 import type { HrAdapter } from './HrAdapter';
 import { bleManager } from './bleClient';
+import { connectToBleDeviceWithOptions } from './bleConnectionUtils';
 import { Buffer } from 'buffer';
-
-const HR_SERVICE_UUID = '180d'; // Bluetooth SIG standard
-const HR_MEASUREMENT_CHARACTERISTIC_UUID = '2a37'; // Bluetooth SIG standard
+import type { BleConnectionOptions } from './BleConnectionOptions';
+import { HR_MEASUREMENT_CHARACTERISTIC_UUID_SHORT, HR_SERVICE_UUID, HR_SERVICE_UUID_SHORT } from './bleUuids';
 
 export class StandardHrAdapter implements HrAdapter {
   private device: Device | null = null;
@@ -14,9 +14,18 @@ export class StandardHrAdapter implements HrAdapter {
     this.deviceId = deviceId;
   }
 
-  async connect(): Promise<void> {
-    this.device = await bleManager.connectToDevice(this.deviceId);
-    await this.device.discoverAllServicesAndCharacteristics();
+  async connect(options?: BleConnectionOptions): Promise<void> {
+    this.device = await connectToBleDeviceWithOptions(this.deviceId, {
+      ...options,
+      connectedServiceUuids: [HR_SERVICE_UUID],
+    });
+
+    try {
+      await this.device.discoverAllServicesAndCharacteristics();
+    } catch (err) {
+      await this.disconnect();
+      throw err;
+    }
   }
 
   async disconnect(): Promise<void> {
@@ -33,11 +42,11 @@ export class StandardHrAdapter implements HrAdapter {
 
     return bleManager.monitorCharacteristicForDevice(
       this.deviceId,
-      HR_SERVICE_UUID,
-      HR_MEASUREMENT_CHARACTERISTIC_UUID,
+      HR_SERVICE_UUID_SHORT,
+      HR_MEASUREMENT_CHARACTERISTIC_UUID_SHORT,
       (error, characteristic) => {
         if (error) {
-          console.error('HR Monitor error:', error);
+          console.error('[StandardHrAdapter] HR monitor error:', error);
           return;
         }
         if (characteristic?.value) {
@@ -48,7 +57,7 @@ export class StandardHrAdapter implements HrAdapter {
             const hr = isUint16 ? buffer.readUInt16LE(1) : buffer.readUInt8(1);
             callback(hr);
           } catch (err) {
-            console.error('Error parsing HR data:', err);
+            console.error('[StandardHrAdapter] Error parsing HR data:', err);
           }
         }
       },

@@ -2,14 +2,25 @@
 
 Branch: `feature/gear-setup-flow`
 
+## Prerequisites
+
+- Rebuild the app: `npx expo run:android` (or `:ios`)
+- Have your Zipro Rave bike and optional HR monitor nearby and powered on
+- For disconnect/failure tests, be ready to power off the bike
+
+---
+
 ## Gear Setup — Bike
 
 - [ ] Tap **Set Up Bike** on the Home screen
 - [ ] Tap **Start Scan** — scan begins, nearby FTMS devices appear
 - [ ] Select your Zipro Rave — status shows "Validating device…" then "Connecting…"
-- [ ] Wait up to 8 seconds — "Waiting for live signal…" appears, then "Signal received ✓"
+- [ ] Start pedaling — "Waiting for live signal…" appears, then "Signal received ✓"
 - [ ] **Use This Bike** button becomes enabled — tap it
 - [ ] Returns to Home screen; "Zipro Rave" appears in the My Bike card
+- [ ] Live metrics (speed, power) update on the Home screen
+
+> **Bug 1 regression check:** The validator no longer disconnects after successful validation, so the adapter reuses the existing BLE connection. Pedaling should produce a signal — if you see "no data received within 8 seconds" despite pedaling, the fix has regressed.
 
 ## Gear Setup — HR Source (optional)
 
@@ -27,15 +38,59 @@ Branch: `feature/gear-setup-flow`
 
 ## No-Signal Timeout
 
-- [ ] Start gear setup, select a valid device, but keep the bike powered off
+- [ ] Start gear setup, select a valid device, but do NOT pedal
 - [ ] After 8 seconds: "Device connected but no data received within 8 seconds" message appears
 - [ ] **Try Another Device** resets correctly; device is disconnected
 
-## Auto-Reconnect on Launch
+## Full Workout Cycle
+
+- [ ] Set up bike → start training → pedal → pause → resume → finish workout
+- [ ] On the Training screen, tap **View Summary**
+- [ ] On the Summary screen, verify totals are shown and tap **Done**
+- [ ] App returns to Home; My Bike no longer shows an active connection
+- [ ] My Bike status settles to **Not connected** / `disconnected` rather than surfacing a reconnect failure
+- [ ] Tap **Retry** on the My Bike card
+- [ ] Bike reconnects successfully and live metrics resume on Home
+
+> **Bug 2 regression check:** The `Done` path now disconnects through the shared device-connection teardown before the next reconnect attempt. After finishing a workout, tapping **Retry** should not produce `Operation was cancelled`, and the bike should recover from `disconnected` back to `connected`.
+
+## Post-Workout Reconnect Regression
+
+- [ ] Connect the bike and confirm Home shows **Connected**
+- [ ] Start a short workout and pedal long enough to receive live metrics
+- [ ] Finish the workout and tap **Done** on the Summary screen
+- [ ] Back on Home, wait a moment for the bike state to settle
+- [ ] Confirm the physical bike has left the prior app-controlled state and is ready for a fresh BLE session
+- [ ] Confirm the My Bike card does not show **Connection failed**
+- [ ] Tap **Retry**
+- [ ] Confirm the My Bike card does not get stuck on **Connecting…** with no recovery
+- [ ] Confirm reconnect begins cleanly, without a redbox or error log for `Operation was cancelled` or `Reconnect timeout`
+- [ ] If the first native reconnect is cancelled, confirm the card stays on **Connecting…** long enough for an internal retry instead of flashing straight back to **Not connected**
+- [ ] Confirm the final state is **Connected**
+
+> **Bug 4 regression check:** After `Done`, retry now forces a fresh native BLE connection instead of reusing a stale half-disconnected session. The bike should reconnect cleanly rather than hanging on **Connecting…**.
+
+## Auto-Reconnect on Launch — Happy Path
 
 - [ ] Save a bike and/or HR source, then force-quit and reopen the app
 - [ ] Home screen shows "Connecting…" briefly, then "Connected" for each saved device
 - [ ] Saved device names are visible without re-entering gear setup
+
+## Auto-Reconnect on Launch — Device Unavailable
+
+- [ ] Save a bike, power off the bike, force-quit and reopen the app
+- [ ] Home screen shows "Connecting…" with a **Forget** button visible
+- [ ] After ≤10 seconds, state changes to "Connection failed"
+- [ ] **Retry**, **Choose Another**, and **Forget** buttons appear
+- [ ] Tap **Forget** — bike is removed, "Set Up Bike" button reappears
+
+> **Bug 3 regression check:** Previously the app would hang on "Connecting…" forever with no escape. Now a 10-second timeout triggers failure, and the Forget button is available even during the connecting phase.
+
+## Auto-Reconnect on Launch — Forget During Connecting
+
+- [ ] Save a bike, power off the bike, reopen the app
+- [ ] While "Connecting…" is shown, tap **Forget**
+- [ ] Bike is removed immediately; no crash or error
 
 ## Reconnect Failure Actions
 

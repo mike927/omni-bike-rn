@@ -113,6 +113,10 @@ describe('SettingsScreen', () => {
       savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' },
       savedHrSource: { id: 'hr', name: 'Garmin HRM', type: 'hr' },
     });
+    mockConnection.disconnectAll.mockImplementation(async () => {
+      useSavedGearStore.getState().setBikeReconnectState('disconnected');
+      useSavedGearStore.getState().setHrReconnectState('disconnected');
+    });
 
     const { getByText } = render(<SettingsScreen />);
     fireEvent.press(getByText('Disconnect Active Gear'));
