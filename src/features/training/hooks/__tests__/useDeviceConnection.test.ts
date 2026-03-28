@@ -73,6 +73,35 @@ describe('useDeviceConnection', () => {
     expect(useDeviceConnectionStore.getState().latestBikeMetrics).toBeNull();
   });
 
+  it('should expose bike connection progress while a connect attempt is in flight', async () => {
+    let resolveConnect!: () => void;
+    mockBikeConnect.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveConnect = resolve;
+        }),
+    );
+    mockBikeSubscribe.mockReturnValue({ remove: jest.fn() });
+
+    const { result } = renderHook(() => useDeviceConnection());
+
+    let connectPromise!: Promise<void>;
+    act(() => {
+      connectPromise = result.current.connectBike('bike-1');
+    });
+
+    await act(async () => {});
+
+    expect(useDeviceConnectionStore.getState().bikeConnectionInProgress).toBe(true);
+
+    await act(async () => {
+      resolveConnect();
+      await connectPromise;
+    });
+
+    expect(useDeviceConnectionStore.getState().bikeConnectionInProgress).toBe(false);
+  });
+
   it('should disconnect the previous HR monitor before reconnecting', async () => {
     const firstHrSubscription = { remove: jest.fn() };
     const secondHrSubscription = { remove: jest.fn() };

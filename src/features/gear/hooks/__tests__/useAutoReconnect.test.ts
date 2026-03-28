@@ -63,7 +63,14 @@ beforeEach(() => {
     };
   });
   emitAppStateChange('active');
-  useDeviceConnectionStore.setState({ bikeAdapter: null, hrAdapter: null, latestBikeMetrics: null, latestHr: null });
+  useDeviceConnectionStore.setState({
+    bikeAdapter: null,
+    hrAdapter: null,
+    bikeConnectionInProgress: false,
+    hrConnectionInProgress: false,
+    latestBikeMetrics: null,
+    latestHr: null,
+  });
   useSavedGearStore.setState({
     savedBike: null,
     savedHrSource: null,
@@ -203,6 +210,32 @@ describe('failed state', () => {
 
     act(() => {
       useDeviceConnectionStore.setState({ bikeAdapter: null });
+    });
+
+    expect(result.current.bikeReconnectState).toBe('disconnected');
+  });
+
+  it('does not mark the bike disconnected or schedule auto-retry while another bike connect is still in flight', async () => {
+    jest.useFakeTimers();
+    useSavedGearStore.setState({ savedBike: bike, hydrated: true, bikeReconnectState: 'connected' });
+    useDeviceConnectionStore.setState({ bikeConnectionInProgress: true });
+
+    const { result } = renderHook(() => useAutoReconnect());
+
+    act(() => {
+      useDeviceConnectionStore.setState({ bikeAdapter: null });
+    });
+
+    expect(result.current.bikeReconnectState).toBe('connected');
+
+    await act(async () => {
+      jest.advanceTimersByTime(30000);
+    });
+
+    expect(mockConnectBike).not.toHaveBeenCalled();
+
+    act(() => {
+      useDeviceConnectionStore.setState({ bikeConnectionInProgress: false });
     });
 
     expect(result.current.bikeReconnectState).toBe('disconnected');

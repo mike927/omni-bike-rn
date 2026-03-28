@@ -15,6 +15,8 @@ export interface DeviceConnectionStore {
   // ── Adapters ───────────────────────────────────────────
   bikeAdapter: BikeAdapter | null;
   hrAdapter: HrAdapter | null;
+  bikeConnectionInProgress: boolean;
+  hrConnectionInProgress: boolean;
 
   // ── Latest raw readings ────────────────────────────────
   latestBikeMetrics: BikeMetrics | null;
@@ -23,6 +25,8 @@ export interface DeviceConnectionStore {
   // ── Actions ────────────────────────────────────────────
   setBikeAdapter: (adapter: BikeAdapter | null) => void;
   setHrAdapter: (adapter: HrAdapter | null) => void;
+  setBikeConnectionInProgress: (connecting: boolean) => void;
+  setHrConnectionInProgress: (connecting: boolean) => void;
   updateBikeMetrics: (metrics: BikeMetrics) => void;
   updateHr: (hr: number) => void;
   clearBikeConnection: () => void;
@@ -33,11 +37,15 @@ export interface DeviceConnectionStore {
 export const useDeviceConnectionStore = create<DeviceConnectionStore>((set) => ({
   bikeAdapter: null,
   hrAdapter: null,
+  bikeConnectionInProgress: false,
+  hrConnectionInProgress: false,
   latestBikeMetrics: null,
   latestHr: null,
 
   setBikeAdapter: (adapter) => set({ bikeAdapter: adapter }),
   setHrAdapter: (adapter) => set({ hrAdapter: adapter }),
+  setBikeConnectionInProgress: (connecting) => set({ bikeConnectionInProgress: connecting }),
+  setHrConnectionInProgress: (connecting) => set({ hrConnectionInProgress: connecting }),
   updateBikeMetrics: (metrics) => set({ latestBikeMetrics: metrics }),
   updateHr: (hr) => set({ latestHr: hr }),
   clearBikeConnection: () =>
@@ -54,6 +62,8 @@ export const useDeviceConnectionStore = create<DeviceConnectionStore>((set) => (
     set({
       bikeAdapter: null,
       hrAdapter: null,
+      bikeConnectionInProgress: false,
+      hrConnectionInProgress: false,
       latestBikeMetrics: null,
       latestHr: null,
     }),

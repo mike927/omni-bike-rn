@@ -34,6 +34,8 @@ describe('deviceConnectionStore', () => {
       const state = useDeviceConnectionStore.getState();
       expect(state.bikeAdapter).toBeNull();
       expect(state.hrAdapter).toBeNull();
+      expect(state.bikeConnectionInProgress).toBe(false);
+      expect(state.hrConnectionInProgress).toBe(false);
     });
 
     it('should set bike adapter', () => {
@@ -50,6 +52,14 @@ describe('deviceConnectionStore', () => {
       useDeviceConnectionStore.getState().setBikeAdapter(mockBikeAdapter);
       useDeviceConnectionStore.getState().setBikeAdapter(null);
       expect(useDeviceConnectionStore.getState().bikeAdapter).toBeNull();
+    });
+
+    it('should track connection progress flags', () => {
+      useDeviceConnectionStore.getState().setBikeConnectionInProgress(true);
+      useDeviceConnectionStore.getState().setHrConnectionInProgress(true);
+
+      expect(useDeviceConnectionStore.getState().bikeConnectionInProgress).toBe(true);
+      expect(useDeviceConnectionStore.getState().hrConnectionInProgress).toBe(true);
     });
   });
 
@@ -90,6 +100,8 @@ describe('deviceConnectionStore', () => {
       const state = useDeviceConnectionStore.getState();
       expect(state.bikeAdapter).toBeNull();
       expect(state.hrAdapter).toBeNull();
+      expect(state.bikeConnectionInProgress).toBe(false);
+      expect(state.hrConnectionInProgress).toBe(false);
       expect(state.latestBikeMetrics).toBeNull();
       expect(state.latestHr).toBeNull();
     });

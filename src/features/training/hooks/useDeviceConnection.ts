@@ -137,6 +137,7 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
 
   const connectBike = useCallback(
     async (deviceId: string, options?: BleConnectionOptions) => {
+      useDeviceConnectionStore.getState().setBikeConnectionInProgress(true);
       try {
         await disconnectBike();
 
@@ -155,6 +156,8 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
           console.error('[useDeviceConnection] Bike connection error:', err);
         }
         throw err;
+      } finally {
+        useDeviceConnectionStore.getState().setBikeConnectionInProgress(false);
       }
     },
     [disconnectBike],
@@ -162,6 +165,7 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
 
   const connectHr = useCallback(
     async (deviceId: string, options?: BleConnectionOptions) => {
+      useDeviceConnectionStore.getState().setHrConnectionInProgress(true);
       try {
         await disconnectHr();
 
@@ -179,6 +183,8 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
           console.error('[useDeviceConnection] HR connection error:', err);
         }
         throw err;
+      } finally {
+        useDeviceConnectionStore.getState().setHrConnectionInProgress(false);
       }
     },
     [disconnectHr],
