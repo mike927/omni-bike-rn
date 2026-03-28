@@ -67,6 +67,7 @@ Branch: `feature/gear-setup-flow`
 - [ ] Confirm the physical bike has left the prior app-controlled state and is ready for a fresh BLE session
 - [ ] Confirm the My Bike card does not show **Connection failed**
 - [ ] Tap **Retry**
+- [ ] Confirm **Retry** immediately changes to a disabled **Reconnecting…** action so it cannot be tapped repeatedly during the same attempt
 - [ ] Confirm the My Bike card does not get stuck on **Connecting…** with no recovery
 - [ ] Confirm reconnect begins cleanly, without a redbox or error log for `Operation was cancelled`, `Reconnect timeout`, or `Operation timed out`
 - [ ] If the first native reconnect times out, confirm the card stays on **Connecting…** long enough for one internal retry instead of flashing straight back to **Not connected**
