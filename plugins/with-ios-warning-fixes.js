@@ -1,13 +1,5 @@
-const {
-  createRunOncePlugin,
-  withPodfile,
-  withPodfileProperties,
-  withXcodeProject,
-} = require('@expo/config-plugins');
-const {
-  createGeneratedHeaderComment,
-  removeContents,
-} = require('@expo/config-plugins/build/utils/generateCode');
+const { createRunOncePlugin, withPodfile, withPodfileProperties, withXcodeProject } = require('@expo/config-plugins');
+const { createGeneratedHeaderComment, removeContents } = require('@expo/config-plugins/build/utils/generateCode');
 
 const DEFAULT_IOS_DEPLOYMENT_TARGET = '18.0';
 const PLUGIN_NAME = 'with-ios-warning-fixes';
@@ -29,9 +21,9 @@ function applyPodfilePostInstallFixes(src, deploymentTarget) {
   const podfileFixLines = [
     `    warning_suppression_flags = ${warningFlagsLiteral}`,
     '    ensure_warning_flags = lambda do |build_configuration, build_setting_key|',
-    "      current_value = build_configuration.build_settings[build_setting_key]",
-    "      flags = case current_value",
-    "      when Array then current_value.dup",
+    '      current_value = build_configuration.build_settings[build_setting_key]',
+    '      flags = case current_value',
+    '      when Array then current_value.dup',
     "      when String then current_value.split(' ')",
     "      when nil then ['$(inherited)']",
     '      else Array(current_value)',
@@ -76,8 +68,7 @@ function applyPodfilePostInstallFixes(src, deploymentTarget) {
   const generatedHeader = createGeneratedHeaderComment(fixBlock, PODFILE_FIX_TAG, '#');
   const generatedBlock = `${generatedHeader}\n${fixBlock}\n# @generated end ${PODFILE_FIX_TAG}`;
 
-  const postInstallPattern =
-    /(post_install do \|installer\|[\s\S]*?react_native_post_install\([\s\S]*?\n\s*\))/m;
+  const postInstallPattern = /(post_install do \|installer\|[\s\S]*?react_native_post_install\([\s\S]*?\n\s*\))/m;
 
   if (!postInstallPattern.test(sanitized)) {
     throw new Error('Unable to locate the react_native_post_install block in the generated Podfile.');
@@ -88,14 +79,13 @@ function applyPodfilePostInstallFixes(src, deploymentTarget) {
 
 function ensureBuildSettingFlags(buildSettings, buildSettingKey) {
   const currentValue = buildSettings[buildSettingKey];
-  const flags =
-    Array.isArray(currentValue)
-      ? [...currentValue]
-      : typeof currentValue === 'string'
-        ? currentValue.split(' ').filter(Boolean)
-        : currentValue == null
-          ? ['$(inherited)']
-          : Array(currentValue);
+  const flags = Array.isArray(currentValue)
+    ? [...currentValue]
+    : typeof currentValue === 'string'
+      ? currentValue.split(' ').filter(Boolean)
+      : currentValue === undefined || currentValue === null
+        ? ['$(inherited)']
+        : Array(currentValue);
 
   for (const flag of POD_WARNING_SUPPRESSION_FLAGS) {
     if (!flags.includes(flag)) {
