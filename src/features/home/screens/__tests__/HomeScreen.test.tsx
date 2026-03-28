@@ -221,4 +221,16 @@ describe('HomeScreen', () => {
     expect(getByText('Choose Another')).toBeTruthy();
     expect(getByText('Forget')).toBeTruthy();
   });
+
+  it('shows a disabled reconnecting action while bike retry is in flight', () => {
+    Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
+    Object.assign(mockAutoReconnect, { bikeReconnectState: 'connecting' });
+
+    const { getByText, queryByText } = render(<HomeScreen />);
+
+    expect(getByText('Reconnecting…')).toBeTruthy();
+    expect(getByText('Forget')).toBeTruthy();
+    expect(queryByText('Retry')).toBeNull();
+    expect(queryByText('Choose Another')).toBeNull();
+  });
 });

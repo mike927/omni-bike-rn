@@ -133,6 +133,16 @@ describe('failed state', () => {
 
 describe('retry', () => {
   it('retryBike triggers a fresh reconnect attempt from failed state', async () => {
+    let resolveConnect!: () => void;
+    mockConnectBike.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveConnect = () => {
+            useDeviceConnectionStore.setState({ bikeAdapter: {} as never });
+            resolve();
+          };
+        }),
+    );
     useSavedGearStore.setState({ savedBike: bike, hydrated: true, bikeReconnectState: 'failed' });
 
     const { result } = renderHook(() => useAutoReconnect());
@@ -141,9 +151,43 @@ describe('retry', () => {
       result.current.retryBike();
     });
 
-    await act(async () => {});
+    expect(useSavedGearStore.getState().bikeReconnectState).toBe('connecting');
+
+    await act(async () => {
+      resolveConnect();
+    });
 
     expect(mockConnectBike).toHaveBeenCalledTimes(1);
+    expect(useSavedGearStore.getState().bikeReconnectState).toBe('connected');
+  });
+
+  it('retryBike ignores repeated presses while a reconnect attempt is already in flight', async () => {
+    let resolveConnect!: () => void;
+    mockConnectBike.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveConnect = () => {
+            useDeviceConnectionStore.setState({ bikeAdapter: {} as never });
+            resolve();
+          };
+        }),
+    );
+    useSavedGearStore.setState({ savedBike: bike, hydrated: true, bikeReconnectState: 'failed' });
+
+    const { result } = renderHook(() => useAutoReconnect());
+
+    act(() => {
+      result.current.retryBike();
+      result.current.retryBike();
+    });
+
+    expect(mockConnectBike).toHaveBeenCalledTimes(1);
+    expect(useSavedGearStore.getState().bikeReconnectState).toBe('connecting');
+
+    await act(async () => {
+      resolveConnect();
+    });
+
     expect(useSavedGearStore.getState().bikeReconnectState).toBe('connected');
   });
 });

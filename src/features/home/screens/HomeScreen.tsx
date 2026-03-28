@@ -111,7 +111,10 @@ export function HomeScreen() {
             />
           ) : null}
           {savedBike && bikeReconnectState === 'connecting' ? (
-            <ActionButton label="Forget" onPress={() => void forgetBike()} variant="danger" />
+            <>
+              <ActionButton label="Reconnecting…" onPress={retryBike} variant="secondary" disabled />
+              <ActionButton label="Forget" onPress={() => void forgetBike()} variant="danger" />
+            </>
           ) : null}
           {savedBike && (bikeReconnectState === 'failed' || bikeReconnectState === 'disconnected') ? (
             <>
@@ -150,7 +153,10 @@ export function HomeScreen() {
             />
           ) : null}
           {savedHrSource && hrReconnectState === 'connecting' ? (
-            <ActionButton label="Forget" onPress={() => void forgetHr()} variant="danger" />
+            <>
+              <ActionButton label="Reconnecting…" onPress={retryHr} variant="secondary" disabled />
+              <ActionButton label="Forget" onPress={() => void forgetHr()} variant="danger" />
+            </>
           ) : null}
           {savedHrSource && (hrReconnectState === 'failed' || hrReconnectState === 'disconnected') ? (
             <>
