@@ -4,7 +4,8 @@ Branch: `feature/gear-setup-flow`
 
 ## Prerequisites
 
-- Rebuild the app: `npx expo run:android` (or `:ios`)
+- No rebuild and no Metro/server restart are required for this JS-only review pass
+- If the app is already open, reload it once so the latest bundle is active
 - Have your Zipro Rave bike and optional HR monitor nearby and powered on
 - For disconnect/failure tests, be ready to power off the bike
 
