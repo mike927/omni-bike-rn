@@ -9,6 +9,8 @@ jest.mock('../../../../features/training/hooks/useDeviceConnection', () => ({
   useDeviceConnection: () => ({
     connectBike: mockConnectBike,
     connectHr: mockConnectHr,
+    disconnectBike: mockDisconnectBike,
+    disconnectHr: mockDisconnectHr,
     disconnectAll: jest.fn(),
     bikeConnected: false,
     hrConnected: false,
@@ -19,6 +21,8 @@ jest.mock('../../../../features/training/hooks/useDeviceConnection', () => ({
 
 const mockConnectBike = jest.fn();
 const mockConnectHr = jest.fn();
+const mockDisconnectBike = jest.fn();
+const mockDisconnectHr = jest.fn();
 
 const bike = { id: 'bike-uuid', name: 'Zipro Rave', type: 'bike' as const };
 const hr = { id: 'hr-uuid', name: 'Garmin HRM', type: 'hr' as const };
@@ -39,6 +43,14 @@ beforeEach(() => {
   });
   mockConnectHr.mockImplementation(() => {
     useDeviceConnectionStore.setState({ hrAdapter: {} as never });
+    return Promise.resolve();
+  });
+  mockDisconnectBike.mockImplementation(() => {
+    useDeviceConnectionStore.setState({ bikeAdapter: null });
+    return Promise.resolve();
+  });
+  mockDisconnectHr.mockImplementation(() => {
+    useDeviceConnectionStore.setState({ hrAdapter: null });
     return Promise.resolve();
   });
 });
@@ -189,6 +201,38 @@ describe('retry', () => {
     });
 
     expect(useSavedGearStore.getState().bikeReconnectState).toBe('connected');
+  });
+
+  it('disconnects a stale bike reconnect when the saved device is forgotten mid-attempt', async () => {
+    let resolveConnect!: () => void;
+    mockConnectBike.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveConnect = () => {
+            useDeviceConnectionStore.setState({ bikeAdapter: {} as never });
+            resolve();
+          };
+        }),
+    );
+    useSavedGearStore.setState({ savedBike: bike, hydrated: true, bikeReconnectState: 'failed' });
+
+    const { result } = renderHook(() => useAutoReconnect());
+
+    act(() => {
+      result.current.retryBike();
+    });
+
+    act(() => {
+      useSavedGearStore.setState({ savedBike: null, bikeReconnectState: 'idle' });
+    });
+
+    await act(async () => {
+      resolveConnect();
+    });
+
+    expect(mockDisconnectBike).toHaveBeenCalledTimes(1);
+    expect(useSavedGearStore.getState().bikeReconnectState).toBe('idle');
+    expect(useDeviceConnectionStore.getState().bikeAdapter).toBeNull();
   });
 });
 

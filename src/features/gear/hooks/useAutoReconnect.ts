@@ -10,7 +10,7 @@ function toReconnectFailureState(err: unknown): 'failed' | 'disconnected' {
 }
 
 export function useAutoReconnect() {
-  const { connectBike, connectHr } = useDeviceConnection();
+  const { connectBike, connectHr, disconnectBike, disconnectHr } = useDeviceConnection();
   const savedBike = useSavedGearStore((s) => s.savedBike);
   const savedHrSource = useSavedGearStore((s) => s.savedHrSource);
   const hydrated = useSavedGearStore((s) => s.hydrated);
@@ -38,6 +38,14 @@ export function useAutoReconnect() {
     [connectHr],
   );
 
+  const isCurrentSavedBikeAttempt = useCallback((deviceId: string): boolean => {
+    return useSavedGearStore.getState().savedBike?.id === deviceId;
+  }, []);
+
+  const isCurrentSavedHrAttempt = useCallback((deviceId: string): boolean => {
+    return useSavedGearStore.getState().savedHrSource?.id === deviceId;
+  }, []);
+
   const startBikeReconnect = useCallback(
     async (deviceId: string) => {
       if (bikeAttemptingRef.current) {
@@ -49,8 +57,15 @@ export function useAutoReconnect() {
 
       try {
         await runBikeConnect(deviceId);
+        if (!isCurrentSavedBikeAttempt(deviceId)) {
+          await disconnectBike();
+          return;
+        }
         setBikeReconnectState('connected');
       } catch (err: unknown) {
+        if (!isCurrentSavedBikeAttempt(deviceId)) {
+          return;
+        }
         const nextState = toReconnectFailureState(err);
         if (nextState === 'failed') {
           console.error('[useAutoReconnect] Bike connect failed:', err);
@@ -60,7 +75,7 @@ export function useAutoReconnect() {
         bikeAttemptingRef.current = false;
       }
     },
-    [runBikeConnect, setBikeReconnectState],
+    [disconnectBike, isCurrentSavedBikeAttempt, runBikeConnect, setBikeReconnectState],
   );
 
   const startHrReconnect = useCallback(
@@ -74,8 +89,15 @@ export function useAutoReconnect() {
 
       try {
         await runHrConnect(deviceId);
+        if (!isCurrentSavedHrAttempt(deviceId)) {
+          await disconnectHr();
+          return;
+        }
         setHrReconnectState('connected');
       } catch (err: unknown) {
+        if (!isCurrentSavedHrAttempt(deviceId)) {
+          return;
+        }
         const nextState = toReconnectFailureState(err);
         if (nextState === 'failed') {
           console.error('[useAutoReconnect] HR connect failed:', err);
@@ -85,7 +107,7 @@ export function useAutoReconnect() {
         hrAttemptingRef.current = false;
       }
     },
-    [runHrConnect, setHrReconnectState],
+    [disconnectHr, isCurrentSavedHrAttempt, runHrConnect, setHrReconnectState],
   );
 
   // ── Initial auto-connect on mount ──────────────────────────────────

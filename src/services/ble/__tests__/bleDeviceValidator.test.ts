@@ -62,12 +62,12 @@ describe('validateBikeDevice', () => {
     expect(mockCancel).toHaveBeenCalledWith('device-1');
   });
 
-  it('disconnects after validation even on error', async () => {
+  it('returns connection_failed when validation cannot connect or discover services', async () => {
     mockConnectToDevice.mockRejectedValue(new Error('connection failed'));
 
     const result = await validateBikeDevice('device-1');
 
-    expect(result.valid).toBe(false);
+    expect(result).toEqual({ valid: false, reason: 'connection_failed' });
     expect(mockCancel).not.toHaveBeenCalled();
   });
 });
@@ -103,12 +103,12 @@ describe('validateHrDevice', () => {
     expect(mockCancel).toHaveBeenCalledWith('device-2');
   });
 
-  it('disconnects after validation even on error', async () => {
+  it('returns connection_failed when validation cannot connect or discover services', async () => {
     mockConnectToDevice.mockRejectedValue(new Error('connection failed'));
 
     const result = await validateHrDevice('device-2');
 
-    expect(result.valid).toBe(false);
+    expect(result).toEqual({ valid: false, reason: 'connection_failed' });
     expect(mockCancel).not.toHaveBeenCalled();
   });
 });

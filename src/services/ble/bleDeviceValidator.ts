@@ -50,7 +50,7 @@ export async function validateBikeDevice(deviceId: string): Promise<GearValidati
     if (connected) {
       await disconnect(deviceId);
     }
-    return { valid: false, reason: 'missing_ftms_service' };
+    return { valid: false, reason: 'connection_failed' };
   }
 }
 
@@ -83,6 +83,6 @@ export async function validateHrDevice(deviceId: string): Promise<GearValidation
     if (connected) {
       await disconnect(deviceId);
     }
-    return { valid: false, reason: 'missing_hr_service' };
+    return { valid: false, reason: 'connection_failed' };
   }
 }
