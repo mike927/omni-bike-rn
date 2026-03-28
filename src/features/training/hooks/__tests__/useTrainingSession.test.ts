@@ -41,6 +41,8 @@ describe('useTrainingSession', () => {
       hydrated: true,
       bikeReconnectState: 'connected',
       hrReconnectState: 'connected',
+      bikeAutoReconnectSuppressed: false,
+      hrAutoReconnectSuppressed: false,
     });
 
     useDeviceConnectionStore.getState().setBikeAdapter({
@@ -263,13 +265,15 @@ describe('useTrainingSession', () => {
 
     expect(mockEngineStop).toHaveBeenCalledTimes(1);
     expect(mockSetControlState).not.toHaveBeenCalledWith(BikeStatus.Reset);
-    expect(disconnectAllSpy).toHaveBeenCalledWith({ updateReconnectState: true });
+    expect(disconnectAllSpy).toHaveBeenCalledWith({ updateReconnectState: true, suppressAutoReconnect: true });
     expect(mockDisconnect).toHaveBeenCalledTimes(1);
     expect(mockHrDisconnect).toHaveBeenCalledTimes(1);
     expect(useDeviceConnectionStore.getState().bikeAdapter).toBeNull();
     expect(useDeviceConnectionStore.getState().hrAdapter).toBeNull();
     expect(useSavedGearStore.getState().bikeReconnectState).toBe('disconnected');
     expect(useSavedGearStore.getState().hrReconnectState).toBe('disconnected');
+    expect(useSavedGearStore.getState().bikeAutoReconnectSuppressed).toBe(true);
+    expect(useSavedGearStore.getState().hrAutoReconnectSuppressed).toBe(true);
 
     disconnectAllSpy.mockRestore();
   });
@@ -307,6 +311,7 @@ describe('useTrainingSession', () => {
     expect(mockSetControlState).toHaveBeenCalledWith(BikeStatus.Stopped);
     expect(mockDisconnect).toHaveBeenCalledTimes(1);
     expect(useSavedGearStore.getState().bikeReconnectState).toBe('disconnected');
+    expect(useSavedGearStore.getState().bikeAutoReconnectSuppressed).toBe(true);
   });
 
   it('should disconnect without bike reset when done is pressed from summary', async () => {
@@ -338,7 +343,7 @@ describe('useTrainingSession', () => {
     });
 
     expect(mockSetControlState).not.toHaveBeenCalledWith(BikeStatus.Reset);
-    expect(disconnectAllSpy).toHaveBeenCalledWith({ updateReconnectState: true });
+    expect(disconnectAllSpy).toHaveBeenCalledWith({ updateReconnectState: true, suppressAutoReconnect: true });
     expect(mockDisconnect).toHaveBeenCalledTimes(1);
     expect(mockHrDisconnect).toHaveBeenCalledTimes(1);
     expect(useDeviceConnectionStore.getState().bikeAdapter).toBeNull();
@@ -346,6 +351,8 @@ describe('useTrainingSession', () => {
     expect(useDeviceConnectionStore.getState().latestBikeMetrics).toBeNull();
     expect(useSavedGearStore.getState().bikeReconnectState).toBe('disconnected');
     expect(useSavedGearStore.getState().hrReconnectState).toBe('disconnected');
+    expect(useSavedGearStore.getState().bikeAutoReconnectSuppressed).toBe(true);
+    expect(useSavedGearStore.getState().hrAutoReconnectSuppressed).toBe(true);
 
     disconnectAllSpy.mockRestore();
   });

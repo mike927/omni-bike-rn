@@ -128,7 +128,7 @@ export function useTrainingSession(): UseTrainingSessionReturn {
 
   const resetSessionAndConnections = useCallback(async () => {
     await awaitPendingFinishStop();
-    await disconnectAllDeviceConnections({ updateReconnectState: true });
+    await disconnectAllDeviceConnections({ updateReconnectState: true, suppressAutoReconnect: true });
     useTrainingSessionStore.getState().reset();
   }, [awaitPendingFinishStop]);
 

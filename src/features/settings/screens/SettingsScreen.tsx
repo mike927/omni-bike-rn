@@ -15,7 +15,7 @@ export function SettingsScreen() {
 
   const handleDisconnect = async () => {
     try {
-      await disconnectAll();
+      await disconnectAll({ suppressAutoReconnect: true });
       Alert.alert('Disconnected', 'Cleared the active bike and heart-rate connections.');
     } catch (err: unknown) {
       console.error('[SettingsScreen] Disconnect error:', err);

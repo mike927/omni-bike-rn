@@ -1,12 +1,21 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 
+import { isExpectedBleConnectTimeoutError } from '../../../services/ble/isExpectedBleConnectTimeoutError';
 import { useDeviceConnection } from '../../training/hooks/useDeviceConnection';
 import { isExpectedBleDisconnectError } from '../../../services/ble/isExpectedBleDisconnectError';
 import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
 import { useSavedGearStore } from '../../../store/savedGearStore';
 
+const AUTO_RECONNECT_RETRY_DELAYS_MS = [5000, 10000, 20000, 30000] as const;
+
 function toReconnectFailureState(err: unknown): 'failed' | 'disconnected' {
-  return isExpectedBleDisconnectError(err) ? 'disconnected' : 'failed';
+  return isExpectedBleDisconnectError(err) || isExpectedBleConnectTimeoutError(err) ? 'disconnected' : 'failed';
+}
+
+function nextAutoReconnectDelayMs(attemptCount: number): number {
+  const attemptIndex = Math.max(0, attemptCount - 1);
+  return AUTO_RECONNECT_RETRY_DELAYS_MS[Math.min(attemptIndex, AUTO_RECONNECT_RETRY_DELAYS_MS.length - 1)] ?? 30000;
 }
 
 export function useAutoReconnect() {
@@ -16,13 +25,40 @@ export function useAutoReconnect() {
   const hydrated = useSavedGearStore((s) => s.hydrated);
   const bikeReconnectState = useSavedGearStore((s) => s.bikeReconnectState);
   const hrReconnectState = useSavedGearStore((s) => s.hrReconnectState);
+  const bikeAutoReconnectSuppressed = useSavedGearStore((s) => s.bikeAutoReconnectSuppressed);
+  const hrAutoReconnectSuppressed = useSavedGearStore((s) => s.hrAutoReconnectSuppressed);
   const setBikeReconnectState = useSavedGearStore((s) => s.setBikeReconnectState);
   const setHrReconnectState = useSavedGearStore((s) => s.setHrReconnectState);
+  const setBikeAutoReconnectSuppressed = useSavedGearStore((s) => s.setBikeAutoReconnectSuppressed);
+  const setHrAutoReconnectSuppressed = useSavedGearStore((s) => s.setHrAutoReconnectSuppressed);
   const bikeAdapter = useDeviceConnectionStore((s) => s.bikeAdapter);
   const hrAdapter = useDeviceConnectionStore((s) => s.hrAdapter);
+  const bikeConnectionInProgress = useDeviceConnectionStore((s) => s.bikeConnectionInProgress);
+  const hrConnectionInProgress = useDeviceConnectionStore((s) => s.hrConnectionInProgress);
 
+  const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
+  const [bikeRetrySignal, setBikeRetrySignal] = useState(0);
+  const [hrRetrySignal, setHrRetrySignal] = useState(0);
   const bikeAttemptingRef = useRef(false);
   const hrAttemptingRef = useRef(false);
+  const bikeRetryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hrRetryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bikeRetryAttemptCountRef = useRef(0);
+  const hrRetryAttemptCountRef = useRef(0);
+
+  const clearBikeRetryTimeout = useCallback(() => {
+    if (bikeRetryTimeoutRef.current !== null) {
+      clearTimeout(bikeRetryTimeoutRef.current);
+      bikeRetryTimeoutRef.current = null;
+    }
+  }, []);
+
+  const clearHrRetryTimeout = useCallback(() => {
+    if (hrRetryTimeoutRef.current !== null) {
+      clearTimeout(hrRetryTimeoutRef.current);
+      hrRetryTimeoutRef.current = null;
+    }
+  }, []);
 
   const runBikeConnect = useCallback(
     async (deviceId: string) => {
@@ -57,25 +93,34 @@ export function useAutoReconnect() {
 
       try {
         await runBikeConnect(deviceId);
+        bikeRetryAttemptCountRef.current = 0;
+        clearBikeRetryTimeout();
         if (!isCurrentSavedBikeAttempt(deviceId)) {
           await disconnectBike();
+          bikeAttemptingRef.current = false;
           return;
         }
+        bikeAttemptingRef.current = false;
         setBikeReconnectState('connected');
       } catch (err: unknown) {
         if (!isCurrentSavedBikeAttempt(deviceId)) {
+          bikeAttemptingRef.current = false;
           return;
         }
         const nextState = toReconnectFailureState(err);
+        bikeRetryAttemptCountRef.current = nextState === 'disconnected' ? bikeRetryAttemptCountRef.current + 1 : 0;
         if (nextState === 'failed') {
+          clearBikeRetryTimeout();
           console.error('[useAutoReconnect] Bike connect failed:', err);
         }
-        setBikeReconnectState(nextState);
-      } finally {
         bikeAttemptingRef.current = false;
+        if (nextState === 'disconnected') {
+          setBikeRetrySignal((value) => value + 1);
+        }
+        setBikeReconnectState(nextState);
       }
     },
-    [disconnectBike, isCurrentSavedBikeAttempt, runBikeConnect, setBikeReconnectState],
+    [clearBikeRetryTimeout, disconnectBike, isCurrentSavedBikeAttempt, runBikeConnect, setBikeReconnectState],
   );
 
   const startHrReconnect = useCallback(
@@ -89,43 +134,62 @@ export function useAutoReconnect() {
 
       try {
         await runHrConnect(deviceId);
+        hrRetryAttemptCountRef.current = 0;
+        clearHrRetryTimeout();
         if (!isCurrentSavedHrAttempt(deviceId)) {
           await disconnectHr();
+          hrAttemptingRef.current = false;
           return;
         }
+        hrAttemptingRef.current = false;
         setHrReconnectState('connected');
       } catch (err: unknown) {
         if (!isCurrentSavedHrAttempt(deviceId)) {
+          hrAttemptingRef.current = false;
           return;
         }
         const nextState = toReconnectFailureState(err);
+        hrRetryAttemptCountRef.current = nextState === 'disconnected' ? hrRetryAttemptCountRef.current + 1 : 0;
         if (nextState === 'failed') {
+          clearHrRetryTimeout();
           console.error('[useAutoReconnect] HR connect failed:', err);
         }
-        setHrReconnectState(nextState);
-      } finally {
         hrAttemptingRef.current = false;
+        if (nextState === 'disconnected') {
+          setHrRetrySignal((value) => value + 1);
+        }
+        setHrReconnectState(nextState);
       }
     },
-    [disconnectHr, isCurrentSavedHrAttempt, runHrConnect, setHrReconnectState],
+    [clearHrRetryTimeout, disconnectHr, isCurrentSavedHrAttempt, runHrConnect, setHrReconnectState],
   );
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', setAppState);
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   // ── Initial auto-connect on mount ──────────────────────────────────
   useEffect(() => {
     if (!hydrated) return;
     if (!savedBike) return;
+    if (bikeAutoReconnectSuppressed) return;
     if (bikeReconnectState !== 'idle') return;
     if (bikeAdapter !== null) return;
     void startBikeReconnect(savedBike.id);
-  }, [hydrated, savedBike, bikeReconnectState, bikeAdapter, startBikeReconnect]);
+  }, [hydrated, savedBike, bikeAutoReconnectSuppressed, bikeReconnectState, bikeAdapter, startBikeReconnect]);
 
   useEffect(() => {
     if (!hydrated) return;
     if (!savedHrSource) return;
+    if (hrAutoReconnectSuppressed) return;
     if (hrReconnectState !== 'idle') return;
     if (hrAdapter !== null) return;
     void startHrReconnect(savedHrSource.id);
-  }, [hydrated, savedHrSource, hrReconnectState, hrAdapter, startHrReconnect]);
+  }, [hydrated, savedHrSource, hrAutoReconnectSuppressed, hrReconnectState, hrAdapter, startHrReconnect]);
 
   // ── Adapter appeared externally (e.g. gear setup flow) ─────────────
   useEffect(() => {
@@ -133,35 +197,133 @@ export function useAutoReconnect() {
     if (bikeAdapter === null) return;
 
     bikeAttemptingRef.current = false;
+    bikeRetryAttemptCountRef.current = 0;
+    clearBikeRetryTimeout();
     setBikeReconnectState('connected');
-  }, [bikeReconnectState, bikeAdapter, setBikeReconnectState]);
+  }, [bikeReconnectState, bikeAdapter, clearBikeRetryTimeout, setBikeReconnectState]);
 
   useEffect(() => {
     if (hrReconnectState !== 'connecting') return;
     if (hrAdapter === null) return;
 
     hrAttemptingRef.current = false;
+    hrRetryAttemptCountRef.current = 0;
+    clearHrRetryTimeout();
     setHrReconnectState('connected');
-  }, [hrReconnectState, hrAdapter, setHrReconnectState]);
+  }, [hrReconnectState, hrAdapter, clearHrRetryTimeout, setHrReconnectState]);
 
   // ── Adapter disappeared (post-workout disconnect) ──────────────────
   useEffect(() => {
     if (!savedBike) return;
     if (bikeReconnectState !== 'connected') return;
     if (bikeAdapter !== null) return;
-    if (bikeAttemptingRef.current) return;
+    if (bikeAttemptingRef.current || bikeConnectionInProgress) return;
 
     setBikeReconnectState('disconnected');
-  }, [savedBike, bikeReconnectState, bikeAdapter, setBikeReconnectState]);
+  }, [savedBike, bikeReconnectState, bikeAdapter, bikeConnectionInProgress, setBikeReconnectState]);
 
   useEffect(() => {
     if (!savedHrSource) return;
     if (hrReconnectState !== 'connected') return;
     if (hrAdapter !== null) return;
-    if (hrAttemptingRef.current) return;
+    if (hrAttemptingRef.current || hrConnectionInProgress) return;
 
     setHrReconnectState('disconnected');
-  }, [savedHrSource, hrReconnectState, hrAdapter, setHrReconnectState]);
+  }, [savedHrSource, hrReconnectState, hrAdapter, hrConnectionInProgress, setHrReconnectState]);
+
+  useEffect(() => {
+    if (appState !== 'active') {
+      clearBikeRetryTimeout();
+      return;
+    }
+
+    if (!hydrated || !savedBike) {
+      clearBikeRetryTimeout();
+      bikeRetryAttemptCountRef.current = 0;
+      return;
+    }
+
+    if (bikeAutoReconnectSuppressed) {
+      clearBikeRetryTimeout();
+      return;
+    }
+
+    if (
+      bikeReconnectState !== 'disconnected' ||
+      bikeAdapter !== null ||
+      bikeAttemptingRef.current ||
+      bikeConnectionInProgress
+    ) {
+      clearBikeRetryTimeout();
+      return;
+    }
+
+    clearBikeRetryTimeout();
+    bikeRetryTimeoutRef.current = setTimeout(() => {
+      bikeRetryTimeoutRef.current = null;
+      void startBikeReconnect(savedBike.id);
+    }, nextAutoReconnectDelayMs(bikeRetryAttemptCountRef.current));
+
+    return clearBikeRetryTimeout;
+  }, [
+    appState,
+    hydrated,
+    savedBike,
+    bikeReconnectState,
+    bikeAdapter,
+    bikeConnectionInProgress,
+    bikeAutoReconnectSuppressed,
+    bikeRetrySignal,
+    clearBikeRetryTimeout,
+    startBikeReconnect,
+  ]);
+
+  useEffect(() => {
+    if (appState !== 'active') {
+      clearHrRetryTimeout();
+      return;
+    }
+
+    if (!hydrated || !savedHrSource) {
+      clearHrRetryTimeout();
+      hrRetryAttemptCountRef.current = 0;
+      return;
+    }
+
+    if (hrAutoReconnectSuppressed) {
+      clearHrRetryTimeout();
+      return;
+    }
+
+    if (
+      hrReconnectState !== 'disconnected' ||
+      hrAdapter !== null ||
+      hrAttemptingRef.current ||
+      hrConnectionInProgress
+    ) {
+      clearHrRetryTimeout();
+      return;
+    }
+
+    clearHrRetryTimeout();
+    hrRetryTimeoutRef.current = setTimeout(() => {
+      hrRetryTimeoutRef.current = null;
+      void startHrReconnect(savedHrSource.id);
+    }, nextAutoReconnectDelayMs(hrRetryAttemptCountRef.current));
+
+    return clearHrRetryTimeout;
+  }, [
+    appState,
+    hydrated,
+    savedHrSource,
+    hrReconnectState,
+    hrAdapter,
+    hrConnectionInProgress,
+    hrAutoReconnectSuppressed,
+    hrRetrySignal,
+    clearHrRetryTimeout,
+    startHrReconnect,
+  ]);
 
   const retryBike = useCallback(() => {
     if (!hydrated || !savedBike) {
@@ -169,12 +331,26 @@ export function useAutoReconnect() {
     }
 
     if (bikeAdapter !== null) {
+      bikeRetryAttemptCountRef.current = 0;
+      clearBikeRetryTimeout();
+      setBikeAutoReconnectSuppressed(false);
       setBikeReconnectState('connected');
       return;
     }
 
+    bikeRetryAttemptCountRef.current = 0;
+    clearBikeRetryTimeout();
+    setBikeAutoReconnectSuppressed(false);
     void startBikeReconnect(savedBike.id);
-  }, [hydrated, savedBike, bikeAdapter, setBikeReconnectState, startBikeReconnect]);
+  }, [
+    clearBikeRetryTimeout,
+    hydrated,
+    savedBike,
+    bikeAdapter,
+    setBikeAutoReconnectSuppressed,
+    setBikeReconnectState,
+    startBikeReconnect,
+  ]);
 
   const retryHr = useCallback(() => {
     if (!hydrated || !savedHrSource) {
@@ -182,12 +358,34 @@ export function useAutoReconnect() {
     }
 
     if (hrAdapter !== null) {
+      hrRetryAttemptCountRef.current = 0;
+      clearHrRetryTimeout();
+      setHrAutoReconnectSuppressed(false);
       setHrReconnectState('connected');
       return;
     }
 
+    hrRetryAttemptCountRef.current = 0;
+    clearHrRetryTimeout();
+    setHrAutoReconnectSuppressed(false);
     void startHrReconnect(savedHrSource.id);
-  }, [hydrated, savedHrSource, hrAdapter, setHrReconnectState, startHrReconnect]);
+  }, [
+    clearHrRetryTimeout,
+    hydrated,
+    savedHrSource,
+    hrAdapter,
+    setHrAutoReconnectSuppressed,
+    setHrReconnectState,
+    startHrReconnect,
+  ]);
+
+  useEffect(
+    () => () => {
+      clearBikeRetryTimeout();
+      clearHrRetryTimeout();
+    },
+    [clearBikeRetryTimeout, clearHrRetryTimeout],
+  );
 
   return {
     bikeReconnectState,
