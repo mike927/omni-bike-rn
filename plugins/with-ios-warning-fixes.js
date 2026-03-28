@@ -77,25 +77,6 @@ function applyPodfilePostInstallFixes(src, deploymentTarget) {
   return sanitized.replace(postInstallPattern, `$1\n\n${generatedBlock}`);
 }
 
-function ensureBuildSettingFlags(buildSettings, buildSettingKey) {
-  const currentValue = buildSettings[buildSettingKey];
-  const flags = Array.isArray(currentValue)
-    ? [...currentValue]
-    : typeof currentValue === 'string'
-      ? currentValue.split(' ').filter(Boolean)
-      : currentValue === undefined || currentValue === null
-        ? ['$(inherited)']
-        : Array(currentValue);
-
-  for (const flag of POD_WARNING_SUPPRESSION_FLAGS) {
-    if (!flags.includes(flag)) {
-      flags.push(flag);
-    }
-  }
-
-  buildSettings[buildSettingKey] = flags;
-}
-
 function applyProjectDeploymentTarget(config, deploymentTarget) {
   const configurations = config.modResults.pbxXCBuildConfigurationSection();
 
@@ -104,8 +85,6 @@ function applyProjectDeploymentTarget(config, deploymentTarget) {
       buildSettings.IPHONEOS_DEPLOYMENT_TARGET = deploymentTarget;
       buildSettings.CLANG_WARN_NULLABILITY_COMPLETENESS = 'NO';
       buildSettings.CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = 'NO';
-      ensureBuildSettingFlags(buildSettings, 'OTHER_CFLAGS');
-      ensureBuildSettingFlags(buildSettings, 'OTHER_CPLUSPLUSFLAGS');
     }
   }
 
