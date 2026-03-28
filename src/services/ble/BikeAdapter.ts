@@ -1,4 +1,5 @@
 import type { Subscription } from 'react-native-ble-plx';
+import type { BleConnectionOptions } from './BleConnectionOptions';
 
 export enum BikeStatus {
   Started = 'started',
@@ -18,7 +19,7 @@ export interface BikeMetrics {
 }
 
 export interface BikeAdapter {
-  connect(): Promise<void>;
+  connect(options?: BleConnectionOptions): Promise<void>;
   disconnect(): Promise<void>;
   subscribeToMetrics(callback: (metrics: BikeMetrics) => void): Subscription;
   setControlState(status: BikeStatus): Promise<void>;

@@ -3,12 +3,94 @@ import { useCallback } from 'react';
 import { ZiproRaveAdapter } from '../../../services/ble/ZiproRaveAdapter';
 import { StandardHrAdapter } from '../../../services/ble/StandardHrAdapter';
 import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
+import { useSavedGearStore } from '../../../store/savedGearStore';
 import type { BikeMetrics } from '../../../services/ble/BikeAdapter';
+import type { BleConnectionOptions } from '../../../services/ble/BleConnectionOptions';
+import type { DisconnectDeviceConnectionsOptions } from './DisconnectDeviceConnectionsOptions';
 import type { Subscription } from 'react-native-ble-plx';
+import { isExpectedBleDisconnectError } from '../../../services/ble/isExpectedBleDisconnectError';
 
 /** Active BLE subscriptions, managed outside React state to avoid teardown races. */
 let bikeMetricsSub: Subscription | null = null;
 let hrSub: Subscription | null = null;
+
+function updateReconnectStateAfterBikeDisconnect(disconnectSucceeded: boolean): void {
+  const { savedBike, setBikeReconnectState } = useSavedGearStore.getState();
+  if (!savedBike) {
+    setBikeReconnectState('idle');
+    return;
+  }
+
+  setBikeReconnectState(disconnectSucceeded ? 'disconnected' : 'failed');
+}
+
+function updateReconnectStateAfterHrDisconnect(disconnectSucceeded: boolean): void {
+  const { savedHrSource, setHrReconnectState } = useSavedGearStore.getState();
+  if (!savedHrSource) {
+    setHrReconnectState('idle');
+    return;
+  }
+
+  setHrReconnectState(disconnectSucceeded ? 'disconnected' : 'failed');
+}
+
+async function disconnectBikeConnectionInternal(updateReconnectState: boolean): Promise<void> {
+  bikeMetricsSub?.remove();
+  bikeMetricsSub = null;
+
+  const store = useDeviceConnectionStore.getState();
+  const existingBikeAdapter = store.bikeAdapter;
+  let disconnectSucceeded = true;
+
+  if (existingBikeAdapter) {
+    try {
+      await existingBikeAdapter.disconnect();
+    } catch (err: unknown) {
+      if (!isExpectedBleDisconnectError(err)) {
+        disconnectSucceeded = false;
+        console.error('[useDeviceConnection] Bike disconnect error:', err);
+      }
+    }
+  }
+
+  store.clearBikeConnection();
+
+  if (updateReconnectState) {
+    updateReconnectStateAfterBikeDisconnect(disconnectSucceeded);
+  }
+}
+
+async function disconnectHrConnectionInternal(updateReconnectState: boolean): Promise<void> {
+  hrSub?.remove();
+  hrSub = null;
+
+  const store = useDeviceConnectionStore.getState();
+  const existingHrAdapter = store.hrAdapter;
+  let disconnectSucceeded = true;
+
+  if (existingHrAdapter) {
+    try {
+      await existingHrAdapter.disconnect();
+    } catch (err: unknown) {
+      if (!isExpectedBleDisconnectError(err)) {
+        disconnectSucceeded = false;
+        console.error('[useDeviceConnection] HR disconnect error:', err);
+      }
+    }
+  }
+
+  store.clearHrConnection();
+
+  if (updateReconnectState) {
+    updateReconnectStateAfterHrDisconnect(disconnectSucceeded);
+  }
+}
+
+export async function disconnectAllDeviceConnections(options?: DisconnectDeviceConnectionsOptions): Promise<void> {
+  const updateReconnectState = options?.updateReconnectState ?? false;
+  await disconnectBikeConnectionInternal(updateReconnectState);
+  await disconnectHrConnectionInternal(updateReconnectState);
+}
 
 interface UseDeviceConnectionReturn {
   // ── Read-only state ────────────────────────────────────
@@ -18,8 +100,10 @@ interface UseDeviceConnectionReturn {
   latestHr: number | null;
 
   // ── Actions ────────────────────────────────────────────
-  connectBike: (deviceId: string) => Promise<void>;
-  connectHr: (deviceId: string) => Promise<void>;
+  connectBike: (deviceId: string, options?: BleConnectionOptions) => Promise<void>;
+  connectHr: (deviceId: string, options?: BleConnectionOptions) => Promise<void>;
+  disconnectBike: () => Promise<void>;
+  disconnectHr: () => Promise<void>;
   disconnectAll: () => Promise<void>;
 }
 
@@ -37,44 +121,21 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
   const latestHr = useDeviceConnectionStore((s) => s.latestHr);
 
   const disconnectBike = useCallback(async () => {
-    bikeMetricsSub?.remove();
-    bikeMetricsSub = null;
-
-    const store = useDeviceConnectionStore.getState();
-    const existingBikeAdapter = store.bikeAdapter;
-
-    store.clearBikeConnection();
-
-    try {
-      await existingBikeAdapter?.disconnect();
-    } catch (err: unknown) {
-      console.error('[useDeviceConnection] Bike disconnect error:', err);
-    }
+    await disconnectBikeConnectionInternal(false);
   }, []);
 
   const disconnectHr = useCallback(async () => {
-    hrSub?.remove();
-    hrSub = null;
-
-    const store = useDeviceConnectionStore.getState();
-    const existingHrAdapter = store.hrAdapter;
-
-    store.clearHrConnection();
-
-    try {
-      await existingHrAdapter?.disconnect();
-    } catch (err: unknown) {
-      console.error('[useDeviceConnection] HR disconnect error:', err);
-    }
+    await disconnectHrConnectionInternal(false);
   }, []);
 
   const connectBike = useCallback(
-    async (deviceId: string) => {
+    async (deviceId: string, options?: BleConnectionOptions) => {
       try {
         await disconnectBike();
 
         const adapter = new ZiproRaveAdapter(deviceId);
-        await adapter.connect();
+
+        await adapter.connect(options);
 
         useDeviceConnectionStore.getState().setBikeAdapter(adapter);
 
@@ -82,7 +143,9 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
           useDeviceConnectionStore.getState().updateBikeMetrics(metrics);
         });
       } catch (err: unknown) {
-        console.error('[useDeviceConnection] Bike connection error:', err);
+        if (!isExpectedBleDisconnectError(err)) {
+          console.error('[useDeviceConnection] Bike connection error:', err);
+        }
         throw err;
       }
     },
@@ -90,12 +153,12 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
   );
 
   const connectHr = useCallback(
-    async (deviceId: string) => {
+    async (deviceId: string, options?: BleConnectionOptions) => {
       try {
         await disconnectHr();
 
         const adapter = new StandardHrAdapter(deviceId);
-        await adapter.connect();
+        await adapter.connect(options);
 
         useDeviceConnectionStore.getState().setHrAdapter(adapter);
 
@@ -103,7 +166,9 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
           useDeviceConnectionStore.getState().updateHr(hr);
         });
       } catch (err: unknown) {
-        console.error('[useDeviceConnection] HR connection error:', err);
+        if (!isExpectedBleDisconnectError(err)) {
+          console.error('[useDeviceConnection] HR connection error:', err);
+        }
         throw err;
       }
     },
@@ -111,9 +176,8 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
   );
 
   const disconnectAll = useCallback(async () => {
-    await disconnectBike();
-    await disconnectHr();
-  }, [disconnectBike, disconnectHr]);
+    await disconnectAllDeviceConnections({ updateReconnectState: true });
+  }, []);
 
   return {
     bikeConnected: bikeAdapter !== null,
@@ -122,6 +186,8 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
     latestHr,
     connectBike,
     connectHr,
+    disconnectBike,
+    disconnectHr,
     disconnectAll,
   };
 }

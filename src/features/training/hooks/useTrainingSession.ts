@@ -5,6 +5,9 @@ import { useTrainingSessionStore } from '../../../store/trainingSessionStore';
 import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
 import { BikeStatus } from '../../../services/ble/BikeAdapter';
 import { TrainingPhase, type MetricSnapshot } from '../../../types/training';
+import { disconnectAllDeviceConnections } from './useDeviceConnection';
+
+const FINISH_STOP_COMMAND_TIMEOUT_MS = 2000;
 
 interface UseTrainingSessionReturn {
   // ── Read-only state ────────────────────────────────────
@@ -19,7 +22,7 @@ interface UseTrainingSessionReturn {
   pause: () => void;
   resume: () => void;
   finish: () => void;
-  reset: () => void;
+  reset: () => Promise<void>;
 }
 
 /**
@@ -31,6 +34,7 @@ interface UseTrainingSessionReturn {
  */
 export function useTrainingSession(): UseTrainingSessionReturn {
   const engineRef = useRef<MetronomeEngine | null>(null);
+  const pendingFinishStopRef = useRef<Promise<void> | null>(null);
 
   const phase = useTrainingSessionStore((s) => s.phase);
   const elapsedSeconds = useTrainingSessionStore((s) => s.elapsedSeconds);
@@ -51,6 +55,24 @@ export function useTrainingSession(): UseTrainingSessionReturn {
 
     if (clearRef) {
       engineRef.current = null;
+    }
+  }, []);
+
+  const awaitPendingFinishStop = useCallback(async () => {
+    const pendingStop = pendingFinishStopRef.current;
+    if (!pendingStop) {
+      return;
+    }
+
+    try {
+      await Promise.race([
+        pendingStop,
+        new Promise<void>((resolve) => {
+          setTimeout(resolve, FINISH_STOP_COMMAND_TIMEOUT_MS);
+        }),
+      ]);
+    } finally {
+      pendingFinishStopRef.current = null;
     }
   }, []);
 
@@ -90,56 +112,25 @@ export function useTrainingSession(): UseTrainingSessionReturn {
     ensureEngineRunning();
   }, [ensureEngineRunning]);
 
-  const teardownConnectionsAfterReset = useCallback(async () => {
-    const { bikeAdapter, hrAdapter } = useDeviceConnectionStore.getState();
-    const tasks: Promise<void>[] = [];
-
-    if (bikeAdapter) {
-      tasks.push(
-        bikeAdapter.disconnect().catch((err: unknown) => {
-          console.error('[useTrainingSession] Bike disconnect failed:', err);
-        }),
-      );
-    }
-
-    if (hrAdapter) {
-      tasks.push(
-        hrAdapter.disconnect().catch((err: unknown) => {
-          console.error('[useTrainingSession] HR disconnect failed:', err);
-        }),
-      );
-    }
-
-    await Promise.allSettled(tasks);
-    useDeviceConnectionStore.getState().clearAll();
-  }, []);
-
   const finishSession = useCallback(() => {
     const bikeAdapter = useDeviceConnectionStore.getState().bikeAdapter;
     if (bikeAdapter) {
-      void bikeAdapter.setControlState(BikeStatus.Stopped);
+      pendingFinishStopRef.current = bikeAdapter.setControlState(BikeStatus.Stopped).catch((err: unknown) => {
+        console.error('[useTrainingSession] Bike stop failed before disconnect:', err);
+      });
+    } else {
+      pendingFinishStopRef.current = null;
     }
 
     useTrainingSessionStore.getState().finish();
     stopEngine(true);
   }, [stopEngine]);
 
-  const resetSessionAndConnections = useCallback(() => {
-    void (async () => {
-      const { bikeAdapter } = useDeviceConnectionStore.getState();
-
-      if (bikeAdapter) {
-        try {
-          await bikeAdapter.setControlState(BikeStatus.Reset);
-        } catch (err: unknown) {
-          console.error('[useTrainingSession] Bike reset failed:', err);
-        }
-      }
-
-      await teardownConnectionsAfterReset();
-      useTrainingSessionStore.getState().reset();
-    })();
-  }, [teardownConnectionsAfterReset]);
+  const resetSessionAndConnections = useCallback(async () => {
+    await awaitPendingFinishStop();
+    await disconnectAllDeviceConnections({ updateReconnectState: true });
+    useTrainingSessionStore.getState().reset();
+  }, [awaitPendingFinishStop]);
 
   const finish = useCallback(() => {
     const currentPhase = useTrainingSessionStore.getState().phase;
@@ -150,15 +141,16 @@ export function useTrainingSession(): UseTrainingSessionReturn {
     finishSession();
   }, [finishSession]);
 
-  const reset = useCallback(() => {
+  const reset = useCallback(async () => {
     const currentPhase = useTrainingSessionStore.getState().phase;
 
     stopEngine(true);
     if (currentPhase === TrainingPhase.Idle) {
+      pendingFinishStopRef.current = null;
       return;
     }
 
-    resetSessionAndConnections();
+    await resetSessionAndConnections();
   }, [resetSessionAndConnections, stopEngine]);
 
   const syncFromBikeStatus = useCallback(

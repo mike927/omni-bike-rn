@@ -1,11 +1,14 @@
 import { BikeStatus } from '../BikeAdapter';
 import { ZiproRaveAdapter } from '../ZiproRaveAdapter';
 import { bleManager } from '../bleClient';
+import { FTMS_CONTROL_POINT_UUID, FTMS_SERVICE_UUID } from '../bleUuids';
 
 jest.mock('../bleClient', () => ({
   bleManager: {
     connectToDevice: jest.fn(),
     cancelDeviceConnection: jest.fn(),
+    isDeviceConnected: jest.fn().mockResolvedValue(false),
+    connectedDevices: jest.fn().mockResolvedValue([]),
   },
 }));
 
@@ -14,6 +17,7 @@ describe('ZiproRaveAdapter', () => {
   let adapter: ZiproRaveAdapter;
 
   const createMockDevice = () => ({
+    id: DEVICE_ID,
     name: 'Test Bike',
     discoverAllServicesAndCharacteristics: jest.fn().mockResolvedValue(undefined),
     writeCharacteristicWithResponseForService: jest.fn().mockResolvedValue(undefined),
@@ -39,6 +43,7 @@ describe('ZiproRaveAdapter', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (bleManager.isDeviceConnected as jest.Mock).mockResolvedValue(false);
     adapter = new ZiproRaveAdapter(DEVICE_ID);
   });
 
@@ -49,7 +54,31 @@ describe('ZiproRaveAdapter', () => {
 
       await adapter.connect();
 
-      expect(bleManager.connectToDevice).toHaveBeenCalledWith(DEVICE_ID);
+      expect(bleManager.connectToDevice).toHaveBeenCalledWith(DEVICE_ID, { timeout: 10000 });
+      expect(mockDevice.discoverAllServicesAndCharacteristics).toHaveBeenCalled();
+    });
+
+    it('should drop a lingering native connection before reconnecting', async () => {
+      const mockDevice = createMockDevice();
+      (bleManager.connectToDevice as jest.Mock).mockResolvedValue(mockDevice);
+      (bleManager.isDeviceConnected as jest.Mock).mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+
+      await adapter.connect();
+
+      expect(bleManager.cancelDeviceConnection).toHaveBeenCalledWith(DEVICE_ID);
+      expect(bleManager.connectToDevice).toHaveBeenCalledWith(DEVICE_ID, { timeout: 10000 });
+    });
+
+    it('should reuse an existing validation connection when requested', async () => {
+      const mockDevice = createMockDevice();
+      (bleManager.isDeviceConnected as jest.Mock).mockResolvedValueOnce(true);
+      (bleManager.connectedDevices as jest.Mock).mockResolvedValue([mockDevice]);
+
+      await adapter.connect({ reuseExistingConnection: true });
+
+      expect(bleManager.connectedDevices).toHaveBeenCalledWith([FTMS_SERVICE_UUID]);
+      expect(bleManager.cancelDeviceConnection).not.toHaveBeenCalled();
+      expect(bleManager.connectToDevice).not.toHaveBeenCalled();
       expect(mockDevice.discoverAllServicesAndCharacteristics).toHaveBeenCalled();
     });
   });
@@ -65,9 +94,55 @@ describe('ZiproRaveAdapter', () => {
       expect(bleManager.cancelDeviceConnection).toHaveBeenCalledWith(DEVICE_ID);
     });
 
+    it('should wait until the bike is actually disconnected before resolving', async () => {
+      jest.useFakeTimers();
+      const mockDevice = createMockDevice();
+      (bleManager.connectToDevice as jest.Mock).mockResolvedValue(mockDevice);
+      (bleManager.isDeviceConnected as jest.Mock)
+        .mockResolvedValueOnce(false) // connect()
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(false);
+
+      await adapter.connect();
+
+      const disconnectPromise = adapter.disconnect();
+
+      await jest.advanceTimersByTimeAsync(200);
+      await disconnectPromise;
+
+      expect(bleManager.cancelDeviceConnection).toHaveBeenCalledWith(DEVICE_ID);
+      expect(bleManager.isDeviceConnected).toHaveBeenCalledTimes(4);
+
+      jest.useRealTimers();
+    });
+
     it('should not cancel device connection if not connected', async () => {
       await adapter.disconnect();
       expect(bleManager.cancelDeviceConnection).not.toHaveBeenCalled();
+    });
+
+    it('should wait for an in-flight stop command before cancelling the BLE connection', async () => {
+      const mockDevice = createMockDevice();
+      let resolveWrite!: () => void;
+      const writePromise = new Promise<void>((resolve) => {
+        resolveWrite = resolve;
+      });
+      mockDevice.writeCharacteristicWithResponseForService.mockReturnValue(writePromise);
+      (bleManager.connectToDevice as jest.Mock).mockResolvedValue(mockDevice);
+      (bleManager.isDeviceConnected as jest.Mock).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
+
+      await adapter.connect();
+      const stopPromise = adapter.setControlState(BikeStatus.Stopped);
+      const disconnectPromise = adapter.disconnect();
+
+      expect(bleManager.cancelDeviceConnection).not.toHaveBeenCalled();
+
+      resolveWrite();
+      await stopPromise;
+      await disconnectPromise;
+
+      expect(bleManager.cancelDeviceConnection).toHaveBeenCalledWith(DEVICE_ID);
     });
   });
 
@@ -163,7 +238,7 @@ describe('ZiproRaveAdapter', () => {
   });
 
   describe('setControlState', () => {
-    it('should request control before sending a reset command', async () => {
+    it('should request control before sending a reset command and clear local state without BLE disconnect', async () => {
       const mockDevice = createMockDevice();
       (bleManager.connectToDevice as jest.Mock).mockResolvedValue(mockDevice);
 
@@ -172,18 +247,20 @@ describe('ZiproRaveAdapter', () => {
 
       expect(mockDevice.writeCharacteristicWithResponseForService).toHaveBeenNthCalledWith(
         1,
-        '00001826-0000-1000-8000-00805f9b34fb',
-        '00002ad9-0000-1000-8000-00805f9b34fb',
+        FTMS_SERVICE_UUID,
+        FTMS_CONTROL_POINT_UUID,
         'AA==',
       );
       expect(mockDevice.writeCharacteristicWithResponseForService).toHaveBeenNthCalledWith(
         2,
-        '00001826-0000-1000-8000-00805f9b34fb',
-        '00002ad9-0000-1000-8000-00805f9b34fb',
+        FTMS_SERVICE_UUID,
+        FTMS_CONTROL_POINT_UUID,
         'AQ==',
       );
-      expect(bleManager.cancelDeviceConnection).toHaveBeenCalledWith(DEVICE_ID);
-      expect(bleManager.connectToDevice).toHaveBeenCalledTimes(2);
+      // After reset, adapter clears local state but does NOT explicitly disconnect BLE.
+      // The bike may reboot and drop BLE naturally — auto-reconnect handles it.
+      expect(bleManager.cancelDeviceConnection).not.toHaveBeenCalled();
+      expect(bleManager.connectToDevice).toHaveBeenCalledTimes(1);
     });
 
     it('should send start directly without requesting control first', async () => {
@@ -195,13 +272,13 @@ describe('ZiproRaveAdapter', () => {
 
       expect(mockDevice.writeCharacteristicWithResponseForService).toHaveBeenCalledTimes(1);
       expect(mockDevice.writeCharacteristicWithResponseForService).toHaveBeenCalledWith(
-        '00001826-0000-1000-8000-00805f9b34fb',
-        '00002ad9-0000-1000-8000-00805f9b34fb',
+        FTMS_SERVICE_UUID,
+        FTMS_CONTROL_POINT_UUID,
         'Bw==',
       );
     });
 
-    it('should reconnect after reset when the write itself triggers a disconnect', async () => {
+    it('should cleanup local state after reset when the write itself triggers a disconnect', async () => {
       const disconnectError = Object.assign(new Error(`Device ${DEVICE_ID} was disconnected`), { errorCode: 201 });
       const mockDevice = createMockDevice();
       mockDevice.writeCharacteristicWithResponseForService
@@ -212,8 +289,9 @@ describe('ZiproRaveAdapter', () => {
       await adapter.connect();
       await adapter.setControlState(BikeStatus.Reset);
 
-      expect(bleManager.cancelDeviceConnection).toHaveBeenCalledWith(DEVICE_ID);
-      expect(bleManager.connectToDevice).toHaveBeenCalledTimes(2);
+      // Adapter clears local state but does NOT issue BLE disconnect — bike already rebooting
+      expect(bleManager.cancelDeviceConnection).not.toHaveBeenCalled();
+      expect(bleManager.connectToDevice).toHaveBeenCalledTimes(1);
     });
 
     it('should ignore expected disconnect errors while a control write is in flight', async () => {

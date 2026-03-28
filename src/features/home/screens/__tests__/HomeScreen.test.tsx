@@ -1,5 +1,4 @@
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { Alert, Linking } from 'react-native';
+import { render, fireEvent } from '@testing-library/react-native';
 
 import { HomeScreen } from '../HomeScreen';
 
@@ -19,16 +18,8 @@ jest.mock('react-native-safe-area-context', () => {
 });
 
 // ── Hooks ─────────────────────────────────────────────────────────────────────
-const mockRequestBlePermission = jest.fn();
-jest.mock('../../../devices/hooks/useBlePermission', () => ({
-  useBlePermission: () => ({
-    status: 'unknown',
-    requestBlePermission: mockRequestBlePermission,
-  }),
-}));
+jest.mock('../../../../services/gear/gearStorage');
 
-const mockScanForDevices = jest.fn();
-const mockStopScanning = jest.fn();
 const mockSession = {
   phase: 'idle',
   elapsedSeconds: 0,
@@ -41,6 +32,7 @@ const mockSession = {
   finish: jest.fn(),
   reset: jest.fn(),
 };
+
 const mockConnection = {
   bikeConnected: false,
   hrConnected: false,
@@ -51,15 +43,20 @@ const mockConnection = {
   disconnectAll: jest.fn(),
 };
 
-jest.mock('../../../devices/hooks/useBleScanner', () => ({
-  useBleScanner: () => ({
-    devices: [],
-    isScanning: false,
-    error: null,
-    scanForDevices: mockScanForDevices,
-    stopScanning: mockStopScanning,
-  }),
-}));
+const mockSavedGear = {
+  savedBike: null as null | { id: string; name: string; type: 'bike' },
+  savedHrSource: null as null | { id: string; name: string; type: 'hr' },
+  hydrated: true,
+  forgetBike: jest.fn(),
+  forgetHr: jest.fn(),
+};
+
+const mockAutoReconnect = {
+  bikeReconnectState: 'idle' as const,
+  hrReconnectState: 'idle' as const,
+  retryBike: jest.fn(),
+  retryHr: jest.fn(),
+};
 
 jest.mock('../../../training/hooks/useTrainingSession', () => ({
   useTrainingSession: () => mockSession,
@@ -67,6 +64,14 @@ jest.mock('../../../training/hooks/useTrainingSession', () => ({
 
 jest.mock('../../../training/hooks/useDeviceConnection', () => ({
   useDeviceConnection: () => mockConnection,
+}));
+
+jest.mock('../../../gear/hooks/useSavedGear', () => ({
+  useSavedGear: () => mockSavedGear,
+}));
+
+jest.mock('../../../gear/hooks/useAutoReconnect', () => ({
+  useAutoReconnect: () => mockAutoReconnect,
 }));
 
 describe('HomeScreen', () => {
@@ -77,7 +82,6 @@ describe('HomeScreen', () => {
       elapsedSeconds: 0,
       totalDistance: 0,
       totalCalories: 0,
-      currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null },
     });
     Object.assign(mockConnection, {
       bikeConnected: false,
@@ -85,18 +89,22 @@ describe('HomeScreen', () => {
       latestBikeMetrics: null,
       latestHr: null,
     });
+    Object.assign(mockSavedGear, {
+      savedBike: null,
+      savedHrSource: null,
+      hydrated: true,
+    });
+    Object.assign(mockAutoReconnect, {
+      bikeReconnectState: 'idle',
+      hrReconnectState: 'idle',
+    });
   });
 
   it('renders without crashing', () => {
     expect(() => render(<HomeScreen />)).not.toThrow();
   });
 
-  it('shows the scan button', () => {
-    const { getByText } = render(<HomeScreen />);
-    expect(getByText('Start Scan')).toBeTruthy();
-  });
-
-  it('shows the functional home sections and entry points', () => {
+  it('shows the main sections', () => {
     const { getByText, getAllByText } = render(<HomeScreen />);
 
     expect(getByText('Quick Start')).toBeTruthy();
@@ -106,6 +114,22 @@ describe('HomeScreen', () => {
     expect(getByText('Start Training')).toBeTruthy();
     expect(getByText('History')).toBeTruthy();
     expect(getByText('Settings')).toBeTruthy();
+  });
+
+  it('shows Set Up Bike button when no bike is saved', () => {
+    const { getByText } = render(<HomeScreen />);
+    expect(getByText('Set Up Bike')).toBeTruthy();
+  });
+
+  it('shows Add HR Source button when no HR is saved', () => {
+    const { getByText } = render(<HomeScreen />);
+    expect(getByText('Add HR Source')).toBeTruthy();
+  });
+
+  it('shows saved bike name when bike is saved', () => {
+    Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
+    const { getByText } = render(<HomeScreen />);
+    expect(getByText('Zipro Rave')).toBeTruthy();
   });
 
   it('enables Start Training only when the bike is connected', () => {
@@ -133,11 +157,7 @@ describe('HomeScreen', () => {
 
   it('shows Resume Training and the interrupted workout CTA when the session is paused', () => {
     Object.assign(mockConnection, { bikeConnected: true });
-    Object.assign(mockSession, {
-      phase: 'paused',
-      elapsedSeconds: 305,
-      totalDistance: 2400,
-    });
+    Object.assign(mockSession, { phase: 'paused', elapsedSeconds: 305, totalDistance: 2400 });
 
     const { getByText, queryByText } = render(<HomeScreen />);
 
@@ -146,7 +166,7 @@ describe('HomeScreen', () => {
     expect(queryByText('No interrupted workout is ready to resume right now.')).toBeNull();
   });
 
-  it('shows an interrupted-session empty state when there is no resumable workout', () => {
+  it('shows empty state when there is no resumable workout', () => {
     const { getByText, queryByText } = render(<HomeScreen />);
 
     expect(getByText('No interrupted workout is ready to resume right now.')).toBeTruthy();
@@ -163,50 +183,54 @@ describe('HomeScreen', () => {
     expect(mockPush).toHaveBeenNthCalledWith(2, '/settings');
   });
 
-  it('calls requestBlePermission before scanForDevices when permission is granted', async () => {
-    mockRequestBlePermission.mockResolvedValue('granted');
-
+  it('navigates to gear setup when Set Up Bike is pressed', () => {
     const { getByText } = render(<HomeScreen />);
-    fireEvent.press(getByText('Start Scan'));
 
-    await waitFor(() => {
-      expect(mockRequestBlePermission).toHaveBeenCalledTimes(1);
-      expect(mockScanForDevices).toHaveBeenCalledTimes(1);
-    });
+    fireEvent.press(getByText('Set Up Bike'));
+    expect(mockPush).toHaveBeenCalledWith('/gear-setup?target=bike');
   });
 
-  it('shows a permission alert and does not scan when permission is denied', async () => {
-    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-    mockRequestBlePermission.mockResolvedValue('denied');
+  it('shows Retry / Choose Another / Forget when bike reconnect fails', () => {
+    Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
+    Object.assign(mockAutoReconnect, { bikeReconnectState: 'failed' });
 
     const { getByText } = render(<HomeScreen />);
-    fireEvent.press(getByText('Start Scan'));
 
-    await waitFor(() => {
-      expect(alertSpy).toHaveBeenCalledWith('Bluetooth Permission Required', expect.any(String), expect.any(Array));
-    });
-
-    expect(mockScanForDevices).not.toHaveBeenCalled();
-
-    alertSpy.mockRestore();
+    expect(getByText('Retry')).toBeTruthy();
+    expect(getByText('Choose Another')).toBeTruthy();
+    expect(getByText('Forget')).toBeTruthy();
   });
 
-  it('alert denied action opens iOS Settings', async () => {
-    const linkingSpy = jest.spyOn(Linking, 'openSettings').mockResolvedValue();
-    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_title, _msg, buttons) => {
-      const openSettingsButton = buttons?.find((b) => b.text === 'Open Settings');
-      openSettingsButton?.onPress?.();
-    });
-    mockRequestBlePermission.mockResolvedValue('denied');
+  it('calls retryBike when Retry is pressed', () => {
+    Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
+    Object.assign(mockAutoReconnect, { bikeReconnectState: 'failed' });
 
     const { getByText } = render(<HomeScreen />);
-    fireEvent.press(getByText('Start Scan'));
+    fireEvent.press(getByText('Retry'));
 
-    await waitFor(() => {
-      expect(linkingSpy).toHaveBeenCalled();
-    });
+    expect(mockAutoReconnect.retryBike).toHaveBeenCalled();
+  });
 
-    alertSpy.mockRestore();
-    linkingSpy.mockRestore();
+  it('shows reconnect actions when bike was manually disconnected', () => {
+    Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
+    Object.assign(mockAutoReconnect, { bikeReconnectState: 'disconnected' });
+
+    const { getByText } = render(<HomeScreen />);
+
+    expect(getByText('Retry')).toBeTruthy();
+    expect(getByText('Choose Another')).toBeTruthy();
+    expect(getByText('Forget')).toBeTruthy();
+  });
+
+  it('shows a disabled reconnecting action while bike retry is in flight', () => {
+    Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
+    Object.assign(mockAutoReconnect, { bikeReconnectState: 'connecting' });
+
+    const { getByText, queryByText } = render(<HomeScreen />);
+
+    expect(getByText('Reconnecting…')).toBeTruthy();
+    expect(getByText('Forget')).toBeTruthy();
+    expect(queryByText('Retry')).toBeNull();
+    expect(queryByText('Choose Another')).toBeNull();
   });
 });

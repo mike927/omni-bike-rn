@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import type { Device } from 'react-native-ble-plx';
 import { bleManager } from '../../../services/ble/bleClient';
 
-export function useBleScanner() {
+export function useBleScanner(serviceUUIDs: string[] | null = null) {
   const [devices, setDevices] = useState<Device[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +19,7 @@ export function useBleScanner() {
       setIsScanning(true);
       setDevices([]);
 
-      bleManager.startDeviceScan(null, null, (scanError, device) => {
+      bleManager.startDeviceScan(serviceUUIDs, null, (scanError, device) => {
         if (scanError) {
           console.error('Scan error:', scanError);
           setError(scanError.message);
@@ -41,7 +41,7 @@ export function useBleScanner() {
       setError(err instanceof Error ? err.message : String(err));
       setIsScanning(false);
     }
-  }, []);
+  }, [serviceUUIDs]);
 
   const stopScanning = useCallback(() => {
     bleManager.stopDeviceScan();

@@ -1,13 +1,23 @@
 import type { Device, Subscription } from 'react-native-ble-plx';
 import { BikeStatus, type BikeAdapter, type BikeMetrics } from './BikeAdapter';
-import type { BleError } from './BleError';
 import { bleManager } from './bleClient';
+import { connectToBleDeviceWithOptions, waitForBleDeviceDisconnect } from './bleConnectionUtils';
+import { isExpectedBleDisconnectError } from './isExpectedBleDisconnectError';
+import type { BleConnectionOptions } from './BleConnectionOptions';
+import {
+  FTMS_CONTROL_POINT_UUID,
+  FTMS_INDOOR_BIKE_DATA_UUID,
+  FTMS_MACHINE_STATUS_UUID,
+  FTMS_SERVICE_UUID,
+} from './bleUuids';
 import {
   parseFtmsIndoorBikeData,
   parseFtmsMachineStatus,
   FtmsControlPointOpCode,
   FtmsStopPauseCmd,
 } from './parsers/ftmsParser';
+
+const CONTROL_COMMAND_DRAIN_TIMEOUT_MS = 2000;
 
 export class ZiproRaveAdapter implements BikeAdapter {
   private device: Device | null = null;
@@ -17,8 +27,7 @@ export class ZiproRaveAdapter implements BikeAdapter {
   private dataSub: Subscription | null = null;
   private statusSub: Subscription | null = null;
   private latestMetrics: BikeMetrics = { speed: 0, cadence: 0, power: 0 };
-  private static readonly OPERATION_CANCELLED_ERROR_CODE = 2;
-  private static readonly DEVICE_DISCONNECTED_ERROR_CODE = 201;
+  private commandQueue: Promise<void> = Promise.resolve();
 
   /**
    * Initializes the adapter for a specific BLE device ID without connecting.
@@ -33,9 +42,19 @@ export class ZiproRaveAdapter implements BikeAdapter {
    * Connects to the physical hardware and discovers its available services
    * and characteristics. Must be called before subscribing or sending commands.
    */
-  async connect(): Promise<void> {
-    this.device = await bleManager.connectToDevice(this.deviceId);
-    await this.device.discoverAllServicesAndCharacteristics();
+  async connect(options?: BleConnectionOptions): Promise<void> {
+    this.device = await connectToBleDeviceWithOptions(this.deviceId, {
+      ...options,
+      connectedServiceUuids: [FTMS_SERVICE_UUID],
+    });
+
+    try {
+      await this.device.discoverAllServicesAndCharacteristics();
+    } catch (err) {
+      await this.disconnect();
+      throw err;
+    }
+
     this.hasControl = false;
   }
 
@@ -47,10 +66,42 @@ export class ZiproRaveAdapter implements BikeAdapter {
     this.clearMetricSubscriptions();
 
     if (this.device) {
-      await bleManager.cancelDeviceConnection(this.deviceId);
-      this.device = null;
+      let disconnectError: unknown = null;
+
+      await this.waitForPendingControlCommands();
+
+      try {
+        await bleManager.cancelDeviceConnection(this.deviceId);
+      } catch (err) {
+        disconnectError = err;
+      }
+
+      try {
+        await this.waitForDeviceDisconnect();
+      } finally {
+        this.device = null;
+        this.hasControl = false;
+      }
+
+      if (disconnectError && !isExpectedBleDisconnectError(disconnectError)) {
+        throw disconnectError;
+      }
+    } else {
       this.hasControl = false;
     }
+  }
+
+  private async waitForPendingControlCommands(): Promise<void> {
+    await Promise.race([
+      this.commandQueue,
+      new Promise<void>((resolve) => {
+        setTimeout(resolve, CONTROL_COMMAND_DRAIN_TIMEOUT_MS);
+      }),
+    ]);
+  }
+
+  private async waitForDeviceDisconnect(): Promise<void> {
+    await waitForBleDeviceDisconnect(this.deviceId);
   }
 
   private clearMetricSubscriptions(): void {
@@ -60,36 +111,15 @@ export class ZiproRaveAdapter implements BikeAdapter {
     this.statusSub = null;
   }
 
-  private isExpectedMonitorCancellation(error: unknown): boolean {
-    if (!(error instanceof Error)) return false;
-    const bleError = error as BleError;
-    return (
-      bleError.errorCode === ZiproRaveAdapter.OPERATION_CANCELLED_ERROR_CODE ||
-      bleError.message.includes('Operation was cancelled')
-    );
-  }
-
-  private isExpectedControlDisconnect(error: unknown): boolean {
-    if (!(error instanceof Error)) return false;
-    const bleError = error as BleError;
-    return (
-      bleError.errorCode === ZiproRaveAdapter.DEVICE_DISCONNECTED_ERROR_CODE ||
-      bleError.message.includes('was disconnected')
-    );
-  }
-
   private async writeControlCommand(command: number[]): Promise<void> {
     if (!this.device) {
       throw new Error('Device not connected');
     }
 
-    const SERVICE_UUID = '00001826-0000-1000-8000-00805f9b34fb';
-    const CHAR_UUID_CONTROL_POINT = '00002ad9-0000-1000-8000-00805f9b34fb';
-
     const base64Cmd =
       typeof Buffer !== 'undefined' ? Buffer.from(command).toString('base64') : btoa(String.fromCharCode(...command));
 
-    await this.device.writeCharacteristicWithResponseForService(SERVICE_UUID, CHAR_UUID_CONTROL_POINT, base64Cmd);
+    await this.device.writeCharacteristicWithResponseForService(FTMS_SERVICE_UUID, FTMS_CONTROL_POINT_UUID, base64Cmd);
   }
 
   private async requestControlIfNeeded(): Promise<void> {
@@ -110,19 +140,17 @@ export class ZiproRaveAdapter implements BikeAdapter {
       throw new Error('Device not connected');
     }
 
-    const SERVICE_UUID = '00001826-0000-1000-8000-00805f9b34fb';
-    const CHAR_UUID_DATA = '00002ad2-0000-1000-8000-00805f9b34fb';
-    const CHAR_UUID_STATUS = '00002ada-0000-1000-8000-00805f9b34fb';
+    // Uses module-level FTMS UUID constants
 
     this.clearMetricSubscriptions();
     this.latestMetrics = { speed: 0, cadence: 0, power: 0 };
 
     this.dataSub = this.device.monitorCharacteristicForService(
-      SERVICE_UUID,
-      CHAR_UUID_DATA,
+      FTMS_SERVICE_UUID,
+      FTMS_INDOOR_BIKE_DATA_UUID,
       (error, characteristic) => {
         if (error) {
-          if (this.isExpectedMonitorCancellation(error)) {
+          if (isExpectedBleDisconnectError(error)) {
             return;
           }
           console.error('[ZiproRave] FTMS Data Monitoring error:', error);
@@ -144,12 +172,17 @@ export class ZiproRaveAdapter implements BikeAdapter {
               speed: parsedMetrics.speed ?? 0,
               cadence: parsedMetrics.cadence ?? 0,
               power: parsedMetrics.power ?? 0,
-              ...(parsedMetrics.distance !== undefined && { distance: parsedMetrics.distance }),
-              ...(parsedMetrics.resistance !== undefined && { resistance: parsedMetrics.resistance }),
-              ...(parsedMetrics.heartRate !== undefined && { heartRate: parsedMetrics.heartRate }),
+              ...(parsedMetrics.distance !== undefined && {
+                distance: parsedMetrics.distance,
+              }),
+              ...(parsedMetrics.resistance !== undefined && {
+                resistance: parsedMetrics.resistance,
+              }),
+              ...(parsedMetrics.heartRate !== undefined && {
+                heartRate: parsedMetrics.heartRate,
+              }),
             };
 
-            console.warn('[ZiproRave] Decoded FTMS Metrics:', this.latestMetrics);
             this.metricsCallback?.(this.latestMetrics);
           } catch (err) {
             console.error('[ZiproRave] Error parsing FTMS metrics:', err);
@@ -159,11 +192,11 @@ export class ZiproRaveAdapter implements BikeAdapter {
     );
 
     this.statusSub = this.device.monitorCharacteristicForService(
-      SERVICE_UUID,
-      CHAR_UUID_STATUS,
+      FTMS_SERVICE_UUID,
+      FTMS_MACHINE_STATUS_UUID,
       (error, characteristic) => {
         if (error) {
-          if (this.isExpectedMonitorCancellation(error)) {
+          if (isExpectedBleDisconnectError(error)) {
             return;
           }
           console.error('[ZiproRave] FTMS Status Monitoring error:', error);
@@ -180,7 +213,10 @@ export class ZiproRaveAdapter implements BikeAdapter {
 
             const statusEvent = parseFtmsMachineStatus(bytes);
             if (statusEvent) {
-              this.latestMetrics = { ...this.latestMetrics, status: statusEvent };
+              this.latestMetrics = {
+                ...this.latestMetrics,
+                status: statusEvent,
+              };
               this.metricsCallback?.(this.latestMetrics);
             }
           } catch (err) {
@@ -191,15 +227,14 @@ export class ZiproRaveAdapter implements BikeAdapter {
     );
   }
 
-  private async reconnectAfterReset(): Promise<void> {
-    const shouldResumeMetrics = this.metricsCallback !== null;
-
-    await this.disconnect();
-    await this.connect();
-
-    if (shouldResumeMetrics) {
-      this.startMetricSubscriptions();
-    }
+  private cleanupAfterReset(): void {
+    // After a Reset command the bike hardware may reboot. Clear local state
+    // (subscriptions, device ref) but do NOT explicitly disconnect BLE — let
+    // the connection drop naturally if the bike reboots. Auto-reconnect will
+    // re-establish from scratch.
+    this.clearMetricSubscriptions();
+    this.device = null;
+    this.hasControl = false;
   }
 
   /**
@@ -234,6 +269,14 @@ export class ZiproRaveAdapter implements BikeAdapter {
    * @param status The target status ('started', 'paused', 'stopped', 'reset') to command.
    */
   async setControlState(status: BikeStatus): Promise<void> {
+    // Serialize all control commands through a queue so a fire-and-forget
+    // Stopped write finishes before a subsequent Reset write begins.
+    const task = this.commandQueue.then(() => this.executeControlState(status));
+    this.commandQueue = task.catch(() => {});
+    return task;
+  }
+
+  private async executeControlState(status: BikeStatus): Promise<void> {
     if (!this.device) {
       console.warn('[ZiproRave] Cannot set control state: device not connected');
       return;
@@ -257,16 +300,13 @@ export class ZiproRaveAdapter implements BikeAdapter {
         }
         await this.writeControlCommand(command);
         if (status === BikeStatus.Reset) {
-          this.hasControl = false;
-          await this.reconnectAfterReset();
+          this.cleanupAfterReset();
         }
-        console.warn(`[ZiproRave] Successfully sent control state: ${status}`);
       }
     } catch (err) {
-      if (this.isExpectedControlDisconnect(err)) {
+      if (isExpectedBleDisconnectError(err)) {
         if (status === BikeStatus.Reset) {
-          this.hasControl = false;
-          await this.reconnectAfterReset();
+          this.cleanupAfterReset();
         }
         return;
       }
