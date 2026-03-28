@@ -176,7 +176,7 @@ Examples:
   - why it changed
   - what was validated
 
-### Pull Request Review Comments
+### 8. Pull Request Review Comments
 
 - After the pull request is open, manually instruct the local agent to check GitHub for review comments and unresolved review threads.
 - Once asked to do this, the agent should treat GitHub review comments as the primary review queue for the branch.
@@ -190,7 +190,7 @@ Examples:
 - Only treat a review comment as resolved after the fix is implemented, validated, and pushed.
 - If GitHub permissions allow, the agent may reply to and resolve addressed review threads directly. Otherwise, it should prepare the exact reply/resolution notes for the human.
 
-### 8. Update The Plan After Approval
+### 9. Update The Plan After Approval
 
 - Only mark work as `[x]` after approval.
 - Use `[-]` only when work is intentionally skipped or deferred, with a short reason.
@@ -201,7 +201,7 @@ Example:
 
 - `docs: mark harness refactor as approved in plan`
 
-### 9. Human Merge
+### 10. Human Merge
 
 - Merge is done by a human.
 - After merge, switch back to `main`.
