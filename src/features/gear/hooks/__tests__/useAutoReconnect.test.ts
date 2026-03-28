@@ -70,6 +70,8 @@ beforeEach(() => {
     hydrated: false,
     bikeReconnectState: 'idle',
     hrReconnectState: 'idle',
+    bikeAutoReconnectSuppressed: false,
+    hrAutoReconnectSuppressed: false,
   });
   mockConnectBike.mockImplementation(() => {
     useDeviceConnectionStore.setState({ bikeAdapter: {} as never });
@@ -127,6 +129,19 @@ describe('auto-reconnect on mount', () => {
   it('does not reconnect if adapter already active', () => {
     useSavedGearStore.setState({ savedBike: bike, hydrated: true });
     useDeviceConnectionStore.setState({ bikeAdapter: {} as never });
+
+    renderHook(() => useAutoReconnect());
+
+    expect(mockConnectBike).not.toHaveBeenCalled();
+  });
+
+  it('does not reconnect automatically when bike auto-reconnect is suppressed', () => {
+    useSavedGearStore.setState({
+      savedBike: bike,
+      hydrated: true,
+      bikeReconnectState: 'disconnected',
+      bikeAutoReconnectSuppressed: true,
+    });
 
     renderHook(() => useAutoReconnect());
 
@@ -222,6 +237,26 @@ describe('retry', () => {
 
     expect(mockConnectBike).toHaveBeenCalledTimes(1);
     expect(useSavedGearStore.getState().bikeReconnectState).toBe('connected');
+  });
+
+  it('retryBike clears manual suppression before reconnecting again', async () => {
+    useSavedGearStore.setState({
+      savedBike: bike,
+      hydrated: true,
+      bikeReconnectState: 'disconnected',
+      bikeAutoReconnectSuppressed: true,
+    });
+
+    const { result } = renderHook(() => useAutoReconnect());
+
+    act(() => {
+      result.current.retryBike();
+    });
+
+    await act(async () => {});
+
+    expect(useSavedGearStore.getState().bikeAutoReconnectSuppressed).toBe(false);
+    expect(mockConnectBike).toHaveBeenCalledWith('bike-uuid');
   });
 
   it('retryBike ignores repeated presses while a reconnect attempt is already in flight', async () => {

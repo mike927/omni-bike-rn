@@ -14,27 +14,33 @@ import { isExpectedBleDisconnectError } from '../../../services/ble/isExpectedBl
 let bikeMetricsSub: Subscription | null = null;
 let hrSub: Subscription | null = null;
 
-function updateReconnectStateAfterBikeDisconnect(disconnectSucceeded: boolean): void {
-  const { savedBike, setBikeReconnectState } = useSavedGearStore.getState();
+function updateReconnectStateAfterBikeDisconnect(disconnectSucceeded: boolean, suppressAutoReconnect: boolean): void {
+  const { savedBike, setBikeReconnectState, setBikeAutoReconnectSuppressed } = useSavedGearStore.getState();
   if (!savedBike) {
     setBikeReconnectState('idle');
+    setBikeAutoReconnectSuppressed(false);
     return;
   }
 
+  setBikeAutoReconnectSuppressed(suppressAutoReconnect);
   setBikeReconnectState(disconnectSucceeded ? 'disconnected' : 'failed');
 }
 
-function updateReconnectStateAfterHrDisconnect(disconnectSucceeded: boolean): void {
-  const { savedHrSource, setHrReconnectState } = useSavedGearStore.getState();
+function updateReconnectStateAfterHrDisconnect(disconnectSucceeded: boolean, suppressAutoReconnect: boolean): void {
+  const { savedHrSource, setHrReconnectState, setHrAutoReconnectSuppressed } = useSavedGearStore.getState();
   if (!savedHrSource) {
     setHrReconnectState('idle');
+    setHrAutoReconnectSuppressed(false);
     return;
   }
 
+  setHrAutoReconnectSuppressed(suppressAutoReconnect);
   setHrReconnectState(disconnectSucceeded ? 'disconnected' : 'failed');
 }
 
-async function disconnectBikeConnectionInternal(updateReconnectState: boolean): Promise<void> {
+async function disconnectBikeConnectionInternal(options?: DisconnectDeviceConnectionsOptions): Promise<void> {
+  const updateReconnectState = options?.updateReconnectState ?? false;
+  const suppressAutoReconnect = options?.suppressAutoReconnect ?? false;
   bikeMetricsSub?.remove();
   bikeMetricsSub = null;
 
@@ -56,11 +62,13 @@ async function disconnectBikeConnectionInternal(updateReconnectState: boolean): 
   store.clearBikeConnection();
 
   if (updateReconnectState) {
-    updateReconnectStateAfterBikeDisconnect(disconnectSucceeded);
+    updateReconnectStateAfterBikeDisconnect(disconnectSucceeded, suppressAutoReconnect);
   }
 }
 
-async function disconnectHrConnectionInternal(updateReconnectState: boolean): Promise<void> {
+async function disconnectHrConnectionInternal(options?: DisconnectDeviceConnectionsOptions): Promise<void> {
+  const updateReconnectState = options?.updateReconnectState ?? false;
+  const suppressAutoReconnect = options?.suppressAutoReconnect ?? false;
   hrSub?.remove();
   hrSub = null;
 
@@ -82,14 +90,13 @@ async function disconnectHrConnectionInternal(updateReconnectState: boolean): Pr
   store.clearHrConnection();
 
   if (updateReconnectState) {
-    updateReconnectStateAfterHrDisconnect(disconnectSucceeded);
+    updateReconnectStateAfterHrDisconnect(disconnectSucceeded, suppressAutoReconnect);
   }
 }
 
 export async function disconnectAllDeviceConnections(options?: DisconnectDeviceConnectionsOptions): Promise<void> {
-  const updateReconnectState = options?.updateReconnectState ?? false;
-  await disconnectBikeConnectionInternal(updateReconnectState);
-  await disconnectHrConnectionInternal(updateReconnectState);
+  await disconnectBikeConnectionInternal(options);
+  await disconnectHrConnectionInternal(options);
 }
 
 interface UseDeviceConnectionReturn {
@@ -104,7 +111,7 @@ interface UseDeviceConnectionReturn {
   connectHr: (deviceId: string, options?: BleConnectionOptions) => Promise<void>;
   disconnectBike: () => Promise<void>;
   disconnectHr: () => Promise<void>;
-  disconnectAll: () => Promise<void>;
+  disconnectAll: (options?: DisconnectDeviceConnectionsOptions) => Promise<void>;
 }
 
 /**
@@ -121,11 +128,11 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
   const latestHr = useDeviceConnectionStore((s) => s.latestHr);
 
   const disconnectBike = useCallback(async () => {
-    await disconnectBikeConnectionInternal(false);
+    await disconnectBikeConnectionInternal();
   }, []);
 
   const disconnectHr = useCallback(async () => {
-    await disconnectHrConnectionInternal(false);
+    await disconnectHrConnectionInternal();
   }, []);
 
   const connectBike = useCallback(
@@ -138,6 +145,7 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
         await adapter.connect(options);
 
         useDeviceConnectionStore.getState().setBikeAdapter(adapter);
+        useSavedGearStore.getState().setBikeAutoReconnectSuppressed(false);
 
         bikeMetricsSub = adapter.subscribeToMetrics((metrics: BikeMetrics) => {
           useDeviceConnectionStore.getState().updateBikeMetrics(metrics);
@@ -161,6 +169,7 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
         await adapter.connect(options);
 
         useDeviceConnectionStore.getState().setHrAdapter(adapter);
+        useSavedGearStore.getState().setHrAutoReconnectSuppressed(false);
 
         hrSub = adapter.subscribeToHeartRate((hr: number) => {
           useDeviceConnectionStore.getState().updateHr(hr);
@@ -175,8 +184,8 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
     [disconnectHr],
   );
 
-  const disconnectAll = useCallback(async () => {
-    await disconnectAllDeviceConnections({ updateReconnectState: true });
+  const disconnectAll = useCallback(async (options?: DisconnectDeviceConnectionsOptions) => {
+    await disconnectAllDeviceConnections({ updateReconnectState: true, ...options });
   }, []);
 
   return {
