@@ -3,6 +3,7 @@ name: PR Check
 on:
   pull_request:
     branches: [main]
+    types: [opened, reopened, ready_for_review, synchronize]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -41,13 +42,6 @@ jobs:
 
   codex_review:
     name: Codex PR Review
-    if: >
-      github.event_name == 'pull_request' &&
-      (
-        github.event.action == 'opened' ||
-        github.event.action == 'reopened' ||
-        github.event.action == 'ready_for_review'
-      )
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
