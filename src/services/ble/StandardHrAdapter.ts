@@ -5,6 +5,7 @@ import { connectToBleDeviceWithOptions } from './bleConnectionUtils';
 import { Buffer } from 'buffer';
 import type { BleConnectionOptions } from './BleConnectionOptions';
 import { HR_MEASUREMENT_CHARACTERISTIC_UUID_SHORT, HR_SERVICE_UUID, HR_SERVICE_UUID_SHORT } from './bleUuids';
+import { isExpectedBleDisconnectError } from './isExpectedBleDisconnectError';
 
 export class StandardHrAdapter implements HrAdapter {
   private device: Device | null = null;
@@ -46,6 +47,9 @@ export class StandardHrAdapter implements HrAdapter {
       HR_MEASUREMENT_CHARACTERISTIC_UUID_SHORT,
       (error, characteristic) => {
         if (error) {
+          if (isExpectedBleDisconnectError(error)) {
+            return;
+          }
           console.error('[StandardHrAdapter] HR monitor error:', error);
           return;
         }

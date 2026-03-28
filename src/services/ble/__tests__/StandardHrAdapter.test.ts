@@ -170,5 +170,32 @@ describe('StandardHrAdapter', () => {
 
       expect(mockCallback).toHaveBeenCalledWith(300);
     });
+
+    it('should ignore expected disconnect monitor errors', async () => {
+      const mockDevice = {
+        name: 'Test HR Monitor',
+        discoverAllServicesAndCharacteristics: jest.fn().mockResolvedValue(undefined),
+      };
+      (bleManager.connectToDevice as jest.Mock).mockResolvedValue(mockDevice);
+
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      let captureListener: (error: Error | null, characteristic: { value: string } | null) => void = () => {};
+      (bleManager.monitorCharacteristicForDevice as jest.Mock).mockImplementation(
+        (_deviceId, _serviceUUID, _charUUID, listener) => {
+          captureListener = listener;
+          return { remove: jest.fn() };
+        },
+      );
+
+      await adapter.connect();
+      adapter.subscribeToHeartRate(jest.fn());
+
+      captureListener(Object.assign(new Error('Operation was cancelled'), { errorCode: 2 }), null);
+
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+
+      consoleErrorSpy.mockRestore();
+    });
   });
 });
