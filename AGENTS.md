@@ -154,6 +154,20 @@ Examples:
 - Stop earlier if the review is already clean.
 - If a review file under `ai/reviews/` is removed, that means every point in that file has already been touched: fixed, acknowledged, or intentionally skipped. Do not remove a review file while any point still needs action or a decision.
 
+### Pull Request Review Comments
+
+- When working on an open pull request, manually instruct the local agent to check GitHub for review comments and unresolved review threads.
+- Once asked to do this, the agent should treat GitHub review comments as the primary review queue for the branch.
+- Default behavior after checking GitHub:
+  - fetch unresolved review threads and actionable inline comments
+  - prioritize bugs, regressions, missing tests, and architecture risks
+  - apply fixes for clearly actionable comments without waiting for extra approval
+  - explicitly call out comments that are declined or intentionally left unchanged, with reasons
+  - run the most relevant validation after each fix
+  - prepare short reply text the human can paste into GitHub for each addressed thread
+- Only treat a review comment as resolved after the fix is implemented, validated, and pushed.
+- If GitHub permissions allow, the agent may reply to and resolve addressed review threads directly. Otherwise, it should prepare the exact reply/resolution notes for the human.
+
 ### 6. Manual Human Testing
 
 - Before opening a Pull Request, the agent MUST pause and ask the human to manually test the changes on their device/simulator.
