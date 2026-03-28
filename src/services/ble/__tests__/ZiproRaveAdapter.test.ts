@@ -121,6 +121,29 @@ describe('ZiproRaveAdapter', () => {
       await adapter.disconnect();
       expect(bleManager.cancelDeviceConnection).not.toHaveBeenCalled();
     });
+
+    it('should wait for an in-flight stop command before cancelling the BLE connection', async () => {
+      const mockDevice = createMockDevice();
+      let resolveWrite!: () => void;
+      const writePromise = new Promise<void>((resolve) => {
+        resolveWrite = resolve;
+      });
+      mockDevice.writeCharacteristicWithResponseForService.mockReturnValue(writePromise);
+      (bleManager.connectToDevice as jest.Mock).mockResolvedValue(mockDevice);
+      (bleManager.isDeviceConnected as jest.Mock).mockResolvedValueOnce(false).mockResolvedValueOnce(false);
+
+      await adapter.connect();
+      const stopPromise = adapter.setControlState(BikeStatus.Stopped);
+      const disconnectPromise = adapter.disconnect();
+
+      expect(bleManager.cancelDeviceConnection).not.toHaveBeenCalled();
+
+      resolveWrite();
+      await stopPromise;
+      await disconnectPromise;
+
+      expect(bleManager.cancelDeviceConnection).toHaveBeenCalledWith(DEVICE_ID);
+    });
   });
 
   describe('subscribeToMetrics', () => {

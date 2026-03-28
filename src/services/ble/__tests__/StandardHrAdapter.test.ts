@@ -67,6 +67,23 @@ describe('StandardHrAdapter', () => {
       expect(bleManager.connectToDevice).not.toHaveBeenCalled();
       expect(mockDevice.discoverAllServicesAndCharacteristics).toHaveBeenCalled();
     });
+
+    it('should retry once after a timed-out native connect', async () => {
+      const timeoutError = new Error('Operation timed out');
+      const mockDevice = {
+        id: DEVICE_ID,
+        name: 'Test HR Monitor',
+        discoverAllServicesAndCharacteristics: jest.fn().mockResolvedValue(undefined),
+      };
+      (bleManager.connectToDevice as jest.Mock).mockRejectedValueOnce(timeoutError).mockResolvedValueOnce(mockDevice);
+      (bleManager.isDeviceConnected as jest.Mock).mockResolvedValue(false);
+
+      await adapter.connect();
+
+      expect(bleManager.cancelDeviceConnection).toHaveBeenCalledWith(DEVICE_ID);
+      expect(bleManager.connectToDevice).toHaveBeenCalledTimes(2);
+      expect(mockDevice.discoverAllServicesAndCharacteristics).toHaveBeenCalled();
+    });
   });
 
   describe('disconnect', () => {

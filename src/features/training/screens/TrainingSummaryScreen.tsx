@@ -1,4 +1,5 @@
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useTrainingSession } from '../hooks/useTrainingSession';
@@ -13,6 +14,7 @@ import { palette } from '../../../ui/theme';
 export function TrainingSummaryScreen() {
   const router = useRouter();
   const session = useTrainingSession();
+  const [isSubmittingDone, setIsSubmittingDone] = useState(false);
 
   const isEmptySummary =
     session.phase === TrainingPhase.Idle &&
@@ -21,8 +23,18 @@ export function TrainingSummaryScreen() {
     session.totalCalories === 0;
 
   const handleDone = async () => {
-    await session.reset();
-    router.replace('/');
+    if (isSubmittingDone) {
+      return;
+    }
+
+    setIsSubmittingDone(true);
+
+    try {
+      await session.reset();
+      router.replace('/');
+    } finally {
+      setIsSubmittingDone(false);
+    }
   };
 
   return (
@@ -72,7 +84,11 @@ export function TrainingSummaryScreen() {
         </Text>
         <View style={styles.actionRow}>
           {session.phase === TrainingPhase.Finished ? (
-            <ActionButton label="Done" onPress={handleDone} />
+            <ActionButton
+              label={isSubmittingDone ? 'Disconnecting…' : 'Done'}
+              onPress={handleDone}
+              disabled={isSubmittingDone}
+            />
           ) : (
             <ActionButton label="Back Home" onPress={() => router.replace('/')} variant="secondary" />
           )}

@@ -3,10 +3,12 @@ import type { Device } from 'react-native-ble-plx';
 import { bleManager } from './bleClient';
 import { isExpectedBleDisconnectError } from './isExpectedBleDisconnectError';
 import type { BleConnectionOptions } from './BleConnectionOptions';
+import type { BleError } from './BleError';
 
 const BLE_CONNECT_TIMEOUT_MS = 10000;
 const BLE_DISCONNECT_TIMEOUT_MS = 5000;
 const BLE_DISCONNECT_POLL_INTERVAL_MS = 100;
+const BLE_RECONNECT_RETRY_DELAY_MS = 500;
 
 export interface ConnectToBleDeviceOptions extends BleConnectionOptions {
   connectedServiceUuids?: string[];
@@ -16,6 +18,41 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+function isBleConnectTimeoutError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const bleError = error as BleError;
+  return bleError.message.includes('Operation timed out');
+}
+
+async function forceCancelBleConnection(deviceId: string): Promise<void> {
+  try {
+    await bleManager.cancelDeviceConnection(deviceId);
+  } catch (err: unknown) {
+    if (!isExpectedBleDisconnectError(err)) {
+      throw err;
+    }
+  }
+}
+
+async function connectToBleDeviceWithTimeoutRecovery(deviceId: string): Promise<Device> {
+  try {
+    return await bleManager.connectToDevice(deviceId, { timeout: BLE_CONNECT_TIMEOUT_MS });
+  } catch (err: unknown) {
+    if (!isBleConnectTimeoutError(err)) {
+      throw err;
+    }
+
+    await forceCancelBleConnection(deviceId);
+    await waitForBleDeviceDisconnect(deviceId);
+    await delay(BLE_RECONNECT_RETRY_DELAY_MS);
+
+    return bleManager.connectToDevice(deviceId, { timeout: BLE_CONNECT_TIMEOUT_MS });
+  }
 }
 
 export async function waitForBleDeviceDisconnect(
@@ -55,7 +92,7 @@ export async function prepareBleDeviceForConnection(deviceId: string): Promise<v
 
 export async function connectToBleDevice(deviceId: string): Promise<Device> {
   await prepareBleDeviceForConnection(deviceId);
-  return bleManager.connectToDevice(deviceId, { timeout: BLE_CONNECT_TIMEOUT_MS });
+  return connectToBleDeviceWithTimeoutRecovery(deviceId);
 }
 
 export async function connectToBleDeviceWithOptions(
@@ -77,5 +114,5 @@ export async function connectToBleDeviceWithOptions(
   }
 
   await prepareBleDeviceForConnection(deviceId);
-  return bleManager.connectToDevice(deviceId, { timeout: BLE_CONNECT_TIMEOUT_MS });
+  return connectToBleDeviceWithTimeoutRecovery(deviceId);
 }

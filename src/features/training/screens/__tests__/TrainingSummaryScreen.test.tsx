@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
 import { TrainingSummaryScreen } from '../TrainingSummaryScreen';
 
@@ -70,5 +70,34 @@ describe('TrainingSummaryScreen', () => {
 
     expect(getByText('Done')).toBeTruthy();
     expect(queryByText('Reset Session')).toBeNull();
+  });
+
+  it('shows a disconnecting state while Done teardown is in progress and navigates home after reset', async () => {
+    let resolveReset!: () => void;
+    Object.assign(mockSession, {
+      phase: 'finished',
+      elapsedSeconds: 120,
+      totalDistance: 1000,
+      totalCalories: 50,
+      reset: jest.fn().mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveReset = resolve;
+          }),
+      ),
+    });
+
+    const { getByText, queryByText } = render(<TrainingSummaryScreen />);
+
+    fireEvent.press(getByText('Done'));
+
+    expect(getByText('Disconnecting…')).toBeTruthy();
+    expect(queryByText('Done')).toBeNull();
+
+    resolveReset();
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith('/');
+    });
   });
 });

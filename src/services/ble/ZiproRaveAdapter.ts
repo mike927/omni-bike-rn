@@ -17,6 +17,8 @@ import {
   FtmsStopPauseCmd,
 } from './parsers/ftmsParser';
 
+const CONTROL_COMMAND_DRAIN_TIMEOUT_MS = 2000;
+
 export class ZiproRaveAdapter implements BikeAdapter {
   private device: Device | null = null;
   private readonly deviceId: string;
@@ -66,6 +68,8 @@ export class ZiproRaveAdapter implements BikeAdapter {
     if (this.device) {
       let disconnectError: unknown = null;
 
+      await this.waitForPendingControlCommands();
+
       try {
         await bleManager.cancelDeviceConnection(this.deviceId);
       } catch (err) {
@@ -85,6 +89,15 @@ export class ZiproRaveAdapter implements BikeAdapter {
     } else {
       this.hasControl = false;
     }
+  }
+
+  private async waitForPendingControlCommands(): Promise<void> {
+    await Promise.race([
+      this.commandQueue,
+      new Promise<void>((resolve) => {
+        setTimeout(resolve, CONTROL_COMMAND_DRAIN_TIMEOUT_MS);
+      }),
+    ]);
   }
 
   private async waitForDeviceDisconnect(): Promise<void> {

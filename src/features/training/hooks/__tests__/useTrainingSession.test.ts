@@ -25,6 +25,7 @@ jest.mock('../../../../services/metronome/MetronomeEngine', () => ({
 describe('useTrainingSession', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSetControlState.mockResolvedValue(undefined);
     useDeviceConnectionStore.getState().clearAll();
     useTrainingSessionStore.setState({
       phase: TrainingPhase.Idle,
@@ -271,6 +272,41 @@ describe('useTrainingSession', () => {
     expect(useSavedGearStore.getState().hrReconnectState).toBe('disconnected');
 
     disconnectAllSpy.mockRestore();
+  });
+
+  it('should wait for the pending bike stop command before disconnecting on summary done', async () => {
+    let resolveStop!: () => void;
+    const stopPromise = new Promise<void>((resolve) => {
+      resolveStop = resolve;
+    });
+    mockSetControlState.mockReturnValue(stopPromise);
+
+    const { result } = renderHook(() => useTrainingSession());
+
+    act(() => {
+      result.current.start();
+    });
+
+    act(() => {
+      result.current.finish();
+    });
+
+    let resetPromise: Promise<void> | null = null;
+    await act(async () => {
+      resetPromise = result.current.reset();
+    });
+
+    expect(mockDisconnect).not.toHaveBeenCalled();
+
+    resolveStop();
+
+    await act(async () => {
+      await resetPromise;
+    });
+
+    expect(mockSetControlState).toHaveBeenCalledWith(BikeStatus.Stopped);
+    expect(mockDisconnect).toHaveBeenCalledTimes(1);
+    expect(useSavedGearStore.getState().bikeReconnectState).toBe('disconnected');
   });
 
   it('should disconnect without bike reset when done is pressed from summary', async () => {

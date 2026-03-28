@@ -140,6 +140,29 @@ describe('useDeviceConnection', () => {
     expect(useSavedGearStore.getState().hrReconnectState).toBe('disconnected');
   });
 
+  it('should mark the bike reconnect state as failed when graceful bike disconnect fails', async () => {
+    mockBikeConnect.mockResolvedValue(undefined);
+    mockBikeDisconnect.mockRejectedValue(new Error('disconnect timeout'));
+    mockBikeSubscribe.mockReturnValue({ remove: jest.fn() });
+    useSavedGearStore.setState({
+      savedBike: { id: 'bike-1', name: 'Zipro Rave', type: 'bike' },
+      bikeReconnectState: 'connected',
+    });
+
+    const { result } = renderHook(() => useDeviceConnection());
+
+    await act(async () => {
+      await result.current.connectBike('bike-1');
+    });
+
+    await act(async () => {
+      await result.current.disconnectAll();
+    });
+
+    expect(useDeviceConnectionStore.getState().bikeAdapter).toBeNull();
+    expect(useSavedGearStore.getState().bikeReconnectState).toBe('failed');
+  });
+
   it('should leave reconnect state idle when intentionally disconnecting without saved gear', async () => {
     const { result } = renderHook(() => useDeviceConnection());
 

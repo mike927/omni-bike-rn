@@ -14,14 +14,24 @@ import { isExpectedBleDisconnectError } from '../../../services/ble/isExpectedBl
 let bikeMetricsSub: Subscription | null = null;
 let hrSub: Subscription | null = null;
 
-function updateReconnectStateAfterBikeDisconnect(): void {
+function updateReconnectStateAfterBikeDisconnect(disconnectSucceeded: boolean): void {
   const { savedBike, setBikeReconnectState } = useSavedGearStore.getState();
-  setBikeReconnectState(savedBike ? 'disconnected' : 'idle');
+  if (!savedBike) {
+    setBikeReconnectState('idle');
+    return;
+  }
+
+  setBikeReconnectState(disconnectSucceeded ? 'disconnected' : 'failed');
 }
 
-function updateReconnectStateAfterHrDisconnect(): void {
+function updateReconnectStateAfterHrDisconnect(disconnectSucceeded: boolean): void {
   const { savedHrSource, setHrReconnectState } = useSavedGearStore.getState();
-  setHrReconnectState(savedHrSource ? 'disconnected' : 'idle');
+  if (!savedHrSource) {
+    setHrReconnectState('idle');
+    return;
+  }
+
+  setHrReconnectState(disconnectSucceeded ? 'disconnected' : 'failed');
 }
 
 async function disconnectBikeConnectionInternal(updateReconnectState: boolean): Promise<void> {
@@ -30,17 +40,21 @@ async function disconnectBikeConnectionInternal(updateReconnectState: boolean): 
 
   const store = useDeviceConnectionStore.getState();
   const existingBikeAdapter = store.bikeAdapter;
+  let disconnectSucceeded = true;
+
+  if (existingBikeAdapter) {
+    try {
+      await existingBikeAdapter.disconnect();
+    } catch (err: unknown) {
+      disconnectSucceeded = false;
+      console.error('[useDeviceConnection] Bike disconnect error:', err);
+    }
+  }
 
   store.clearBikeConnection();
 
-  try {
-    await existingBikeAdapter?.disconnect();
-  } catch (err: unknown) {
-    console.error('[useDeviceConnection] Bike disconnect error:', err);
-  }
-
   if (updateReconnectState) {
-    updateReconnectStateAfterBikeDisconnect();
+    updateReconnectStateAfterBikeDisconnect(disconnectSucceeded);
   }
 }
 
@@ -50,17 +64,21 @@ async function disconnectHrConnectionInternal(updateReconnectState: boolean): Pr
 
   const store = useDeviceConnectionStore.getState();
   const existingHrAdapter = store.hrAdapter;
+  let disconnectSucceeded = true;
+
+  if (existingHrAdapter) {
+    try {
+      await existingHrAdapter.disconnect();
+    } catch (err: unknown) {
+      disconnectSucceeded = false;
+      console.error('[useDeviceConnection] HR disconnect error:', err);
+    }
+  }
 
   store.clearHrConnection();
 
-  try {
-    await existingHrAdapter?.disconnect();
-  } catch (err: unknown) {
-    console.error('[useDeviceConnection] HR disconnect error:', err);
-  }
-
   if (updateReconnectState) {
-    updateReconnectStateAfterHrDisconnect();
+    updateReconnectStateAfterHrDisconnect(disconnectSucceeded);
   }
 }
 

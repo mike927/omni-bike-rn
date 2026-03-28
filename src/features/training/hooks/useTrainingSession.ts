@@ -7,6 +7,8 @@ import { BikeStatus } from '../../../services/ble/BikeAdapter';
 import { TrainingPhase, type MetricSnapshot } from '../../../types/training';
 import { disconnectAllDeviceConnections } from './useDeviceConnection';
 
+const FINISH_STOP_COMMAND_TIMEOUT_MS = 2000;
+
 interface UseTrainingSessionReturn {
   // ── Read-only state ────────────────────────────────────
   phase: TrainingPhase;
@@ -32,6 +34,7 @@ interface UseTrainingSessionReturn {
  */
 export function useTrainingSession(): UseTrainingSessionReturn {
   const engineRef = useRef<MetronomeEngine | null>(null);
+  const pendingFinishStopRef = useRef<Promise<void> | null>(null);
 
   const phase = useTrainingSessionStore((s) => s.phase);
   const elapsedSeconds = useTrainingSessionStore((s) => s.elapsedSeconds);
@@ -52,6 +55,24 @@ export function useTrainingSession(): UseTrainingSessionReturn {
 
     if (clearRef) {
       engineRef.current = null;
+    }
+  }, []);
+
+  const awaitPendingFinishStop = useCallback(async () => {
+    const pendingStop = pendingFinishStopRef.current;
+    if (!pendingStop) {
+      return;
+    }
+
+    try {
+      await Promise.race([
+        pendingStop,
+        new Promise<void>((resolve) => {
+          setTimeout(resolve, FINISH_STOP_COMMAND_TIMEOUT_MS);
+        }),
+      ]);
+    } finally {
+      pendingFinishStopRef.current = null;
     }
   }, []);
 
@@ -94,7 +115,11 @@ export function useTrainingSession(): UseTrainingSessionReturn {
   const finishSession = useCallback(() => {
     const bikeAdapter = useDeviceConnectionStore.getState().bikeAdapter;
     if (bikeAdapter) {
-      void bikeAdapter.setControlState(BikeStatus.Stopped);
+      pendingFinishStopRef.current = bikeAdapter.setControlState(BikeStatus.Stopped).catch((err: unknown) => {
+        console.error('[useTrainingSession] Bike stop failed before disconnect:', err);
+      });
+    } else {
+      pendingFinishStopRef.current = null;
     }
 
     useTrainingSessionStore.getState().finish();
@@ -102,9 +127,10 @@ export function useTrainingSession(): UseTrainingSessionReturn {
   }, [stopEngine]);
 
   const resetSessionAndConnections = useCallback(async () => {
+    await awaitPendingFinishStop();
     await disconnectAllDeviceConnections({ updateReconnectState: true });
     useTrainingSessionStore.getState().reset();
-  }, []);
+  }, [awaitPendingFinishStop]);
 
   const finish = useCallback(() => {
     const currentPhase = useTrainingSessionStore.getState().phase;
@@ -120,6 +146,7 @@ export function useTrainingSession(): UseTrainingSessionReturn {
 
     stopEngine(true);
     if (currentPhase === TrainingPhase.Idle) {
+      pendingFinishStopRef.current = null;
       return;
     }
 
