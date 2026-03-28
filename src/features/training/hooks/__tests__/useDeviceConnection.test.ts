@@ -163,6 +163,39 @@ describe('useDeviceConnection', () => {
     expect(useSavedGearStore.getState().bikeReconnectState).toBe('failed');
   });
 
+  it('should keep HR reconnect state disconnected when disconnect throws an expected BLE not-connected error', async () => {
+    const hrSubscription = { remove: jest.fn() };
+    const expectedDisconnectError = Object.assign(new Error('Device is not connected'), { errorCode: 201 });
+
+    mockHrConnect.mockResolvedValue(undefined);
+    mockHrDisconnect.mockRejectedValue(expectedDisconnectError);
+    mockHrSubscribe.mockReturnValue(hrSubscription);
+    useSavedGearStore.setState({
+      savedHrSource: { id: 'hr-1', name: 'Garmin HRM', type: 'hr' },
+      hrReconnectState: 'connected',
+    });
+
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const { result } = renderHook(() => useDeviceConnection());
+
+    await act(async () => {
+      await result.current.connectHr('hr-1');
+    });
+
+    await act(async () => {
+      await result.current.disconnectAll();
+    });
+
+    expect(useDeviceConnectionStore.getState().hrAdapter).toBeNull();
+    expect(useSavedGearStore.getState().hrReconnectState).toBe('disconnected');
+    expect(consoleErrorSpy).not.toHaveBeenCalledWith(
+      '[useDeviceConnection] HR disconnect error:',
+      expectedDisconnectError,
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
   it('should leave reconnect state idle when intentionally disconnecting without saved gear', async () => {
     const { result } = renderHook(() => useDeviceConnection());
 

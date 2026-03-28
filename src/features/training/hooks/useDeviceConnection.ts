@@ -46,8 +46,10 @@ async function disconnectBikeConnectionInternal(updateReconnectState: boolean): 
     try {
       await existingBikeAdapter.disconnect();
     } catch (err: unknown) {
-      disconnectSucceeded = false;
-      console.error('[useDeviceConnection] Bike disconnect error:', err);
+      if (!isExpectedBleDisconnectError(err)) {
+        disconnectSucceeded = false;
+        console.error('[useDeviceConnection] Bike disconnect error:', err);
+      }
     }
   }
 
@@ -70,8 +72,10 @@ async function disconnectHrConnectionInternal(updateReconnectState: boolean): Pr
     try {
       await existingHrAdapter.disconnect();
     } catch (err: unknown) {
-      disconnectSucceeded = false;
-      console.error('[useDeviceConnection] HR disconnect error:', err);
+      if (!isExpectedBleDisconnectError(err)) {
+        disconnectSucceeded = false;
+        console.error('[useDeviceConnection] HR disconnect error:', err);
+      }
     }
   }
 
