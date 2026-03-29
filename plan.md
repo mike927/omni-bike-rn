@@ -65,9 +65,9 @@ Bike-first product UX in this phase: support a single main bike for now, while k
 - [x] Portrait and landscape training layouts - closed by product decision: app remains portrait-only
 - [R] Local DB schema + session persistence (Drizzle + expo-sqlite)
 - [ ] Crash recovery / interrupted session restore
-- [ ] Finish flow from app: confirmation before completing, then navigate to summary and auto-save the completed workout
+- [ ] Finish flow from app: confirmation before completing, then navigate to summary and require an explicit save-or-discard choice when tapping `Done`
 - [ ] Bike stop handling: freeze the session and prompt the user to finish instead of auto-completing immediately
-- [ ] Finished workout summary screen (save, upload, export entry points)
+- [ ] Finished workout summary screen (save, discard, upload, export entry points)
 - [ ] Live Activities & Dynamic Island integration (`react-native-activity-kit`)
 - [ ] Add comprehensive unit tests covering various test cases
 
