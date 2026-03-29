@@ -5,10 +5,10 @@ See `PROJECT.md` for business requirements, functional requirements, and technol
 ## Task State Legend
 
 - `[ ]` not started
-- `[R]` in progress
+- `[~]` in progress
 - `[?]` blocked or needs clarification
-- `[R]` implemented and in review / waiting for approval
-- `[x]` completed and approved
+- `[R]` implemented and in review / approved / waiting for merge
+- `[x]` merged and completed
 - `[-]` intentionally skipped or deferred
 
 ## Product Flow Notes

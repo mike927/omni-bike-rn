@@ -1,13 +1,14 @@
 # AI Workspace
 
-This folder keeps AI-related guidance separate from app code. The full agent workflow is driven by `AGENTS.md` at the project root. Skills here provide optional domain-specific context that agents load when a task matches.
+This folder keeps AI-related guidance separate from app code. Treat `AGENTS.md` at the project root as the source of truth for workflow rules, naming, and lifecycle policy. This README is only a map of what lives under `ai/`.
 
 ```text
 ai/
   README.md            ← you are here
-  plans/               ← detailed plan per active branch (deleted after merge)
-  reviews/             ← internal review notes per branch (deleted after merge)
-  testing/             ← saved test checklists (created only on explicit request)
+  plans/               ← per-branch implementation plans
+  workflows/           ← per-branch workflow state for resume / handoff
+  reviews/             ← per-branch review notes when a durable review file is useful
+  testing/             ← saved human-requested testing checklists
   skills/
     architecture/      ← structure, boundaries, ownership
     ble-hardware/      ← BLE scanning, FTMS parsing, device adapters
@@ -18,3 +19,5 @@ ai/
     react-native-perf/ ← RN performance, profiling, bundle size (from callstackincubator/agent-skills)
     stitch-design/     ← UI design with Google Stitch, MCP integration, design-to-code
 ```
+
+Use the subfolder README or template only for folder-specific structure. For naming rules, required fields, step definitions, and cleanup policy, follow `AGENTS.md`.
