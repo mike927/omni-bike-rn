@@ -28,10 +28,9 @@ Read these in this order before feature work:
 1. `plan.md`
 2. This `AGENTS.md` file
 3. Relevant files under `ai/skills/*/SKILL.md`
+4. When the task involves vendor-specific behavior or hardware, check `docs/` for trusted reference material
 
 `plan.md` is the single source of truth for project scope and progress.
-
-When a task depends on vendor-specific behavior, specifications, or hardware setup details, check `docs/README.md` and the relevant files under `docs/vendor/` for trusted local reference material before relying on memory or third-party summaries.
 
 ## Task States In `plan.md`
 
