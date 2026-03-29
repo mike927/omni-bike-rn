@@ -6,7 +6,9 @@ module.exports = {
     '^react-native-ble-plx$': '<rootDir>/src/__mocks__/react-native-ble-plx.ts',
     '^@react-native-async-storage/async-storage$':
       '<rootDir>/src/__mocks__/@react-native-async-storage/async-storage.ts',
+    '^expo-sqlite$': '<rootDir>/src/__mocks__/expo-sqlite.ts',
     '^expo-sqlite/kv-store$': '<rootDir>/src/__mocks__/expo-sqlite/kv-store.ts',
+    '\\.sql$': '<rootDir>/src/__mocks__/sql.ts',
   },
   roots: ['<rootDir>/src'],
   testMatch: ['**/*.test.ts', '**/*.test.tsx'],

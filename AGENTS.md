@@ -372,11 +372,13 @@ Available skills:
 
 - `ai/skills/architecture/SKILL.md` for boundaries, ownership, and structure
 - `ai/skills/ble-hardware/SKILL.md` for BLE, FTMS, bike devices, or heart-rate work
+- `ai/skills/drizzle-expo/SKILL.md` for official Drizzle ORM workflow in Expo: schema changes, drizzle-kit generation, bundled migrations, and startup wiring
 - `ai/skills/expo-ui/SKILL.md` for Expo Router UI, navigation, styling, and components
 - `ai/skills/expo-upgrade/SKILL.md` for Expo SDK upgrades and dependency migrations
 - `ai/skills/ios-native/SKILL.md` for iOS-specific behavior
 - `ai/skills/quality-review/SKILL.md` for internal review and quality checks
 - `ai/skills/react-native-perf/SKILL.md` for performance optimization, profiling, and bundle size
+- `ai/skills/sqlite-persistence/SKILL.md` for Expo SQLite, persistence boundaries, session-recording rules, and repository guidance
 - `ai/skills/stitch-design/SKILL.md` for UI design with Google Stitch, MCP integration, and design-to-code conversion
 
 ### Adding A New Skill
