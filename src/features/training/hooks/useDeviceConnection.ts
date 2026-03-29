@@ -8,6 +8,7 @@ import type { BikeMetrics } from '../../../services/ble/BikeAdapter';
 import type { BleConnectionOptions } from '../../../services/ble/BleConnectionOptions';
 import type { DisconnectDeviceConnectionsOptions } from './DisconnectDeviceConnectionsOptions';
 import type { Subscription } from 'react-native-ble-plx';
+import { isExpectedBleConnectTimeoutError } from '../../../services/ble/isExpectedBleConnectTimeoutError';
 import { isExpectedBleDisconnectError } from '../../../services/ble/isExpectedBleDisconnectError';
 
 /** Active BLE subscriptions, managed outside React state to avoid teardown races. */
@@ -152,7 +153,7 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
           useDeviceConnectionStore.getState().updateBikeMetrics(metrics);
         });
       } catch (err: unknown) {
-        if (!isExpectedBleDisconnectError(err)) {
+        if (!isExpectedBleDisconnectError(err) && !isExpectedBleConnectTimeoutError(err)) {
           console.error('[useDeviceConnection] Bike connection error:', err);
         }
         throw err;
@@ -179,7 +180,7 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
           useDeviceConnectionStore.getState().updateHr(hr);
         });
       } catch (err: unknown) {
-        if (!isExpectedBleDisconnectError(err)) {
+        if (!isExpectedBleDisconnectError(err) && !isExpectedBleConnectTimeoutError(err)) {
           console.error('[useDeviceConnection] HR connection error:', err);
         }
         throw err;
