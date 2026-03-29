@@ -393,6 +393,52 @@ describe('retry', () => {
     expect(mockConnectBike).toHaveBeenCalledTimes(3);
   });
 
+  it('resets the bike retry backoff after a manual bike connection succeeds', async () => {
+    jest.useFakeTimers();
+    mockConnectBike.mockRejectedValue(new Error('Operation timed out'));
+    useSavedGearStore.setState({ savedBike: bike, hydrated: true });
+
+    const { result } = renderHook(() => useAutoReconnect());
+
+    await act(async () => {});
+
+    expect(result.current.bikeReconnectState).toBe('disconnected');
+    expect(mockConnectBike).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+    });
+
+    await act(async () => {});
+
+    expect(mockConnectBike).toHaveBeenCalledTimes(2);
+    expect(result.current.bikeReconnectState).toBe('disconnected');
+
+    act(() => {
+      useDeviceConnectionStore.setState({ bikeAdapter: {} as never });
+    });
+
+    expect(result.current.bikeReconnectState).toBe('connected');
+
+    act(() => {
+      useDeviceConnectionStore.setState({ bikeAdapter: null });
+    });
+
+    expect(result.current.bikeReconnectState).toBe('disconnected');
+
+    await act(async () => {
+      jest.advanceTimersByTime(4999);
+    });
+
+    expect(mockConnectBike).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      jest.advanceTimersByTime(1);
+    });
+
+    expect(mockConnectBike).toHaveBeenCalledTimes(3);
+  });
+
   it('does not auto-retry while the app is backgrounded and resumes when active again', async () => {
     jest.useFakeTimers();
     mockConnectBike.mockRejectedValue(new Error('Operation timed out'));

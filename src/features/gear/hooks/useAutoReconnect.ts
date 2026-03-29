@@ -193,23 +193,25 @@ export function useAutoReconnect() {
 
   // ── Adapter appeared externally (e.g. gear setup flow) ─────────────
   useEffect(() => {
-    if (bikeReconnectState !== 'connecting') return;
     if (bikeAdapter === null) return;
 
     bikeAttemptingRef.current = false;
     bikeRetryAttemptCountRef.current = 0;
     clearBikeRetryTimeout();
-    setBikeReconnectState('connected');
+    if (bikeReconnectState !== 'connected') {
+      setBikeReconnectState('connected');
+    }
   }, [bikeReconnectState, bikeAdapter, clearBikeRetryTimeout, setBikeReconnectState]);
 
   useEffect(() => {
-    if (hrReconnectState !== 'connecting') return;
     if (hrAdapter === null) return;
 
     hrAttemptingRef.current = false;
     hrRetryAttemptCountRef.current = 0;
     clearHrRetryTimeout();
-    setHrReconnectState('connected');
+    if (hrReconnectState !== 'connected') {
+      setHrReconnectState('connected');
+    }
   }, [hrReconnectState, hrAdapter, clearHrRetryTimeout, setHrReconnectState]);
 
   // ── Adapter disappeared (post-workout disconnect) ──────────────────
