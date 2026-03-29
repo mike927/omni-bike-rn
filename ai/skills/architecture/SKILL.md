@@ -12,7 +12,7 @@ Use this skill when the task is about structure, boundaries, ownership, or techn
 src/
   features/          ← domain logic, grouped by feature
     devices/         ← BLE scanning, device selection
-      hooks/         ← public feature API (useBleScanner, useBikeConnection)
+      hooks/         ← public feature API (useBlePermission, useBleScanner)
     history/         ← (planned) session history
     training/        ← (planned) live training session
   services/          ← transport and infrastructure

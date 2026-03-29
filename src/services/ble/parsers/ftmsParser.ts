@@ -23,6 +23,43 @@ export enum FtmsStopPauseCmd {
   Pause = 0x02,
 }
 
+function readUint8(bytes: Uint8Array, offset: number): number | undefined {
+  return offset < bytes.length ? bytes[offset] : undefined;
+}
+
+function readUint16LE(bytes: Uint8Array, offset: number): number | undefined {
+  const low = readUint8(bytes, offset);
+  const high = readUint8(bytes, offset + 1);
+
+  if (low === undefined || high === undefined) {
+    return undefined;
+  }
+
+  return low | (high << 8);
+}
+
+function readUint24LE(bytes: Uint8Array, offset: number): number | undefined {
+  const low = readUint8(bytes, offset);
+  const middle = readUint8(bytes, offset + 1);
+  const high = readUint8(bytes, offset + 2);
+
+  if (low === undefined || middle === undefined || high === undefined) {
+    return undefined;
+  }
+
+  return low | (middle << 8) | (high << 16);
+}
+
+function readSint16LE(bytes: Uint8Array, offset: number): number | undefined {
+  const value = readUint16LE(bytes, offset);
+
+  if (value === undefined) {
+    return undefined;
+  }
+
+  return value >= 32768 ? value - 65536 : value;
+}
+
 /**
  * Parses a standard Bluetooth Fitness Machine Service (FTMS) Indoor Bike Data payload.
  *
@@ -34,18 +71,21 @@ export enum FtmsStopPauseCmd {
  * @returns A partial subset of standard BikeMetrics extracted from the payload
  */
 export function parseFtmsIndoorBikeData(bytes: Uint8Array): Partial<BikeMetrics> {
-  if (bytes.length < 2) {
+  const flags = readUint16LE(bytes, 0);
+  if (flags === undefined) {
     return {};
   }
 
-  const flags = bytes[0]! | (bytes[1]! << 8);
   let offset = 2;
 
   let speed: number | undefined;
   // Instantaneous Speed is present if More Data (Bit 0) is 0
-  if ((flags & 0x0001) === 0 && offset + 1 < bytes.length) {
-    speed = (bytes[offset]! | (bytes[offset + 1]! << 8)) / 100;
-    offset += 2;
+  if ((flags & 0x0001) === 0) {
+    const rawSpeed = readUint16LE(bytes, offset);
+    if (rawSpeed !== undefined) {
+      speed = rawSpeed / 100;
+      offset += 2;
+    }
   }
 
   // Average Speed is present if Bit 1 is 1
@@ -55,9 +95,12 @@ export function parseFtmsIndoorBikeData(bytes: Uint8Array): Partial<BikeMetrics>
 
   let cadence: number | undefined;
   // Instantaneous Cadence is present if Bit 2 is 1
-  if ((flags & 0x0004) !== 0 && offset + 1 < bytes.length) {
-    cadence = (bytes[offset]! | (bytes[offset + 1]! << 8)) / 2;
-    offset += 2;
+  if ((flags & 0x0004) !== 0) {
+    const rawCadence = readUint16LE(bytes, offset);
+    if (rawCadence !== undefined) {
+      cadence = rawCadence / 2;
+      offset += 2;
+    }
   }
 
   // Average Cadence is present if Bit 3 is 1
@@ -67,33 +110,38 @@ export function parseFtmsIndoorBikeData(bytes: Uint8Array): Partial<BikeMetrics>
 
   let distance: number | undefined;
   // Total Distance is present if Bit 4 is 1 (24-bit UINT)
-  if ((flags & 0x0010) !== 0 && offset + 2 < bytes.length) {
-    distance = bytes[offset]! | (bytes[offset + 1]! << 8) | (bytes[offset + 2]! << 16);
-    offset += 3;
+  if ((flags & 0x0010) !== 0) {
+    distance = readUint24LE(bytes, offset);
+    if (distance !== undefined) {
+      offset += 3;
+    }
   }
 
   let resistance: number | undefined;
   // Resistance Level is present if Bit 5 is 1 (SINT16)
-  if ((flags & 0x0020) !== 0 && offset + 1 < bytes.length) {
-    const rawResist = bytes[offset]! | (bytes[offset + 1]! << 8);
-    // Handle signed 16-bit integer
-    resistance = rawResist >= 32768 ? rawResist - 65536 : rawResist;
-    offset += 2;
+  if ((flags & 0x0020) !== 0) {
+    resistance = readSint16LE(bytes, offset);
+    if (resistance !== undefined) {
+      offset += 2;
+    }
   }
 
   let power: number | undefined;
   // Instantaneous Power is present if Bit 6 is 1 (SINT16)
-  if ((flags & 0x0040) !== 0 && offset + 1 < bytes.length) {
-    const rawPower = bytes[offset]! | (bytes[offset + 1]! << 8);
-    power = rawPower >= 32768 ? rawPower - 65536 : rawPower;
-    offset += 2;
+  if ((flags & 0x0040) !== 0) {
+    power = readSint16LE(bytes, offset);
+    if (power !== undefined) {
+      offset += 2;
+    }
   }
 
   let heartRate: number | undefined;
   // Heart Rate is present if Bit 9 is 1 (UINT8)
-  if ((flags & 0x0200) !== 0 && offset < bytes.length) {
-    heartRate = bytes[offset]!;
-    offset += 1;
+  if ((flags & 0x0200) !== 0) {
+    heartRate = readUint8(bytes, offset);
+    if (heartRate !== undefined) {
+      offset += 1;
+    }
   }
 
   // Energy is present if Bit 10 is 1 (UINT16 x 5)
@@ -119,9 +167,10 @@ export function parseFtmsIndoorBikeData(bytes: Uint8Array): Partial<BikeMetrics>
  * @returns A BikeStatus enum if recognized, otherwise undefined.
  */
 export function parseFtmsMachineStatus(bytes: Uint8Array): BikeStatus | undefined {
-  if (bytes.length < 1) return undefined;
-
-  const opCode: number = bytes[0]!;
+  const opCode = readUint8(bytes, 0);
+  if (opCode === undefined) {
+    return undefined;
+  }
 
   switch (opCode) {
     case FtmsMachineStatusOpCode.Reset:

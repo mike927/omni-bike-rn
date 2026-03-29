@@ -12,6 +12,10 @@ jest.mock('../bleClient', () => ({
   },
 }));
 
+function encodeBase64Bytes(bytes: Uint8Array): string {
+  return btoa(Array.from(bytes, (byte) => String.fromCharCode(byte)).join(''));
+}
+
 describe('ZiproRaveAdapter', () => {
   const DEVICE_ID = 'test-bike-123';
   let adapter: ZiproRaveAdapter;
@@ -180,12 +184,7 @@ describe('ZiproRaveAdapter', () => {
       // 1. Simulate FTMS Indoor Bike Data payload:
       // Flags (16-bit) -> 0x0074 (Binary: 0000 0000 0111 0100) -> Speed(0), Cadence(1), Distance(1), Resistance(1), Power(1)
       const mockBytes = new Uint8Array([0x74, 0x00, 14, 6, 170, 0, 176, 4, 0, 12, 0, 150, 0]);
-      let binaryString = '';
-      for (let i = 0; i < mockBytes.length; i++) {
-        binaryString += String.fromCharCode(mockBytes[i]!);
-      }
-
-      const mockDataChar = { value: btoa(binaryString) };
+      const mockDataChar = { value: encodeBase64Bytes(mockBytes) };
       dataCallback(null, mockDataChar);
 
       expect(callback).toHaveBeenCalledWith({
@@ -199,12 +198,7 @@ describe('ZiproRaveAdapter', () => {
 
       // 2. Simulate Machine Status Event: User Paused (0x02)
       const mockStatusBytes = new Uint8Array([0x02]);
-      let statusBinaryString = '';
-      for (let i = 0; i < mockStatusBytes.length; i++) {
-        statusBinaryString += String.fromCharCode(mockStatusBytes[i]!);
-      }
-
-      const mockStatusChar = { value: btoa(statusBinaryString) };
+      const mockStatusChar = { value: encodeBase64Bytes(mockStatusBytes) };
       statusCallback(null, mockStatusChar);
 
       expect(callback).toHaveBeenLastCalledWith(

@@ -118,9 +118,8 @@ interface UseDeviceConnectionReturn {
 /**
  * Public API hook for managing device connections in a training context.
  *
- * Unlike {@link useBikeConnection} (which handles scan & pair),
- * this hook manages the ongoing BLE subscriptions that feed data
- * into {@link useDeviceConnectionStore} during a training session.
+ * This hook manages the ongoing BLE subscriptions that feed data into
+ * {@link useDeviceConnectionStore} during a training session.
  */
 export function useDeviceConnection(): UseDeviceConnectionReturn {
   const bikeAdapter = useDeviceConnectionStore((s) => s.bikeAdapter);
