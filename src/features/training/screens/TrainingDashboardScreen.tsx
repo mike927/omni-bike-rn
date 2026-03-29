@@ -14,7 +14,6 @@ import { palette } from '../../../ui/theme';
 const HOME_ROUTE = '/';
 const BIKE_SETUP_ROUTE = '/gear-setup?target=bike';
 const SUMMARY_ROUTE = '/summary';
-
 function getControlDescription(phase: TrainingPhase): string {
   if (phase === TrainingPhase.Idle) {
     return 'Start a ride once your bike is connected. The dashboard will keep updating while the session is active.';
@@ -42,98 +41,107 @@ export function TrainingDashboardScreen() {
     <AppScreen
       title="Training"
       subtitle="Track your live ride metrics here and control the current workout without leaving the session.">
-      <SectionCard
-        title="Live Ride"
-        description="The core workout metrics stay front and center while secondary device details remain available below.">
-        <View style={styles.primaryMetricGrid}>
-          <MetricTile label="Elapsed" value={formatDuration(session.elapsedSeconds)} style={styles.primaryMetricTile} />
-          <MetricTile
-            label="Speed"
-            value={`${session.currentMetrics.speed.toFixed(1)} km/h`}
-            style={styles.primaryMetricTile}
-          />
-          <MetricTile
-            label="Heart Rate"
-            value={formatMetricValue(resolvedHeartRate, ' bpm')}
-            style={styles.primaryMetricTile}
-          />
-          <MetricTile label="Power" value={`${session.currentMetrics.power} W`} style={styles.primaryMetricTile} />
-          <MetricTile
-            label="Calories"
-            value={`${session.totalCalories.toFixed(1)} kcal`}
-            style={styles.primaryMetricTile}
-          />
-        </View>
-      </SectionCard>
-
-      <SectionCard title="Session Controls" description={getControlDescription(session.phase)}>
-        <View style={styles.statusRow}>
-          <Text style={styles.statusLabel}>Status</Text>
-          <Text style={styles.statusValue}>{session.phase}</Text>
-        </View>
-        <View style={styles.actionRow}>
-          {session.phase === TrainingPhase.Idle ? (
-            <ActionButton label="Start" onPress={session.start} disabled={!bikeConnected} />
-          ) : null}
-          {session.phase === TrainingPhase.Active ? (
-            <ActionButton label="Pause" onPress={session.pause} variant="secondary" />
-          ) : null}
-          {session.phase === TrainingPhase.Paused ? <ActionButton label="Resume" onPress={session.resume} /> : null}
-          {(session.phase === TrainingPhase.Active || session.phase === TrainingPhase.Paused) && (
-            <ActionButton label="Finish" onPress={session.finish} variant="danger" />
-          )}
-          {session.phase === TrainingPhase.Finished ? (
-            <ActionButton label="View Summary" onPress={() => router.push(SUMMARY_ROUTE)} />
-          ) : null}
-        </View>
-        {showDisconnectedState ? (
-          <View style={styles.callout}>
-            <Text style={styles.calloutTitle}>Bike connection required</Text>
-            <Text style={styles.calloutBody}>
-              Connect your saved bike or choose one in setup before you start a workout from this screen.
-            </Text>
-            <View style={styles.actionRow}>
-              <ActionButton label="Set Up Bike" onPress={() => router.push(BIKE_SETUP_ROUTE)} variant="secondary" />
-              <ActionButton label="Back Home" onPress={() => router.replace(HOME_ROUTE)} variant="ghost" />
-            </View>
+      <View style={styles.screenContent}>
+        <SectionCard
+          title="Live Ride"
+          description="The core workout metrics stay front and center while secondary device details remain available below.">
+          <View style={styles.primaryMetricGrid}>
+            <MetricTile
+              label="Elapsed"
+              value={formatDuration(session.elapsedSeconds)}
+              style={styles.primaryMetricTile}
+            />
+            <MetricTile
+              label="Speed"
+              value={`${session.currentMetrics.speed.toFixed(1)} km/h`}
+              style={styles.primaryMetricTile}
+            />
+            <MetricTile
+              label="Heart Rate"
+              value={formatMetricValue(resolvedHeartRate, ' bpm')}
+              style={styles.primaryMetricTile}
+            />
+            <MetricTile label="Power" value={`${session.currentMetrics.power} W`} style={styles.primaryMetricTile} />
+            <MetricTile
+              label="Calories"
+              value={`${session.totalCalories.toFixed(1)} kcal`}
+              style={styles.primaryMetricTile}
+            />
           </View>
-        ) : null}
-      </SectionCard>
+        </SectionCard>
 
-      <SectionCard title="Ride Details" description="Secondary details help confirm machine state and sensor health.">
-        <View style={styles.secondaryMetricGrid}>
-          <MetricTile
-            label="Distance"
-            value={formatDistanceKm(session.totalDistance)}
-            style={styles.secondaryMetricTile}
-          />
-          <MetricTile
-            label="Cadence"
-            value={`${session.currentMetrics.cadence} rpm`}
-            style={styles.secondaryMetricTile}
-          />
-          <MetricTile
-            label="Resistance"
-            value={formatMetricValue(session.currentMetrics.resistance, '')}
-            style={styles.secondaryMetricTile}
-          />
-          <MetricTile
-            label="Bike"
-            value={bikeConnected ? 'Connected' : 'Disconnected'}
-            style={styles.secondaryMetricTile}
-          />
-          <MetricTile
-            label="HR Source"
-            value={hrConnected ? 'Connected' : 'Disconnected'}
-            style={styles.secondaryMetricTile}
-          />
-        </View>
-      </SectionCard>
+        <SectionCard title="Session Controls" description={getControlDescription(session.phase)}>
+          <View style={styles.statusRow}>
+            <Text style={styles.statusLabel}>Status</Text>
+            <Text style={styles.statusValue}>{session.phase}</Text>
+          </View>
+          <View style={styles.actionRow}>
+            {session.phase === TrainingPhase.Idle ? (
+              <ActionButton label="Start" onPress={session.start} disabled={!bikeConnected} />
+            ) : null}
+            {session.phase === TrainingPhase.Active ? (
+              <ActionButton label="Pause" onPress={session.pause} variant="secondary" />
+            ) : null}
+            {session.phase === TrainingPhase.Paused ? <ActionButton label="Resume" onPress={session.resume} /> : null}
+            {(session.phase === TrainingPhase.Active || session.phase === TrainingPhase.Paused) && (
+              <ActionButton label="Finish" onPress={session.finish} variant="danger" />
+            )}
+            {session.phase === TrainingPhase.Finished ? (
+              <ActionButton label="View Summary" onPress={() => router.push(SUMMARY_ROUTE)} />
+            ) : null}
+          </View>
+          {showDisconnectedState ? (
+            <View style={styles.callout}>
+              <Text style={styles.calloutTitle}>Bike connection required</Text>
+              <Text style={styles.calloutBody}>
+                Connect your saved bike or choose one in setup before you start a workout from this screen.
+              </Text>
+              <View style={styles.actionRow}>
+                <ActionButton label="Set Up Bike" onPress={() => router.push(BIKE_SETUP_ROUTE)} variant="secondary" />
+                <ActionButton label="Back Home" onPress={() => router.replace(HOME_ROUTE)} variant="ghost" />
+              </View>
+            </View>
+          ) : null}
+        </SectionCard>
+
+        <SectionCard title="Ride Details" description="Secondary details help confirm machine state and sensor health.">
+          <View style={styles.secondaryMetricGrid}>
+            <MetricTile
+              label="Distance"
+              value={formatDistanceKm(session.totalDistance)}
+              style={styles.secondaryMetricTile}
+            />
+            <MetricTile
+              label="Cadence"
+              value={`${session.currentMetrics.cadence} rpm`}
+              style={styles.secondaryMetricTile}
+            />
+            <MetricTile
+              label="Resistance"
+              value={formatMetricValue(session.currentMetrics.resistance, '')}
+              style={styles.secondaryMetricTile}
+            />
+            <MetricTile
+              label="Bike"
+              value={bikeConnected ? 'Connected' : 'Disconnected'}
+              style={styles.secondaryMetricTile}
+            />
+            <MetricTile
+              label="HR Source"
+              value={hrConnected ? 'Connected' : 'Disconnected'}
+              style={styles.secondaryMetricTile}
+            />
+          </View>
+        </SectionCard>
+      </View>
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
+  screenContent: {
+    gap: 16,
+  },
   primaryMetricGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
