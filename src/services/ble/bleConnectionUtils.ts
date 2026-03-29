@@ -1,9 +1,9 @@
 import type { Device } from 'react-native-ble-plx';
 
 import { bleManager } from './bleClient';
+import { isExpectedBleConnectTimeoutError } from './isExpectedBleConnectTimeoutError';
 import { isExpectedBleDisconnectError } from './isExpectedBleDisconnectError';
 import type { BleConnectionOptions } from './BleConnectionOptions';
-import type { BleError } from './BleError';
 
 const BLE_CONNECT_TIMEOUT_MS = 10000;
 const BLE_DISCONNECT_TIMEOUT_MS = 5000;
@@ -20,15 +20,6 @@ function delay(ms: number): Promise<void> {
   });
 }
 
-function isBleConnectTimeoutError(error: unknown): boolean {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  const bleError = error as BleError;
-  return bleError.message.includes('Operation timed out');
-}
-
 async function forceCancelBleConnection(deviceId: string): Promise<void> {
   try {
     await bleManager.cancelDeviceConnection(deviceId);
@@ -43,7 +34,7 @@ async function connectToBleDeviceWithTimeoutRecovery(deviceId: string): Promise<
   try {
     return await bleManager.connectToDevice(deviceId, { timeout: BLE_CONNECT_TIMEOUT_MS });
   } catch (err: unknown) {
-    if (!isBleConnectTimeoutError(err)) {
+    if (!isExpectedBleConnectTimeoutError(err)) {
       throw err;
     }
 

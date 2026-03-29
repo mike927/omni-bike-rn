@@ -61,7 +61,7 @@ Bike-first product UX in this phase: support a single main bike for now, while k
 - [x] Zustand store + Metronome engine (1 Hz sampling, JSI optimized)
 - [x] Training state machine (Idle → Active → Paused → Finished)
 - [x] Auto-pause/resume via FTMS Machine Status (pause when bike detects no pedaling)
-- [ ] Functional training dashboard screen (Time, Speed, HR, Power, Calories)
+- [x] Functional training dashboard screen (Time, Speed, HR, Power, Calories)
 - [ ] Portrait and landscape training layouts
 - [ ] Local DB schema + session persistence (Drizzle + expo-sqlite)
 - [ ] Crash recovery / interrupted session restore

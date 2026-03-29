@@ -21,6 +21,8 @@ beforeEach(() => {
     hydrated: false,
     bikeReconnectState: 'idle',
     hrReconnectState: 'idle',
+    bikeAutoReconnectSuppressed: false,
+    hrAutoReconnectSuppressed: false,
   });
   mockSaveBikeDevice.mockResolvedValue(undefined);
   mockSaveHrDevice.mockResolvedValue(undefined);
@@ -65,6 +67,7 @@ describe('persistBike', () => {
     expect(mockSaveBikeDevice).toHaveBeenCalledWith(bike);
     expect(useSavedGearStore.getState().savedBike).toEqual(bike);
     expect(useSavedGearStore.getState().bikeReconnectState).toBe('connected');
+    expect(useSavedGearStore.getState().bikeAutoReconnectSuppressed).toBe(false);
   });
 });
 
@@ -74,6 +77,7 @@ describe('persistHr', () => {
     expect(mockSaveHrDevice).toHaveBeenCalledWith(hr);
     expect(useSavedGearStore.getState().savedHrSource).toEqual(hr);
     expect(useSavedGearStore.getState().hrReconnectState).toBe('connected');
+    expect(useSavedGearStore.getState().hrAutoReconnectSuppressed).toBe(false);
   });
 });
 
@@ -85,6 +89,7 @@ describe('removeBike', () => {
     const state = useSavedGearStore.getState();
     expect(state.savedBike).toBeNull();
     expect(state.bikeReconnectState).toBe('idle');
+    expect(state.bikeAutoReconnectSuppressed).toBe(false);
   });
 });
 
@@ -96,6 +101,7 @@ describe('removeHr', () => {
     const state = useSavedGearStore.getState();
     expect(state.savedHrSource).toBeNull();
     expect(state.hrReconnectState).toBe('idle');
+    expect(state.hrAutoReconnectSuppressed).toBe(false);
   });
 });
 
@@ -120,5 +126,19 @@ describe('reconnect state transitions', () => {
     expect(useSavedGearStore.getState().hrReconnectState).toBe('failed');
     useSavedGearStore.getState().setHrReconnectState('disconnected');
     expect(useSavedGearStore.getState().hrReconnectState).toBe('disconnected');
+  });
+
+  it('tracks auto-reconnect suppression flags', () => {
+    useSavedGearStore.getState().setBikeAutoReconnectSuppressed(true);
+    useSavedGearStore.getState().setHrAutoReconnectSuppressed(true);
+
+    expect(useSavedGearStore.getState().bikeAutoReconnectSuppressed).toBe(true);
+    expect(useSavedGearStore.getState().hrAutoReconnectSuppressed).toBe(true);
+
+    useSavedGearStore.getState().setBikeAutoReconnectSuppressed(false);
+    useSavedGearStore.getState().setHrAutoReconnectSuppressed(false);
+
+    expect(useSavedGearStore.getState().bikeAutoReconnectSuppressed).toBe(false);
+    expect(useSavedGearStore.getState().hrAutoReconnectSuppressed).toBe(false);
   });
 });

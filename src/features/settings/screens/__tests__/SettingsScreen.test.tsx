@@ -122,6 +122,7 @@ describe('SettingsScreen', () => {
     fireEvent.press(getByText('Disconnect Active Gear'));
 
     await waitFor(() => {
+      expect(mockConnection.disconnectAll).toHaveBeenCalledWith({ suppressAutoReconnect: true });
       expect(useSavedGearStore.getState().bikeReconnectState).toBe('disconnected');
       expect(useSavedGearStore.getState().hrReconnectState).toBe('disconnected');
       expect(alertSpy).toHaveBeenCalledWith('Disconnected', 'Cleared the active bike and heart-rate connections.');

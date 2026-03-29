@@ -38,6 +38,8 @@ describe('useDeviceConnection', () => {
       hydrated: true,
       bikeReconnectState: 'idle',
       hrReconnectState: 'idle',
+      bikeAutoReconnectSuppressed: false,
+      hrAutoReconnectSuppressed: false,
     });
 
     const { result, unmount } = renderHook(() => useDeviceConnection());
@@ -69,6 +71,35 @@ describe('useDeviceConnection', () => {
     expect(mockBikeDisconnect).toHaveBeenCalledTimes(1);
     expect(useDeviceConnectionStore.getState().bikeAdapter).not.toBeNull();
     expect(useDeviceConnectionStore.getState().latestBikeMetrics).toBeNull();
+  });
+
+  it('should expose bike connection progress while a connect attempt is in flight', async () => {
+    let resolveConnect!: () => void;
+    mockBikeConnect.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveConnect = resolve;
+        }),
+    );
+    mockBikeSubscribe.mockReturnValue({ remove: jest.fn() });
+
+    const { result } = renderHook(() => useDeviceConnection());
+
+    let connectPromise!: Promise<void>;
+    act(() => {
+      connectPromise = result.current.connectBike('bike-1');
+    });
+
+    await act(async () => {});
+
+    expect(useDeviceConnectionStore.getState().bikeConnectionInProgress).toBe(true);
+
+    await act(async () => {
+      resolveConnect();
+      await connectPromise;
+    });
+
+    expect(useDeviceConnectionStore.getState().bikeConnectionInProgress).toBe(false);
   });
 
   it('should disconnect the previous HR monitor before reconnecting', async () => {
@@ -138,6 +169,8 @@ describe('useDeviceConnection', () => {
     expect(useDeviceConnectionStore.getState().latestHr).toBeNull();
     expect(useSavedGearStore.getState().bikeReconnectState).toBe('disconnected');
     expect(useSavedGearStore.getState().hrReconnectState).toBe('disconnected');
+    expect(useSavedGearStore.getState().bikeAutoReconnectSuppressed).toBe(false);
+    expect(useSavedGearStore.getState().hrAutoReconnectSuppressed).toBe(false);
   });
 
   it('should mark the bike reconnect state as failed when graceful bike disconnect fails', async () => {
@@ -161,6 +194,7 @@ describe('useDeviceConnection', () => {
 
     expect(useDeviceConnectionStore.getState().bikeAdapter).toBeNull();
     expect(useSavedGearStore.getState().bikeReconnectState).toBe('failed');
+    expect(useSavedGearStore.getState().bikeAutoReconnectSuppressed).toBe(false);
   });
 
   it('should keep HR reconnect state disconnected when disconnect throws an expected BLE not-connected error', async () => {
@@ -188,6 +222,7 @@ describe('useDeviceConnection', () => {
 
     expect(useDeviceConnectionStore.getState().hrAdapter).toBeNull();
     expect(useSavedGearStore.getState().hrReconnectState).toBe('disconnected');
+    expect(useSavedGearStore.getState().hrAutoReconnectSuppressed).toBe(false);
     expect(consoleErrorSpy).not.toHaveBeenCalledWith(
       '[useDeviceConnection] HR disconnect error:',
       expectedDisconnectError,
@@ -205,5 +240,36 @@ describe('useDeviceConnection', () => {
 
     expect(useSavedGearStore.getState().bikeReconnectState).toBe('idle');
     expect(useSavedGearStore.getState().hrReconnectState).toBe('idle');
+  });
+
+  it('should suppress auto-reconnect after a manual disconnect request', async () => {
+    const bikeSubscription = { remove: jest.fn() };
+    const hrSubscription = { remove: jest.fn() };
+
+    mockBikeConnect.mockResolvedValue(undefined);
+    mockBikeDisconnect.mockResolvedValue(undefined);
+    mockBikeSubscribe.mockReturnValue(bikeSubscription);
+    mockHrConnect.mockResolvedValue(undefined);
+    mockHrDisconnect.mockResolvedValue(undefined);
+    mockHrSubscribe.mockReturnValue(hrSubscription);
+    useSavedGearStore.setState({
+      savedBike: { id: 'bike-1', name: 'Zipro Rave', type: 'bike' },
+      savedHrSource: { id: 'hr-1', name: 'Garmin HRM', type: 'hr' },
+      bikeReconnectState: 'connected',
+      hrReconnectState: 'connected',
+    });
+
+    const { result } = renderHook(() => useDeviceConnection());
+
+    await act(async () => {
+      await result.current.connectBike('bike-1');
+      await result.current.connectHr('hr-1');
+      await result.current.disconnectAll({ suppressAutoReconnect: true });
+    });
+
+    expect(useSavedGearStore.getState().bikeReconnectState).toBe('disconnected');
+    expect(useSavedGearStore.getState().hrReconnectState).toBe('disconnected');
+    expect(useSavedGearStore.getState().bikeAutoReconnectSuppressed).toBe(true);
+    expect(useSavedGearStore.getState().hrAutoReconnectSuppressed).toBe(true);
   });
 });
