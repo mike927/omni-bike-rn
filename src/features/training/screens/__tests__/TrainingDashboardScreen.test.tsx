@@ -89,6 +89,17 @@ describe('TrainingDashboardScreen', () => {
     expect(queryByText('Reset')).toBeNull();
   });
 
+  it('keeps the descriptive copy for the portrait-only dashboard', () => {
+    const { getByText } = render(<TrainingDashboardScreen />);
+
+    expect(
+      getByText(
+        'The core workout metrics stay front and center while secondary device details remain available below.',
+      ),
+    ).toBeTruthy();
+    expect(getByText('Secondary details help confirm machine state and sensor health.')).toBeTruthy();
+  });
+
   it('shows disconnected-bike recovery actions before a workout starts', () => {
     const { getByText } = render(<TrainingDashboardScreen />);
 
