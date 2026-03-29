@@ -63,7 +63,7 @@ Bike-first product UX in this phase: support a single main bike for now, while k
 - [x] Auto-pause/resume via FTMS Machine Status (pause when bike detects no pedaling)
 - [x] Functional training dashboard screen (Time, Speed, HR, Power, Calories)
 - [ ] Portrait and landscape training layouts
-- [ ] Local DB schema + session persistence (Drizzle + expo-sqlite)
+- [R] Local DB schema + session persistence (Drizzle + expo-sqlite)
 - [ ] Crash recovery / interrupted session restore
 - [ ] Finish flow from app: confirmation before completing, then navigate to summary and auto-save the completed workout
 - [ ] Bike stop handling: freeze the session and prompt the user to finish instead of auto-completing immediately

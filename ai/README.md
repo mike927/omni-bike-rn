@@ -10,11 +10,13 @@ ai/
   skills/
     architecture/      ← structure, boundaries, ownership
     ble-hardware/      ← BLE scanning, FTMS parsing, device adapters
+    drizzle-expo/      ← official Drizzle ORM workflow for Expo + SQLite
     expo-ui/           ← Expo Router UI, navigation, styling (from expo/skills)
     expo-upgrade/      ← Expo SDK upgrades, dependency migrations (from expo/skills)
     ios-native/        ← iOS platform integration
     quality-review/    ← code review, tests, lint, type safety
     react-native-perf/ ← RN performance, profiling, bundle size (from callstackincubator/agent-skills)
+    sqlite-persistence/← Expo SQLite, session persistence rules, repositories
     stitch-design/     ← UI design with Google Stitch, MCP integration, design-to-code
 ```
 
