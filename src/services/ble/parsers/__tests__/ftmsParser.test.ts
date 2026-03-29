@@ -53,6 +53,36 @@ describe('parseFtmsIndoorBikeData', () => {
     const payload = buildPayload(0x0201, 0x8e);
     expect(parseFtmsIndoorBikeData(payload).heartRate).toBe(142);
   });
+
+  it('ignores truncated speed bytes', () => {
+    const payload = buildPayload(0x0000, 0xc4);
+    expect(parseFtmsIndoorBikeData(payload)).toEqual({});
+  });
+
+  it('keeps parsed speed when cadence bytes are truncated', () => {
+    const payload = buildPayload(0x0004, 0xc4, 0x09, 0xa0);
+    expect(parseFtmsIndoorBikeData(payload)).toEqual({ speed: 25 });
+  });
+
+  it('keeps parsed speed when distance bytes are truncated', () => {
+    const payload = buildPayload(0x0010, 0xc4, 0x09, 0xd2, 0x04);
+    expect(parseFtmsIndoorBikeData(payload)).toEqual({ speed: 25 });
+  });
+
+  it('keeps parsed speed when resistance bytes are truncated', () => {
+    const payload = buildPayload(0x0020, 0xc4, 0x09, 0xff);
+    expect(parseFtmsIndoorBikeData(payload)).toEqual({ speed: 25 });
+  });
+
+  it('keeps parsed speed when power bytes are truncated', () => {
+    const payload = buildPayload(0x0040, 0xc4, 0x09, 0xf6);
+    expect(parseFtmsIndoorBikeData(payload)).toEqual({ speed: 25 });
+  });
+
+  it('keeps parsed speed when heart rate byte is truncated', () => {
+    const payload = buildPayload(0x0200, 0xc4, 0x09);
+    expect(parseFtmsIndoorBikeData(payload)).toEqual({ speed: 25 });
+  });
 });
 
 describe('parseFtmsMachineStatus', () => {
