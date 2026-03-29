@@ -5,10 +5,8 @@ This folder keeps AI-related guidance separate from app code. Treat `AGENTS.md` 
 ```text
 ai/
   README.md            ← you are here
-  plans/               ← per-branch implementation plans
-  workflows/           ← per-branch workflow state for resume / handoff
-  reviews/             ← per-branch review notes when a durable review file is useful
-  testing/             ← saved human-requested testing checklists
+  workflows/           ← tracked workflow docs and reusable templates
+  local/               ← ignored per-worktree runtime state (plans, workflows, reviews, testing)
   skills/
     architecture/      ← structure, boundaries, ownership
     ble-hardware/      ← BLE scanning, FTMS parsing, device adapters
@@ -19,5 +17,13 @@ ai/
     react-native-perf/ ← RN performance, profiling, bundle size (from callstackincubator/agent-skills)
     stitch-design/     ← UI design with Google Stitch, MCP integration, design-to-code
 ```
+
+Tracked docs and templates stay under `ai/`.
+
+Per-branch runtime files live under `ai/local/` and are ignored by git:
+- `ai/local/plans/<branch-slug>.md`
+- `ai/local/workflows/<branch-slug>.md`
+- `ai/local/reviews/<branch-slug>.md`
+- `ai/local/testing/<branch-slug>.md`
 
 Use the subfolder README or template only for folder-specific structure. For naming rules, required fields, step definitions, and cleanup policy, follow `AGENTS.md`.
