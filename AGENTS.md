@@ -29,7 +29,7 @@ Read these in this order before feature work:
 2. This `AGENTS.md` file
 3. `git branch --show-current`
 4. `git worktree list`
-5. If the current branch is not `main`, read `ai/workflows/<branch-slug>.md` when it exists
+5. If the current branch is not `main`, read `ai/local/workflows/<branch-slug>.md` when it exists
 6. Relevant files under `ai/skills/*/SKILL.md`
 7. When the task involves vendor-specific behavior or hardware, check `docs/` for trusted reference material
 
@@ -82,12 +82,13 @@ Examples:
 
 ## Workflow Artifacts
 
-- `ai/plans/<branch-slug>.md`: the approved implementation plan for the active branch. Create it before implementation and keep it current enough for a handoff.
-- `ai/workflows/<branch-slug>.md`: the tracked workflow state file for the active branch. Use it so any new conversation can resume from the current workflow step without relying on chat history.
-- `ai/reviews/<branch-slug>.md`: internal review findings and follow-up notes for the active branch.
-- `ai/testing/<branch-slug>.md`: saved manual testing checklist. Create or update it only when the human explicitly asks for a persistent checklist file.
+- `ai/local/plans/<branch-slug>.md`: the local implementation plan for the active branch. Create it before implementation and keep it current enough for a handoff inside the current worktree.
+- `ai/local/workflows/<branch-slug>.md`: the local workflow state file for the active branch. Use it so any new conversation in that worktree can resume from the current workflow step without relying on chat history.
+- `ai/local/reviews/<branch-slug>.md`: local internal review findings and follow-up notes for the active branch.
+- `ai/local/testing/<branch-slug>.md`: local saved manual testing checklist. Create or update it only when the human explicitly asks for a persistent checklist file.
 - Reuse the same `branch-slug` across all branch-scoped AI artifacts.
-- Treat branch-specific AI artifacts as temporary working files. After the feature is merged and cleanup is safe, remove the branch's `ai/plans/`, `ai/workflows/`, `ai/reviews/`, and `ai/testing/` files when they exist.
+- These files are intentionally local-only and ignored by git. Do not open PRs just to add, update, or remove them.
+- When the worktree is deleted after merge, its `ai/local/` files disappear with it, so no repo cleanup commit is needed for branch runtime state.
 
 ## Coding Conventions
 
@@ -213,7 +214,7 @@ Workflow status
 - Read this `AGENTS.md`.
 - Check `git branch --show-current` and `git worktree list`.
 - Derive the `branch-slug`.
-- If the current branch is not `main` and `ai/workflows/<branch-slug>.md` exists, treat the session as a resume:
+- If the current branch is not `main` and `ai/local/workflows/<branch-slug>.md` exists, treat the session as a resume:
   - read the workflow file first
   - continue from its current step
   - do not restart planning or implementation from scratch
@@ -225,23 +226,23 @@ Workflow status
 - Use a `feature/*`, `bugfix/*`, or `hotfix/*` branch as appropriate.
 - Do not implement from the repo root on `main`.
 - If the task is a resume, confirm the existing worktree path and branch instead of creating a second worktree.
-- Create or update `ai/workflows/<branch-slug>.md` as soon as the worktree is established.
+- Create or update `ai/local/workflows/<branch-slug>.md` as soon as the worktree is established, using `ai/workflows/_template.md` as the tracked source template.
 
 ### 2. Detailed Plan Prepared
 
 - Ask questions only when the missing detail is a business or product decision.
 - Do not ask questions that can be answered from the repository.
 - **Ask product/business questions interactively: always offer 2–4 concrete options per question plus a free-text escape hatch. Use the best mechanism available in your environment (e.g. `AskUserQuestion` tool, numbered list, etc.). Never ask open-ended questions when choices can be offered.**
-- Before implementation, write a detailed plan to `ai/plans/<branch-slug>.md` based on the relevant raw task in `plan.md`.
+- Before implementation, write a detailed plan to `ai/local/plans/<branch-slug>.md` based on the relevant raw task in `plan.md`.
 - The detailed plan must be specific enough to execute without further design decisions during implementation.
-- Record the plan path in `ai/workflows/<branch-slug>.md`.
+- Record the plan path in `ai/local/workflows/<branch-slug>.md`.
 
 ### 3. Detailed Plan Approved
 
 - Share the plan file with the user and wait for explicit approval before writing code.
 - Discuss and iterate on the plan until approved.
 - Technical implementation choices are left to the agent unless the detailed plan exposes a product or business tradeoff that requires user input.
-- If work is blocked on a business decision, update both the relevant `plan.md` item and `ai/workflows/<branch-slug>.md` with `[?]` plus a short reason.
+- If work is blocked on a business decision, update the relevant `plan.md` item with `[?]` plus a short reason and record the blocker in `ai/local/workflows/<branch-slug>.md`.
 
 ### 4. Implementation In Progress
 
@@ -249,26 +250,26 @@ Workflow status
 - Break the work into small, meaningful sub-tasks.
 - Implement fully, not partially.
 - Keep commits focused.
-- Keep `ai/workflows/<branch-slug>.md` current enough that a fresh agent can resume without rereading the entire chat.
+- Keep `ai/local/workflows/<branch-slug>.md` current enough that a fresh agent can resume in the same worktree without rereading the entire chat.
 
 ### 5. Validation Complete
 
 - Run the most relevant validation for the change.
-- Record what was run, what passed, and what was intentionally not run in `ai/workflows/<branch-slug>.md`.
+- Record what was run, what passed, and what was intentionally not run in `ai/local/workflows/<branch-slug>.md`.
 - Do not move forward with unclear validation status.
 
 ### 6. Internal Review
 
 - After implementation, perform an internal review with another agent when available.
 - The review should focus on bugs, regressions, missing tests, and architecture risks.
-- Track review notes in `ai/reviews/<branch-slug>.md` when a durable review file is needed.
+- Track review notes in `ai/local/reviews/<branch-slug>.md` when a durable local review file is needed.
 
 ### 7. Internal Review Fix Loop
 
 - If internal review finds issues, fix them before asking the human to test.
 - After each review-driven code change:
   - rerun the most relevant validation
-  - update `ai/workflows/<branch-slug>.md` with what changed and what was rerun
+  - update `ai/local/workflows/<branch-slug>.md` with what changed and what was rerun
   - rerun internal review when the change is substantial, architectural, or likely to hide follow-on issues
 - If internal review is already clean, mark this step complete with a short note such as `no fixes needed`.
 
@@ -279,7 +280,7 @@ Workflow status
 - Every manual testing request must explicitly say whether the human needs to restart the Metro server, rebuild the app, both, or neither before testing. If no restart or rebuild is needed, say that explicitly.
 - Provide the testing checklist directly in the conversation window. Use a short numbered list for the key validation path, and expand it only as much as needed for the current change.
 - For follow-up fixes after initial manual testing, provide only the incremental retest steps that matter for the latest change unless the full flow needs to be re-run.
-- Do not create or update `ai/testing/<branch-slug>.md` unless the human explicitly asks for a saved checklist file.
+- Do not create or update `ai/local/testing/<branch-slug>.md` unless the human explicitly asks for a saved checklist file.
 - Wait for the human's feedback. Address any issues they find.
 - Only proceed to the next step once the human explicitly approves the manual test.
 - When implementation is complete and approved locally, update the plan item to `[R]`.
@@ -302,7 +303,7 @@ Workflow status
   - what changed
   - why it changed
   - what was validated
-- Record the PR status in `ai/workflows/<branch-slug>.md`.
+- Record the PR status in `ai/local/workflows/<branch-slug>.md`.
 
 ### 11. PR Review Comments
 
@@ -344,15 +345,8 @@ Example:
 - Merge is done by a human.
 - After merge is confirmed, verify the feature branch has no remaining unmerged local-only work, no pending review or testing actions, and no unpushed commits that should be preserved.
 - If the worktree is dirty, merge status is unclear, or the branch still has work to keep, stop and report the blocker instead of deleting anything.
-- Once merge is confirmed, do any repo-tracked cleanup from a fresh non-`main` follow-up branch created from the latest `main`. Do not edit repo-tracked files directly on `main`.
-- In that follow-up branch:
-  - update the relevant `plan.md` item to `[x]` because completed means merged
-  - remove the branch-specific workflow artifacts that are no longer needed:
-    - `ai/plans/<branch-slug>.md`
-    - `ai/workflows/<branch-slug>.md`
-    - `ai/reviews/<branch-slug>.md`
-    - `ai/testing/<branch-slug>.md` when it exists for that branch
-  - record those merged-state and cleanup changes in a separate small commit
+- Once merge is confirmed, do any remaining repo-tracked cleanup from a fresh non-`main` follow-up branch created from the latest `main`. Do not edit repo-tracked files directly on `main`.
+- In that follow-up branch, update the relevant `plan.md` item to `[x]` because completed means merged when the merged work maps to a tracked `plan.md` task line.
 - Once the worktree is safely stale:
   - remove it from `git worktree`
   - delete the local worktree directory

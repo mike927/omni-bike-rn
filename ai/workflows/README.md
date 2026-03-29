@@ -1,24 +1,23 @@
 # Workflow Files
 
-This folder stores tracked workflow state per active branch.
+This folder stores tracked workflow documentation and reusable templates.
 
-Use one file here for each active branch so a new conversation can resume without reconstructing context from chat history alone.
+Live per-branch workflow state now lives in ignored local files under `ai/local/workflows/`.
 
 ## What Belongs Here
 
-- Branch identity and worktree location
-- The current workflow step plus enough progress context for another agent to resume
-- Validation, manual-testing, PR, and handoff notes that are specific to that branch
+- Shared documentation about the workflow-file system
+- Reusable tracked templates such as `_template.md`
+- Guidance that should stay in the repository for all future branches
 
 ## When To Create Or Update
 
-- Create the workflow file as soon as a dedicated worktree and branch are established.
-- Update it whenever the workflow step changes, the task becomes blocked, validation status changes, manual testing starts or finishes, PR status changes, or a handoff note would help another agent resume work quickly.
-- Keep it concise but complete enough that a fresh agent can continue without relying on prior chat history.
+- Update these tracked docs when the workflow system itself changes.
+- Do not create branch runtime files here anymore. Create them under `ai/local/workflows/` inside the active worktree.
 
 ## Source Of Truth
 
 - `AGENTS.md` defines the naming rules, required workflow steps, and lifecycle policy.
-- `_template.md` in this folder provides the structure for a new branch workflow file.
+- `_template.md` in this folder provides the tracked source template for new local workflow files.
 
 Keep this README focused on the purpose of the `ai/workflows/` folder. Do not duplicate workflow policy here when `AGENTS.md` already defines it.

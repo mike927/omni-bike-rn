@@ -3,7 +3,7 @@
 - Branch: `<feature-or-bugfix-branch>`
 - Worktree: `<worktree path>`
 - Raw `plan.md` item: `<copy the exact task line or note "ad hoc docs/tooling task">`
-- Plan file: `<ai/plans/... or "not created yet">`
+- Plan file: `<ai/local/plans/... or "not created yet">`
 
 ## Progress Snapshot
 
@@ -18,10 +18,10 @@
 
 ## Active Artifacts
 
-- Plan: `<ai/plans/... or none>`
-- Workflow: `<this file>`
-- Review: `<ai/reviews/... or none>`
-- Testing: `<ai/testing/... or none>`
+- Plan: `<ai/local/plans/... or none>`
+- Workflow: `<ai/local/workflows/...>`
+- Review: `<ai/local/reviews/... or none>`
+- Testing: `<ai/local/testing/... or none>`
 
 ## Validation State
 
