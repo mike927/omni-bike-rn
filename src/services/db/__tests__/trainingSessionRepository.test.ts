@@ -35,7 +35,7 @@ describe('trainingSessionRepository', () => {
   it('creates a draft session row', () => {
     const database = buildDatabase();
 
-    const sessionId = createDraftSession({
+    createDraftSession({
       sessionId: 'session-1',
       startedAtMs: 100,
       elapsedSeconds: 0,
@@ -53,7 +53,6 @@ describe('trainingSessionRepository', () => {
       savedHrSnapshot: { id: 'hr-1', name: 'HR' },
     });
 
-    expect(sessionId).toBe('session-1');
     expect(database.runSync.mock.calls[0]?.[0]).toContain('INSERT INTO training_sessions');
   });
 
@@ -81,6 +80,7 @@ describe('trainingSessionRepository', () => {
     expect(database.withTransactionSync).toHaveBeenCalledTimes(1);
     expect(database.runSync.mock.calls[0]?.[0]).toContain('INSERT INTO training_session_samples');
     expect(database.runSync.mock.calls[1]?.[0]).toContain('UPDATE training_sessions');
+    expect(database.runSync.mock.calls[1]?.[0]).not.toContain('status = ?');
   });
 
   it('updates session status for pause and resume transitions', () => {
@@ -187,5 +187,14 @@ describe('trainingSessionRepository', () => {
       createdAtMs: 100,
       updatedAtMs: 350,
     });
+  });
+
+  it('returns null when no open session exists', () => {
+    const database = buildDatabase();
+    database.getFirstSync.mockReturnValue(null);
+
+    const session = getLatestOpenSession();
+
+    expect(session).toBeNull();
   });
 });

@@ -10,7 +10,7 @@ import {
 import { useSavedGearStore } from '../../../store/savedGearStore';
 import { useTrainingSessionStore } from '../../../store/trainingSessionStore';
 import { TrainingPhase } from '../../../types/training';
-import type { PersistedDeviceSnapshot, PersistedSessionStatus } from '../../../types/sessionPersistence';
+import type { PersistedDeviceSnapshot } from '../../../types/sessionPersistence';
 import type { SavedDevice } from '../../../types/gear';
 
 const SESSION_ID_PREFIX = 'session';
@@ -36,25 +36,10 @@ function createEntityId(prefix: string, nowMs: number): string {
   return `${prefix}-${nowMs}-${randomPart}`;
 }
 
-function toPersistedStatus(phase: TrainingPhase): PersistedSessionStatus | null {
-  if (phase === TrainingPhase.Active) {
-    return 'active';
-  }
-
-  if (phase === TrainingPhase.Paused) {
-    return 'paused';
-  }
-
-  if (phase === TrainingPhase.Finished) {
-    return 'finished';
-  }
-
-  return null;
-}
-
 export function useTrainingSessionPersistence(isEnabled = true): void {
   const writeQueueRef = useRef(Promise.resolve());
   const activeSessionIdRef = useRef<string | null>(null);
+  const persistedSessionIdRef = useRef<string | null>(null);
   const nextSampleSequenceRef = useRef(0);
 
   useEffect(() => {
@@ -62,12 +47,26 @@ export function useTrainingSessionPersistence(isEnabled = true): void {
       return;
     }
 
-    const enqueue = (task: () => void) => {
+    const clearActiveSession = (sessionId: string | null = null) => {
+      if (sessionId === null || activeSessionIdRef.current === sessionId) {
+        activeSessionIdRef.current = null;
+      }
+      nextSampleSequenceRef.current = 0;
+    };
+
+    const clearPersistedSession = (sessionId: string | null = null) => {
+      if (sessionId === null || persistedSessionIdRef.current === sessionId) {
+        persistedSessionIdRef.current = null;
+      }
+    };
+
+    const enqueue = (task: () => void, onError?: () => void) => {
       writeQueueRef.current = writeQueueRef.current
         .then(async () => {
           task();
         })
         .catch((error: unknown) => {
+          onError?.();
           console.error('[useTrainingSessionPersistence] Failed to persist training session state:', error);
         });
     };
@@ -79,20 +78,35 @@ export function useTrainingSessionPersistence(isEnabled = true): void {
         const { savedBike, savedHrSource } = useSavedGearStore.getState();
 
         activeSessionIdRef.current = sessionId;
+        persistedSessionIdRef.current = null;
         nextSampleSequenceRef.current = 0;
 
-        enqueue(() => {
-          createDraftSession({
-            sessionId,
-            startedAtMs,
-            elapsedSeconds: state.elapsedSeconds,
-            totalDistanceMeters: state.totalDistance,
-            totalCaloriesKcal: state.totalCalories,
-            currentMetrics: state.currentMetrics,
-            savedBikeSnapshot: toDeviceSnapshot(savedBike),
-            savedHrSnapshot: toDeviceSnapshot(savedHrSource),
-          });
-        });
+        enqueue(
+          () => {
+            createDraftSession({
+              sessionId,
+              startedAtMs,
+              elapsedSeconds: state.elapsedSeconds,
+              totalDistanceMeters: state.totalDistance,
+              totalCaloriesKcal: state.totalCalories,
+              currentMetrics: state.currentMetrics,
+              savedBikeSnapshot: toDeviceSnapshot(savedBike),
+              savedHrSnapshot: toDeviceSnapshot(savedHrSource),
+            });
+            if (activeSessionIdRef.current !== sessionId) {
+              discardDraftSession(sessionId);
+              return;
+            }
+
+            persistedSessionIdRef.current = sessionId;
+          },
+          () => {
+            if (activeSessionIdRef.current === sessionId) {
+              clearActiveSession(sessionId);
+              clearPersistedSession(sessionId);
+            }
+          },
+        );
 
         return;
       }
@@ -108,6 +122,10 @@ export function useTrainingSessionPersistence(isEnabled = true): void {
         nextSampleSequenceRef.current += 1;
 
         enqueue(() => {
+          if (persistedSessionIdRef.current !== sessionId) {
+            return;
+          }
+
           appendSample({
             sessionId,
             sampleId: createEntityId(`${SAMPLE_ID_PREFIX}-${sequence}`, recordedAtMs),
@@ -132,13 +150,13 @@ export function useTrainingSessionPersistence(isEnabled = true): void {
         return;
       }
 
-      if (
-        previousState.phase === TrainingPhase.Active &&
-        state.phase === TrainingPhase.Paused &&
-        toPersistedStatus(state.phase)
-      ) {
+      if (previousState.phase === TrainingPhase.Active && state.phase === TrainingPhase.Paused) {
         const updatedAtMs = Date.now();
         enqueue(() => {
+          if (persistedSessionIdRef.current !== sessionId) {
+            return;
+          }
+
           updateSessionStatus({
             sessionId,
             status: 'paused',
@@ -148,13 +166,13 @@ export function useTrainingSessionPersistence(isEnabled = true): void {
         return;
       }
 
-      if (
-        previousState.phase === TrainingPhase.Paused &&
-        state.phase === TrainingPhase.Active &&
-        toPersistedStatus(state.phase)
-      ) {
+      if (previousState.phase === TrainingPhase.Paused && state.phase === TrainingPhase.Active) {
         const updatedAtMs = Date.now();
         enqueue(() => {
+          if (persistedSessionIdRef.current !== sessionId) {
+            return;
+          }
+
           updateSessionStatus({
             sessionId,
             status: 'active',
@@ -170,6 +188,10 @@ export function useTrainingSessionPersistence(isEnabled = true): void {
       ) {
         const endedAtMs = Date.now();
         enqueue(() => {
+          if (persistedSessionIdRef.current !== sessionId) {
+            return;
+          }
+
           finalizeSession({
             sessionId,
             endedAtMs,
@@ -187,17 +209,24 @@ export function useTrainingSessionPersistence(isEnabled = true): void {
         (previousState.phase === TrainingPhase.Active || previousState.phase === TrainingPhase.Paused) &&
         state.phase === TrainingPhase.Idle
       ) {
+        clearActiveSession(sessionId);
+
         enqueue(() => {
+          if (persistedSessionIdRef.current !== sessionId) {
+            return;
+          }
+
           discardDraftSession(sessionId);
+          clearPersistedSession(sessionId);
         });
-        activeSessionIdRef.current = null;
-        nextSampleSequenceRef.current = 0;
         return;
       }
 
       if (previousState.phase === TrainingPhase.Finished && state.phase === TrainingPhase.Idle) {
-        activeSessionIdRef.current = null;
-        nextSampleSequenceRef.current = 0;
+        clearActiveSession(sessionId);
+        enqueue(() => {
+          clearPersistedSession(sessionId);
+        });
       }
     });
 

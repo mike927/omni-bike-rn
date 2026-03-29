@@ -37,29 +37,6 @@ export interface PersistedTrainingSample {
   metrics: MetricSnapshot;
 }
 
-export interface PersistedTrainingSessionRow {
-  id: string;
-  status: PersistedSessionStatus;
-  startedAtMs: number;
-  endedAtMs: number | null;
-  elapsedSeconds: number;
-  totalDistanceMeters: number;
-  totalCaloriesKcal: number;
-  currentSpeedKmh: number;
-  currentCadenceRpm: number;
-  currentPowerWatts: number;
-  currentHeartRateBpm: number | null;
-  currentResistanceLevel: number | null;
-  currentDistanceMeters: number | null;
-  savedBikeId: string | null;
-  savedBikeName: string | null;
-  savedHrId: string | null;
-  savedHrName: string | null;
-  uploadState: SessionUploadState | null;
-  createdAtMs: number;
-  updatedAtMs: number;
-}
-
 export interface CreateDraftSessionInput extends PersistedTrainingSummary {
   sessionId: string;
   startedAtMs: number;

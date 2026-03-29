@@ -79,6 +79,13 @@ describe('useTrainingSessionPersistence', () => {
 
     act(() => {
       useTrainingSessionStore.getState().start();
+    });
+
+    await waitFor(() => {
+      expect(mockCreateDraftSession).toHaveBeenCalledTimes(1);
+    });
+
+    act(() => {
       useTrainingSessionStore.getState().tick(sample);
     });
 
@@ -109,6 +116,13 @@ describe('useTrainingSessionPersistence', () => {
 
     act(() => {
       useTrainingSessionStore.getState().start();
+    });
+
+    await waitFor(() => {
+      expect(mockCreateDraftSession).toHaveBeenCalledTimes(1);
+    });
+
+    act(() => {
       useTrainingSessionStore.getState().tick(sample);
       useTrainingSessionStore.getState().finish();
     });
@@ -123,6 +137,13 @@ describe('useTrainingSessionPersistence', () => {
 
     act(() => {
       useTrainingSessionStore.getState().start();
+    });
+
+    await waitFor(() => {
+      expect(mockCreateDraftSession).toHaveBeenCalledTimes(1);
+    });
+
+    act(() => {
       useTrainingSessionStore.getState().tick(sample);
       useTrainingSessionStore.getState().reset();
     });
@@ -137,6 +158,13 @@ describe('useTrainingSessionPersistence', () => {
 
     act(() => {
       useTrainingSessionStore.getState().start();
+    });
+
+    await waitFor(() => {
+      expect(mockCreateDraftSession).toHaveBeenCalledTimes(1);
+    });
+
+    act(() => {
       useTrainingSessionStore.getState().tick(sample);
       useTrainingSessionStore.getState().finish();
       useTrainingSessionStore.getState().reset();
@@ -164,5 +192,55 @@ describe('useTrainingSessionPersistence', () => {
 
     expect(mockAppendSample).not.toHaveBeenCalled();
     expect(mockFinalizeSession).not.toHaveBeenCalled();
+  });
+
+  it('increments sequence number on each tick', async () => {
+    renderHook(() => useTrainingSessionPersistence());
+
+    act(() => {
+      useTrainingSessionStore.getState().start();
+    });
+
+    await waitFor(() => {
+      expect(mockCreateDraftSession).toHaveBeenCalledTimes(1);
+    });
+
+    act(() => {
+      useTrainingSessionStore.getState().tick(sample);
+      useTrainingSessionStore.getState().tick(sample);
+      useTrainingSessionStore.getState().tick(sample);
+    });
+
+    await waitFor(() => {
+      expect(mockAppendSample).toHaveBeenCalledTimes(3);
+    });
+
+    expect(mockAppendSample).toHaveBeenNthCalledWith(1, expect.objectContaining({ sequence: 0 }));
+    expect(mockAppendSample).toHaveBeenNthCalledWith(2, expect.objectContaining({ sequence: 1 }));
+    expect(mockAppendSample).toHaveBeenNthCalledWith(3, expect.objectContaining({ sequence: 2 }));
+  });
+
+  it('does not append samples if draft session creation fails', async () => {
+    mockCreateDraftSession.mockImplementation(() => {
+      throw new Error('disk full');
+    });
+
+    renderHook(() => useTrainingSessionPersistence());
+
+    act(() => {
+      useTrainingSessionStore.getState().start();
+    });
+
+    await waitFor(() => {
+      expect(mockCreateDraftSession).toHaveBeenCalledTimes(1);
+    });
+
+    act(() => {
+      useTrainingSessionStore.getState().tick(sample);
+    });
+
+    await waitFor(() => {
+      expect(mockAppendSample).not.toHaveBeenCalled();
+    });
   });
 });

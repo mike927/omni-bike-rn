@@ -67,4 +67,14 @@ describe('migrations', () => {
     resolveMigration();
     await firstInitialization;
   });
+
+  it('allows retry after a failed migration', async () => {
+    mockGetDrizzleDb.mockReturnValue({} as never);
+    mockMigrate.mockRejectedValueOnce(new Error('disk full')).mockResolvedValueOnce(undefined);
+
+    await expect(initializeDatabase()).rejects.toThrow('disk full');
+    await initializeDatabase();
+
+    expect(mockMigrate).toHaveBeenCalledTimes(2);
+  });
 });

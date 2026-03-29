@@ -5,12 +5,35 @@ import type {
   FinalizeSessionInput,
   PersistedDeviceSnapshot,
   PersistedTrainingSession,
-  PersistedTrainingSessionRow,
   SessionUploadState,
+  PersistedSessionStatus,
   UpdateSessionStatusInput,
 } from '../../types/sessionPersistence';
 
 const COMPLETED_UPLOAD_STATE: SessionUploadState = 'ready';
+
+interface PersistedTrainingSessionRow {
+  id: string;
+  status: PersistedSessionStatus;
+  startedAtMs: number;
+  endedAtMs: number | null;
+  elapsedSeconds: number;
+  totalDistanceMeters: number;
+  totalCaloriesKcal: number;
+  currentSpeedKmh: number;
+  currentCadenceRpm: number;
+  currentPowerWatts: number;
+  currentHeartRateBpm: number | null;
+  currentResistanceLevel: number | null;
+  currentDistanceMeters: number | null;
+  savedBikeId: string | null;
+  savedBikeName: string | null;
+  savedHrId: string | null;
+  savedHrName: string | null;
+  uploadState: SessionUploadState | null;
+  createdAtMs: number;
+  updatedAtMs: number;
+}
 
 function toDeviceSnapshot(id: string | null, name: string | null): PersistedDeviceSnapshot | null {
   if (!id || !name) {
@@ -45,7 +68,7 @@ function mapSessionRow(row: PersistedTrainingSessionRow): PersistedTrainingSessi
   };
 }
 
-export function createDraftSession(input: CreateDraftSessionInput): string {
+export function createDraftSession(input: CreateDraftSessionInput): void {
   const database = getSQLiteDatabase();
   database.runSync(
     `INSERT INTO training_sessions (
@@ -91,8 +114,6 @@ export function createDraftSession(input: CreateDraftSessionInput): string {
     input.startedAtMs,
     input.startedAtMs,
   );
-
-  return input.sessionId;
 }
 
 export function appendSample(input: AppendSampleInput): void {
@@ -127,8 +148,7 @@ export function appendSample(input: AppendSampleInput): void {
 
     database.runSync(
       `UPDATE training_sessions
-       SET status = ?,
-           elapsed_seconds = ?,
+       SET elapsed_seconds = ?,
            total_distance_meters = ?,
            total_calories_kcal = ?,
            current_speed_kmh = ?,
@@ -139,7 +159,6 @@ export function appendSample(input: AppendSampleInput): void {
            current_distance_meters = ?,
            updated_at_ms = ?
        WHERE id = ?`,
-      'active',
       input.elapsedSeconds,
       input.totalDistanceMeters,
       input.totalCaloriesKcal,
