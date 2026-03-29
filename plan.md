@@ -62,7 +62,7 @@ Bike-first product UX in this phase: support a single main bike for now, while k
 - [x] Training state machine (Idle → Active → Paused → Finished)
 - [x] Auto-pause/resume via FTMS Machine Status (pause when bike detects no pedaling)
 - [x] Functional training dashboard screen (Time, Speed, HR, Power, Calories)
-- [ ] Portrait and landscape training layouts
+- [R] Portrait and landscape training layouts - closed by product decision: app remains portrait-only
 - [ ] Local DB schema + session persistence (Drizzle + expo-sqlite)
 - [ ] Crash recovery / interrupted session restore
 - [ ] Finish flow from app: confirmation before completing, then navigate to summary and auto-save the completed workout
@@ -114,4 +114,4 @@ Standard Bluetooth HR sensors are expected to work via the BLE HR flow before th
 - [ ] Refine dashboard information hierarchy, spacing, and responsiveness
 - [ ] Polish empty, loading, error, paused, and finished states
 - [ ] Add motion, typography, theming, and interaction polish
-- [ ] Final cross-screen QA for portrait, landscape, and iOS live surfaces
+- [ ] Final cross-screen QA for portrait and iOS live surfaces
