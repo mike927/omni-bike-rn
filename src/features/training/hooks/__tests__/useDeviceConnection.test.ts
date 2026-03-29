@@ -231,6 +231,51 @@ describe('useDeviceConnection', () => {
     consoleErrorSpy.mockRestore();
   });
 
+  it('should not log when a bike connect attempt times out', async () => {
+    const timeoutError = new Error('Operation timed out');
+    mockBikeConnect.mockRejectedValue(timeoutError);
+
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const { result } = renderHook(() => useDeviceConnection());
+
+    await act(async () => {
+      await result.current.connectBike('bike-1').catch(() => {});
+    });
+
+    expect(consoleErrorSpy).not.toHaveBeenCalledWith('[useDeviceConnection] Bike connection error:', timeoutError);
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('should not log when an HR connect attempt times out', async () => {
+    const timeoutError = new Error('Operation timed out');
+    mockHrConnect.mockRejectedValue(timeoutError);
+
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const { result } = renderHook(() => useDeviceConnection());
+
+    await act(async () => {
+      await result.current.connectHr('hr-1').catch(() => {});
+    });
+
+    expect(consoleErrorSpy).not.toHaveBeenCalledWith('[useDeviceConnection] HR connection error:', timeoutError);
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('should log when a bike connect attempt fails with an unexpected error', async () => {
+    const unexpectedError = new Error('Unexpected hardware failure');
+    mockBikeConnect.mockRejectedValue(unexpectedError);
+
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const { result } = renderHook(() => useDeviceConnection());
+
+    await act(async () => {
+      await result.current.connectBike('bike-1').catch(() => {});
+    });
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith('[useDeviceConnection] Bike connection error:', unexpectedError);
+    consoleErrorSpy.mockRestore();
+  });
+
   it('should leave reconnect state idle when intentionally disconnecting without saved gear', async () => {
     const { result } = renderHook(() => useDeviceConnection());
 
