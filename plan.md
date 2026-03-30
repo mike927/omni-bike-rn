@@ -64,14 +64,49 @@ Bike-first product UX in this phase: support a single main bike for now, while k
 - [x] Functional training dashboard screen (Time, Speed, HR, Power, Calories)
 - [x] Portrait and landscape training layouts - closed by product decision: app remains portrait-only
 - [x] Local DB schema + session persistence (Drizzle + expo-sqlite)
-- [ ] Crash recovery / interrupted session restore
 - [ ] Finish flow from app: confirmation before completing, then navigate to summary and require an explicit save-or-discard choice when tapping `Done`
-- [ ] Bike stop handling: freeze the session and prompt the user to finish instead of auto-completing immediately
 - [ ] Finished workout summary screen (save, discard, upload, export entry points)
-- [ ] Live Activities & Dynamic Island integration (`react-native-activity-kit`)
+- [ ] Bike stop handling: freeze the session and prompt the user to finish instead of auto-completing immediately
+- [ ] Crash recovery / interrupted session restore
 - [ ] Add comprehensive unit tests covering various test cases
 
-## Phase 4: Advanced HR Sources & Watch Integration
+## Phase 4: Workout History & Management
+
+- [ ] Functional session history list + detail view with summary statistics
+- [ ] Session deletion
+- [ ] Minimal UI elements needed for history flows
+- [ ] Add comprehensive unit tests covering various test cases
+
+## Phase 5: First-Launch Onboarding
+
+Lightweight, modern onboarding shown only on first launch. 2-3 swipeable intro screens that explain the app setup flow (connect bike, optional HR source, start training). No interactive walkthrough — just clear, visual guidance so the user knows what to expect before landing on the Home screen.
+
+- [ ] First-launch detection and persistence (show once, remember dismissal)
+- [ ] Swipeable onboarding screen with 2-3 pages (connect bike → optional HR → start training)
+- [ ] Modern, visually polished design (animations, illustrations, smooth transitions)
+- [ ] Skip and Done actions
+- [ ] Add unit tests
+
+## Phase 6: Integrations & External Provider Sync
+
+- [ ] External training provider contract / adapter architecture for finished session uploads
+- [ ] First provider integration: Strava OAuth + finished session upload
+- [ ] Upload flow for completed workouts with states: `ready to upload`, `uploading`, `uploaded`, `failed`
+- [ ] Retry flow for failed uploads
+- [ ] Provider connection management (connect, disconnect, sync status)
+- [ ] Functional Integrations screen
+- [ ] Generic export payload mapping for completed training sessions
+- [ ] If a user taps `Upload` without a connected provider, redirect to the relevant provider connection flow
+- [ ] Minimal UI elements needed for integrations, export, and provider sync flows
+- [ ] Add comprehensive unit tests covering various test cases
+
+## Phase 7: Extras & Platform Features
+
+- [ ] Live Activities & Dynamic Island integration (`react-native-activity-kit`)
+- [ ] Apple Health export via `react-native-health` (completed sessions only)
+- [ ] Raw `.FIT` binary file export generation
+
+## Phase 8: Advanced HR Sources & Watch Integration
 
 Standard Bluetooth HR sensors are expected to work via the BLE HR flow before this phase. This phase focuses on watch-specific integrations and advanced HR-source behavior.
 
@@ -86,29 +121,7 @@ Standard Bluetooth HR sensors are expected to work via the BLE HR flow before th
 - [ ] Minimal UI elements needed for watch status and source visibility
 - [ ] Add comprehensive unit tests covering various test cases
 
-## Phase 5: Workout History & Management
-
-- [ ] Functional session history list + detail view with summary statistics
-- [ ] Session deletion
-- [ ] Minimal UI elements needed for history flows
-- [ ] Add comprehensive unit tests covering various test cases
-
-## Phase 6: Integrations & External Provider Sync
-
-- [ ] Functional Integrations screen
-- [ ] External training provider contract / adapter architecture for finished session uploads
-- [ ] Provider connection management (connect, disconnect, sync status)
-- [ ] Generic export payload mapping for completed training sessions
-- [ ] Upload flow for completed workouts with states: `ready to upload`, `uploading`, `uploaded`, `failed`
-- [ ] If a user taps `Upload` without a connected provider, redirect to the relevant provider connection flow
-- [ ] Retry flow for failed uploads
-- [ ] First provider integration: Strava OAuth + finished session upload
-- [ ] Apple Health export via `react-native-health` (completed sessions only)
-- [ ] Raw `.FIT` binary file export generation
-- [ ] Minimal UI elements needed for integrations, export, and provider sync flows
-- [ ] Add comprehensive unit tests covering various test cases
-
-## Phase 7: UX & Visual Design Polish
+## Phase 9: UX & Visual Design Polish
 
 - [ ] Visual design pass across training, history, and sync screens
 - [ ] Refine dashboard information hierarchy, spacing, and responsiveness
