@@ -77,7 +77,17 @@ Bike-first product UX in this phase: support a single main bike for now, while k
 - [ ] Minimal UI elements needed for history flows
 - [ ] Add comprehensive unit tests covering various test cases
 
-## Phase 5: Integrations & External Provider Sync
+## Phase 5: First-Launch Onboarding
+
+Lightweight, modern onboarding shown only on first launch. 2-3 swipeable intro screens that explain the app setup flow (connect bike, optional HR source, start training). No interactive walkthrough — just clear, visual guidance so the user knows what to expect before landing on the Home screen.
+
+- [ ] First-launch detection and persistence (show once, remember dismissal)
+- [ ] Swipeable onboarding screen with 2-3 pages (connect bike → optional HR → start training)
+- [ ] Modern, visually polished design (animations, illustrations, smooth transitions)
+- [ ] Skip and Done actions
+- [ ] Add unit tests
+
+## Phase 6: Integrations & External Provider Sync
 
 - [ ] External training provider contract / adapter architecture for finished session uploads
 - [ ] First provider integration: Strava OAuth + finished session upload
@@ -90,13 +100,13 @@ Bike-first product UX in this phase: support a single main bike for now, while k
 - [ ] Minimal UI elements needed for integrations, export, and provider sync flows
 - [ ] Add comprehensive unit tests covering various test cases
 
-## Phase 6: Extras & Platform Features
+## Phase 7: Extras & Platform Features
 
 - [ ] Live Activities & Dynamic Island integration (`react-native-activity-kit`)
 - [ ] Apple Health export via `react-native-health` (completed sessions only)
 - [ ] Raw `.FIT` binary file export generation
 
-## Phase 7: Advanced HR Sources & Watch Integration
+## Phase 8: Advanced HR Sources & Watch Integration
 
 Standard Bluetooth HR sensors are expected to work via the BLE HR flow before this phase. This phase focuses on watch-specific integrations and advanced HR-source behavior.
 
@@ -111,7 +121,7 @@ Standard Bluetooth HR sensors are expected to work via the BLE HR flow before th
 - [ ] Minimal UI elements needed for watch status and source visibility
 - [ ] Add comprehensive unit tests covering various test cases
 
-## Phase 8: UX & Visual Design Polish
+## Phase 9: UX & Visual Design Polish
 
 - [ ] Visual design pass across training, history, and sync screens
 - [ ] Refine dashboard information hierarchy, spacing, and responsiveness
