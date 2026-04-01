@@ -31,7 +31,8 @@ yarn-error.*
 *.pem
 
 # AI tooling (agent-agnostic repo)
-.claude/
+.claude/*
+!.claude/commands/
 ai/local/
 
 # local env files

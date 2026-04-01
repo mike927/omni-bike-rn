@@ -31,7 +31,7 @@ Read these in this order before feature work:
 4. `git worktree list`
 5. If the current branch is not `main`, read `ai/local/workflows/<branch-slug>.md` when it exists
 6. Relevant files under `ai/skills/*/SKILL.md`
-7. For screen structure, navigation flows, and UI phase gates, read `ai/screens.md`
+7. When the user asks for a specific procedure (review, PR, validate, resume), load the matching `ai/commands/*/COMMAND.md`
 8. When the task involves vendor-specific behavior or hardware, check `docs/` for trusted reference material
 
 `plan.md` is the single source of truth for project scope and progress.
@@ -382,7 +382,7 @@ Available skills:
 - `ai/skills/expo-ui/SKILL.md` for Expo Router UI, navigation, styling, and components
 - `ai/skills/expo-upgrade/SKILL.md` for Expo SDK upgrades and dependency migrations
 - `ai/skills/ios-native/SKILL.md` for iOS-specific behavior
-- `ai/skills/quality-review/SKILL.md` for internal review and quality checks
+- `ai/skills/quality-review/SKILL.md` for review checklists and quality standards
 - `ai/skills/react-native-perf/SKILL.md` for performance optimization, profiling, and bundle size
 - `ai/skills/sqlite-persistence/SKILL.md` for Expo SQLite, persistence boundaries, session-recording rules, and repository guidance
 - `ai/skills/stitch-design/SKILL.md` for UI design with Google Stitch, MCP integration, and design-to-code conversion
@@ -395,6 +395,26 @@ Available skills:
 4. Reference it from this section.
 
 Skills are optional helpers. They support this file, not replace it.
+
+## Commands
+
+Use a command when the task is a specific, repeatable procedure rather than general domain context. Commands are active procedures that complement skills (passive reference).
+
+Available commands:
+
+- `ai/commands/review/COMMAND.md` — internal code review (diff-based, pre-PR)
+- `ai/commands/pr/COMMAND.md` — open a GitHub PR with the project's standard format
+- `ai/commands/validate/COMMAND.md` — run the full validation suite
+- `ai/commands/resume/COMMAND.md` — bootstrap context from workflow state files
+
+### Adding A New Command
+
+1. Create a folder at `ai/commands/<command-name>/`.
+2. Add a `COMMAND.md` file with YAML frontmatter (`name`, `description`, `triggers`, `inputs`, `outputs`).
+3. Write the procedure as numbered steps with clear completion criteria.
+4. Reference it from this section.
+
+Commands complement skills, not replace them. A command may reference a skill when domain context is needed during execution. See `ai/commands/README.md` for the full file format.
 
 ## Provider-Specific Configuration
 

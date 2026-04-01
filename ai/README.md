@@ -8,6 +8,11 @@ ai/
   screens.md           ← screen inventory, navigation diagrams, phase gates
   workflows/           ← tracked workflow docs and reusable templates
   local/               ← ignored per-worktree runtime state (plans, workflows, reviews, testing)
+  commands/            ← active procedures invoked by name (see AGENTS.md § Commands)
+    review/            ← internal code review
+    pr/                ← open GitHub PR with standard format
+    validate/          ← run full validation suite
+    resume/            ← bootstrap/resume session context
   skills/
     architecture/      ← structure, boundaries, ownership
     ble-hardware/      ← BLE scanning, FTMS parsing, device adapters
@@ -15,7 +20,7 @@ ai/
     expo-ui/           ← Expo Router UI, navigation, styling (from expo/skills)
     expo-upgrade/      ← Expo SDK upgrades, dependency migrations (from expo/skills)
     ios-native/        ← iOS platform integration
-    quality-review/    ← code review, tests, lint, type safety
+    quality-review/    ← review checklists and quality standards
     react-native-perf/ ← RN performance, profiling, bundle size (from callstackincubator/agent-skills)
     sqlite-persistence/← Expo SQLite, session persistence rules, repositories
     stitch-design/     ← UI design with Google Stitch, MCP integration, design-to-code
