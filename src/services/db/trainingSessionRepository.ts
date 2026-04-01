@@ -5,10 +5,12 @@ import type {
   FinalizeSessionInput,
   PersistedDeviceSnapshot,
   PersistedTrainingSession,
+  PersistedTrainingSample,
   SessionUploadState,
   PersistedSessionStatus,
   UpdateSessionStatusInput,
 } from '../../types/sessionPersistence';
+import type { MetricSnapshot } from '../../types/training';
 
 const COMPLETED_UPLOAD_STATE: SessionUploadState = 'ready';
 
@@ -33,6 +35,38 @@ interface PersistedTrainingSessionRow {
   uploadState: SessionUploadState | null;
   createdAtMs: number;
   updatedAtMs: number;
+}
+
+interface PersistedTrainingSampleRow {
+  id: string;
+  sessionId: string;
+  sequence: number;
+  recordedAtMs: number;
+  elapsedSeconds: number;
+  speedKmh: number;
+  cadenceRpm: number;
+  powerWatts: number;
+  heartRateBpm: number | null;
+  resistanceLevel: number | null;
+  distanceMeters: number | null;
+}
+
+function mapSampleRow(row: PersistedTrainingSampleRow): PersistedTrainingSample {
+  return {
+    id: row.id,
+    sessionId: row.sessionId,
+    sequence: row.sequence,
+    recordedAtMs: row.recordedAtMs,
+    elapsedSeconds: row.elapsedSeconds,
+    metrics: {
+      speed: row.speedKmh,
+      cadence: row.cadenceRpm,
+      power: row.powerWatts,
+      heartRate: row.heartRateBpm,
+      resistance: row.resistanceLevel,
+      distance: row.distanceMeters,
+    } satisfies MetricSnapshot,
+  };
 }
 
 function toDeviceSnapshot(id: string | null, name: string | null): PersistedDeviceSnapshot | null {
@@ -227,30 +261,33 @@ export function discardDraftSession(sessionId: string): void {
   });
 }
 
+const SESSION_SELECT_COLUMNS = `
+  id,
+  status,
+  started_at_ms AS startedAtMs,
+  ended_at_ms AS endedAtMs,
+  elapsed_seconds AS elapsedSeconds,
+  total_distance_meters AS totalDistanceMeters,
+  total_calories_kcal AS totalCaloriesKcal,
+  current_speed_kmh AS currentSpeedKmh,
+  current_cadence_rpm AS currentCadenceRpm,
+  current_power_watts AS currentPowerWatts,
+  current_heart_rate_bpm AS currentHeartRateBpm,
+  current_resistance_level AS currentResistanceLevel,
+  current_distance_meters AS currentDistanceMeters,
+  saved_bike_id AS savedBikeId,
+  saved_bike_name AS savedBikeName,
+  saved_hr_id AS savedHrId,
+  saved_hr_name AS savedHrName,
+  upload_state AS uploadState,
+  created_at_ms AS createdAtMs,
+  updated_at_ms AS updatedAtMs
+`;
+
 export function getLatestOpenSession(): PersistedTrainingSession | null {
   const database = getSQLiteDatabase();
   const row = database.getFirstSync<PersistedTrainingSessionRow>(
-    `SELECT
-       id,
-       status,
-       started_at_ms AS startedAtMs,
-       ended_at_ms AS endedAtMs,
-       elapsed_seconds AS elapsedSeconds,
-       total_distance_meters AS totalDistanceMeters,
-       total_calories_kcal AS totalCaloriesKcal,
-       current_speed_kmh AS currentSpeedKmh,
-       current_cadence_rpm AS currentCadenceRpm,
-       current_power_watts AS currentPowerWatts,
-       current_heart_rate_bpm AS currentHeartRateBpm,
-       current_resistance_level AS currentResistanceLevel,
-       current_distance_meters AS currentDistanceMeters,
-       saved_bike_id AS savedBikeId,
-       saved_bike_name AS savedBikeName,
-       saved_hr_id AS savedHrId,
-       saved_hr_name AS savedHrName,
-       upload_state AS uploadState,
-       created_at_ms AS createdAtMs,
-       updated_at_ms AS updatedAtMs
+    `SELECT ${SESSION_SELECT_COLUMNS}
      FROM training_sessions
      WHERE status IN (?, ?)
      ORDER BY updated_at_ms DESC
@@ -260,4 +297,72 @@ export function getLatestOpenSession(): PersistedTrainingSession | null {
   );
 
   return row ? mapSessionRow(row) : null;
+}
+
+export function getSessionById(sessionId: string): PersistedTrainingSession | null {
+  const database = getSQLiteDatabase();
+  const row = database.getFirstSync<PersistedTrainingSessionRow>(
+    `SELECT ${SESSION_SELECT_COLUMNS}
+     FROM training_sessions
+     WHERE id = ?`,
+    sessionId,
+  );
+
+  return row ? mapSessionRow(row) : null;
+}
+
+export function getLatestFinishedSession(): PersistedTrainingSession | null {
+  const database = getSQLiteDatabase();
+  const row = database.getFirstSync<PersistedTrainingSessionRow>(
+    `SELECT ${SESSION_SELECT_COLUMNS}
+     FROM training_sessions
+     WHERE status = ?
+     ORDER BY ended_at_ms DESC
+     LIMIT 1`,
+    'finished',
+  );
+
+  return row ? mapSessionRow(row) : null;
+}
+
+export function getSamplesBySessionId(sessionId: string): PersistedTrainingSample[] {
+  const database = getSQLiteDatabase();
+  const rows = database.getAllSync<PersistedTrainingSampleRow>(
+    `SELECT
+       id,
+       session_id AS sessionId,
+       sequence,
+       recorded_at_ms AS recordedAtMs,
+       elapsed_seconds AS elapsedSeconds,
+       speed_kmh AS speedKmh,
+       cadence_rpm AS cadenceRpm,
+       power_watts AS powerWatts,
+       heart_rate_bpm AS heartRateBpm,
+       resistance_level AS resistanceLevel,
+       distance_meters AS distanceMeters
+     FROM training_session_samples
+     WHERE session_id = ?
+     ORDER BY sequence ASC`,
+    sessionId,
+  );
+
+  return rows.map(mapSampleRow);
+}
+
+export function deleteSession(sessionId: string): void {
+  const database = getSQLiteDatabase();
+  database.withTransactionSync(() => {
+    database.runSync('DELETE FROM training_session_samples WHERE session_id = ?', sessionId);
+    database.runSync('DELETE FROM training_sessions WHERE id = ?', sessionId);
+  });
+}
+
+export function updateUploadState(sessionId: string, uploadState: SessionUploadState): void {
+  const database = getSQLiteDatabase();
+  database.runSync(
+    'UPDATE training_sessions SET upload_state = ?, updated_at_ms = ? WHERE id = ?',
+    uploadState,
+    Date.now(),
+    sessionId,
+  );
 }

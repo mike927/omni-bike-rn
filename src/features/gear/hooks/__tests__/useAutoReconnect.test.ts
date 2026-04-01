@@ -1,4 +1,4 @@
-import { renderHook, act } from '@testing-library/react-native';
+import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { AppState, type AppStateStatus } from 'react-native';
 
 import { useAutoReconnect } from '../useAutoReconnect';
@@ -106,7 +106,9 @@ describe('auto-reconnect on mount', () => {
 
     expect(['connecting', 'connected']).toContain(result.current.bikeReconnectState);
 
-    await act(async () => {});
+    await waitFor(() => {
+      expect(result.current.bikeReconnectState).toBe('connected');
+    });
 
     expect(mockConnectBike).toHaveBeenCalledWith('bike-uuid');
     expect(result.current.bikeReconnectState).toBe('connected');
@@ -119,7 +121,9 @@ describe('auto-reconnect on mount', () => {
 
     expect(['connecting', 'connected']).toContain(result.current.hrReconnectState);
 
-    await act(async () => {});
+    await waitFor(() => {
+      expect(result.current.hrReconnectState).toBe('connected');
+    });
 
     expect(mockConnectHr).toHaveBeenCalledWith('hr-uuid');
     expect(result.current.hrReconnectState).toBe('connected');
@@ -163,7 +167,9 @@ describe('failed state', () => {
 
     const { result } = renderHook(() => useAutoReconnect());
 
-    await act(async () => {});
+    await waitFor(() => {
+      expect(result.current.bikeReconnectState).toBe('failed');
+    });
 
     expect(result.current.bikeReconnectState).toBe('failed');
   });
@@ -177,7 +183,9 @@ describe('failed state', () => {
 
     const { result } = renderHook(() => useAutoReconnect());
 
-    await act(async () => {});
+    await waitFor(() => {
+      expect(useSavedGearStore.getState().bikeReconnectState).toBe('disconnected');
+    });
 
     expect(result.current.bikeReconnectState).toBe('disconnected');
     expect(consoleErrorSpy).not.toHaveBeenCalledWith('[useAutoReconnect] Bike connect failed:', cancelledError);
@@ -194,7 +202,9 @@ describe('failed state', () => {
 
     const { result } = renderHook(() => useAutoReconnect());
 
-    await act(async () => {});
+    await waitFor(() => {
+      expect(result.current.bikeReconnectState).toBe('disconnected');
+    });
 
     expect(result.current.bikeReconnectState).toBe('disconnected');
     expect(consoleErrorSpy).not.toHaveBeenCalledWith('[useAutoReconnect] Bike connect failed:', timeoutError);
@@ -286,7 +296,9 @@ describe('retry', () => {
       result.current.retryBike();
     });
 
-    await act(async () => {});
+    await waitFor(() => {
+      expect(mockConnectBike).toHaveBeenCalledWith('bike-uuid');
+    });
 
     expect(useSavedGearStore.getState().bikeAutoReconnectSuppressed).toBe(false);
     expect(mockConnectBike).toHaveBeenCalledWith('bike-uuid');
@@ -361,7 +373,9 @@ describe('retry', () => {
 
     renderHook(() => useAutoReconnect());
 
-    await act(async () => {});
+    await waitFor(() => {
+      expect(useSavedGearStore.getState().bikeReconnectState).toBe('disconnected');
+    });
 
     expect(useSavedGearStore.getState().bikeReconnectState).toBe('disconnected');
     expect(mockConnectBike).toHaveBeenCalledTimes(1);
@@ -378,7 +392,9 @@ describe('retry', () => {
 
     expect(mockConnectBike).toHaveBeenCalledTimes(2);
 
-    await act(async () => {});
+    await waitFor(() => {
+      expect(useSavedGearStore.getState().bikeReconnectState).toBe('disconnected');
+    });
 
     await act(async () => {
       jest.advanceTimersByTime(9999);
@@ -400,7 +416,9 @@ describe('retry', () => {
 
     const { result } = renderHook(() => useAutoReconnect());
 
-    await act(async () => {});
+    await waitFor(() => {
+      expect(result.current.bikeReconnectState).toBe('disconnected');
+    });
 
     expect(result.current.bikeReconnectState).toBe('disconnected');
     expect(mockConnectBike).toHaveBeenCalledTimes(1);
@@ -409,7 +427,9 @@ describe('retry', () => {
       jest.advanceTimersByTime(5000);
     });
 
-    await act(async () => {});
+    await waitFor(() => {
+      expect(mockConnectBike).toHaveBeenCalledTimes(2);
+    });
 
     expect(mockConnectBike).toHaveBeenCalledTimes(2);
     expect(result.current.bikeReconnectState).toBe('disconnected');
@@ -446,7 +466,9 @@ describe('retry', () => {
 
     renderHook(() => useAutoReconnect());
 
-    await act(async () => {});
+    await waitFor(() => {
+      expect(mockConnectBike).toHaveBeenCalledTimes(1);
+    });
 
     expect(mockConnectBike).toHaveBeenCalledTimes(1);
 
@@ -484,7 +506,9 @@ describe('adapter appeared externally', () => {
 
     const { result } = renderHook(() => useAutoReconnect());
 
-    await act(async () => {});
+    await waitFor(() => {
+      expect(result.current.bikeReconnectState).toBe('connected');
+    });
 
     expect(result.current.bikeReconnectState).toBe('connected');
   });

@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react-native';
 
 import { useTrainingSession } from '../useTrainingSession';
 import * as deviceConnectionModule from '../useDeviceConnection';
+import * as trainingSessionPersistenceModule from '../useTrainingSessionPersistence';
 import { useDeviceConnectionStore } from '../../../../store/deviceConnectionStore';
 import { useSavedGearStore } from '../../../../store/savedGearStore';
 import { useTrainingSessionStore } from '../../../../store/trainingSessionStore';
@@ -355,6 +356,30 @@ describe('useTrainingSession', () => {
     expect(useSavedGearStore.getState().hrAutoReconnectSuppressed).toBe(true);
 
     disconnectAllSpy.mockRestore();
+  });
+
+  it('should finish, disconnect, reset, and return the active session id', async () => {
+    const disconnectAllSpy = jest.spyOn(deviceConnectionModule, 'disconnectAllDeviceConnections');
+    jest.spyOn(trainingSessionPersistenceModule, 'getActiveSessionId').mockReturnValue('session-22');
+
+    const { result } = renderHook(() => useTrainingSession());
+
+    act(() => {
+      result.current.start();
+    });
+
+    let sessionId: string | null = null;
+    await act(async () => {
+      sessionId = await result.current.finishAndDisconnect();
+    });
+
+    expect(sessionId).toBe('session-22');
+    expect(result.current.phase).toBe(TrainingPhase.Idle);
+    expect(disconnectAllSpy).toHaveBeenCalledWith({ updateReconnectState: true, suppressAutoReconnect: true });
+    expect(mockDisconnect).toHaveBeenCalledTimes(1);
+    expect(mockHrDisconnect).toHaveBeenCalledTimes(1);
+    expect(useDeviceConnectionStore.getState().bikeAdapter).toBeNull();
+    expect(useDeviceConnectionStore.getState().hrAdapter).toBeNull();
   });
 
   it('should avoid issuing a bike reset command when already idle', () => {

@@ -19,6 +19,17 @@ See `PROJECT.md` for business requirements, functional requirements, and technol
 - Manual in-app pause takes precedence over automatic bike-driven resume. Bike-reported stop should freeze the workout and prompt the user to finish rather than auto-completing immediately.
 - Completed workouts should use simple upload states: `ready to upload`, `uploading`, `uploaded`, `failed`.
 
+## Current Priority: Screen Logic Revision
+
+Consolidates remaining Phase 3 finish flow and Phase 5 onboarding into a single revision that simplifies the screen flow end-to-end. Branch: `feature/screen-logic-revision`.
+
+- [~] First-launch onboarding gate (preferences storage, swipeable intro, root layout gate)
+- [~] Streamlined finish flow (single Finish action: complete + disconnect + auto-navigate to Summary)
+- [~] DB-driven Summary screen with Discard / Save actions
+- [~] Simplified Home screen (Quick Start button, bike tile, HR tile, latest workout card)
+- [ ] Screen architecture diagram update (`ai/screens.md`)
+- [ ] Unit tests for new flows
+
 ## Phase 1: Foundation & BLE Core
 
 - [x] Expo project scaffold, TypeScript, ESLint, Prettier (Enforce New Architecture/JSI)
@@ -64,8 +75,8 @@ Bike-first product UX in this phase: support a single main bike for now, while k
 - [x] Functional training dashboard screen (Time, Speed, HR, Power, Calories)
 - [x] Portrait and landscape training layouts - closed by product decision: app remains portrait-only
 - [x] Local DB schema + session persistence (Drizzle + expo-sqlite)
-- [ ] Finish flow from app: confirmation before completing, then navigate to summary and require an explicit save-or-discard choice when tapping `Done`
-- [ ] Finished workout summary screen (save, discard, upload, export entry points)
+- [~] Finish flow from app: confirmation before completing, then navigate to summary and require an explicit save-or-discard choice when tapping `Done` — addressed in Screen Logic Revision
+- [~] Finished workout summary screen (save, discard, deferred upload entry points) — addressed in Screen Logic Revision
 - [-] Bike stop handling: freeze the session and prompt the user to finish instead of auto-completing immediately - deferred by product decision
 - [ ] Crash recovery / interrupted session restore
 - [ ] Add comprehensive unit tests covering various test cases
@@ -81,10 +92,10 @@ Bike-first product UX in this phase: support a single main bike for now, while k
 
 Lightweight, modern onboarding shown only on first launch. 2-3 swipeable intro screens that explain the app setup flow (connect bike, optional HR source, start training). No interactive walkthrough — just clear, visual guidance so the user knows what to expect before landing on the Home screen.
 
-- [ ] First-launch detection and persistence (show once, remember dismissal)
-- [ ] Swipeable onboarding screen with 2-3 pages (connect bike → optional HR → start training)
-- [ ] Modern, visually polished design (animations, illustrations, smooth transitions)
-- [ ] Skip and Done actions
+- [~] First-launch detection and persistence (show once, remember dismissal) — addressed in Screen Logic Revision
+- [~] Swipeable onboarding screen with 2-3 pages (connect bike → optional HR → start training) — addressed in Screen Logic Revision
+- [ ] Modern, visually polished design (animations, illustrations, smooth transitions) — deferred to Phase 9
+- [~] Skip and Done actions — addressed in Screen Logic Revision
 - [ ] Add unit tests
 
 ## Phase 6: Integrations & External Provider Sync
@@ -94,9 +105,11 @@ Lightweight, modern onboarding shown only on first launch. 2-3 swipeable intro s
 - [ ] Upload flow for completed workouts with states: `ready to upload`, `uploading`, `uploaded`, `failed`
 - [ ] Retry flow for failed uploads
 - [ ] Provider connection management (connect, disconnect, sync status)
+- [ ] Settings option to automatically upload saved workouts to a connected provider
+- [ ] Manual upload action from the workout history list or workout detail view
 - [ ] Functional Integrations screen
 - [ ] Generic export payload mapping for completed training sessions
-- [ ] If a user taps `Upload` without a connected provider, redirect to the relevant provider connection flow
+- [ ] If a user taps `Upload` from history without a connected provider, redirect to the relevant provider connection flow
 - [ ] Minimal UI elements needed for integrations, export, and provider sync flows
 - [ ] Add comprehensive unit tests covering various test cases
 

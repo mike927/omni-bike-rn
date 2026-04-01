@@ -1,4 +1,4 @@
-import { renderHook, act } from '@testing-library/react-native';
+import { renderHook, act, waitFor } from '@testing-library/react-native';
 
 import { useGearSetup } from '../useGearSetup';
 import * as bleDeviceValidator from '../../../../services/ble/bleDeviceValidator';
@@ -150,7 +150,9 @@ describe('signal timeout', () => {
 
     expect(result.current.step).toBe('error');
     expect(result.current.validationError).toBe('no_live_signal');
-    await act(async () => {});
+    await waitFor(() => {
+      expect(mockDisconnectBike).toHaveBeenCalledTimes(1);
+    });
     expect(mockDisconnectBike).toHaveBeenCalledTimes(1);
   });
 });
@@ -184,7 +186,9 @@ describe('cleanup', () => {
 
     unmount();
 
-    await act(async () => {});
+    await waitFor(() => {
+      expect(mockDisconnectBike).toHaveBeenCalledTimes(1);
+    });
 
     expect(mockDisconnectBike).toHaveBeenCalledTimes(1);
   });

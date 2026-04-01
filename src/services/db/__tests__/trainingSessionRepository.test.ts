@@ -1,9 +1,14 @@
 import {
   appendSample,
   createDraftSession,
+  deleteSession,
   discardDraftSession,
   finalizeSession,
+  getLatestFinishedSession,
   getLatestOpenSession,
+  getSamplesBySessionId,
+  getSessionById,
+  updateUploadState,
   updateSessionStatus,
 } from '../trainingSessionRepository';
 import { getSQLiteDatabase } from '../database';
@@ -17,6 +22,7 @@ describe('trainingSessionRepository', () => {
 
   const buildDatabase = () => {
     const database = {
+      getAllSync: jest.fn(),
       getFirstSync: jest.fn(),
       runSync: jest.fn(),
       withTransactionSync: jest.fn((task: () => void) => {
@@ -196,5 +202,130 @@ describe('trainingSessionRepository', () => {
     const session = getLatestOpenSession();
 
     expect(session).toBeNull();
+  });
+
+  it('returns a session by id when one exists', () => {
+    const database = buildDatabase();
+    database.getFirstSync.mockReturnValue({
+      id: 'session-2',
+      status: 'finished',
+      startedAtMs: 100,
+      endedAtMs: 500,
+      elapsedSeconds: 50,
+      totalDistanceMeters: 250,
+      totalCaloriesKcal: 25,
+      currentSpeedKmh: 10,
+      currentCadenceRpm: 75,
+      currentPowerWatts: 180,
+      currentHeartRateBpm: 135,
+      currentResistanceLevel: 4,
+      currentDistanceMeters: 250,
+      savedBikeId: null,
+      savedBikeName: null,
+      savedHrId: null,
+      savedHrName: null,
+      uploadState: 'ready',
+      createdAtMs: 100,
+      updatedAtMs: 500,
+    });
+
+    expect(getSessionById('session-2')?.id).toBe('session-2');
+    expect(database.getFirstSync).toHaveBeenCalledWith(expect.stringContaining('WHERE id = ?'), 'session-2');
+  });
+
+  it('returns the latest finished session', () => {
+    const database = buildDatabase();
+    database.getFirstSync.mockReturnValue({
+      id: 'session-3',
+      status: 'finished',
+      startedAtMs: 100,
+      endedAtMs: 700,
+      elapsedSeconds: 60,
+      totalDistanceMeters: 400,
+      totalCaloriesKcal: 40,
+      currentSpeedKmh: 0,
+      currentCadenceRpm: 0,
+      currentPowerWatts: 0,
+      currentHeartRateBpm: null,
+      currentResistanceLevel: null,
+      currentDistanceMeters: 400,
+      savedBikeId: null,
+      savedBikeName: null,
+      savedHrId: null,
+      savedHrName: null,
+      uploadState: 'uploaded',
+      createdAtMs: 100,
+      updatedAtMs: 700,
+    });
+
+    expect(getLatestFinishedSession()?.id).toBe('session-3');
+    expect(database.getFirstSync).toHaveBeenCalledWith(expect.stringContaining('WHERE status = ?'), 'finished');
+  });
+
+  it('returns all samples for a session in sequence order', () => {
+    const database = buildDatabase();
+    database.getAllSync.mockReturnValue([
+      {
+        id: 'sample-1',
+        sessionId: 'session-1',
+        sequence: 0,
+        recordedAtMs: 100,
+        elapsedSeconds: 1,
+        speedKmh: 20,
+        cadenceRpm: 80,
+        powerWatts: 200,
+        heartRateBpm: 140,
+        resistanceLevel: 5,
+        distanceMeters: 100,
+      },
+    ]);
+
+    expect(getSamplesBySessionId('session-1')).toEqual([
+      {
+        id: 'sample-1',
+        sessionId: 'session-1',
+        sequence: 0,
+        recordedAtMs: 100,
+        elapsedSeconds: 1,
+        metrics: {
+          speed: 20,
+          cadence: 80,
+          power: 200,
+          heartRate: 140,
+          resistance: 5,
+          distance: 100,
+        },
+      },
+    ]);
+  });
+
+  it('deletes a persisted session and its samples in one transaction', () => {
+    const database = buildDatabase();
+
+    deleteSession('session-9');
+
+    expect(database.withTransactionSync).toHaveBeenCalledTimes(1);
+    expect(database.runSync).toHaveBeenNthCalledWith(
+      1,
+      'DELETE FROM training_session_samples WHERE session_id = ?',
+      'session-9',
+    );
+    expect(database.runSync).toHaveBeenNthCalledWith(2, 'DELETE FROM training_sessions WHERE id = ?', 'session-9');
+  });
+
+  it('updates upload state with a fresh timestamp', () => {
+    const database = buildDatabase();
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1234);
+
+    updateUploadState('session-4', 'uploaded');
+
+    expect(database.runSync).toHaveBeenCalledWith(
+      'UPDATE training_sessions SET upload_state = ?, updated_at_ms = ? WHERE id = ?',
+      'uploaded',
+      1234,
+      'session-4',
+    );
+
+    nowSpy.mockRestore();
   });
 });

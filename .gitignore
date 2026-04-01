@@ -43,3 +43,6 @@ ai/local/
 # generated native folders
 /ios
 /android
+
+# logs
+/logs

@@ -31,7 +31,8 @@ Read these in this order before feature work:
 4. `git worktree list`
 5. If the current branch is not `main`, read `ai/local/workflows/<branch-slug>.md` when it exists
 6. Relevant files under `ai/skills/*/SKILL.md`
-7. When the task involves vendor-specific behavior or hardware, check `docs/` for trusted reference material
+7. For screen structure, navigation flows, and UI phase gates, read `ai/screens.md`
+8. When the task involves vendor-specific behavior or hardware, check `docs/` for trusted reference material
 
 `plan.md` is the single source of truth for project scope and progress.
 `branch-slug` means the branch name with `/` replaced by `-`.
@@ -141,16 +142,17 @@ Examples:
 - Keep headers short, stable, and purpose-based. Do not invent a new header when one of the standard labels already fits.
 - The agent must post a workflow status message at session start, on every workflow-step transition, whenever blocked, and before waiting on human approval or manual testing.
 - After completing any workflow step and before stopping or waiting, the agent must also post a short step-transition message in chat so the human can immediately see what just finished and what comes next without opening any markdown files.
-- Every step-transition message must include a second short section that explains the outcome of the completed stage in plain language so the human gets an immediate overview of the current state.
+- Every step-transition message must include a second short section that explains the current focus, recent outcome, or blocker in plain language so the human gets an immediate overview of the current state.
+- If the task is review-only, question-answering, debugging, or another partial workflow that does not require every numbered step, the agent may skip non-applicable steps after bootstrap. In those cases, the status message must explicitly reflect the actual active step instead of implying the workflow is proceeding sequentially through all numbers.
+- Do not combine `0. Bootstrap / Resume Context` with a later active step in one `🛠️ In Progress` line. Once bootstrap is done, mark it complete or summarize it in `Stage Summary`, then start a new status message for the actual active step.
+- For chat progress updates, prefer a single concise workflow line instead of separate `Completed` / `Next` lines.
 - Keep the status message concise and include all of these fields:
   - `Task`
   - `Branch`
   - `Worktree`
   - `Current step`
-  - `Completed steps`
-  - `Next step`
+  - `Next step note`
   - `Blockers`
-- `Active artifacts`
 - Use this format:
 
 ```md
@@ -159,54 +161,55 @@ Workflow status
 - Branch: <branch-name>
 - Worktree: <absolute-or-relative-worktree-path>
 - Current step: <number and title>
-- Completed steps: <comma-separated list or none>
-- Next step: <next concrete action>
+- Next step note: <short note describing what should happen next>
 - Blockers: <none or short reason>
-- Active artifacts: <comma-separated paths>
 ```
 
 - Use this step-transition format every time progress moves to a new workflow step, and also when pausing at the end of a turn:
+- Use this concise workflow-progress format for in-chat progress messages:
 
 ```md
 **Workflow Progress**
-✅ Completed: <step number and title>
-➡️ Next: <step number and title>
+Current Step: <step number and title> - <super concise summary of the current message or task>
 
-**Stage Summary**
-<2-4 short lines describing what the completed stage produced, decided, or verified>
+**Current Focus**
+- <short line about what was just done, is being checked, or is blocked>
+- <short line about what matters right now>
 ```
 
 - If the agent is blocked instead of progressing, use this format:
 
 ```md
 **Workflow Progress**
-⛔ Blocked at: <step number and title>
-➡️ Next: <the unblock action or decision needed>
+Current Step: <step number and title> - blocked
 
-**Stage Summary**
-<short explanation of what was attempted, what is currently true, and why progress is blocked>
+**Current Focus**
+- <short explanation of what was attempted>
+- <short explanation of what is currently true and why progress is blocked>
 ```
 
 - If the current turn finishes in the middle of a step, use this format:
 
 ```md
 **Workflow Progress**
-🛠️ In Progress: <step number and title>
-➡️ Next: <step number and title that follows when this one is done>
+Current Step: <step number and title> - <super concise summary of the current message or task>
 
-**Stage Summary**
-<short explanation of what has already been done in the current step and what remains>
+**Current Focus**
+- <short explanation of what has already been done in the current step>
+- <short explanation of what remains>
 ```
 
 - Keep the wording consistent. Always include the step number and exact step title from `AGENTS.md`.
-- Tailor the `Stage Summary` to the stage:
+- The summary after the dash should describe the current message or immediate task only, not the full project state.
+- When steps are intentionally skipped because they are not applicable, say so briefly in `Current Focus` in plain language.
+- Tailor `Current Focus` to the stage:
   - planning: what the plan now covers or what decision was locked
   - implementation: what changed
   - validation: what was run and whether it passed
   - review: what was checked and whether issues were found
   - manual testing: what the human should verify
   - merge/cleanup: what was merged or removed
-- Preserve the header text, icon order, and inline `Completed` / `Next` phrasing so the message is easy to scan in chat.
+- Preserve the header text, `Current Step:` label, `Current Focus` heading, and concise aligned format so the message is easy to scan in chat.
 
 ### 0. Bootstrap / Resume Context
 
@@ -255,6 +258,7 @@ Workflow status
 ### 5. Validation Complete
 
 - Run the most relevant validation for the change.
+- Include SonarQube checking in the validation pass when the repository has a configured SonarQube command or workflow available.
 - Record what was run, what passed, and what was intentionally not run in `ai/local/workflows/<branch-slug>.md`.
 - Do not move forward with unclear validation status.
 
@@ -363,6 +367,8 @@ npm test -- --ci --runInBand
 npm run ci:gate
 npm run build:smoke
 ```
+
+Also run the repository's SonarQube check when it is configured in the current branch or project tooling.
 
 ## Skills
 

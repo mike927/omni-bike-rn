@@ -1,23 +1,18 @@
+import { Alert } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
+import {
+  POST_FINISH_TRAINING_SUMMARY_SOURCE,
+  SAVED_SESSION_TRAINING_SUMMARY_SOURCE,
+} from '../../navigation/trainingSummaryRoute';
 import { TrainingSummaryScreen } from '../TrainingSummaryScreen';
 
 const mockReplace = jest.fn();
-const mockSession = {
-  phase: 'idle',
-  elapsedSeconds: 0,
-  totalDistance: 0,
-  totalCalories: 0,
-  currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null },
-  start: jest.fn(),
-  pause: jest.fn(),
-  resume: jest.fn(),
-  finish: jest.fn(),
-  reset: jest.fn(),
-};
+const mockDeleteSession = jest.fn();
+const mockGetSessionById = jest.fn();
 
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: jest.fn(), replace: mockReplace }),
+  useRouter: () => ({ push: jest.fn(), replace: mockReplace, back: jest.fn(), canGoBack: jest.fn() }),
 }));
 
 jest.mock('react-native-safe-area-context', () => {
@@ -28,73 +23,111 @@ jest.mock('react-native-safe-area-context', () => {
   };
 });
 
-jest.mock('../../hooks/useTrainingSession', () => ({
-  useTrainingSession: () => mockSession,
+jest.mock('../../../../services/db/trainingSessionRepository', () => ({
+  deleteSession: (...args: unknown[]) => mockDeleteSession(...args),
+  getSessionById: (...args: unknown[]) => mockGetSessionById(...args),
 }));
 
 describe('TrainingSummaryScreen', () => {
+  const session = {
+    id: 'session-1',
+    status: 'finished' as const,
+    startedAtMs: 100,
+    endedAtMs: 200,
+    elapsedSeconds: 120,
+    totalDistanceMeters: 1000,
+    totalCaloriesKcal: 50,
+    currentMetrics: { speed: 20, cadence: 80, power: 200, heartRate: 145, resistance: 6, distance: 1000 },
+    savedBikeSnapshot: null,
+    savedHrSnapshot: null,
+    uploadState: 'ready' as const,
+    createdAtMs: 100,
+    updatedAtMs: 200,
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
-    Object.assign(mockSession, {
-      phase: 'idle',
-      elapsedSeconds: 0,
-      totalDistance: 0,
-      totalCalories: 0,
-      currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null },
+    mockGetSessionById.mockReturnValue(session);
+  });
+
+  it('shows a missing-session state when no persisted session exists', () => {
+    mockGetSessionById.mockReturnValue(null);
+
+    const { getByText } = render(
+      <TrainingSummaryScreen sessionId="missing" source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE} returnTo={null} />,
+    );
+
+    expect(getByText('Workout Not Found')).toBeTruthy();
+    expect(getByText('Back Home')).toBeTruthy();
+  });
+
+  it('renders persisted workout totals and final metrics', () => {
+    const { getByText } = render(
+      <TrainingSummaryScreen sessionId="session-1" source={POST_FINISH_TRAINING_SUMMARY_SOURCE} returnTo="/" />,
+    );
+
+    expect(getByText('Workout Totals')).toBeTruthy();
+    expect(getByText('Final Metrics')).toBeTruthy();
+    expect(getByText('00:02:00')).toBeTruthy();
+    expect(getByText('1.00 km')).toBeTruthy();
+    expect(getByText('50.0 kcal')).toBeTruthy();
+    expect(getByText('Save')).toBeTruthy();
+  });
+
+  it('deletes the session after confirming discard', () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_, __, buttons) => {
+      buttons?.[1]?.onPress?.();
+    });
+
+    const { getByText } = render(
+      <TrainingSummaryScreen sessionId="session-1" source={POST_FINISH_TRAINING_SUMMARY_SOURCE} returnTo="/" />,
+    );
+
+    fireEvent.press(getByText('Discard'));
+
+    expect(mockDeleteSession).toHaveBeenCalledWith('session-1');
+    expect(mockReplace).toHaveBeenCalledWith('/');
+
+    alertSpy.mockRestore();
+  });
+
+  it('returns home when save is pressed after finishing a ride', async () => {
+    const { getByText } = render(
+      <TrainingSummaryScreen sessionId="session-1" source={POST_FINISH_TRAINING_SUMMARY_SOURCE} returnTo="/" />,
+    );
+
+    fireEvent.press(getByText('Save'));
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith('/');
     });
   });
 
-  it('renders without crashing', () => {
-    expect(() => render(<TrainingSummaryScreen />)).not.toThrow();
-  });
-
-  it('shows the Summary heading', () => {
-    const { getByText } = render(<TrainingSummaryScreen />);
-    expect(getByText('Summary')).toBeTruthy();
-  });
-
-  it('shows empty state when no workout has been recorded', () => {
-    const { getByText } = render(<TrainingSummaryScreen />);
-    expect(getByText('No Workout Yet')).toBeTruthy();
-  });
-
-  it('shows a done action instead of reset when the workout is finished', () => {
-    Object.assign(mockSession, {
-      phase: 'finished',
-      elapsedSeconds: 120,
-      totalDistance: 1000,
-      totalCalories: 50,
-    });
-
-    const { getByText, queryByText } = render(<TrainingSummaryScreen />);
+  it('shows Done for already-saved workouts and returns to the previous screen', async () => {
+    const { getByText, queryByText } = render(
+      <TrainingSummaryScreen
+        sessionId="session-1"
+        source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE}
+        returnTo="/history"
+      />,
+    );
 
     expect(getByText('Done')).toBeTruthy();
-    expect(queryByText('Reset Session')).toBeNull();
-  });
-
-  it('shows a disconnecting state while Done teardown is in progress and navigates home after reset', async () => {
-    let resolveReset!: () => void;
-    Object.assign(mockSession, {
-      phase: 'finished',
-      elapsedSeconds: 120,
-      totalDistance: 1000,
-      totalCalories: 50,
-      reset: jest.fn().mockImplementation(
-        () =>
-          new Promise<void>((resolve) => {
-            resolveReset = resolve;
-          }),
-      ),
-    });
-
-    const { getByText, queryByText } = render(<TrainingSummaryScreen />);
+    expect(queryByText('Save')).toBeNull();
 
     fireEvent.press(getByText('Done'));
 
-    expect(getByText('Disconnecting…')).toBeTruthy();
-    expect(queryByText('Done')).toBeNull();
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith('/history');
+    });
+  });
 
-    resolveReset();
+  it('falls back to home when a saved workout summary has no explicit return route', async () => {
+    const { getByText } = render(
+      <TrainingSummaryScreen sessionId="session-1" source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE} returnTo={null} />,
+    );
+
+    fireEvent.press(getByText('Done'));
 
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith('/');

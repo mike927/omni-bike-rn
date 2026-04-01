@@ -1,95 +1,115 @@
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useDeviceConnection } from '../hooks/useDeviceConnection';
 import { useTrainingSession } from '../hooks/useTrainingSession';
+import { buildTrainingSummaryRoute, POST_FINISH_TRAINING_SUMMARY_SOURCE } from '../navigation/trainingSummaryRoute';
 import { TrainingPhase } from '../../../types/training';
 import { ActionButton } from '../../../ui/components/ActionButton';
 import { MetricTile } from '../../../ui/components/MetricTile';
-import { SectionCard } from '../../../ui/components/SectionCard';
 import { formatDistanceKm, formatDuration, formatMetricValue } from '../../../ui/formatters';
 import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
 
 const HOME_ROUTE = '/';
 const BIKE_SETUP_ROUTE = '/gear-setup?target=bike';
-const SUMMARY_ROUTE = '/summary';
-function getControlDescription(phase: TrainingPhase): string {
+
+function getPhaseSummary(phase: TrainingPhase): string {
   if (phase === TrainingPhase.Idle) {
-    return 'Start a ride once your bike is connected. The dashboard will keep updating while the session is active.';
+    return 'Ready to ride';
   }
 
   if (phase === TrainingPhase.Active) {
-    return 'Pause if you need a break or finish the ride to move into the summary flow.';
+    return 'Ride in progress';
   }
 
-  if (phase === TrainingPhase.Paused) {
-    return 'Resume when you are ready to keep riding, or finish the workout from this paused state.';
-  }
-
-  return 'The session has ended. Open the summary screen to review the latest totals.';
+  return 'Ride paused';
 }
 
 export function TrainingDashboardScreen() {
   const router = useRouter();
   const session = useTrainingSession();
   const { bikeConnected, hrConnected, latestHr } = useDeviceConnection();
+  const [isFinishing, setIsFinishing] = useState(false);
   const resolvedHeartRate = session.currentMetrics.heartRate ?? latestHr;
   const showDisconnectedState = session.phase === TrainingPhase.Idle && !bikeConnected;
 
-  return (
-    <AppScreen
-      title="Training"
-      subtitle="Track your live ride metrics here and control the current workout without leaving the session.">
-      <View style={styles.screenContent}>
-        <SectionCard
-          title="Live Ride"
-          description="The core workout metrics stay front and center while secondary device details remain available below.">
-          <View style={styles.primaryMetricGrid}>
-            <MetricTile
-              label="Elapsed"
-              value={formatDuration(session.elapsedSeconds)}
-              style={styles.primaryMetricTile}
-            />
-            <MetricTile
-              label="Speed"
-              value={`${session.currentMetrics.speed.toFixed(1)} km/h`}
-              style={styles.primaryMetricTile}
-            />
-            <MetricTile
-              label="Heart Rate"
-              value={formatMetricValue(resolvedHeartRate, ' bpm')}
-              style={styles.primaryMetricTile}
-            />
-            <MetricTile label="Power" value={`${session.currentMetrics.power} W`} style={styles.primaryMetricTile} />
-            <MetricTile
-              label="Calories"
-              value={`${session.totalCalories.toFixed(1)} kcal`}
-              style={styles.primaryMetricTile}
-            />
-          </View>
-        </SectionCard>
+  const handleFinish = async () => {
+    if (isFinishing) return;
+    setIsFinishing(true);
 
-        <SectionCard title="Session Controls" description={getControlDescription(session.phase)}>
-          <View style={styles.statusRow}>
-            <Text style={styles.statusLabel}>Status</Text>
-            <Text style={styles.statusValue}>{session.phase}</Text>
+    try {
+      const sessionId = await session.finishAndDisconnect();
+      if (sessionId) {
+        router.replace(buildTrainingSummaryRoute(sessionId, POST_FINISH_TRAINING_SUMMARY_SOURCE, HOME_ROUTE));
+      } else {
+        router.replace(HOME_ROUTE);
+      }
+    } catch (err: unknown) {
+      console.error('[TrainingDashboardScreen] Finish failed:', err);
+      setIsFinishing(false);
+    }
+  };
+
+  return (
+    <AppScreen title="Training">
+      <View style={styles.screenContent}>
+        <View style={styles.heroCard}>
+          <Text style={styles.phaseText}>{getPhaseSummary(session.phase)}</Text>
+          <Text style={styles.heroValue}>{formatDuration(session.elapsedSeconds)}</Text>
+          <Text style={styles.heroCaption}>Elapsed</Text>
+        </View>
+
+        <View style={styles.primaryMetricGrid}>
+          <MetricTile
+            label="Speed"
+            value={`${session.currentMetrics.speed.toFixed(1)} km/h`}
+            style={styles.primaryMetricTile}
+          />
+          <MetricTile
+            label="Distance"
+            value={formatDistanceKm(session.totalDistance)}
+            style={styles.primaryMetricTile}
+          />
+          <MetricTile label="Power" value={`${session.currentMetrics.power} W`} style={styles.primaryMetricTile} />
+          <MetricTile
+            label="Heart Rate"
+            value={formatMetricValue(resolvedHeartRate, ' bpm')}
+            style={styles.primaryMetricTile}
+          />
+        </View>
+
+        <View style={styles.connectionRow}>
+          <View style={styles.connectionPill}>
+            <Text style={styles.connectionLabel}>Bike</Text>
+            <Text style={styles.connectionValue}>{bikeConnected ? 'Connected' : 'Disconnected'}</Text>
           </View>
+          <View style={styles.connectionPill}>
+            <Text style={styles.connectionLabel}>Heart Rate</Text>
+            <Text style={styles.connectionValue}>{hrConnected ? 'Connected' : 'Disconnected'}</Text>
+          </View>
+        </View>
+
+        <View style={styles.controlsCard}>
           <View style={styles.actionRow}>
             {session.phase === TrainingPhase.Idle ? (
-              <ActionButton label="Start" onPress={session.start} disabled={!bikeConnected} />
+              <ActionButton label="Start Ride" onPress={session.start} disabled={!bikeConnected} fullWidth />
             ) : null}
             {session.phase === TrainingPhase.Active ? (
               <ActionButton label="Pause" onPress={session.pause} variant="secondary" />
             ) : null}
             {session.phase === TrainingPhase.Paused ? <ActionButton label="Resume" onPress={session.resume} /> : null}
             {(session.phase === TrainingPhase.Active || session.phase === TrainingPhase.Paused) && (
-              <ActionButton label="Finish" onPress={session.finish} variant="danger" />
+              <ActionButton
+                label={isFinishing ? 'Finishing...' : 'Finish'}
+                onPress={handleFinish}
+                variant="danger"
+                disabled={isFinishing}
+              />
             )}
-            {session.phase === TrainingPhase.Finished ? (
-              <ActionButton label="View Summary" onPress={() => router.push(SUMMARY_ROUTE)} />
-            ) : null}
           </View>
+
           {showDisconnectedState ? (
             <View style={styles.callout}>
               <Text style={styles.calloutTitle}>Bike connection required</Text>
@@ -102,37 +122,7 @@ export function TrainingDashboardScreen() {
               </View>
             </View>
           ) : null}
-        </SectionCard>
-
-        <SectionCard title="Ride Details" description="Secondary details help confirm machine state and sensor health.">
-          <View style={styles.secondaryMetricGrid}>
-            <MetricTile
-              label="Distance"
-              value={formatDistanceKm(session.totalDistance)}
-              style={styles.secondaryMetricTile}
-            />
-            <MetricTile
-              label="Cadence"
-              value={`${session.currentMetrics.cadence} rpm`}
-              style={styles.secondaryMetricTile}
-            />
-            <MetricTile
-              label="Resistance"
-              value={formatMetricValue(session.currentMetrics.resistance, '')}
-              style={styles.secondaryMetricTile}
-            />
-            <MetricTile
-              label="Bike"
-              value={bikeConnected ? 'Connected' : 'Disconnected'}
-              style={styles.secondaryMetricTile}
-            />
-            <MetricTile
-              label="HR Source"
-              value={hrConnected ? 'Connected' : 'Disconnected'}
-              style={styles.secondaryMetricTile}
-            />
-          </View>
-        </SectionCard>
+        </View>
       </View>
     </AppScreen>
   );
@@ -141,6 +131,34 @@ export function TrainingDashboardScreen() {
 const styles = StyleSheet.create({
   screenContent: {
     gap: 16,
+  },
+  heroCard: {
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: palette.border,
+    backgroundColor: palette.surface,
+    paddingHorizontal: 24,
+    paddingVertical: 28,
+  },
+  phaseText: {
+    color: palette.textMuted,
+    fontSize: 14,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  heroValue: {
+    color: palette.text,
+    fontSize: 44,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  heroCaption: {
+    color: palette.textMuted,
+    fontSize: 15,
+    fontWeight: '600',
   },
   primaryMetricGrid: {
     flexDirection: 'row',
@@ -151,44 +169,46 @@ const styles = StyleSheet.create({
     minWidth: 150,
     flexBasis: 150,
   },
-  secondaryMetricGrid: {
+  connectionRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
   },
-  secondaryMetricTile: {
-    minWidth: 150,
-    flexBasis: 150,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    borderRadius: 16,
+  connectionPill: {
+    flex: 1,
+    minWidth: 140,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: palette.border,
     backgroundColor: palette.surfaceMuted,
     paddingHorizontal: 14,
     paddingVertical: 12,
+    gap: 4,
   },
-  statusLabel: {
+  connectionLabel: {
     color: palette.textMuted,
-    fontSize: 13,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  statusValue: {
-    color: palette.text,
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '700',
-    textTransform: 'capitalize',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  connectionValue: {
+    color: palette.text,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  controlsCard: {
+    gap: 14,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: palette.border,
+    backgroundColor: palette.surface,
+    padding: 20,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
   },
   callout: {
     gap: 10,

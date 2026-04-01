@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Stack } from 'expo-router';
+import { Redirect, Stack, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -8,10 +8,30 @@ import { ActionButton } from '../src/ui/components/ActionButton';
 import { AppScreen } from '../src/ui/layout/AppScreen';
 import { palette } from '../src/ui/theme';
 import { useSavedGearStore } from '../src/store/savedGearStore';
+import { useAppPreferencesStore } from '../src/store/appPreferencesStore';
 import { useTrainingSessionPersistence } from '../src/features/training/hooks/useTrainingSessionPersistence';
 
+export function getOnboardingGateRedirect(segments: readonly string[], onboardingCompleted: boolean): string | null {
+  const isOnboardingRoute = segments[0] === 'onboarding';
+
+  if (!onboardingCompleted && !isOnboardingRoute) {
+    return '/onboarding';
+  }
+
+  if (onboardingCompleted && isOnboardingRoute) {
+    return '/';
+  }
+
+  return null;
+}
+
 export default function RootLayout() {
-  const hydrate = useSavedGearStore((s) => s.hydrate);
+  const segments = useSegments();
+  const hydrateGear = useSavedGearStore((s) => s.hydrate);
+  const hydratePrefs = useAppPreferencesStore((s) => s.hydrate);
+  const prefsHydrated = useAppPreferencesStore((s) => s.hydrated);
+  const onboardingCompleted = useAppPreferencesStore((s) => s.onboardingCompleted);
+
   const [isDatabaseReady, setIsDatabaseReady] = useState(false);
   const [isDatabaseError, setIsDatabaseError] = useState(false);
   const [databaseInitAttempt, setDatabaseInitAttempt] = useState(0);
@@ -19,8 +39,9 @@ export default function RootLayout() {
   useTrainingSessionPersistence(isDatabaseReady);
 
   useEffect(() => {
-    void hydrate();
-  }, [hydrate]);
+    void hydrateGear();
+    void hydratePrefs();
+  }, [hydrateGear, hydratePrefs]);
 
   useEffect(() => {
     let isMounted = true;
@@ -68,8 +89,28 @@ export default function RootLayout() {
     );
   }
 
-  if (!isDatabaseReady) {
-    return null;
+  if (!isDatabaseReady || !prefsHydrated) {
+    return (
+      <>
+        <StatusBar style="light" />
+        <AppScreen title="Opening Omni Bike" subtitle="Preparing your local data and saved preferences.">
+          <View style={styles.loadingState}>
+            <Text style={styles.loadingBody}>Loading app state...</Text>
+          </View>
+        </AppScreen>
+      </>
+    );
+  }
+
+  const onboardingRedirect = getOnboardingGateRedirect(segments, onboardingCompleted);
+
+  if (onboardingRedirect) {
+    return (
+      <>
+        <StatusBar style="light" />
+        <Redirect href={onboardingRedirect} />
+      </>
+    );
   }
 
   return (
@@ -86,6 +127,7 @@ export default function RootLayout() {
             backgroundColor: palette.background,
           },
         }}>
+        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="training" options={{ title: 'Training' }} />
         <Stack.Screen name="summary" options={{ title: 'Summary' }} />
@@ -99,7 +141,15 @@ const styles = StyleSheet.create({
   errorState: {
     gap: 16,
   },
+  loadingState: {
+    gap: 16,
+  },
   errorBody: {
+    color: palette.textMuted,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  loadingBody: {
     color: palette.textMuted,
     fontSize: 15,
     lineHeight: 22,

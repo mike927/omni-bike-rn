@@ -60,6 +60,66 @@ function readSint16LE(bytes: Uint8Array, offset: number): number | undefined {
   return value >= 32768 ? value - 65536 : value;
 }
 
+const FTMS_MORE_DATA_FLAG = 0x0001;
+const FTMS_AVERAGE_SPEED_FLAG = 0x0002;
+const FTMS_CADENCE_FLAG = 0x0004;
+const FTMS_AVERAGE_CADENCE_FLAG = 0x0008;
+const FTMS_DISTANCE_FLAG = 0x0010;
+const FTMS_RESISTANCE_FLAG = 0x0020;
+const FTMS_POWER_FLAG = 0x0040;
+const FTMS_HEART_RATE_FLAG = 0x0200;
+
+interface FtmsCursor {
+  bytes: Uint8Array;
+  offset: number;
+}
+
+type FtmsReader<T extends number> = (bytes: Uint8Array, offset: number) => T | undefined;
+
+function skipField(cursor: FtmsCursor, shouldSkip: boolean, size: number): void {
+  if (shouldSkip) {
+    cursor.offset += size;
+  }
+}
+
+function readOptionalField<T extends number>(
+  cursor: FtmsCursor,
+  shouldRead: boolean,
+  size: number,
+  reader: FtmsReader<T>,
+  transform?: (value: T) => number,
+): number | undefined {
+  if (!shouldRead) {
+    return undefined;
+  }
+
+  const value = reader(cursor.bytes, cursor.offset);
+  if (value === undefined) {
+    return undefined;
+  }
+
+  cursor.offset += size;
+  return transform ? transform(value) : value;
+}
+
+function buildBikeMetrics(
+  speed: number | undefined,
+  cadence: number | undefined,
+  power: number | undefined,
+  distance: number | undefined,
+  resistance: number | undefined,
+  heartRate: number | undefined,
+): Partial<BikeMetrics> {
+  return {
+    ...(speed !== undefined && { speed }),
+    ...(cadence !== undefined && { cadence }),
+    ...(power !== undefined && { power }),
+    ...(distance !== undefined && { distance }),
+    ...(resistance !== undefined && { resistance }),
+    ...(heartRate !== undefined && { heartRate }),
+  };
+}
+
 /**
  * Parses a standard Bluetooth Fitness Machine Service (FTMS) Indoor Bike Data payload.
  *
@@ -76,85 +136,28 @@ export function parseFtmsIndoorBikeData(bytes: Uint8Array): Partial<BikeMetrics>
     return {};
   }
 
-  let offset = 2;
+  const cursor: FtmsCursor = { bytes, offset: 2 };
 
-  let speed: number | undefined;
-  // Instantaneous Speed is present if More Data (Bit 0) is 0
-  if ((flags & 0x0001) === 0) {
-    const rawSpeed = readUint16LE(bytes, offset);
-    if (rawSpeed !== undefined) {
-      speed = rawSpeed / 100;
-      offset += 2;
-    }
-  }
+  const speed = readOptionalField(cursor, (flags & FTMS_MORE_DATA_FLAG) === 0, 2, readUint16LE, (value) => value / 100);
 
-  // Average Speed is present if Bit 1 is 1
-  if ((flags & 0x0002) !== 0) {
-    offset += 2;
-  }
+  skipField(cursor, (flags & FTMS_AVERAGE_SPEED_FLAG) !== 0, 2);
 
-  let cadence: number | undefined;
-  // Instantaneous Cadence is present if Bit 2 is 1
-  if ((flags & 0x0004) !== 0) {
-    const rawCadence = readUint16LE(bytes, offset);
-    if (rawCadence !== undefined) {
-      cadence = rawCadence / 2;
-      offset += 2;
-    }
-  }
+  const cadence = readOptionalField(cursor, (flags & FTMS_CADENCE_FLAG) !== 0, 2, readUint16LE, (value) => value / 2);
 
-  // Average Cadence is present if Bit 3 is 1
-  if ((flags & 0x0008) !== 0) {
-    offset += 2;
-  }
+  skipField(cursor, (flags & FTMS_AVERAGE_CADENCE_FLAG) !== 0, 2);
 
-  let distance: number | undefined;
-  // Total Distance is present if Bit 4 is 1 (24-bit UINT)
-  if ((flags & 0x0010) !== 0) {
-    distance = readUint24LE(bytes, offset);
-    if (distance !== undefined) {
-      offset += 3;
-    }
-  }
+  const distance = readOptionalField(cursor, (flags & FTMS_DISTANCE_FLAG) !== 0, 3, readUint24LE);
 
-  let resistance: number | undefined;
-  // Resistance Level is present if Bit 5 is 1 (SINT16)
-  if ((flags & 0x0020) !== 0) {
-    resistance = readSint16LE(bytes, offset);
-    if (resistance !== undefined) {
-      offset += 2;
-    }
-  }
+  const resistance = readOptionalField(cursor, (flags & FTMS_RESISTANCE_FLAG) !== 0, 2, readSint16LE);
 
-  let power: number | undefined;
-  // Instantaneous Power is present if Bit 6 is 1 (SINT16)
-  if ((flags & 0x0040) !== 0) {
-    power = readSint16LE(bytes, offset);
-    if (power !== undefined) {
-      offset += 2;
-    }
-  }
+  const power = readOptionalField(cursor, (flags & FTMS_POWER_FLAG) !== 0, 2, readSint16LE);
 
-  let heartRate: number | undefined;
-  // Heart Rate is present if Bit 9 is 1 (UINT8)
-  if ((flags & 0x0200) !== 0) {
-    heartRate = readUint8(bytes, offset);
-    if (heartRate !== undefined) {
-      offset += 1;
-    }
-  }
+  const heartRate = readOptionalField(cursor, (flags & FTMS_HEART_RATE_FLAG) !== 0, 1, readUint8);
 
   // Energy is present if Bit 10 is 1 (UINT16 x 5)
   // Elapsed Time is present if Bit 11 is 1 (UINT16)
 
-  return {
-    ...(speed !== undefined && { speed }),
-    ...(cadence !== undefined && { cadence }),
-    ...(power !== undefined && { power }),
-    ...(distance !== undefined && { distance }),
-    ...(resistance !== undefined && { resistance }),
-    ...(heartRate !== undefined && { heartRate }),
-  };
+  return buildBikeMetrics(speed, cadence, power, distance, resistance, heartRate);
 }
 
 /**

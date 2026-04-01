@@ -1,5 +1,6 @@
-import { fireEvent, render } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
+import { buildTrainingSummaryRoute, POST_FINISH_TRAINING_SUMMARY_SOURCE } from '../../navigation/trainingSummaryRoute';
 import { TrainingDashboardScreen } from '../TrainingDashboardScreen';
 
 const mockPush = jest.fn();
@@ -15,6 +16,7 @@ const mockSession = {
   pause: jest.fn(),
   resume: jest.fn(),
   finish: jest.fn(),
+  finishAndDisconnect: jest.fn().mockResolvedValue('session-1'),
   reset: jest.fn(),
 };
 
@@ -23,9 +25,6 @@ const mockDeviceConnection = {
   hrConnected: false,
   latestBikeMetrics: null,
   latestHr: null,
-  connectBike: jest.fn(),
-  connectHr: jest.fn(),
-  disconnectAll: jest.fn(),
 };
 
 jest.mock('expo-router', () => ({
@@ -57,6 +56,7 @@ describe('TrainingDashboardScreen', () => {
       totalDistance: 0,
       totalCalories: 0,
       currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: null },
+      finishAndDisconnect: jest.fn().mockResolvedValue('session-1'),
     });
     Object.assign(mockDeviceConnection, {
       bikeConnected: false,
@@ -70,45 +70,12 @@ describe('TrainingDashboardScreen', () => {
     expect(() => render(<TrainingDashboardScreen />)).not.toThrow();
   });
 
-  it('shows the training heading and primary metric sections', () => {
-    const { getByText } = render(<TrainingDashboardScreen />);
-
-    expect(getByText('Training')).toBeTruthy();
-    expect(getByText('Live Ride')).toBeTruthy();
-    expect(getByText('Session Controls')).toBeTruthy();
-    expect(getByText('Ride Details')).toBeTruthy();
-    expect(getByText('Elapsed')).toBeTruthy();
-    expect(getByText('Speed')).toBeTruthy();
-    expect(getByText('Heart Rate')).toBeTruthy();
-    expect(getByText('Power')).toBeTruthy();
-    expect(getByText('Calories')).toBeTruthy();
-  });
-
-  it('does not expose a reset action', () => {
-    const { queryByText } = render(<TrainingDashboardScreen />);
-    expect(queryByText('Reset')).toBeNull();
-  });
-
-  it('keeps the descriptive copy for the portrait-only dashboard', () => {
-    const { getByText } = render(<TrainingDashboardScreen />);
-
-    expect(
-      getByText(
-        'The core workout metrics stay front and center while secondary device details remain available below.',
-      ),
-    ).toBeTruthy();
-    expect(getByText('Secondary details help confirm machine state and sensor health.')).toBeTruthy();
-  });
-
   it('shows disconnected-bike recovery actions before a workout starts', () => {
     const { getByText } = render(<TrainingDashboardScreen />);
 
     expect(getByText('Bike connection required')).toBeTruthy();
-    expect(
-      getByText('Connect your saved bike or choose one in setup before you start a workout from this screen.'),
-    ).toBeTruthy();
 
-    fireEvent.press(getByText('Start'));
+    fireEvent.press(getByText('Start Ride'));
     expect(mockSession.start).not.toHaveBeenCalled();
 
     fireEvent.press(getByText('Set Up Bike'));
@@ -118,20 +85,16 @@ describe('TrainingDashboardScreen', () => {
     expect(mockReplace).toHaveBeenCalledWith('/');
   });
 
-  it('hides disconnected-bike recovery UI and starts the workout when a bike is connected', () => {
-    Object.assign(mockDeviceConnection, {
-      bikeConnected: true,
-    });
+  it('starts the workout once the bike is connected', () => {
+    Object.assign(mockDeviceConnection, { bikeConnected: true });
 
-    const { getByText, queryByText } = render(<TrainingDashboardScreen />);
+    const { getByText } = render(<TrainingDashboardScreen />);
+    fireEvent.press(getByText('Start Ride'));
 
-    expect(queryByText('Bike connection required')).toBeNull();
-
-    fireEvent.press(getByText('Start'));
     expect(mockSession.start).toHaveBeenCalledTimes(1);
   });
 
-  it('shows active-session controls and live metrics', () => {
+  it('shows Pause and Finish while active', () => {
     Object.assign(mockSession, {
       phase: 'active',
       elapsedSeconds: 321,
@@ -147,24 +110,15 @@ describe('TrainingDashboardScreen', () => {
 
     const { getByText, queryByText } = render(<TrainingDashboardScreen />);
 
-    expect(getByText('00:05:21')).toBeTruthy();
-    expect(getByText('31.2 km/h')).toBeTruthy();
-    expect(getByText('151 bpm')).toBeTruthy();
-    expect(getByText('248 W')).toBeTruthy();
-    expect(getByText('45.6 kcal')).toBeTruthy();
     expect(getByText('Pause')).toBeTruthy();
     expect(getByText('Finish')).toBeTruthy();
     expect(queryByText('Resume')).toBeNull();
     expect(queryByText('View Summary')).toBeNull();
   });
 
-  it('shows paused-session controls only when paused', () => {
-    Object.assign(mockSession, {
-      phase: 'paused',
-    });
-    Object.assign(mockDeviceConnection, {
-      bikeConnected: true,
-    });
+  it('shows Resume and Finish while paused', () => {
+    Object.assign(mockSession, { phase: 'paused' });
+    Object.assign(mockDeviceConnection, { bikeConnected: true });
 
     const { getByText, queryByText } = render(<TrainingDashboardScreen />);
 
@@ -173,23 +127,45 @@ describe('TrainingDashboardScreen', () => {
     expect(queryByText('Pause')).toBeNull();
   });
 
-  it('shows the summary action after a workout is finished', () => {
-    Object.assign(mockSession, {
-      phase: 'finished',
-    });
-    Object.assign(mockDeviceConnection, {
-      bikeConnected: true,
-    });
+  it('does not show a summary action once the session is already finished', () => {
+    Object.assign(mockSession, { phase: 'finished' });
+    Object.assign(mockDeviceConnection, { bikeConnected: true });
 
-    const { getByText, queryByText } = render(<TrainingDashboardScreen />);
+    const { queryByText } = render(<TrainingDashboardScreen />);
 
-    expect(getByText('View Summary')).toBeTruthy();
     expect(queryByText('Pause')).toBeNull();
     expect(queryByText('Resume')).toBeNull();
     expect(queryByText('Finish')).toBeNull();
+    expect(queryByText('View Summary')).toBeNull();
+  });
 
-    fireEvent.press(getByText('View Summary'));
-    expect(mockPush).toHaveBeenCalledWith('/summary');
+  it('finishes, disconnects, and routes directly to summary', async () => {
+    let resolveFinish: ((value: string | null) => void) | undefined;
+    Object.assign(mockSession, {
+      phase: 'active',
+      finishAndDisconnect: jest.fn().mockImplementation(
+        () =>
+          new Promise<string | null>((resolve) => {
+            resolveFinish = resolve;
+          }),
+      ),
+    });
+    Object.assign(mockDeviceConnection, { bikeConnected: true });
+
+    const { getByText, queryByText } = render(<TrainingDashboardScreen />);
+
+    fireEvent.press(getByText('Finish'));
+
+    expect(getByText('Finishing...')).toBeTruthy();
+    expect(queryByText('Finish')).toBeNull();
+
+    resolveFinish?.('session-77');
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith(
+        buildTrainingSummaryRoute('session-77', POST_FINISH_TRAINING_SUMMARY_SOURCE, '/'),
+      );
+    });
   });
 
   it('falls back to the latest HR source when the merged session value is unavailable', () => {

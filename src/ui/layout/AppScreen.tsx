@@ -5,15 +5,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { palette } from '../theme';
 
 interface AppScreenProps {
-  title: string;
-  subtitle?: string;
-  children: ReactNode;
-  contentContainerStyle?: StyleProp<ViewStyle>;
+  readonly title: string;
+  readonly subtitle?: string;
+  readonly children: ReactNode;
+  readonly contentContainerStyle?: StyleProp<ViewStyle>;
 }
 
 export function AppScreen({ title, subtitle, children, contentContainerStyle }: AppScreenProps) {
   return (
-    <SafeAreaView edges={['left', 'right']} style={styles.safeArea}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
       <ScrollView contentContainerStyle={[styles.content, contentContainerStyle]} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.title}>{title}</Text>

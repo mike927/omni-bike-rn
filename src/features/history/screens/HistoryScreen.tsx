@@ -1,6 +1,11 @@
 import { useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { useLatestWorkout } from '../../home/hooks/useLatestWorkout';
+import {
+  buildTrainingSummaryRoute,
+  SAVED_SESSION_TRAINING_SUMMARY_SOURCE,
+} from '../../training/navigation/trainingSummaryRoute';
 import { useTrainingSession } from '../../training/hooks/useTrainingSession';
 import { ActionButton } from '../../../ui/components/ActionButton';
 import { MetricTile } from '../../../ui/components/MetricTile';
@@ -12,6 +17,8 @@ import { palette } from '../../../ui/theme';
 export function HistoryScreen() {
   const router = useRouter();
   const session = useTrainingSession();
+  const latestWorkout = useLatestWorkout();
+  const historyRoute = '/history';
 
   return (
     <AppScreen
@@ -32,7 +39,18 @@ export function HistoryScreen() {
           <MetricTile label="Elapsed" value={formatDuration(session.elapsedSeconds)} style={styles.metricTile} />
           <MetricTile label="Distance" value={formatDistanceKm(session.totalDistance)} style={styles.metricTile} />
         </View>
-        <ActionButton label="Open Summary" onPress={() => router.push('/summary')} variant="secondary" />
+        <ActionButton
+          label="Open Latest Summary"
+          onPress={() => {
+            if (latestWorkout) {
+              router.push(
+                buildTrainingSummaryRoute(latestWorkout.id, SAVED_SESSION_TRAINING_SUMMARY_SOURCE, historyRoute),
+              );
+            }
+          }}
+          variant="secondary"
+          disabled={!latestWorkout}
+        />
       </SectionCard>
     </AppScreen>
   );
