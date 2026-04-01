@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { useLatestWorkout } from '../../home/hooks/useLatestWorkout';
+import { useLatestWorkout } from '../../training/hooks/useLatestWorkout';
 import {
   buildTrainingSummaryRoute,
   SAVED_SESSION_TRAINING_SUMMARY_SOURCE,
@@ -14,11 +14,12 @@ import { formatDistanceKm, formatDuration } from '../../../ui/formatters';
 import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
 
+const HISTORY_ROUTE = '/history';
+
 export function HistoryScreen() {
   const router = useRouter();
   const session = useTrainingSession();
   const latestWorkout = useLatestWorkout();
-  const historyRoute = '/history';
 
   return (
     <AppScreen
@@ -44,7 +45,7 @@ export function HistoryScreen() {
           onPress={() => {
             if (latestWorkout) {
               router.push(
-                buildTrainingSummaryRoute(latestWorkout.id, SAVED_SESSION_TRAINING_SUMMARY_SOURCE, historyRoute),
+                buildTrainingSummaryRoute(latestWorkout.id, SAVED_SESSION_TRAINING_SUMMARY_SOURCE, HISTORY_ROUTE),
               );
             }
           }}

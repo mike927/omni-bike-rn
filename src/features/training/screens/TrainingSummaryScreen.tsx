@@ -46,7 +46,11 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: TrainingS
         text: 'Discard',
         style: 'destructive',
         onPress: () => {
-          deleteSession(sessionId);
+          try {
+            deleteSession(sessionId);
+          } catch (err: unknown) {
+            console.error('[TrainingSummaryScreen] Failed to delete session:', err);
+          }
           router.replace(HOME_ROUTE);
         },
       },

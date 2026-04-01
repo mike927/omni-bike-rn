@@ -382,6 +382,18 @@ describe('useTrainingSession', () => {
     expect(useDeviceConnectionStore.getState().hrAdapter).toBeNull();
   });
 
+  it('should return null from finishAndDisconnect when idle', async () => {
+    const { result } = renderHook(() => useTrainingSession());
+
+    let sessionId: string | null = 'not-null';
+    await act(async () => {
+      sessionId = await result.current.finishAndDisconnect();
+    });
+
+    expect(sessionId).toBeNull();
+    expect(result.current.phase).toBe(TrainingPhase.Idle);
+  });
+
   it('should avoid issuing a bike reset command when already idle', () => {
     const { result } = renderHook(() => useTrainingSession());
 

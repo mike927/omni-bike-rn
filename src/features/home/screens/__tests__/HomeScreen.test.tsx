@@ -24,7 +24,6 @@ jest.mock('../../../gear/hooks/useAutoReconnect');
 jest.mock('../../../gear/hooks/useSavedGear');
 jest.mock('../../../training/hooks/useTrainingSession');
 jest.mock('../../../training/hooks/useDeviceConnection');
-jest.mock('../../hooks/useLatestWorkout');
 
 const mockSession = {
   phase: 'idle',
@@ -79,7 +78,7 @@ jest.mock('../../../gear/hooks/useAutoReconnect', () => ({
   useAutoReconnect: () => mockAutoReconnect,
 }));
 
-jest.mock('../../hooks/useLatestWorkout', () => ({
+jest.mock('../../../training/hooks/useLatestWorkout', () => ({
   useLatestWorkout: () => mockLatestWorkoutHook(),
 }));
 

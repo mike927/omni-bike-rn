@@ -37,7 +37,7 @@ jest.mock('../../../training/hooks/useTrainingSession', () => ({
   }),
 }));
 
-jest.mock('../../../home/hooks/useLatestWorkout', () => ({
+jest.mock('../../../training/hooks/useLatestWorkout', () => ({
   useLatestWorkout: () => mockLatestWorkout(),
 }));
 

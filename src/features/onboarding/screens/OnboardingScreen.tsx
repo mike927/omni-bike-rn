@@ -107,7 +107,7 @@ export function OnboardingScreen() {
         </View>
 
         <View style={styles.actionRow}>
-          <ActionButton label="Skip" onPress={handleDone} variant="ghost" />
+          <ActionButton label="Skip" onPress={() => void handleDone()} variant="ghost" />
           <ActionButton label={isLastPage ? 'Done' : 'Next'} onPress={handlePrimaryAction} />
         </View>
       </View>

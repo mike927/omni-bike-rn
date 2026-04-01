@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
-import { useLatestWorkout } from '../hooks/useLatestWorkout';
+import { useLatestWorkout } from '../../training/hooks/useLatestWorkout';
 import {
   buildTrainingSummaryRoute,
   SAVED_SESSION_TRAINING_SUMMARY_SOURCE,
