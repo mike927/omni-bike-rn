@@ -23,12 +23,12 @@ See `PROJECT.md` for business requirements, functional requirements, and technol
 
 Consolidates remaining Phase 3 finish flow and Phase 5 onboarding into a single revision that simplifies the screen flow end-to-end. Branch: `feature/screen-logic-revision`.
 
-- [~] First-launch onboarding gate (preferences storage, swipeable intro, root layout gate)
-- [~] Streamlined finish flow (single Finish action: complete + disconnect + auto-navigate to Summary)
-- [~] DB-driven Summary screen with Discard / Save actions
-- [~] Simplified Home screen (Quick Start button, bike tile, HR tile, latest workout card)
-- [ ] Screen architecture diagram update (`ai/screens.md`)
-- [ ] Unit tests for new flows
+- [x] First-launch onboarding gate (preferences storage, swipeable intro, root layout gate)
+- [x] Streamlined finish flow (single Finish action: complete + disconnect + auto-navigate to Summary)
+- [x] DB-driven Summary screen with Discard / Save actions
+- [x] Simplified Home screen (Quick Start button, bike tile, HR tile, latest workout card)
+- [x] Screen architecture diagram update (`ai/screens.md`)
+- [x] Unit tests for new flows
 
 ## Phase 1: Foundation & BLE Core
 
@@ -75,8 +75,8 @@ Bike-first product UX in this phase: support a single main bike for now, while k
 - [x] Functional training dashboard screen (Time, Speed, HR, Power, Calories)
 - [x] Portrait and landscape training layouts - closed by product decision: app remains portrait-only
 - [x] Local DB schema + session persistence (Drizzle + expo-sqlite)
-- [~] Finish flow from app: confirmation before completing, then navigate to summary and require an explicit save-or-discard choice when tapping `Done` — addressed in Screen Logic Revision
-- [~] Finished workout summary screen (save, discard, deferred upload entry points) — addressed in Screen Logic Revision
+- [x] Finish flow from app: confirmation before completing, then navigate to summary and require an explicit save-or-discard choice when tapping `Done` — addressed in Screen Logic Revision
+- [x] Finished workout summary screen (save, discard, deferred upload entry points) — addressed in Screen Logic Revision
 - [-] Bike stop handling: freeze the session and prompt the user to finish instead of auto-completing immediately - deferred by product decision
 - [ ] Crash recovery / interrupted session restore
 - [ ] Add comprehensive unit tests covering various test cases
@@ -92,10 +92,10 @@ Bike-first product UX in this phase: support a single main bike for now, while k
 
 Lightweight, modern onboarding shown only on first launch. 2-3 swipeable intro screens that explain the app setup flow (connect bike, optional HR source, start training). No interactive walkthrough — just clear, visual guidance so the user knows what to expect before landing on the Home screen.
 
-- [~] First-launch detection and persistence (show once, remember dismissal) — addressed in Screen Logic Revision
-- [~] Swipeable onboarding screen with 2-3 pages (connect bike → optional HR → start training) — addressed in Screen Logic Revision
+- [x] First-launch detection and persistence (show once, remember dismissal) — addressed in Screen Logic Revision
+- [x] Swipeable onboarding screen with 2-3 pages (connect bike → optional HR → start training) — addressed in Screen Logic Revision
 - [ ] Modern, visually polished design (animations, illustrations, smooth transitions) — deferred to Phase 9
-- [~] Skip and Done actions — addressed in Screen Logic Revision
+- [x] Skip and Done actions — addressed in Screen Logic Revision
 - [ ] Add unit tests
 
 ## Phase 6: Integrations & External Provider Sync
