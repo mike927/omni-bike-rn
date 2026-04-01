@@ -6,6 +6,7 @@ import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
 import { BikeStatus } from '../../../services/ble/BikeAdapter';
 import { TrainingPhase, type MetricSnapshot } from '../../../types/training';
 import { disconnectAllDeviceConnections } from './useDeviceConnection';
+import { getActiveSessionId } from './useTrainingSessionPersistence';
 
 const FINISH_STOP_COMMAND_TIMEOUT_MS = 2000;
 
@@ -22,6 +23,7 @@ interface UseTrainingSessionReturn {
   pause: () => void;
   resume: () => void;
   finish: () => void;
+  finishAndDisconnect: () => Promise<string | null>;
   reset: () => Promise<void>;
 }
 
@@ -141,6 +143,23 @@ export function useTrainingSession(): UseTrainingSessionReturn {
     finishSession();
   }, [finishSession]);
 
+  const finishAndDisconnect = useCallback(async (): Promise<string | null> => {
+    const currentPhase = useTrainingSessionStore.getState().phase;
+    if (currentPhase !== TrainingPhase.Active && currentPhase !== TrainingPhase.Paused) {
+      return null;
+    }
+
+    finishSession();
+
+    const sessionId = getActiveSessionId();
+
+    await awaitPendingFinishStop();
+    await disconnectAllDeviceConnections({ updateReconnectState: true, suppressAutoReconnect: true });
+    useTrainingSessionStore.getState().reset();
+
+    return sessionId;
+  }, [finishSession, awaitPendingFinishStop]);
+
   const reset = useCallback(async () => {
     const currentPhase = useTrainingSessionStore.getState().phase;
 
@@ -165,14 +184,9 @@ export function useTrainingSession(): UseTrainingSessionReturn {
           useTrainingSessionStore.getState().resume();
           ensureEngineRunning();
         }
-      } else if (status === BikeStatus.Paused) {
-        if (currentPhase === TrainingPhase.Active) {
-          useTrainingSessionStore.getState().pause();
-          stopEngine(false);
-        }
-      } else if (status === BikeStatus.Stopped) {
-        // Ignore when already Paused — this echo is from our own setControlState(Stopped) call.
-        // When Active, freeze the session. Phase 3 will add the "prompt to finish" UX.
+      } else if (status === BikeStatus.Paused || status === BikeStatus.Stopped) {
+        // Ignore when already Paused — a Stopped echo can come from our own setControlState(Stopped) call.
+        // When Active, both Paused and Stopped should freeze the session until the user resumes or finishes.
         if (currentPhase === TrainingPhase.Active) {
           useTrainingSessionStore.getState().pause();
           stopEngine(false);
@@ -207,6 +221,7 @@ export function useTrainingSession(): UseTrainingSessionReturn {
     pause,
     resume,
     finish,
+    finishAndDisconnect,
     reset,
   };
 }

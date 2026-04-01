@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react-native';
+import { act, renderHook, waitFor } from '@testing-library/react-native';
 
 import { useDeviceConnection } from '../useDeviceConnection';
 import { useDeviceConnectionStore } from '../../../../store/deviceConnectionStore';
@@ -29,7 +29,7 @@ jest.mock('../../../../services/ble/StandardHrAdapter', () => ({
 }));
 
 describe('useDeviceConnection', () => {
-  beforeEach(async () => {
+  beforeEach(() => {
     jest.clearAllMocks();
     useDeviceConnectionStore.getState().clearAll();
     useSavedGearStore.setState({
@@ -41,12 +41,6 @@ describe('useDeviceConnection', () => {
       bikeAutoReconnectSuppressed: false,
       hrAutoReconnectSuppressed: false,
     });
-
-    const { result, unmount } = renderHook(() => useDeviceConnection());
-    await act(async () => {
-      await result.current.disconnectAll();
-    });
-    unmount();
   });
 
   it('should disconnect the previous bike before reconnecting', async () => {
@@ -90,7 +84,9 @@ describe('useDeviceConnection', () => {
       connectPromise = result.current.connectBike('bike-1');
     });
 
-    await act(async () => {});
+    await waitFor(() => {
+      expect(useDeviceConnectionStore.getState().bikeConnectionInProgress).toBe(true);
+    });
 
     expect(useDeviceConnectionStore.getState().bikeConnectionInProgress).toBe(true);
 

@@ -18,6 +18,19 @@ const SAMPLE_ID_PREFIX = 'sample';
 const RANDOM_RADIX = 36;
 const RANDOM_ID_LENGTH = 8;
 
+/**
+ * Module-level reference to the active session ID managed by the persistence
+ * hook. Allows external callers (e.g. {@link useTrainingSession}) to read the
+ * current session ID without coupling to the hook's internal refs.
+ *
+ * Safe to call only while {@link useTrainingSessionPersistence} is mounted.
+ */
+let moduleActiveSessionId: string | null = null;
+
+export function getActiveSessionId(): string | null {
+  return moduleActiveSessionId;
+}
+
 function toDeviceSnapshot(device: SavedDevice | null): PersistedDeviceSnapshot | null {
   if (!device) {
     return null;
@@ -47,9 +60,14 @@ export function useTrainingSessionPersistence(isEnabled = true): void {
       return;
     }
 
+    const setActiveSessionId = (id: string | null) => {
+      activeSessionIdRef.current = id;
+      moduleActiveSessionId = id;
+    };
+
     const clearActiveSession = (sessionId: string | null = null) => {
       if (sessionId === null || activeSessionIdRef.current === sessionId) {
-        activeSessionIdRef.current = null;
+        setActiveSessionId(null);
       }
       nextSampleSequenceRef.current = 0;
     };
@@ -77,7 +95,7 @@ export function useTrainingSessionPersistence(isEnabled = true): void {
         const sessionId = createEntityId(SESSION_ID_PREFIX, startedAtMs);
         const { savedBike, savedHrSource } = useSavedGearStore.getState();
 
-        activeSessionIdRef.current = sessionId;
+        setActiveSessionId(sessionId);
         persistedSessionIdRef.current = null;
         nextSampleSequenceRef.current = 0;
 
@@ -232,6 +250,7 @@ export function useTrainingSessionPersistence(isEnabled = true): void {
 
     return () => {
       unsubscribe();
+      moduleActiveSessionId = null;
     };
   }, [isEnabled]);
 }
