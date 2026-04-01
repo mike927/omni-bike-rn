@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+
+# Expo build artifacts
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Generated native folders
+/ios
+/android
+
+# Lock files (large, not useful for context)
+package-lock.json
+
+# Native build artifacts
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+
+# Metro
+.metro-health-check*
+
+# Debug logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Claude-specific config (not relevant to Gemini)
+.claude/
+
+# Local env
+.env*.local
+
+# Git-ignored AI runtime state
+ai/local/
