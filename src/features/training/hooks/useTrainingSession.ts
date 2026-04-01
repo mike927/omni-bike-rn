@@ -66,14 +66,18 @@ export function useTrainingSession(): UseTrainingSessionReturn {
       return;
     }
 
+    let timeoutId: NodeJS.Timeout | undefined;
     try {
       await Promise.race([
         pendingStop,
         new Promise<void>((resolve) => {
-          setTimeout(resolve, FINISH_STOP_COMMAND_TIMEOUT_MS);
+          timeoutId = setTimeout(resolve, FINISH_STOP_COMMAND_TIMEOUT_MS);
         }),
       ]);
     } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       pendingFinishStopRef.current = null;
     }
   }, []);
