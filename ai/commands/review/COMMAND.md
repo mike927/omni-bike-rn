@@ -39,7 +39,7 @@ For `pr` scope, also fetch CI status: `gh pr checks`.
 ### Step 2: Load Review Context
 
 1. Load the review checklist from `ai/skills/quality-review/SKILL.md` § Review Checklist.
-2. Read `AGENTS.md` § Coding Conventions for cross-cutting standards.
+2. Read the active workspace coding and workflow guidance for cross-cutting standards.
 3. Cross-reference `plan.md` to confirm the changes align with the intended task scope.
 
 ### Step 3: Review Each Changed File
@@ -57,7 +57,7 @@ Flag each finding with `file:line` references and severity:
 
 - **bug** — incorrect behaviour or crash risk
 - **regression** — breaks existing functionality
-- **convention** — violates AGENTS.md or project standards
+- **convention** — violates project standards
 - **suggestion** — improvement that is not blocking
 
 ### Step 4: Write Findings

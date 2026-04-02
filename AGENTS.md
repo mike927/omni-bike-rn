@@ -211,14 +211,31 @@ Use this format for all standard stage transitions or turn pauses:
 ### 7. Internal Review
 
 - Execute the `/review` command logic to deeply analyze your diff for bugs, regressions, missing tests, and architecture risks before asking the human to test.
-- Track review notes in `ai/local/reviews/<branch-slug>.md` only when a durable local review file is strictly necessary for a massive or complex fix-loop.
+- Use `/review branch` as the default first pre-test review on the branch.
+- Let the `/review` command own review-file creation and cleanup behavior in `ai/local/reviews/<branch-slug>.md`.
+
+### Fix Loop Decision Rules
+
+Use these rules for Internal Review Fix Loop, Manual Testing Fix Loop, and PR Review Fix Loop so the decision logic lives in one place.
+
+- Validation scope:
+  - use `/validate quick` for docs, workflow, comments, text-only changes, or narrow non-runtime refactors
+  - use `/validate test` for test-only changes
+  - use `/validate full` for runtime logic, app behavior, native/config/build changes, routing, persistence, BLE, permissions, or anything user-visible
+- Internal review scope:
+  - use `/review staged` by default after a small local follow-up fix
+  - escalate to `/review branch` when the fix changes architecture, contracts or interfaces, shared flows or shared state, routing, persistence, native behavior, BLE behavior, or could invalidate earlier review conclusions
+- Manual retesting:
+  - do not require human retesting during Step 8 unless the review-driven fix changes user-visible behavior or invalidates behavior the human will later verify
+  - require targeted human retesting during Step 10 or Step 13 when the fix is user-visible, native, risky, or changes a previously tested flow
+- A fix loop is clean only when the selected validation passes, no unresolved blocking review findings remain, and any required retest or PR follow-up for that stage is complete
 
 ### 8. Internal Review Fix Loop
 
 - If internal review finds issues, fix them before asking the human to test.
-- After each review-driven code change:
-  - rerun the most relevant validation
-  - rerun internal review when the change is substantial, architectural, or likely to hide follow-on issues
+- After each review-driven code change, follow the Fix Loop Decision Rules for validation and internal review scope.
+- Default to `/review staged` for small incremental follow-up fixes. Escalate to `/review branch` only when the rules above require it.
+- Do not proceed to manual testing until the fix loop is clean.
 - If internal review is already clean, mark this step complete with a short note such as `no fixes needed`.
 
 ### 9. Manual Human Testing
@@ -236,10 +253,8 @@ Use this format for all standard stage transitions or turn pauses:
 ### 10. Manual Testing Fix Loop
 
 - If manual testing feedback leads to code changes, do not jump straight to PR.
-- After each manual-testing-driven code change:
-  - rerun the most relevant validation
-  - request targeted manual retesting for the affected behavior unless the change is provably non-user-visible
-  - rerun internal review as well when the change is substantial, risky, architectural, or touches native behavior
+- After each manual-testing-driven code change, follow the Fix Loop Decision Rules for validation and internal review scope.
+- Request targeted manual retesting only for the affected behavior unless the change is provably non-user-visible.
 - Stay in this loop until the human explicitly confirms the latest changes.
 
 ### 11. PR Open
@@ -261,7 +276,7 @@ Use this format for all standard stage transitions or turn pauses:
   - prioritize bugs, regressions, missing tests, and architecture risks
   - apply fixes for clearly actionable comments without waiting for extra approval
   - explicitly call out comments that are declined or intentionally left unchanged, with reasons
-  - run the most relevant validation after each fix
+  - follow the Fix Loop Decision Rules after each fix before replying or resolving threads
   - prepare short reply text the human can paste into GitHub for each addressed thread
 - Only treat a review comment as resolved after the fix is implemented, validated, and pushed.
 - If GitHub permissions allow, the agent may reply to and resolve addressed review threads directly. Otherwise, it should prepare the exact reply or resolution notes for the human.
@@ -269,8 +284,7 @@ Use this format for all standard stage transitions or turn pauses:
 ### 13. PR Review Fix Loop
 
 - If PR review feedback leads to code changes:
-  - rerun the most relevant validation after each fix
-  - rerun internal review when the fix is substantial, risky, or architectural
+  - follow the Fix Loop Decision Rules for validation and internal review scope
   - request targeted manual retesting when the fix changes user-visible behavior, product flow, native behavior, or anything the human previously validated manually
   - prepare updated reply text or direct GitHub replies only after the fix and required revalidation are complete
 - Repeat the PR review and fix loop up to 3 times. Stop earlier if the review queue is already clean.
