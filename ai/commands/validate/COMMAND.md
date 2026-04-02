@@ -2,11 +2,6 @@
 name: validate
 description: >-
   Run the full validation suite and report pass/fail per command.
-triggers:
-  - 'run validation'
-  - 'validate the code'
-  - 'run checks'
-  - 'run lint and tests'
 inputs:
   - name: scope
     description: 'Which checks to run: "full" (all), "quick" (lint + typecheck only), or "test" (tests only)'
@@ -14,15 +9,11 @@ inputs:
 outputs:
   - name: summary
     description: 'Pass/fail summary reported in chat'
-  - name: workflow-update
-    description: 'Validation state updated in ai/local/workflows/<branch-slug>.md if the file exists'
-workflow-steps:
-  - 5
 ---
 
 # Validate
 
-Run the project validation suite and record results. Maps to AGENTS.md workflow step 5 (Validation Complete).
+Run the project validation suite and record results.
 
 ## Prerequisites
 
@@ -37,7 +28,7 @@ Read the `scope` input. Default is `full`.
 
 | Scope   | Commands to run                                          |
 |---------|----------------------------------------------------------|
-| `full`  | lint, typecheck, test, ci:gate, build:smoke              |
+| `full`  | lint, typecheck, test, build:smoke                             |
 | `quick` | lint, typecheck                                          |
 | `test`  | test only                                                |
 
@@ -50,22 +41,12 @@ Run each command in sequence. Record exit code and key output for each.
 npm run lint
 npm run typecheck
 npm test -- --ci --runInBand
-npm run ci:gate
 npm run build:smoke
 ```
 
 If a command fails, continue running the remaining commands so the full picture is reported.
 
-### Step 3: Update Workflow File
-
-If `ai/local/workflows/<branch-slug>.md` exists, update its **Validation State** section with:
-
-- Date and time of the run
-- Scope used
-- Per-command pass/fail
-- Any notable warnings or errors
-
-### Step 4: Report Summary
+### Step 3: Report Summary
 
 Post a summary in chat using this format:
 
@@ -74,7 +55,6 @@ Post a summary in chat using this format:
 - lint: ✅ / ❌
 - typecheck: ✅ / ❌
 - test: ✅ / ❌ (<n> passed, <m> failed)
-- ci:gate: ✅ / ❌
 - build:smoke: ✅ / ❌
 ```
 
@@ -84,9 +64,7 @@ Include the first relevant error line for any failing command.
 
 - Every command in the chosen scope has been run.
 - Results are reported in chat.
-- Workflow file is updated (if it exists).
 
 ## See Also
 
-- `AGENTS.md` § Validation — canonical command list
 - `ai/commands/review/COMMAND.md` — typically run after validation passes
