@@ -144,8 +144,9 @@ Examples:
 ### Chat Progress Updates
 
 - Use the `**Current Focus**` header only for meaningful progress updates.
-- Good times to send it: before substantial work, when the active stage changes, when blocked, before edits, or when a command will take noticeable time.
-- Do not send repeated progress updates for every small loop iteration, quick status check, or tightly-coupled follow-up command.
+- Default to a single `**Current Focus**` update at the start of a work burst.
+- Send another one only when there is a real transition: stage change, blocker, need for user input, or a notably long-running task.
+- Do not send repeated progress updates for every small loop iteration, quick status check, tightly-coupled follow-up command, or each step inside a commit/push/validate loop.
 - *Note:* At session start (Step 1), the explicit `/check-state` snapshot command format takes precedence. Do not stack a `**Current Focus**` update on top of a `/check-state` block.
 - If the task does not require every step (e.g., simple debugging), the status message must explicitly reflect the actual active stage instead of implying false sequential progress.
 
@@ -162,6 +163,7 @@ Use this format for all standard stage transitions or turn pauses:
 - If you are completely blocked, use `**Current Focus**` with a concise blocked summary in the same bullet format.
 - Tailor the bullets to the active step or immediate task (for example planning, implementation, validation, review, or testing).
 - Keep the bullets short, direct, and non-redundant.
+- In most cases, prefer a single bullet.
 - Preserve the exact `**Current Focus**` header so the message is always visually distinct and scannable in the chat UI.
 
 ### 1. Bootstrap / Resume Context
