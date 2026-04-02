@@ -2,11 +2,6 @@
 name: review
 description: >-
   Run an internal code review against the current branch diff before opening a PR.
-triggers:
-  - 'review my code'
-  - 'run a code review'
-  - 'check code quality'
-  - 'internal review'
 inputs:
   - name: scope
     description: 'What to review: "staged" (staged changes), "branch" (diff vs base), or "pr" (fetched PR diff)'
@@ -16,13 +11,11 @@ outputs:
     description: 'Review findings written to ai/local/reviews/<branch-slug>.md'
   - name: recommendation
     description: 'Merge recommendation reported in chat: approve, request changes, or comment'
-workflow-steps:
-  - 6
 ---
 
 # Review
 
-Run an internal code review and report findings. Maps to AGENTS.md workflow step 6 (Internal Review).
+Run an internal code review and report findings.
 
 ## Prerequisites
 
@@ -46,7 +39,7 @@ For `pr` scope, also fetch CI status: `gh pr checks`.
 ### Step 2: Load Review Context
 
 1. Load the review checklist from `ai/skills/quality-review/SKILL.md` § Review Checklist.
-2. Read `AGENTS.md` § Coding Conventions for cross-cutting standards.
+2. Read the active workspace coding and workflow guidance for cross-cutting standards.
 3. Cross-reference `plan.md` to confirm the changes align with the intended task scope.
 
 ### Step 3: Review Each Changed File
@@ -64,12 +57,14 @@ Flag each finding with `file:line` references and severity:
 
 - **bug** — incorrect behaviour or crash risk
 - **regression** — breaks existing functionality
-- **convention** — violates AGENTS.md or project standards
+- **convention** — violates project standards
 - **suggestion** — improvement that is not blocking
 
 ### Step 4: Write Findings
 
-Write the full review output to `ai/local/reviews/<branch-slug>.md`:
+If the scope is `staged`, simply output the findings in chat and skip writing a persistent file since staged changes iterate rapidly.
+
+For `branch` or `pr` scopes, write the full review output to `ai/local/reviews/<branch-slug>.md`:
 
 ```md
 # Review: <branch-name>
@@ -120,5 +115,3 @@ If all findings in the review file are either addressed in code or explicitly ac
 ## See Also
 
 - `ai/skills/quality-review/SKILL.md` — review checklist and quality standards
-- `AGENTS.md` § Coding Conventions — cross-cutting standards
-- `AGENTS.md` § Feature Workflow steps 6–7 — internal review and fix loop
