@@ -201,7 +201,7 @@ Current Stage: <step title> - <super concise summary of the current message or t
 
 ### 6. Validation Complete
 
-- Execute the `/validate` command logic, or manually run the specific validation scripts (lint, test, typecheck) relevant to the change.
+- Execute the `/validate` command logic.
 - Do not move forward to review or testing until validation explicitly passes.
 
 ### 7. Internal Review
