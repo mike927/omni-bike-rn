@@ -144,28 +144,28 @@ Examples:
 ### Chat Progress Updates
 
 - Whenever the agent finishes a turn, pauses for human input, or transitions to a new workflow step, it must use the `**Workflow Progress**` header to give the human a quick orientation.
-- *Note:* At session start (Step 1), the explicit `/status` snapshot command format takes precedence. Do not stack a `**Workflow Progress**` update on top of a `/status` block.
+- *Note:* At session start (Step 1), the explicit `/check-state` snapshot command format takes precedence. Do not stack a `**Workflow Progress**` update on top of a `/check-state` block.
 - If the task does not require every step (e.g., simple debugging), the status message must explicitly reflect the actual active stage instead of implying false sequential progress.
 
 Use this format for all standard stage transitions or turn pauses:
 
 ```md
-**Workflow Progress**
-Current Stage: <step title> - <super concise summary of the current message or task>
-
 **Current Focus**
-- <short line about what was just done, is being checked, or remains to be done>
-- <short line about what matters right now>
+- <concise summary>
+- <optional concise summary>
+- <optional concise summary>
 ```
 
-- If you are completely blocked, alter the top line to: `Current Stage: <step title> - blocked`.
-- Tailor `Current Focus` to the active stage (e.g., what decision was locked, what changed in implementation, or what the human should verify).
-- Preserve the exact header text, `Current Stage:` label, and `Current Focus` heading so the message is always visually distinct and scannable in the chat UI.
+- Use 1 to 3 short bullet lines starting with `-`.
+- If you are completely blocked, use `**Current Focus**` with a concise blocked summary in the same bullet format.
+- Tailor the bullets to the active step or immediate task (for example planning, implementation, validation, review, or testing).
+- Keep the bullets short, direct, and non-redundant.
+- Preserve the exact `**Current Focus**` header so the message is always visually distinct and scannable in the chat UI.
 
 ### 1. Bootstrap / Resume Context
 
 - If the current branch is not `main`, treat the session as a resume:
-  - invoke the `/status` command logic to analyze the actual workspace reality
+  - invoke the `/check-state` command logic to analyze the actual workspace reality
   - continue from the logically implied step based on the status snapshot
   - do not restart planning or implementation from scratch
 - If the current branch is `main`, treat the session as a new task and continue to step 2.
@@ -197,7 +197,7 @@ Current Stage: <step title> - <super concise summary of the current message or t
 - Break the work into small, meaningful sub-tasks.
 - Implement fully, not partially.
 - Keep commits focused.
-- **Do not continuously update** `ai/local/plans/<branch-slug>.md` to check off tasks while coding. Progress is tracked via `git log` and `git status`. Agents will re-sync tracking state natively on-the-fly using the `/status` command if context is lost.
+- **Do not continuously update** `ai/local/plans/<branch-slug>.md` to check off tasks while coding. Progress is tracked via `git log` and `git status`. Agents will re-sync tracking state natively on-the-fly using the `/check-state` command if context is lost.
 
 ### 6. Validation Complete
 
@@ -338,7 +338,7 @@ Available commands:
 - `ai/commands/review/COMMAND.md` — internal code review (diff-based, pre-PR)
 - `ai/commands/pr/COMMAND.md` — open a GitHub PR with the project's standard format
 - `ai/commands/validate/COMMAND.md` — run the full validation suite
-- `ai/commands/status/COMMAND.md` — bootstrap context and analyze branch reality to help decide next steps
+- `ai/commands/check-state/COMMAND.md` — bootstrap context and analyze branch reality to help decide next steps
 
 ### Adding A New Command
 

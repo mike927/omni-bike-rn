@@ -11,7 +11,7 @@ ai/
     review/            ← internal code review
     pr/                ← open GitHub PR with standard format
     validate/          ← run full validation suite
-    resume/            ← bootstrap/resume session context
+    check-state/       ← bootstrap/resume session context
   skills/
     architecture/      ← structure, boundaries, ownership
     ble-hardware/      ← BLE scanning, FTMS parsing, device adapters

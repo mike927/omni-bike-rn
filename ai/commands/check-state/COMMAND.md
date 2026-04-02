@@ -1,5 +1,5 @@
 ---
-name: status
+name: check-state
 description: >-
   Analyze branch reality vs. local workflow state and prompt for next steps.
 inputs: []
@@ -8,7 +8,7 @@ outputs:
     description: 'A comprehensive chat message outlining Git state, MD state, discrepancies, and actionable next steps.'
 ---
 
-# Status
+# Check-State
 
 Assess current context by taking a deep-dive snapshot of reality, showing it to the human, and awaiting instructions on what to do next.
 
@@ -46,7 +46,7 @@ Cross-reference Reality vs. Workflow State:
 - If the branch is `main` but there are dirty files, flag the violation of core rules.
 - If there is no plan file, note that this appears to be a fresh start or an untracked feature.
 
-### Step 4: Report Status Snapshot
+### Step 4: Report Check-State Snapshot
 
 Post a highly comprehensive snapshot message in chat using this general format:
 
@@ -73,7 +73,7 @@ Post a highly comprehensive snapshot message in chat using this general format:
 
 ### Step 5: Await Instructions
 
-Explicitly pause execution and wait for the user to reply with what to do next. Do not spontaneously execute further logic without user consent after a status command.
+Explicitly pause execution and wait for the user to reply with what to do next. Do not spontaneously execute further logic without user consent after a check-state command.
 
 ## Completion Criteria
 
