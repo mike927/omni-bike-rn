@@ -143,8 +143,10 @@ Examples:
 
 ### Chat Progress Updates
 
-- Whenever the agent finishes a turn, pauses for human input, or transitions to a new workflow step, it must use the `**Workflow Progress**` header to give the human a quick orientation.
-- *Note:* At session start (Step 1), the explicit `/check-state` snapshot command format takes precedence. Do not stack a `**Workflow Progress**` update on top of a `/check-state` block.
+- Use the `**Current Focus**` header only for meaningful progress updates.
+- Good times to send it: before substantial work, when the active stage changes, when blocked, before edits, or when a command will take noticeable time.
+- Do not send repeated progress updates for every small loop iteration, quick status check, or tightly-coupled follow-up command.
+- *Note:* At session start (Step 1), the explicit `/check-state` snapshot command format takes precedence. Do not stack a `**Current Focus**` update on top of a `/check-state` block.
 - If the task does not require every step (e.g., simple debugging), the status message must explicitly reflect the actual active stage instead of implying false sequential progress.
 
 Use this format for all standard stage transitions or turn pauses:
