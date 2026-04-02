@@ -201,14 +201,13 @@ Current Stage: <step title> - <super concise summary of the current message or t
 
 ### 6. Validation Complete
 
-- Run the most relevant validation for the change.
-- Do not move forward with unclear validation status.
+- Execute the `/validate` command logic, or manually run the specific validation scripts (lint, test, typecheck) relevant to the change.
+- Do not move forward to review or testing until validation explicitly passes.
 
 ### 7. Internal Review
 
-- After implementation, perform an internal review with another agent when available.
-- The review should focus on bugs, regressions, missing tests, and architecture risks.
-- Track review notes in `ai/local/reviews/<branch-slug>.md` when a durable local review file is needed.
+- Execute the `/review` command logic to deeply analyze your diff for bugs, regressions, missing tests, and architecture risks before asking the human to test.
+- Track review notes in `ai/local/reviews/<branch-slug>.md` only when a durable local review file is strictly necessary for a massive or complex fix-loop.
 
 ### 8. Internal Review Fix Loop
 
