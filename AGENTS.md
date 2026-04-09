@@ -1,7 +1,5 @@
 # Agent Instructions
 
-This file contains the always-on instructions for agents working in this repository.
-
 ## Project Context
 
 Omni Bike is an iOS indoor cycling companion app. It connects to a BLE stationary bike and optional HR sources, records training sessions, and syncs completed workouts to Strava.
@@ -29,10 +27,9 @@ Read these in this order before feature work:
 2. This `AGENTS.md` file
 3. `git branch --show-current`
 4. `git worktree list`
-5. If the current branch is not `main`, read `ai/local/workflows/<branch-slug>.md` when it exists
-6. Relevant files under `ai/skills/*/SKILL.md`
-7. When the user asks for a specific procedure (review, PR, validate, resume), load the matching `ai/commands/*/COMMAND.md`
-8. When the task involves vendor-specific behavior or hardware, check `docs/` for trusted reference material
+5. Relevant files under `ai/skills/*/SKILL.md`
+6. When the user asks for a specific procedure (review, PR, validate, check-state, start-feature, open-pr, address-pr-comments, finish-feature), load the matching `ai/commands/*/COMMAND.md`
+7. When the task involves vendor-specific behavior or hardware, check `docs/` for trusted reference material
 
 `plan.md` is the single source of truth for project scope and progress.
 `branch-slug` means the branch name with `/` replaced by `-`.
@@ -44,31 +41,24 @@ Use these task states consistently:
 - `[ ]` not started
 - `[~]` in progress
 - `[?]` blocked or needs clarification
-- `[R]` implemented and in review, approved, or waiting for merge
-- `[x]` merged and completed
+- `[R]` implemented locally and ready for PR (or internal review)
+- `[x]` in PR, waiting for merge, or already merged
 - `[-]` intentionally skipped or deferred
 
 When using `[?]` or `[-]`, include a short reason in the same task line.
 
-## Worktree And Branch Rules
+## Branching And Workspace Rules
 
-- Never work directly on `main`.
-- Treat the repository root on `main` as a coordination and read-only workspace. Do not mutate repo-tracked files there.
-- Default worktree root: `../omni-bike-rn-worktrees/`.
-- Any task that may mutate repo state must happen in a dedicated worktree on a non-`main` branch.
-- Name each worktree directory with the `branch-slug`.
-- Use common branch prefixes:
-  - `feature/*`
-  - `bugfix/*`
-  - `hotfix/*`
-- Reuse an existing worktree when resuming the same branch. Create a new worktree only when starting a new branch.
-- When a feature branch is merged and the local worktree is safely stale, remove the worktree to keep the local filesystem clean.
+- Never commit changes directly to `main`.
+- **In-Place Branching**: Standard branches (`git checkout -b <branch>`) directly in the repository root. Preferred for linear development.
+- **Worktree Branching**: Dedicated worktree (`../omni-bike-rn-worktrees/<branch-slug>`) when explicitly requested for parallel isolation.
+- Name branches as `<type>/<kebab-case-description>` using Conventional Commits prefixes (e.g., `feat/`, `fix/`, `docs/`, `refactor/`). Determine the prefix automatically based on task scope.
 
 Examples:
 
-- `feature/ble-metronome-engine`
-- `bugfix/ftms-status-parser`
-- `../omni-bike-rn-worktrees/feature-ble-metronome-engine`
+- `feat/ble-metronome-engine`
+- `fix/ftms-status-parser`
+- `../omni-bike-rn-worktrees/feat-ble-metronome-engine`
 
 ## Commit Rules
 
@@ -83,13 +73,11 @@ Examples:
 
 ## Workflow Artifacts
 
-- `ai/local/plans/<branch-slug>.md`: the local implementation plan for the active branch. Create it before implementation and keep it current enough for a handoff inside the current worktree.
-- `ai/local/workflows/<branch-slug>.md`: the local workflow state file for the active branch. Use it so any new conversation in that worktree can resume from the current workflow step without relying on chat history.
+- `ai/local/plans/<branch-slug>.md`: the local implementation plan for the active branch. Treat as a read-only blueprint once approved; do not update it continuously to track progress unless the fundamental scope changes.
 - `ai/local/reviews/<branch-slug>.md`: local internal review findings and follow-up notes for the active branch.
-- `ai/local/testing/<branch-slug>.md`: local saved manual testing checklist. Create or update it only when the human explicitly asks for a persistent checklist file.
+- `ai/local/testing/<branch-slug>.md`: local saved manual testing checklist. Create or update only when the human explicitly asks for a persistent checklist file.
 - Reuse the same `branch-slug` across all branch-scoped AI artifacts.
-- These files are intentionally local-only and ignored by git. Do not open PRs just to add, update, or remove them.
-- When the worktree is deleted after merge, its `ai/local/` files disappear with it, so no repo cleanup commit is needed for branch runtime state.
+- These files are local-only and ignored by git. Do not open PRs just to add, update, or remove them.
 
 ## Coding Conventions
 
@@ -101,8 +89,7 @@ Examples:
 - Prefer `interface` for contracts and public API shapes. Use `type` for unions, intersections, and utility types.
 - Interfaces and type aliases use `PascalCase`. Enum members use `UPPER_CASE` or `PascalCase`.
 - Do not declare reusable interfaces or type aliases inside implementation files such as adapters, hooks, screens, or components. Put them in a dedicated sibling file, contract file, or `src/types/` module and import them where needed.
-
-- Do not use magic values (inline UUIDs, URLs, numeric constants). Define them as named constants at module scope and reference the constant everywhere. If the same value is needed in multiple files, define it once and import it.
+- Do not use magic values (inline UUIDs, URLs, numeric constants). Define named constants at module scope. If the same value is needed in multiple files, define it once and import it.
 
 ### Architecture
 
@@ -128,7 +115,15 @@ Examples:
 
 ## Feature Workflow
 
-### Workflow Status Messages
+### Workflow Pacing and Discipline
+
+- You must execute the workflow strictly and sequentially. Do not spontaneously skip numbered workflow steps.
+- Do not chain multiple distinct workflow steps together in a single turn. Pause at the logical end of your current step, report your progress via a Chat Progress Update, and await explicit human instruction before executing the next numbered phase.
+- If a step is logically irrelevant for a given task (e.g., Manual Human Testing for a pure documentation update), you must still output the `**Workflow Progress**` header for that step, formally note that it is being skipped, and provide a super concise reason why. Do not silently skip past it.
+- Agents with terminal capabilities should run CLI commands natively instead of instructing the human to paste them, provided it stays within tool-call approval constraints.
+- During complex debugging, do not pollute the project root with temporary scripts or data dumps. Use the agent's isolated sandbox directory or standard OS temporary directories (`/tmp/`), and clean them up afterward.
+
+### Chat Headers
 
 - For substantive user-facing messages, start with a short header that tells the human what kind of message this is.
 - Prefer these headers:
@@ -139,236 +134,148 @@ Examples:
   - `**Manual Testing**`
   - `**Review**`
   - `**Blocked**`
-- Keep headers short, stable, and purpose-based. Do not invent a new header when one of the standard labels already fits.
-- The agent must post a workflow status message at session start, on every workflow-step transition, whenever blocked, and before waiting on human approval or manual testing.
-- After completing any workflow step and before stopping or waiting, the agent must also post a short step-transition message in chat so the human can immediately see what just finished and what comes next without opening any markdown files.
-- Every step-transition message must include a second short section that explains the current focus, recent outcome, or blocker in plain language so the human gets an immediate overview of the current state.
-- If the task is review-only, question-answering, debugging, or another partial workflow that does not require every numbered step, the agent may skip non-applicable steps after bootstrap. In those cases, the status message must explicitly reflect the actual active step instead of implying the workflow is proceeding sequentially through all numbers.
-- Do not combine `0. Bootstrap / Resume Context` with a later active step in one `🛠️ In Progress` line. Once bootstrap is done, mark it complete or summarize it in `Stage Summary`, then start a new status message for the actual active step.
-- For chat progress updates, prefer a single concise workflow line instead of separate `Completed` / `Next` lines.
-- Keep the status message concise and include all of these fields:
-  - `Task`
-  - `Branch`
-  - `Worktree`
-  - `Current step`
-  - `Next step note`
-  - `Blockers`
-- Use this format:
+- Keep headers short, stable, and purpose-based. Do not invent a new header instead of standard labels if they fit.
+
+### Chat Progress Updates
+
+- Use the `**Current Focus**` header only for meaningful progress updates.
+- Default to a single `**Current Focus**` update at the start of a work burst.
+- Send another one only when there is a real transition: stage change, blocker, need for user input, or a notably long-running task.
+- Do not send repeated progress updates for every small loop iteration, quick status check, tightly-coupled follow-up command, or each step inside a commit/push/validate loop.
+- *Note:* At session start (Step 1), the explicit `/check-state` snapshot command format takes precedence. Do not stack a `**Current Focus**` update on top of a `/check-state` block.
+- If the task does not require every step (e.g., simple debugging), the status message must explicitly reflect the actual active stage instead of implying false sequential progress.
+
+Use this format for all standard stage transitions or turn pauses:
 
 ```md
-Workflow status
-- Task: <feature or fix name>
-- Branch: <branch-name>
-- Worktree: <absolute-or-relative-worktree-path>
-- Current step: <number and title>
-- Next step note: <short note describing what should happen next>
-- Blockers: <none or short reason>
-```
-
-- Use this step-transition format every time progress moves to a new workflow step, and also when pausing at the end of a turn:
-- Use this concise workflow-progress format for in-chat progress messages:
-
-```md
-**Workflow Progress**
-Current Step: <step number and title> - <super concise summary of the current message or task>
-
 **Current Focus**
-- <short line about what was just done, is being checked, or is blocked>
-- <short line about what matters right now>
+- <concise summary>
+- <optional concise summary>
+- <optional concise summary>
 ```
 
-- If the agent is blocked instead of progressing, use this format:
+- Use 1 to 3 short bullet lines starting with `-`.
+- In most cases, prefer a single bullet.
+- Preserve the exact `**Current Focus**` header so the message is always visually distinct and scannable in the chat UI.
 
-```md
-**Workflow Progress**
-Current Step: <step number and title> - blocked
+### 1. Bootstrap / Resume Context
 
-**Current Focus**
-- <short explanation of what was attempted>
-- <short explanation of what is currently true and why progress is blocked>
-```
-
-- If the current turn finishes in the middle of a step, use this format:
-
-```md
-**Workflow Progress**
-Current Step: <step number and title> - <super concise summary of the current message or task>
-
-**Current Focus**
-- <short explanation of what has already been done in the current step>
-- <short explanation of what remains>
-```
-
-- Keep the wording consistent. Always include the step number and exact step title from `AGENTS.md`.
-- The summary after the dash should describe the current message or immediate task only, not the full project state.
-- When steps are intentionally skipped because they are not applicable, say so briefly in `Current Focus` in plain language.
-- Tailor `Current Focus` to the stage:
-  - planning: what the plan now covers or what decision was locked
-  - implementation: what changed
-  - validation: what was run and whether it passed
-  - review: what was checked and whether issues were found
-  - manual testing: what the human should verify
-  - merge/cleanup: what was merged or removed
-- Preserve the header text, `Current Step:` label, `Current Focus` heading, and concise aligned format so the message is easy to scan in chat.
-
-### 0. Bootstrap / Resume Context
-
-- Open `plan.md` and understand the next relevant task.
-- Read this `AGENTS.md`.
-- Check `git branch --show-current` and `git worktree list`.
-- Derive the `branch-slug`.
-- If the current branch is not `main` and `ai/local/workflows/<branch-slug>.md` exists, treat the session as a resume:
-  - read the workflow file first
-  - continue from its current step
+- If the current branch is not `main`, treat the session as a resume:
+  - invoke the `/check-state` command logic to analyze the actual workspace reality
+  - continue from the logically implied step based on the status snapshot
   - do not restart planning or implementation from scratch
-- If the current branch is `main` or no workflow file exists, treat the session as a new task and continue to step 1.
+- If the current branch is `main`, treat the session as a new task and continue to step 2.
 
-### 1. Worktree Ready
+### 2. Workspace Ready
 
-- If starting a new task, create a dedicated worktree at `../omni-bike-rn-worktrees/<branch-slug>` before any repo mutation.
-- Use a `feature/*`, `bugfix/*`, or `hotfix/*` branch as appropriate.
-- Do not implement from the repo root on `main`.
-- If the task is a resume, confirm the existing worktree path and branch instead of creating a second worktree.
-- Create or update `ai/local/workflows/<branch-slug>.md` as soon as the worktree is established, using `ai/workflows/_template.md` as the tracked source template.
+- Execute the `/start-feature` command logic.
+- If the task is a resume, verify where the current branch exists and continue working there instead of creating a new workspace.
 
-### 2. Detailed Plan Prepared
+### 3. Detailed Plan Prepared
 
-- Ask questions only when the missing detail is a business or product decision.
-- Do not ask questions that can be answered from the repository.
-- **Ask product/business questions interactively: always offer 2–4 concrete options per question plus a free-text escape hatch. Use the best mechanism available in your environment (e.g. `AskUserQuestion` tool, numbered list, etc.). Never ask open-ended questions when choices can be offered.**
-- Before implementation, write a detailed plan to `ai/local/plans/<branch-slug>.md` based on the relevant raw task in `plan.md`.
-- The detailed plan must be specific enough to execute without further design decisions during implementation.
-- Record the plan path in `ai/local/workflows/<branch-slug>.md`.
+- If your host environment supports a dedicated planning mode (read-only, no file writes), activate it now before drafting the plan.
+- If the mode must be set by the human rather than the agent, pause and explicitly ask the human to enable planning mode before proceeding.
+- If the host has no true planning mode, pause and explicitly ask the human to confirm that the session is in a planning-only phase before proceeding.
+- Until planning mode is confirmed, remain read-only for normal repo work:
+  - no file edits or file creation outside `ai/local/plans/<branch-slug>.md`
+  - no branch changes
+  - no commits
+- While waiting for planning mode, you may continue reading repository files needed to prepare the plan.
+- Only ask questions about business/product decisions; do not ask questions that can be answered by reading the repository.
+- **Ask product/business questions interactively: always offer 2–4 concrete options per question plus a free-text escape hatch. Use the most interactive mechanism your platform provides (e.g., dedicated UI prompts, tool calls, or simply numbered lists in chat). Never ask open-ended questions when choices can be offered.**
+- If work is blocked on a business decision, update the relevant `plan.md` item with `[?]` plus a short reason.
+- Before implementation, write a detailed plan to `ai/local/plans/<branch-slug>.md` based on the relevant raw task in `plan.md`. The detailed plan must be specific enough to execute without further design decisions during implementation.
 
-### 3. Detailed Plan Approved
+### 4. Detailed Plan Approved
 
-- Share the plan file with the user and wait for explicit approval before writing code.
-- Discuss and iterate on the plan until approved.
+- Share the plan file with the user and wait for explicit approval before writing code. Discuss and iterate on the plan until approved.
 - Technical implementation choices are left to the agent unless the detailed plan exposes a product or business tradeoff that requires user input.
-- If work is blocked on a business decision, update the relevant `plan.md` item with `[?]` plus a short reason and record the blocker in `ai/local/workflows/<branch-slug>.md`.
+- Once approved, deactivate planning mode before proceeding to implementation.
+- If the host requires the human to switch modes manually, or only supports manual planning-phase confirmation, explicitly ask the human to return the session to edit mode or confirm that implementation may begin, and wait for confirmation before writing code.
 
-### 4. Implementation In Progress
+### 5. Implementation In Progress
 
 - When active implementation starts, update the relevant `plan.md` item to `[~]`.
 - Break the work into small, meaningful sub-tasks.
 - Implement fully, not partially.
 - Keep commits focused.
-- Keep `ai/local/workflows/<branch-slug>.md` current enough that a fresh agent can resume in the same worktree without rereading the entire chat.
+- **Do not continuously update** `ai/local/plans/<branch-slug>.md` to check off tasks while coding. Progress is tracked via `git log` and `git status`. Use `/check-state` to re-sync if context is lost.
 
-### 5. Validation Complete
+### 6. Validation Complete
 
-- Run the most relevant validation for the change.
-- Include SonarQube checking in the validation pass when the repository has a configured SonarQube command or workflow available.
-- Record what was run, what passed, and what was intentionally not run in `ai/local/workflows/<branch-slug>.md`.
-- Do not move forward with unclear validation status.
+- Execute the `/validate` command logic.
+- Do not move forward to review or testing until validation explicitly passes.
 
-### 6. Internal Review
+### 7. Internal Review
 
-- After implementation, perform an internal review with another agent when available.
-- The review should focus on bugs, regressions, missing tests, and architecture risks.
-- Track review notes in `ai/local/reviews/<branch-slug>.md` when a durable local review file is needed.
+- Before running `/review`, do a code quality pass on the branch diff: look for duplication, efficiency issues, and unnecessary nesting, and fix what you find.
+- Then execute the `/review` command logic to deeply analyze the diff for bugs, regressions, missing tests, and architecture risks.
+- Use `/review branch` as the default first pre-test review on the branch.
+- Let the `/review` command own review-file creation and cleanup behavior in `ai/local/reviews/<branch-slug>.md`.
 
-### 7. Internal Review Fix Loop
+### Fix Loop Decision Rules
+
+Use these rules for Internal Review Fix Loop, Manual Testing Fix Loop, and PR Review Fix Loop so the decision logic lives in one place.
+
+| Change type | `/validate` scope | `/review` scope | Require human retest? |
+|---|---|---|---|
+| Docs, comments, text-only, narrow non-runtime refactor | `quick` | `staged` | No |
+| Test-only | `test` | `staged` | No |
+| Runtime logic, routing, persistence, BLE, native, user-visible | `full` | `staged` (small fix) or `branch` (see below) | Step 10/13: yes |
+| Fix touches architecture, contracts, shared state, or could invalidate earlier review | `full` | `branch` | Step 10/13: yes |
+
+A fix loop is clean only when the selected validation passes, no unresolved blocking review findings remain, and any required retest or PR follow-up for that stage is complete.
+
+### 8. Internal Review Fix Loop
 
 - If internal review finds issues, fix them before asking the human to test.
-- After each review-driven code change:
-  - rerun the most relevant validation
-  - update `ai/local/workflows/<branch-slug>.md` with what changed and what was rerun
-  - rerun internal review when the change is substantial, architectural, or likely to hide follow-on issues
+- After each review-driven code change, follow the Fix Loop Decision Rules for validation and internal review scope.
+- Default to `/review staged` for small incremental follow-up fixes. Escalate to `/review branch` only when the rules above require it.
+- Do not proceed to manual testing until the fix loop is clean.
 - If internal review is already clean, mark this step complete with a short note such as `no fixes needed`.
 
-### 8. Manual Human Testing
+### 9. Manual Human Testing
 
 - Before opening a Pull Request, the agent MUST pause and ask the human to manually test the changes on their device or simulator.
 - Along with the testing request, provide a concise summary of what was implemented and how the change affects the user experience or behavior.
 - Every manual testing request must explicitly say whether the human needs to restart the Metro server, rebuild the app, both, or neither before testing. If no restart or rebuild is needed, say that explicitly.
-- Provide the testing checklist directly in the conversation window. Use a short numbered list for the key validation path, and expand it only as much as needed for the current change.
-- For follow-up fixes after initial manual testing, provide only the incremental retest steps that matter for the latest change unless the full flow needs to be re-run.
+- Provide the testing checklist inline. For follow-up fixes, provide only incremental retest steps unless the full flow needs re-running.
 - Do not create or update `ai/local/testing/<branch-slug>.md` unless the human explicitly asks for a saved checklist file.
 - Wait for the human's feedback. Address any issues they find.
 - Only proceed to the next step once the human explicitly approves the manual test.
 - When implementation is complete and approved locally, update the plan item to `[R]`.
 
-### 9. Manual Testing Fix Loop
+### 10. Manual Testing Fix Loop
 
 - If manual testing feedback leads to code changes, do not jump straight to PR.
-- After each manual-testing-driven code change:
-  - rerun the most relevant validation
-  - request targeted manual retesting for the affected behavior unless the change is provably non-user-visible
-  - rerun internal review as well when the change is substantial, risky, architectural, or touches native behavior
+- After each manual-testing-driven code change, follow the Fix Loop Decision Rules for validation and internal review scope.
+- Request targeted manual retesting only for the affected behavior unless the change is provably non-user-visible.
 - Stay in this loop until the human explicitly confirms the latest changes.
 
-### 10. PR Open
+### 11. PR Open
 
-- If GitHub access is available, open a pull request with a concise summary.
-- If GitHub access is not available, prepare the pull request summary for a human to open manually.
-- While the pull request is open and waiting for review, keep the related plan item at `[R]`.
-- Include:
-  - what changed
-  - why it changed
-  - what was validated
-- Record the PR status in `ai/local/workflows/<branch-slug>.md`.
+- Execute the `/open-pr` command logic.
+- The `/open-pr` command owns the `plan.md [x]` commit — it marks the task as completed and pushes the commit as part of its final step. No additional plan update is needed after this step.
 
-### 11. PR Review Comments
+### 12. PR Review Comments
 
-- After the pull request is open, manually instruct the local agent to check GitHub for review comments and unresolved review threads.
-- Once asked to do this, the agent should treat GitHub review comments as the primary review queue for the branch.
-- Default behavior after checking GitHub:
-  - fetch unresolved review threads and actionable inline comments
-  - prioritize bugs, regressions, missing tests, and architecture risks
-  - apply fixes for clearly actionable comments without waiting for extra approval
-  - explicitly call out comments that are declined or intentionally left unchanged, with reasons
-  - run the most relevant validation after each fix
-  - prepare short reply text the human can paste into GitHub for each addressed thread
+- Execute the `/address-pr-comments` command logic.
+- GitHub review comments are the primary review queue for the branch once the PR is open.
 - Only treat a review comment as resolved after the fix is implemented, validated, and pushed.
-- If GitHub permissions allow, the agent may reply to and resolve addressed review threads directly. Otherwise, it should prepare the exact reply or resolution notes for the human.
 
-### 12. PR Review Fix Loop
+### 13. PR Review Fix Loop
 
 - If PR review feedback leads to code changes:
-  - rerun the most relevant validation after each fix
-  - rerun internal review when the fix is substantial, risky, or architectural
+  - follow the Fix Loop Decision Rules for validation and internal review scope
   - request targeted manual retesting when the fix changes user-visible behavior, product flow, native behavior, or anything the human previously validated manually
   - prepare updated reply text or direct GitHub replies only after the fix and required revalidation are complete
 - Repeat the PR review and fix loop up to 3 times. Stop earlier if the review queue is already clean.
 
-### 13. Ready For Merge
+### 14. Merge And Cleanup
 
-- Do not mark work as `[x]` after approval alone.
-- Keep the plan item at `[R]` until the branch is actually merged.
-- Use `[-]` only when work is intentionally skipped or deferred, with a short reason.
-- Keep `plan.md` aligned with accepted progress, not only local code state.
-- Record any final pre-merge plan updates in a separate small commit, not inside the original implementation commit.
-
-Example:
-
-- `docs: mark harness refactor as approved in plan`
-
-### 14. Human Merge / Cleanup
-
-- Merge is done by a human.
-- After merge is confirmed, verify the feature branch has no remaining unmerged local-only work, no pending review or testing actions, and no unpushed commits that should be preserved.
-- If the worktree is dirty, merge status is unclear, or the branch still has work to keep, stop and report the blocker instead of deleting anything.
-- Once merge is confirmed, do any remaining repo-tracked cleanup from a fresh non-`main` follow-up branch created from the latest `main`. Do not edit repo-tracked files directly on `main`.
-- In that follow-up branch, update the relevant `plan.md` item to `[x]` because completed means merged when the merged work maps to a tracked `plan.md` task line.
-- Once the worktree is safely stale:
-  - remove it from `git worktree`
-  - delete the local worktree directory
-- After cleanup, return to `main` in the repo root.
-
-## Validation
-
-Use normal project commands:
-
-```bash
-npm run lint
-npm run typecheck
-npm test -- --ci --runInBand
-npm run ci:gate
-npm run build:smoke
-```
-
-Also run the repository's SonarQube check when it is configured in the current branch or project tooling.
+- Wait for the human to confirm the PR is approved and that merging should proceed.
+- Then execute the `/finish-feature` command logic.
+- The command marks `plan.md` as `[x]`, merges the PR via GitHub CLI (merge commit), safety-checks the local workspace, removes the branch or worktree, and returns to `main`.
 
 ## Skills
 
@@ -382,6 +289,7 @@ Available skills:
 - `ai/skills/expo-ui/SKILL.md` for Expo Router UI, navigation, styling, and components
 - `ai/skills/expo-upgrade/SKILL.md` for Expo SDK upgrades and dependency migrations
 - `ai/skills/ios-native/SKILL.md` for iOS-specific behavior
+- `ai/skills/provider-entrypoints/SKILL.md` for defining lean provider-specific entrypoint files (`CODEX.md`, `CLAUDE.md`, `GEMINI.md`) that enrich the shared workflow with provider-native capabilities
 - `ai/skills/quality-review/SKILL.md` for review checklists and quality standards
 - `ai/skills/react-native-perf/SKILL.md` for performance optimization, profiling, and bundle size
 - `ai/skills/sqlite-persistence/SKILL.md` for Expo SQLite, persistence boundaries, session-recording rules, and repository guidance
@@ -402,10 +310,13 @@ Use a command when the task is a specific, repeatable procedure rather than gene
 
 Available commands:
 
-- `ai/commands/review/COMMAND.md` — internal code review (diff-based, pre-PR)
-- `ai/commands/pr/COMMAND.md` — open a GitHub PR with the project's standard format
+- `ai/commands/check-state/COMMAND.md` — bootstrap context and analyze branch reality to help decide next steps
+- `ai/commands/start-feature/COMMAND.md` — set up the workspace for a new feature (branch name, workspace strategy, branch creation)
 - `ai/commands/validate/COMMAND.md` — run the full validation suite
-- `ai/commands/resume/COMMAND.md` — bootstrap context from workflow state files
+- `ai/commands/review/COMMAND.md` — internal code review (diff-based, pre-PR)
+- `ai/commands/open-pr/COMMAND.md` — open a GitHub PR with the project's standard format
+- `ai/commands/address-pr-comments/COMMAND.md` — fetch PR review threads, triage, fix with Fix Loop Decision Rules, prepare reply text
+- `ai/commands/finish-feature/COMMAND.md` — mark plan complete, merge PR via GitHub CLI, clean up branch or worktree
 
 ### Adding A New Command
 
@@ -420,4 +331,6 @@ Commands complement skills, not replace them. A command may reference a skill wh
 
 This harness is provider-agnostic. All instructions live in plain markdown.
 
-If a specific AI tool requires its own config file (e.g., `.gemini/settings.json`, `CLAUDE.md`, `.cursor/rules`), that file should contain **only provider configuration** (model selection, context settings, etc.). Never duplicate instructions from `AGENTS.md` or skills into provider config files.
+If a specific AI tool requires its own config file (e.g., `.gemini/settings.json`, `CLAUDE.md`, `CODEX.md`, `.cursor/rules`), that file should contain only provider-specific configuration and minimal provider-specific execution notes that adapt `AGENTS.md` to that tool. Do not duplicate repository workflow instructions in full.
+- If a provider supports explicit plan/edit mode APIs, use them.
+- If a provider does not support agent-controlled mode switching, the workflow still requires the same plan/edit separation, but the human must perform the mode switch manually.

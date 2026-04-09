@@ -6,13 +6,15 @@ This folder keeps AI-related guidance separate from app code. Treat `AGENTS.md` 
 ai/
   README.md            ← you are here
   screens.md           ← screen inventory, navigation diagrams, phase gates
-  workflows/           ← tracked workflow docs and reusable templates
-  local/               ← ignored per-worktree runtime state (plans, workflows, reviews, testing)
+  local/               ← ignored per-worktree runtime state (plans, reviews, testing)
   commands/            ← active procedures invoked by name (see AGENTS.md § Commands)
-    review/            ← internal code review
-    pr/                ← open GitHub PR with standard format
+    check-state/       ← bootstrap/resume session context
+    start-feature/     ← workspace setup for a new feature
     validate/          ← run full validation suite
-    resume/            ← bootstrap/resume session context
+    review/            ← internal code review
+    open-pr/           ← open GitHub PR with standard format
+    address-pr-comments/ ← triage and fix PR review threads
+    finish-feature/    ← merge PR, clean up branch/worktree
   skills/
     architecture/      ← structure, boundaries, ownership
     ble-hardware/      ← BLE scanning, FTMS parsing, device adapters
@@ -30,7 +32,6 @@ Tracked docs and templates stay under `ai/`.
 
 Per-branch runtime files live under `ai/local/` and are ignored by git:
 - `ai/local/plans/<branch-slug>.md`
-- `ai/local/workflows/<branch-slug>.md`
 - `ai/local/reviews/<branch-slug>.md`
 - `ai/local/testing/<branch-slug>.md`
 

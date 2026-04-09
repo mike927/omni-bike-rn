@@ -33,6 +33,8 @@ yarn-error.*
 # AI tooling (agent-agnostic repo)
 .claude/*
 !.claude/commands/
+.agents/*
+!.agents/workflows/
 ai/local/
 
 # local env files

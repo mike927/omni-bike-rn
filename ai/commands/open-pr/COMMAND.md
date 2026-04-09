@@ -1,27 +1,19 @@
 ---
-name: pr
+name: open-pr
 description: >-
   Open a GitHub PR with a standardized summary built from the branch diff and plan context.
-triggers:
-  - 'open a PR'
-  - 'create a pull request'
-  - 'submit PR'
 inputs:
   - name: base
     description: 'Base branch for the PR'
     default: main
 outputs:
   - name: pr-url
-    description: 'URL of the created PR, reported in chat'
-  - name: workflow-update
-    description: 'PR URL and status recorded in ai/local/workflows/<branch-slug>.md'
-workflow-steps:
-  - 10
+    description: 'URL of the newly opened PR'
 ---
 
-# PR
+# Open PR
 
-Open a GitHub pull request with a standardized body. Maps to AGENTS.md workflow step 10 (PR Open).
+Open a GitHub pull request with a standardized body.
 
 ## Prerequisites
 
@@ -32,18 +24,28 @@ Open a GitHub pull request with a standardized body. Maps to AGENTS.md workflow 
 
 ## Procedure
 
-### Step 1: Verify Branch State
+### Step 1: Verify Environment And Branch State
 
 ```bash
+gh auth status
 git branch --show-current
 git status
 git log --oneline main..HEAD
 ```
 
 Confirm:
+- `gh` is authenticated.
 - Not on `main`.
 - Working tree is clean (no uncommitted changes).
 - There are commits to include in the PR.
+
+Check if a PR already exists for this branch:
+
+```bash
+gh pr view --json number,url,state 2>/dev/null
+```
+
+If a PR already exists (any state), report its URL and stop — do not create a duplicate. If the existing PR is closed and a new one is intended, note this and ask the user to confirm before proceeding.
 
 If the branch has not been pushed, push it:
 
@@ -51,14 +53,38 @@ If the branch has not been pushed, push it:
 git push -u origin <branch-name>
 ```
 
-### Step 2: Gather Context
+### Step 2: Merge Upstream
+
+Ensure the feature branch is up to date with `main` before opening the PR:
+
+```bash
+git fetch origin
+```
+
+Check if a merge is actually needed:
+
+```bash
+git log HEAD..origin/main --oneline
+```
+
+- If the output is **empty**: branch is already up to date — skip the merge and proceed to Step 3.
+- If commits are listed: merge them in:
+
+```bash
+git merge origin/main
+```
+
+- If the merge completes cleanly, push the merge commit: `git push`.
+- If there are conflicts: abort the merge (`git merge --abort`), report the conflicting files to the user, and stop. Do not attempt automatic conflict resolution — ask the user to resolve and re-run the command.
+
+### Step 3: Gather Context
 
 1. **Diff summary**: `git diff main...HEAD --stat` for changed files, `git diff main...HEAD` for full diff.
 2. **Commit log**: `git log --oneline main..HEAD` for commit messages.
 3. **Plan context**: Read `plan.md` to identify which task item(s) this branch addresses.
-4. **Validation state**: If `ai/local/workflows/<branch-slug>.md` exists, read its Validation State section. Otherwise note that validation state is unknown.
+3. **Validation state**: Run a quick validation or note if it is unknown.
 
-### Step 3: Build PR Title
+### Step 4: Build PR Title
 
 Use Conventional Commits style matching the primary change:
 
@@ -69,29 +95,27 @@ Use Conventional Commits style matching the primary change:
 
 Keep the title under 70 characters.
 
-### Step 4: Build PR Body
+### Step 5: Build PR Body
 
 Use this template:
 
 ```md
 ## Summary
 
-<2-4 bullet points describing what changed and why>
+- <Bullet point describing what was added, changed, or fixed>
+- <Bullet point explaining why this was changed or why a specific approach was chosen>
+- <Add more bullet points as needed...>
 
 ## Plan Item
 
 <Quote or reference the relevant plan.md task line>
-
-## Validation
-
-<Per-command pass/fail from the most recent validation run, or "not yet run">
 
 ## Testing Notes
 
 <What the reviewer should test manually, if anything. Include whether a rebuild or Metro restart is needed.>
 ```
 
-### Step 5: Create The PR
+### Step 6: Create The PR
 
 ```bash
 gh pr create --base <base> --head <branch-name> --title "<title>" --body "<body>"
@@ -99,15 +123,14 @@ gh pr create --base <base> --head <branch-name> --title "<title>" --body "<body>
 
 Use a HEREDOC for the body to preserve formatting.
 
-### Step 6: Record PR State
+### Step 7: Record PR State
 
 1. Report the PR URL in chat.
-2. If `ai/local/workflows/<branch-slug>.md` exists, update its **PR And Review State** section with the PR URL and status.
-3. Update the relevant `plan.md` item to `[R]` and commit separately:
+2. Update the relevant `plan.md` item to `[x]` (since opening the PR essentially completes the development phase for this branch) and commit separately:
 
 ```bash
 git add plan.md
-git commit -m "docs: mark <task> as in review"
+git commit -m "docs: mark <task> as completed in plan"
 git push
 ```
 
@@ -116,7 +139,3 @@ git push
 - PR is created on GitHub with a well-formatted body.
 - PR URL is reported in chat.
 - Workflow file and plan.md are updated.
-
-## See Also
-
-- `AGENTS.md` § Feature Workflow step 10 — PR Open rules
