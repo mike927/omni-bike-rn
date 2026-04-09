@@ -32,6 +32,9 @@ export function TrainingDashboardScreen() {
   const session = useTrainingSession();
   const { bikeConnected, hrConnected, latestBluetoothHr } = useDeviceConnection();
   const [isFinishing, setIsFinishing] = useState(false);
+  // Idle-state fallback: session HR (from MetronomeEngine, which already applies full priority)
+  // takes precedence; Bluetooth HR is a pre-start preview. Apple Watch fallback will be added
+  // when the native Watch data flow is wired up.
   const resolvedHeartRate = session.currentMetrics.heartRate ?? latestBluetoothHr;
   const showDisconnectedState = session.phase === TrainingPhase.Idle && !bikeConnected;
 
