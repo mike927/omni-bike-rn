@@ -45,12 +45,12 @@ export function SettingsScreen() {
 
         <View style={styles.gearRow}>
           <View style={styles.gearInfo}>
-            <Text style={styles.gearLabel}>Heart Rate</Text>
+            <Text style={styles.gearLabel}>Bluetooth HR</Text>
             <Text style={styles.gearName}>{savedHrSource ? savedHrSource.name : 'Not set'}</Text>
           </View>
           <View style={styles.gearActions}>
             <ActionButton
-              label={savedHrSource ? 'Replace' : 'Add HR Source'}
+              label={savedHrSource ? 'Replace' : 'Add Bluetooth HR'}
               onPress={() => router.push('/gear-setup?target=hr')}
               variant="secondary"
             />

@@ -156,9 +156,9 @@ export function useGearSetup(target: GearType): UseGearSetupReturn {
     if (step !== 'awaiting_signal') return;
 
     const latestBikeMetrics = useDeviceConnectionStore.getState().latestBikeMetrics;
-    const latestHr = useDeviceConnectionStore.getState().latestHr;
+    const latestBluetoothHr = useDeviceConnectionStore.getState().latestBluetoothHr;
 
-    const hasSignal = target === 'bike' ? latestBikeMetrics !== null : latestHr !== null;
+    const hasSignal = target === 'bike' ? latestBikeMetrics !== null : latestBluetoothHr !== null;
     if (hasSignal) {
       clearSignalTimeout();
       signalConfirmedRef.current = true;
@@ -169,7 +169,7 @@ export function useGearSetup(target: GearType): UseGearSetupReturn {
 
     return useDeviceConnectionStore.subscribe((state) => {
       if (signalConfirmedRef.current) return;
-      const signal = target === 'bike' ? state.latestBikeMetrics : state.latestHr;
+      const signal = target === 'bike' ? state.latestBikeMetrics : state.latestBluetoothHr;
       if (signal !== null) {
         clearSignalTimeout();
         signalConfirmedRef.current = true;

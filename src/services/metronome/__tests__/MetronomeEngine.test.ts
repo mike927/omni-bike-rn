@@ -119,7 +119,7 @@ describe('MetronomeEngine', () => {
   });
 
   describe('HR priority', () => {
-    it('should prefer external HR over bike HR', () => {
+    it('should prefer Bluetooth HR over bike HR', () => {
       useTrainingSessionStore.getState().start();
 
       const bikeMetrics: BikeMetrics = {
@@ -129,7 +129,7 @@ describe('MetronomeEngine', () => {
         heartRate: 72,
       };
       useDeviceConnectionStore.getState().updateBikeMetrics(bikeMetrics);
-      useDeviceConnectionStore.getState().updateHr(145); // External HR
+      useDeviceConnectionStore.getState().updateBluetoothHr(145);
 
       engine.start();
       jest.advanceTimersByTime(1000);
@@ -137,7 +137,7 @@ describe('MetronomeEngine', () => {
       expect(useTrainingSessionStore.getState().currentMetrics.heartRate).toBe(145);
     });
 
-    it('should fall back to bike HR when no external HR is available', () => {
+    it('should prefer Apple Watch HR over Bluetooth HR', () => {
       useTrainingSessionStore.getState().start();
 
       const bikeMetrics: BikeMetrics = {
@@ -147,7 +147,25 @@ describe('MetronomeEngine', () => {
         heartRate: 72,
       };
       useDeviceConnectionStore.getState().updateBikeMetrics(bikeMetrics);
-      // No external HR set
+      useDeviceConnectionStore.getState().updateBluetoothHr(145);
+      useDeviceConnectionStore.getState().updateAppleWatchHr(158);
+
+      engine.start();
+      jest.advanceTimersByTime(1000);
+
+      expect(useTrainingSessionStore.getState().currentMetrics.heartRate).toBe(158);
+    });
+
+    it('should fall back to bike HR when no external source is available', () => {
+      useTrainingSessionStore.getState().start();
+
+      const bikeMetrics: BikeMetrics = {
+        speed: 25,
+        cadence: 80,
+        power: 150,
+        heartRate: 72,
+      };
+      useDeviceConnectionStore.getState().updateBikeMetrics(bikeMetrics);
 
       engine.start();
       jest.advanceTimersByTime(1000);

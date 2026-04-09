@@ -23,7 +23,7 @@ const mockConnection = {
   bikeConnected: false,
   hrConnected: false,
   latestBikeMetrics: null,
-  latestHr: null,
+  latestBluetoothHr: null,
   connectBike: jest.fn(),
   connectHr: jest.fn(),
   disconnectAll: jest.fn(),
@@ -87,9 +87,9 @@ describe('SettingsScreen', () => {
     expect(mockPush).toHaveBeenCalledWith('/gear-setup?target=bike');
   });
 
-  it('navigates to gear setup with hr target when Add HR Source is pressed', () => {
+  it('navigates to gear setup with hr target when Add Bluetooth HR is pressed', () => {
     const { getByText } = render(<SettingsScreen />);
-    fireEvent.press(getByText('Add HR Source'));
+    fireEvent.press(getByText('Add Bluetooth HR'));
     expect(mockPush).toHaveBeenCalledWith('/gear-setup?target=hr');
   });
 

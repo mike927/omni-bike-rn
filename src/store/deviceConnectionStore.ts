@@ -20,7 +20,8 @@ export interface DeviceConnectionStore {
 
   // ── Latest raw readings ────────────────────────────────
   latestBikeMetrics: BikeMetrics | null;
-  latestHr: number | null;
+  latestBluetoothHr: number | null;
+  latestAppleWatchHr: number | null;
 
   // ── Actions ────────────────────────────────────────────
   setBikeAdapter: (adapter: BikeAdapter | null) => void;
@@ -28,7 +29,8 @@ export interface DeviceConnectionStore {
   setBikeConnectionInProgress: (connecting: boolean) => void;
   setHrConnectionInProgress: (connecting: boolean) => void;
   updateBikeMetrics: (metrics: BikeMetrics) => void;
-  updateHr: (hr: number) => void;
+  updateBluetoothHr: (hr: number) => void;
+  updateAppleWatchHr: (hr: number | null) => void;
   clearBikeConnection: () => void;
   clearHrConnection: () => void;
   clearAll: () => void;
@@ -40,14 +42,16 @@ export const useDeviceConnectionStore = create<DeviceConnectionStore>((set) => (
   bikeConnectionInProgress: false,
   hrConnectionInProgress: false,
   latestBikeMetrics: null,
-  latestHr: null,
+  latestBluetoothHr: null,
+  latestAppleWatchHr: null,
 
   setBikeAdapter: (adapter) => set({ bikeAdapter: adapter }),
   setHrAdapter: (adapter) => set({ hrAdapter: adapter }),
   setBikeConnectionInProgress: (connecting) => set({ bikeConnectionInProgress: connecting }),
   setHrConnectionInProgress: (connecting) => set({ hrConnectionInProgress: connecting }),
   updateBikeMetrics: (metrics) => set({ latestBikeMetrics: metrics }),
-  updateHr: (hr) => set({ latestHr: hr }),
+  updateBluetoothHr: (hr) => set({ latestBluetoothHr: hr }),
+  updateAppleWatchHr: (hr) => set({ latestAppleWatchHr: hr }),
   clearBikeConnection: () =>
     set({
       bikeAdapter: null,
@@ -56,7 +60,7 @@ export const useDeviceConnectionStore = create<DeviceConnectionStore>((set) => (
   clearHrConnection: () =>
     set({
       hrAdapter: null,
-      latestHr: null,
+      latestBluetoothHr: null,
     }),
   clearAll: () =>
     set({
@@ -65,6 +69,7 @@ export const useDeviceConnectionStore = create<DeviceConnectionStore>((set) => (
       bikeConnectionInProgress: false,
       hrConnectionInProgress: false,
       latestBikeMetrics: null,
-      latestHr: null,
+      latestBluetoothHr: null,
+      latestAppleWatchHr: null,
     }),
 }));

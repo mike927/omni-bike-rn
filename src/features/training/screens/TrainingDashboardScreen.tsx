@@ -30,9 +30,9 @@ function getPhaseSummary(phase: TrainingPhase): string {
 export function TrainingDashboardScreen() {
   const router = useRouter();
   const session = useTrainingSession();
-  const { bikeConnected, hrConnected, latestHr } = useDeviceConnection();
+  const { bikeConnected, hrConnected, latestBluetoothHr } = useDeviceConnection();
   const [isFinishing, setIsFinishing] = useState(false);
-  const resolvedHeartRate = session.currentMetrics.heartRate ?? latestHr;
+  const resolvedHeartRate = session.currentMetrics.heartRate ?? latestBluetoothHr;
   const showDisconnectedState = session.phase === TrainingPhase.Idle && !bikeConnected;
 
   const handleFinish = async () => {
@@ -86,7 +86,7 @@ export function TrainingDashboardScreen() {
             <Text style={styles.connectionValue}>{bikeConnected ? 'Connected' : 'Disconnected'}</Text>
           </View>
           <View style={styles.connectionPill}>
-            <Text style={styles.connectionLabel}>Heart Rate</Text>
+            <Text style={styles.connectionLabel}>Bluetooth HR</Text>
             <Text style={styles.connectionValue}>{hrConnected ? 'Connected' : 'Disconnected'}</Text>
           </View>
         </View>

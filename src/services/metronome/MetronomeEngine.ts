@@ -45,8 +45,8 @@ export class MetronomeEngine {
   // ── Private ────────────────────────────────────────────
 
   private tick(): void {
-    const { latestBikeMetrics, latestHr } = useDeviceConnectionStore.getState();
-    const merged = this.mergeMetrics(latestBikeMetrics, latestHr);
+    const { latestBikeMetrics, latestBluetoothHr, latestAppleWatchHr } = useDeviceConnectionStore.getState();
+    const merged = this.mergeMetrics(latestBikeMetrics, latestBluetoothHr, latestAppleWatchHr);
     useTrainingSessionStore.getState().tick(merged);
   }
 
@@ -54,21 +54,24 @@ export class MetronomeEngine {
    * Merge raw device readings into a single {@link MetricSnapshot}.
    *
    * Priority rules:
-   *  - **HR**: external HR monitor ({@link latestHr}) > bike's built-in HR.
-   *            Future: Watch HR will be highest priority.
+   *  - **HR**: Apple Watch > Bluetooth HR source > bike's built-in HR.
    *  - **Calories**: Currently estimated from power in the store's `tick()`.
    *            Future: Watch/bike-reported calories can override the estimate.
    *  - **All other fields**: taken directly from bike metrics.
    */
-  private mergeMetrics(bikeMetrics: BikeMetrics | null, externalHr: number | null): MetricSnapshot {
+  private mergeMetrics(
+    bikeMetrics: BikeMetrics | null,
+    bluetoothHr: number | null,
+    appleWatchHr: number | null,
+  ): MetricSnapshot {
     const speed = bikeMetrics?.speed ?? 0;
     const cadence = bikeMetrics?.cadence ?? 0;
     const power = bikeMetrics?.power ?? 0;
     const resistance = bikeMetrics?.resistance ?? null;
     const distance = bikeMetrics?.distance ?? null;
 
-    // HR priority: external HR strap > bike built-in sensor
-    const heartRate = externalHr ?? bikeMetrics?.heartRate ?? null;
+    // HR priority: Apple Watch > Bluetooth HR source > bike built-in sensor
+    const heartRate = appleWatchHr ?? bluetoothHr ?? bikeMetrics?.heartRate ?? null;
 
     return { speed, cadence, power, heartRate, resistance, distance };
   }

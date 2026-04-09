@@ -44,7 +44,7 @@ const hrDevice = { id: 'hr-id', name: 'Garmin HRM' };
 beforeEach(() => {
   jest.clearAllMocks();
   jest.useFakeTimers();
-  useDeviceConnectionStore.setState({ latestBikeMetrics: null, latestHr: null });
+  useDeviceConnectionStore.setState({ latestBikeMetrics: null, latestBluetoothHr: null, latestAppleWatchHr: null });
   useSavedGearStore.setState({
     savedBike: null,
     savedHrSource: null,
