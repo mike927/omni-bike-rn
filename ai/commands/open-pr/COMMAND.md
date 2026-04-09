@@ -39,6 +39,14 @@ Confirm:
 - Working tree is clean (no uncommitted changes).
 - There are commits to include in the PR.
 
+Check if a PR already exists for this branch:
+
+```bash
+gh pr view --json number,url,state 2>/dev/null
+```
+
+If a PR already exists (any state), report its URL and stop — do not create a duplicate. If the existing PR is closed and a new one is intended, note this and ask the user to confirm before proceeding.
+
 If the branch has not been pushed, push it:
 
 ```bash
@@ -54,8 +62,9 @@ git fetch origin
 git merge origin/main
 ```
 
-- If there are conflicts, gracefully handle them. Ask the user for help if the resolution is unclear.
-- Ensure the merge commit is pushed if one was created.
+- If the merge completes cleanly, push the merge commit: `git push`.
+- If there are conflicts: abort the merge (`git merge --abort`), report the conflicting files to the user, and stop. Do not attempt automatic conflict resolution — ask the user to resolve and re-run the command.
+- Ensure the merge commit is pushed before proceeding to Step 3.
 
 ### Step 3: Gather Context
 

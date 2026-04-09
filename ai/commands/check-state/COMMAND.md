@@ -53,18 +53,18 @@ Post a highly comprehensive snapshot message in chat using this general format:
 ```md
 **Context & Status**
 
-*Reality check*:
+**Reality Check**:
 - Branch: `<name>`
 - Status: `clean` or `dirty (<x> files modified)`
 - Recent Commits: 
   - `short hash` - `subject`
   - `...`
 
-*Tracking State*:
+**Tracking State**:
 - Intended Task: `<from plan.md>`
 - Asserted Task: `<from ai/local/plans/<slug>.md>`
 
-*Analysis*:
+**Analysis**:
 - `<Call out any discrepancies between Reality and Tracking State here>`
 
 **Next Steps?**

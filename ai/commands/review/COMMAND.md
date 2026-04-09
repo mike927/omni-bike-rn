@@ -106,6 +106,8 @@ Details: ai/local/reviews/<branch-slug>.md
 
 If all findings in the review file are either addressed in code or explicitly acknowledged and intentionally skipped, remove the review file so `ai/local/reviews/` only contains open review work.
 
+Do not remove the review file if the PR is open and `/address-pr-comments` may still append PR review findings to it. Only clean up after all review work for the branch is complete (internal review, PR review, and all fix loops resolved).
+
 ## Completion Criteria
 
 - Every changed file has been reviewed against the checklist and conventions.

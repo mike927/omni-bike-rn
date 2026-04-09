@@ -73,7 +73,7 @@ gh pr view <number> --json state,mergeCommit --jq '{state, mergeCommit: .mergeCo
 
 Verify `state` is `MERGED`. Record the merge commit OID. If the state is not `MERGED`, stop and report.
 
-### Step 5: Safety Gate — Verify Local Workspace Is Stale
+### Step 5: Safety Gate — Verify Local Workspace Is Clean And Merged
 
 ```bash
 git fetch origin

@@ -42,7 +42,10 @@ git branch --show-current
 git status
 ```
 
-Confirm: on `main`, working tree is clean. If either check fails, stop and report the blocker. Do not create a branch from a dirty or non-`main` state.
+Confirm: on `main`, working tree is clean. If either check fails, stop, report the blocker, and suggest remediation — do not create a branch from a dirty or non-`main` state.
+
+- Not on `main` → suggest `git checkout main` (verify there is no work-in-progress to preserve first)
+- Dirty working tree → suggest `git stash` to park uncommitted changes, or investigate with `git status` if the dirty files are unexpected
 
 ### Step 2: Propose Branch Name
 
@@ -87,7 +90,10 @@ git checkout -b <branch-name>
 
 **Dedicated worktree:**
 
+Ensure the parent directory exists before adding the worktree:
+
 ```bash
+mkdir -p ../omni-bike-rn-worktrees
 git worktree add ../omni-bike-rn-worktrees/<branch-slug> -b <branch-name>
 ```
 

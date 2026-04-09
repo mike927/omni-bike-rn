@@ -258,7 +258,7 @@ Use these rules for Internal Review Fix Loop, Manual Testing Fix Loop, and PR Re
 ### 11. PR Open
 
 - Execute the `/open-pr` command logic.
-- While the pull request is open and waiting for review, keep the relevant `plan.md` item marked as `[x]` (completed) so it merges in the correct final state.
+- The `/open-pr` command owns the `plan.md [x]` commit — it marks the task as completed and pushes the commit as part of its final step. No additional plan update is needed after this step.
 
 ### 12. PR Review Comments
 

@@ -8,10 +8,13 @@ ai/
   screens.md           ← screen inventory, navigation diagrams, phase gates
   local/               ← ignored per-worktree runtime state (plans, reviews, testing)
   commands/            ← active procedures invoked by name (see AGENTS.md § Commands)
-    review/            ← internal code review
-    pr/                ← open GitHub PR with standard format
-    validate/          ← run full validation suite
     check-state/       ← bootstrap/resume session context
+    start-feature/     ← workspace setup for a new feature
+    validate/          ← run full validation suite
+    review/            ← internal code review
+    open-pr/           ← open GitHub PR with standard format
+    address-pr-comments/ ← triage and fix PR review threads
+    finish-feature/    ← merge PR, clean up branch/worktree
   skills/
     architecture/      ← structure, boundaries, ownership
     ble-hardware/      ← BLE scanning, FTMS parsing, device adapters
