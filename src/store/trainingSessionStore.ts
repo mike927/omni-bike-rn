@@ -14,6 +14,14 @@ const INITIAL_METRICS: MetricSnapshot = {
 /** Joules-to-kcal conversion factor (1 kcal ≈ 4 186 J). */
 const JOULES_PER_KCAL = 4186;
 
+/**
+ * Gross mechanical efficiency of human cycling.
+ * The body converts roughly 20–25 % of metabolic energy into pedal power;
+ * the rest is dissipated as heat. 0.25 is the standard value used by most
+ * cycling computers (Garmin, Wahoo, Zwift).
+ */
+const GROSS_MECHANICAL_EFFICIENCY = 0.25;
+
 export interface TrainingSessionStore {
   // ── State ──────────────────────────────────────────────
   phase: TrainingPhase;
@@ -100,8 +108,8 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
       newTotalDistance += distanceDelta;
     }
 
-    // Calorie delta: power (W) × 1 s = joules → kcal
-    const calorieDelta = metrics.power / JOULES_PER_KCAL;
+    // Metabolic calorie delta: mechanical work adjusted for gross efficiency
+    const calorieDelta = metrics.power / JOULES_PER_KCAL / GROSS_MECHANICAL_EFFICIENCY;
 
     set({
       elapsedSeconds: elapsedSeconds + 1,

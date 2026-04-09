@@ -78,6 +78,7 @@ Bike-first product UX in this phase: support a single main bike for now, while k
 - [x] Finish flow from app: confirmation before completing, then navigate to summary and require an explicit save-or-discard choice when tapping `Done` — addressed in Screen Logic Revision
 - [x] Finished workout summary screen (save, discard, deferred upload entry points) — addressed in Screen Logic Revision
 - [-] Bike stop handling: freeze the session and prompt the user to finish instead of auto-completing immediately - deferred by product decision
+- [ ] Parse and use bike-reported calories from FTMS Energy field (Zipro Rave Bit 10) as an alternative calorie source
 - [ ] Crash recovery / interrupted session restore
 - [ ] Add comprehensive unit tests covering various test cases
 
@@ -134,7 +135,14 @@ Standard Bluetooth HR sensors are expected to work via the BLE HR flow before th
 - [ ] Minimal UI elements needed for watch status and source visibility
 - [ ] Add comprehensive unit tests covering various test cases
 
-## Phase 9: UX & Visual Design Polish
+## Phase 9: User Profile & Personalized Metrics
+
+- [ ] User profile setup (age, weight, sex) in Settings
+- [ ] HR-based calorie formula (Keytel et al.) when HR data and user profile are available
+- [ ] Hybrid calorie strategy: HR-based (preferred) → power-based with efficiency → bike-reported (fallback)
+- [ ] Persist user profile for use across sessions
+
+## Phase 10: UX & Visual Design Polish
 
 - [ ] Visual design pass across training, history, and sync screens
 - [ ] Refine dashboard information hierarchy, spacing, and responsiveness
