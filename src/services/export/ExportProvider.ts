@@ -9,5 +9,6 @@ export interface ExportResult {
 export interface ExportProvider {
   readonly name: string;
   readonly id: string;
+  isConfigured(): boolean;
   exportSession(session: PersistedTrainingSession, samples: PersistedTrainingSample[]): Promise<ExportResult>;
 }
