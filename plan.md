@@ -101,7 +101,7 @@ Lightweight, modern onboarding shown only on first launch. 2-3 swipeable intro s
 
 ## Phase 6: Integrations & External Provider Sync
 
-- [ ] External training provider contract / adapter architecture for finished session uploads
+- [~] External training provider contract / adapter architecture for finished session uploads
 - [ ] First provider integration: Strava OAuth + finished session upload
 - [ ] Upload flow for completed workouts with states: `ready to upload`, `uploading`, `uploaded`, `failed`
 - [ ] Retry flow for failed uploads
@@ -109,7 +109,7 @@ Lightweight, modern onboarding shown only on first launch. 2-3 swipeable intro s
 - [ ] Settings option to automatically upload saved workouts to a connected provider
 - [ ] Manual upload action from the workout history list or workout detail view
 - [ ] Functional Integrations screen
-- [ ] Generic export payload mapping for completed training sessions
+- [~] Generic export payload mapping for completed training sessions
 - [ ] If a user taps `Upload` from history without a connected provider, redirect to the relevant provider connection flow
 - [ ] Minimal UI elements needed for integrations, export, and provider sync flows
 - [ ] Add comprehensive unit tests covering various test cases
