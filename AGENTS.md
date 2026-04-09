@@ -176,9 +176,7 @@ Use this format for all standard stage transitions or turn pauses:
 
 ### 2. Workspace Ready
 
-- Before creating a branch for a new task, **interactively ask the user** for their preferred workspace strategy. Offer these two options clearly:
-  1. **In-Place Branch**: Stay in the main repository root and run `git checkout -b <branch>`. (Standard, lightweight)
-  2. **Dedicated Worktree**: Create a parallel directory at `../omni-bike-rn-worktrees/<branch-slug>`. (Heavy, parallel isolation)
+- Execute the `/start-feature` command logic.
 - Never commit changes directly to `main`.
 - If the task is a resume, verify where the current branch exists and continue working there instead of creating a new workspace.
 
@@ -259,27 +257,14 @@ Use these rules for Internal Review Fix Loop, Manual Testing Fix Loop, and PR Re
 
 ### 11. PR Open
 
-- If GitHub access is available, open a pull request with a concise summary.
-- If GitHub access is not available, prepare the pull request summary for a human to open manually.
+- Execute the `/open-pr` command logic.
 - While the pull request is open and waiting for review, keep the relevant `plan.md` item marked as `[x]` (completed) so it merges in the correct final state.
-- Include:
-  - what changed
-  - why it changed
-  - what was validated
 
 ### 12. PR Review Comments
 
-- After the pull request is open, manually instruct the local agent to check GitHub for review comments and unresolved review threads.
-- Once asked to do this, the agent should treat GitHub review comments as the primary review queue for the branch.
-- Default behavior after checking GitHub:
-  - fetch unresolved review threads and actionable inline comments
-  - prioritize bugs, regressions, missing tests, and architecture risks
-  - apply fixes for clearly actionable comments without waiting for extra approval
-  - explicitly call out comments that are declined or intentionally left unchanged, with reasons
-  - follow the Fix Loop Decision Rules after each fix before replying or resolving threads
-  - prepare short reply text the human can paste into GitHub for each addressed thread
+- Execute the `/address-pr-comments` command logic.
+- GitHub review comments are the primary review queue for the branch once the PR is open.
 - Only treat a review comment as resolved after the fix is implemented, validated, and pushed.
-- If GitHub permissions allow, the agent may reply to and resolve addressed review threads directly. Otherwise, it should prepare the exact reply or resolution notes for the human.
 
 ### 13. PR Review Fix Loop
 
@@ -291,24 +276,13 @@ Use these rules for Internal Review Fix Loop, Manual Testing Fix Loop, and PR Re
 
 ### 14. Ready For Merge
 
-- Ensure the relevant `plan.md` item is marked `[x]` directly in the feature branch.
 - Use `[-]` only when work is intentionally skipped or deferred, with a short reason.
 - Keep `plan.md` aligned with accepted progress, not only local code state.
-- Record any final pre-merge plan updates in a separate small commit just before merge.
 
-Example:
+### 15. Merge And Cleanup
 
-- `docs: mark feature as completed in plan`
-
-### 15. Human Merge / Cleanup
-
-- Merge is done by a human.
-- After merge is confirmed, verify the feature branch has no remaining unmerged local-only work, no pending review or testing actions, and no unpushed commits that should be preserved.
-- If the worktree is dirty, merge status is unclear, or the branch still has work to keep, stop and report the blocker instead of deleting anything.
-- Once the worktree is safely stale:
-  - remove it from `git worktree`
-  - delete the local worktree directory
-- After cleanup, return to `main` in the repo root.
+- Execute the `/finish-feature` command logic.
+- The command marks `plan.md` as `[x]`, merges the PR via GitHub CLI (merge commit), safety-checks the local workspace, removes the branch or worktree, and returns to `main`.
 
 ## Validation
 
@@ -353,10 +327,13 @@ Use a command when the task is a specific, repeatable procedure rather than gene
 
 Available commands:
 
-- `ai/commands/review/COMMAND.md` — internal code review (diff-based, pre-PR)
-- `ai/commands/pr/COMMAND.md` — open a GitHub PR with the project's standard format
-- `ai/commands/validate/COMMAND.md` — run the full validation suite
 - `ai/commands/check-state/COMMAND.md` — bootstrap context and analyze branch reality to help decide next steps
+- `ai/commands/start-feature/COMMAND.md` — set up the workspace for a new feature (branch name, workspace strategy, branch creation)
+- `ai/commands/validate/COMMAND.md` — run the full validation suite
+- `ai/commands/review/COMMAND.md` — internal code review (diff-based, pre-PR)
+- `ai/commands/open-pr/COMMAND.md` — open a GitHub PR with the project's standard format
+- `ai/commands/address-pr-comments/COMMAND.md` — fetch PR review threads, triage, fix with Fix Loop Decision Rules, prepare reply text
+- `ai/commands/finish-feature/COMMAND.md` — mark plan complete, merge PR via GitHub CLI, clean up branch or worktree
 
 ### Adding A New Command
 

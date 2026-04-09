@@ -1,5 +1,5 @@
 ---
-name: pr
+name: open-pr
 description: >-
   Open a GitHub PR with a standardized summary built from the branch diff and plan context.
 inputs:
@@ -11,7 +11,7 @@ outputs:
     description: 'URL of the newly opened PR'
 ---
 
-# PR
+# Open PR
 
 Open a GitHub pull request with a standardized body.
 
