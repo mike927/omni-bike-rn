@@ -49,25 +49,17 @@ gh pr view --json number,url,state --jq '{number,url,state}'
 ### Step 2: Fetch All Review Threads
 
 ```bash
-# PR metadata and review-level decisions
-gh pr view <number> --json number,title,url,state,reviewDecision,reviews
-
-# Inline review comments (line-level)
-gh api repos/{owner}/{repo}/pulls/<number>/comments \
-  --jq '[.[] | {id,path,line,body,user: .user.login,resolved: false}]'
-
-# Top-level review comments (non-inline)
-gh api repos/{owner}/{repo}/pulls/<number>/reviews \
-  --jq '[.[] | select(.state != "APPROVED") | {id,state,body,user: .user.login}]'
+gh pr view <number> --json number,title,url,state,reviewDecision,reviews,comments
 ```
 
-Derive `{owner}/{repo}` with:
+This single call returns inline comments, top-level review submissions, and PR metadata. Collect all unresolved threads into a working list.
 
-```bash
-gh repo view --json nameWithOwner --jq '.nameWithOwner'
+If the result has zero reviews and zero comments, report and stop:
+
 ```
-
-Collect all unresolved threads into a working list.
+**PR Comments Addressed**
+No unresolved review threads. PR is clean and ready to merge.
+```
 
 ### Step 3: Triage All Threads
 
@@ -89,12 +81,7 @@ Output the triage list in chat before fixing anything, so the overall picture is
 For each bug, architecture, convention, and accepted suggestion — in that priority order:
 
 1. Apply the code fix.
-2. Apply the **Fix Loop Decision Rules** to choose validation and review scope:
-   - **Validate** with `/validate quick` for comment/text-only changes.
-   - **Validate** with `/validate test` for test-only changes.
-   - **Validate** with `/validate full` for runtime logic, routing, persistence, native, BLE, or user-visible changes.
-   - **Review** with `/review staged` for small, contained fixes.
-   - **Escalate to `/review branch`** when the fix touches architecture, contracts, shared state, routing, persistence, native, or BLE behavior, or could invalidate earlier review conclusions.
+2. Apply the **Fix Loop Decision Rules** (AGENTS.md § Fix Loop Decision Rules) to choose validation and review scope.
 3. Do not move to the next comment until validation and any required review pass.
 4. Commit with a focused Conventional Commits message. Push immediately so the PR stays in a recoverable state.
 

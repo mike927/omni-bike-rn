@@ -139,7 +139,7 @@ Examples:
   - `**Manual Testing**`
   - `**Review**`
   - `**Blocked**`
-- Keep headers short, stable, and purpose-based. Do not invent a new header prevent standard labels if they fit.
+- Keep headers short, stable, and purpose-based. Do not invent a new header instead of standard labels if they fit.
 
 ### Chat Progress Updates
 
@@ -216,17 +216,14 @@ Use this format for all standard stage transitions or turn pauses:
 
 Use these rules for Internal Review Fix Loop, Manual Testing Fix Loop, and PR Review Fix Loop so the decision logic lives in one place.
 
-- Validation scope:
-  - use `/validate quick` for docs, workflow, comments, text-only changes, or narrow non-runtime refactors
-  - use `/validate test` for test-only changes
-  - use `/validate full` for runtime logic, app behavior, native/config/build changes, routing, persistence, BLE, permissions, or anything user-visible
-- Internal review scope:
-  - use `/review staged` by default after a small local follow-up fix
-  - escalate to `/review branch` when the fix changes architecture, contracts or interfaces, shared flows or shared state, routing, persistence, native behavior, BLE behavior, or could invalidate earlier review conclusions
-- Manual retesting:
-  - do not require human retesting during Step 8 unless the review-driven fix changes user-visible behavior or invalidates behavior the human will later verify
-  - require targeted human retesting during Step 10 or Step 13 when the fix is user-visible, native, risky, or changes a previously tested flow
-- A fix loop is clean only when the selected validation passes, no unresolved blocking review findings remain, and any required retest or PR follow-up for that stage is complete
+| Change type | `/validate` scope | `/review` scope | Require human retest? |
+|---|---|---|---|
+| Docs, comments, text-only, narrow non-runtime refactor | `quick` | `staged` | No |
+| Test-only | `test` | `staged` | No |
+| Runtime logic, routing, persistence, BLE, native, user-visible | `full` | `staged` (small fix) or `branch` (see below) | Step 10/13: yes |
+| Fix touches architecture, contracts, shared state, or could invalidate earlier review | `full` | `branch` | Step 10/13: yes |
+
+A fix loop is clean only when the selected validation passes, no unresolved blocking review findings remain, and any required retest or PR follow-up for that stage is complete.
 
 ### 8. Internal Review Fix Loop
 

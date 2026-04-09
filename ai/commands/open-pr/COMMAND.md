@@ -59,12 +59,23 @@ Ensure the feature branch is up to date with `main` before opening the PR:
 
 ```bash
 git fetch origin
+```
+
+Check if a merge is actually needed:
+
+```bash
+git log HEAD..origin/main --oneline
+```
+
+- If the output is **empty**: branch is already up to date — skip the merge and proceed to Step 3.
+- If commits are listed: merge them in:
+
+```bash
 git merge origin/main
 ```
 
 - If the merge completes cleanly, push the merge commit: `git push`.
 - If there are conflicts: abort the merge (`git merge --abort`), report the conflicting files to the user, and stop. Do not attempt automatic conflict resolution — ask the user to resolve and re-run the command.
-- Ensure the merge commit is pushed before proceeding to Step 3.
 
 ### Step 3: Gather Context
 

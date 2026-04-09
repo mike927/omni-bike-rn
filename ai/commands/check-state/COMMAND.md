@@ -41,9 +41,10 @@ Load the intended textual state from tracking files.
 
 ### Step 3: Analyze Discrepancies
 
-Cross-reference Reality vs. Workflow State:
-- If the blueprint in `ai/local/plans/` explicitly notes the current phase is "Review", but `git status` reveals uncommitted changes, flag this discrepancy.
+Cross-reference Reality vs. Workflow State using both git state and the recent commit log:
 - If the branch is `main` but there are dirty files, flag the violation of core rules.
+- If `git status` shows uncommitted changes but recent commits suggest implementation is complete, flag the mismatch.
+- If the last commit subject implies a step that is ahead of what `plan.md` reflects (e.g., commits say "feat: add X" but plan still shows `[ ]`), flag the plan drift.
 - If there is no plan file, note that this appears to be a fresh start or an untracked feature.
 
 ### Step 4: Report Check-State Snapshot

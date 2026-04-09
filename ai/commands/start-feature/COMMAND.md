@@ -82,6 +82,15 @@ Do not default silently — this question must be answered explicitly.
 
 Derive `branch-slug` = branch name with `/` replaced by `-` (e.g., `feat-ble-metronome-engine`).
 
+Before creating, verify the branch does not already exist:
+
+```bash
+git show-ref --quiet refs/heads/<branch-name> && echo "EXISTS locally"
+git ls-remote --heads origin <branch-name> | grep -q . && echo "EXISTS on remote"
+```
+
+If the branch already exists locally or remotely, stop and report — ask the user whether to resume the existing branch (use `/check-state`) or choose a different name.
+
 **In-place branch:**
 
 ```bash
