@@ -1,3 +1,4 @@
+import { Alert } from 'react-native';
 import { fireEvent, render } from '@testing-library/react-native';
 
 import {
@@ -5,12 +6,15 @@ import {
   SAVED_SESSION_TRAINING_SUMMARY_SOURCE,
 } from '../../../training/navigation/trainingSummaryRoute';
 import { HistoryScreen } from '../HistoryScreen';
+import { formatSessionDate } from '../../../../ui/formatters';
 
 const mockPush = jest.fn();
-const mockLatestWorkout = jest.fn();
+const mockReplace = jest.fn();
+const mockDeleteWorkout = jest.fn();
+const mockUseWorkoutHistory = jest.fn();
 
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, replace: mockReplace }),
 }));
 
 jest.mock('react-native-safe-area-context', () => {
@@ -21,63 +25,102 @@ jest.mock('react-native-safe-area-context', () => {
   };
 });
 
-jest.mock('../../../training/hooks/useTrainingSession', () => ({
-  useTrainingSession: () => ({
-    phase: 'idle',
-    elapsedSeconds: 0,
-    totalDistance: 0,
-    totalCalories: 0,
-    currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null },
-    start: jest.fn(),
-    pause: jest.fn(),
-    resume: jest.fn(),
-    finish: jest.fn(),
-    finishAndDisconnect: jest.fn(),
-    reset: jest.fn(),
-  }),
-}));
-
-jest.mock('../../../training/hooks/useLatestWorkout', () => ({
-  useLatestWorkout: () => mockLatestWorkout(),
+jest.mock('../../hooks/useWorkoutHistory', () => ({
+  useWorkoutHistory: () => mockUseWorkoutHistory(),
 }));
 
 describe('HistoryScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockLatestWorkout.mockReturnValue(null);
+    mockUseWorkoutHistory.mockReturnValue({
+      sessions: [],
+      isLoading: false,
+      refresh: jest.fn(),
+      deleteWorkout: mockDeleteWorkout,
+    });
   });
 
-  it('renders without crashing', () => {
-    expect(() => render(<HistoryScreen />)).not.toThrow();
-  });
-
-  it('shows the History heading', () => {
+  it('shows the empty state and routes home from Start Training', () => {
     const { getByText } = render(<HistoryScreen />);
-    expect(getByText('History')).toBeTruthy();
+
+    expect(getByText('No Workouts Yet')).toBeTruthy();
+    expect(getByText('Your completed cycling sessions will appear here.')).toBeTruthy();
+
+    fireEvent.press(getByText('Start Training'));
+
+    expect(mockReplace).toHaveBeenCalledWith('/');
   });
 
-  it('opens the latest summary when one exists', () => {
-    mockLatestWorkout.mockReturnValue({
+  it('opens a saved workout summary from the list', () => {
+    const session = {
       id: 'session-7',
-      status: 'finished',
-      startedAtMs: 10,
-      endedAtMs: 20,
+      status: 'finished' as const,
+      startedAtMs: 1744200000000,
+      endedAtMs: 1744203600000,
       elapsedSeconds: 60,
       totalDistanceMeters: 1000,
       totalCaloriesKcal: 10,
       currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: null },
       savedBikeSnapshot: null,
       savedHrSnapshot: null,
-      uploadState: 'ready',
+      uploadState: 'ready' as const,
       createdAtMs: 10,
       updatedAtMs: 20,
+    };
+
+    mockUseWorkoutHistory.mockReturnValue({
+      sessions: [session],
+      isLoading: false,
+      refresh: jest.fn(),
+      deleteWorkout: mockDeleteWorkout,
     });
 
-    const { getByText } = render(<HistoryScreen />);
-    fireEvent.press(getByText('Open Latest Summary'));
+    const { getByLabelText } = render(<HistoryScreen />);
+    fireEvent.press(getByLabelText(`Workout on ${formatSessionDate(session.startedAtMs)}`));
 
     expect(mockPush).toHaveBeenCalledWith(
       buildTrainingSummaryRoute('session-7', SAVED_SESSION_TRAINING_SUMMARY_SOURCE, '/history'),
     );
+  });
+
+  it('prompts before deleting a workout from the list', () => {
+    const session = {
+      id: 'session-7',
+      status: 'finished' as const,
+      startedAtMs: 1744200000000,
+      endedAtMs: 1744203600000,
+      elapsedSeconds: 60,
+      totalDistanceMeters: 1000,
+      totalCaloriesKcal: 10,
+      currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: null },
+      savedBikeSnapshot: null,
+      savedHrSnapshot: null,
+      uploadState: 'ready' as const,
+      createdAtMs: 10,
+      updatedAtMs: 20,
+    };
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_, __, buttons) => {
+      buttons?.[1]?.onPress?.();
+    });
+
+    mockUseWorkoutHistory.mockReturnValue({
+      sessions: [session],
+      isLoading: false,
+      refresh: jest.fn(),
+      deleteWorkout: mockDeleteWorkout,
+    });
+
+    const { getByText } = render(<HistoryScreen />);
+    fireEvent.press(getByText('Delete'));
+
+    expect(mockDeleteWorkout).toHaveBeenCalledWith('session-7');
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Delete Workout?',
+      'Are you sure you want to delete this session? This cannot be undone.',
+      expect.any(Array),
+    );
+
+    alertSpy.mockRestore();
   });
 });

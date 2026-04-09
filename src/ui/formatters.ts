@@ -17,3 +17,13 @@ export function formatMetricValue(value: number | null | undefined, suffix: stri
 
   return `${value}${suffix}`;
 }
+
+export function formatSessionDate(timestampMs: number): string {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+  }).format(new Date(timestampMs));
+}

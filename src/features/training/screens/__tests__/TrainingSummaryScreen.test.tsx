@@ -91,6 +91,27 @@ describe('TrainingSummaryScreen', () => {
     alertSpy.mockRestore();
   });
 
+  it('returns to the provided route when discarding a saved workout summary', () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_, __, buttons) => {
+      buttons?.[1]?.onPress?.();
+    });
+
+    const { getByText } = render(
+      <TrainingSummaryScreen
+        sessionId="session-1"
+        source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE}
+        returnTo="/history"
+      />,
+    );
+
+    fireEvent.press(getByText('Discard'));
+
+    expect(mockDeleteSession).toHaveBeenCalledWith('session-1');
+    expect(mockReplace).toHaveBeenCalledWith('/history');
+
+    alertSpy.mockRestore();
+  });
+
   it('returns home when save is pressed after finishing a ride', async () => {
     const { getByText } = render(
       <TrainingSummaryScreen sessionId="session-1" source={POST_FINISH_TRAINING_SUMMARY_SOURCE} returnTo="/" />,

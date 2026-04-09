@@ -4,6 +4,7 @@ import {
   deleteSession,
   discardDraftSession,
   finalizeSession,
+  getFinishedSessions,
   getLatestFinishedSession,
   getLatestOpenSession,
   getSamplesBySessionId,
@@ -260,6 +261,60 @@ describe('trainingSessionRepository', () => {
 
     expect(getLatestFinishedSession()?.id).toBe('session-3');
     expect(database.getFirstSync).toHaveBeenCalledWith(expect.stringContaining('WHERE status = ?'), 'finished');
+  });
+
+  it('returns finished sessions in descending end-date order', () => {
+    const database = buildDatabase();
+    database.getAllSync.mockReturnValue([
+      {
+        id: 'session-5',
+        status: 'finished',
+        startedAtMs: 200,
+        endedAtMs: 900,
+        elapsedSeconds: 180,
+        totalDistanceMeters: 1500,
+        totalCaloriesKcal: 45,
+        currentSpeedKmh: 0,
+        currentCadenceRpm: 0,
+        currentPowerWatts: 0,
+        currentHeartRateBpm: null,
+        currentResistanceLevel: null,
+        currentDistanceMeters: 1500,
+        savedBikeId: null,
+        savedBikeName: null,
+        savedHrId: null,
+        savedHrName: null,
+        uploadState: 'uploaded',
+        createdAtMs: 200,
+        updatedAtMs: 900,
+      },
+      {
+        id: 'session-4',
+        status: 'finished',
+        startedAtMs: 100,
+        endedAtMs: 700,
+        elapsedSeconds: 120,
+        totalDistanceMeters: 1000,
+        totalCaloriesKcal: 35,
+        currentSpeedKmh: 0,
+        currentCadenceRpm: 0,
+        currentPowerWatts: 0,
+        currentHeartRateBpm: null,
+        currentResistanceLevel: null,
+        currentDistanceMeters: 1000,
+        savedBikeId: null,
+        savedBikeName: null,
+        savedHrId: null,
+        savedHrName: null,
+        uploadState: 'ready',
+        createdAtMs: 100,
+        updatedAtMs: 700,
+      },
+    ]);
+
+    expect(getFinishedSessions().map((session) => session.id)).toEqual(['session-5', 'session-4']);
+    expect(database.getAllSync).toHaveBeenCalledWith(expect.stringContaining('WHERE status = ?'), 'finished');
+    expect(database.getAllSync.mock.calls[0]?.[0]).toContain('ORDER BY ended_at_ms DESC');
   });
 
   it('returns all samples for a session in sequence order', () => {
