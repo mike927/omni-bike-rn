@@ -1,58 +1,67 @@
 import { useRouter } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, StyleSheet, Text } from 'react-native';
 
-import { useLatestWorkout } from '../../training/hooks/useLatestWorkout';
+import { WorkoutHistoryListItem } from '../components/WorkoutHistoryListItem';
+import { useWorkoutHistory } from '../hooks/useWorkoutHistory';
 import {
   buildTrainingSummaryRoute,
   SAVED_SESSION_TRAINING_SUMMARY_SOURCE,
 } from '../../training/navigation/trainingSummaryRoute';
-import { useTrainingSession } from '../../training/hooks/useTrainingSession';
 import { ActionButton } from '../../../ui/components/ActionButton';
-import { MetricTile } from '../../../ui/components/MetricTile';
 import { SectionCard } from '../../../ui/components/SectionCard';
-import { formatDistanceKm, formatDuration } from '../../../ui/formatters';
 import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
 
 const HISTORY_ROUTE = '/history';
+const HOME_ROUTE = '/';
 
 export function HistoryScreen() {
   const router = useRouter();
-  const session = useTrainingSession();
-  const latestWorkout = useLatestWorkout();
+  const { sessions, isLoading, deleteWorkout } = useWorkoutHistory();
+
+  const handlePressSession = (sessionId: string) => {
+    router.push(buildTrainingSummaryRoute(sessionId, SAVED_SESSION_TRAINING_SUMMARY_SOURCE, HISTORY_ROUTE));
+  };
+
+  const handleDeleteSession = (sessionId: string) => {
+    Alert.alert('Delete Workout?', 'Are you sure you want to delete this session? This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => deleteWorkout(sessionId),
+      },
+    ]);
+  };
 
   return (
-    <AppScreen
-      title="History"
-      subtitle="This tab is now part of the shell, with a lightweight placeholder until persistence and the real workout list arrive in Phase 5.">
-      <SectionCard
-        title="Coming Next"
-        description="Session persistence, saved workouts, and per-ride detail views are still ahead in the roadmap.">
-        <Text style={styles.bodyText}>
-          For now, this screen gives the app a stable tab destination and a place to surface the current in-memory
-          workout snapshot.
-        </Text>
-      </SectionCard>
-
-      <SectionCard title="Current Session Snapshot">
-        <View style={styles.metricGrid}>
-          <MetricTile label="Phase" value={session.phase} style={styles.metricTile} />
-          <MetricTile label="Elapsed" value={formatDuration(session.elapsedSeconds)} style={styles.metricTile} />
-          <MetricTile label="Distance" value={formatDistanceKm(session.totalDistance)} style={styles.metricTile} />
-        </View>
-        <ActionButton
-          label="Open Latest Summary"
-          onPress={() => {
-            if (latestWorkout) {
-              router.push(
-                buildTrainingSummaryRoute(latestWorkout.id, SAVED_SESSION_TRAINING_SUMMARY_SOURCE, HISTORY_ROUTE),
-              );
-            }
-          }}
-          variant="secondary"
-          disabled={!latestWorkout}
+    <AppScreen title="History" noScroll={true}>
+      {isLoading ? (
+        <SectionCard title="Loading Workouts">
+          <Text style={styles.bodyText}>Loading your saved sessions.</Text>
+        </SectionCard>
+      ) : sessions.length === 0 ? (
+        <SectionCard title="No Workouts Yet">
+          <Text style={styles.bodyText}>Your completed cycling sessions will appear here.</Text>
+          <ActionButton label="Start Training" onPress={() => router.replace(HOME_ROUTE)} />
+        </SectionCard>
+      ) : (
+        <FlatList
+          data={sessions}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <WorkoutHistoryListItem
+              session={item}
+              onPress={() => handlePressSession(item.id)}
+              onDelete={() => handleDeleteSession(item.id)}
+            />
+          )}
+          contentInsetAdjustmentBehavior="automatic"
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          style={styles.list}
         />
-      </SectionCard>
+      )}
     </AppScreen>
   );
 }
@@ -62,13 +71,12 @@ const styles = StyleSheet.create({
     color: palette.textMuted,
     fontSize: 14,
     lineHeight: 22,
+    marginBottom: 12,
   },
-  metricGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
+  listContent: {
+    paddingBottom: 32,
   },
-  metricTile: {
-    minWidth: 150,
+  list: {
+    flex: 1,
   },
 });

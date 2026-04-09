@@ -325,6 +325,19 @@ export function getLatestFinishedSession(): PersistedTrainingSession | null {
   return row ? mapSessionRow(row) : null;
 }
 
+export function getFinishedSessions(): PersistedTrainingSession[] {
+  const database = getSQLiteDatabase();
+  const rows = database.getAllSync<PersistedTrainingSessionRow>(
+    `SELECT ${SESSION_SELECT_COLUMNS}
+     FROM training_sessions
+     WHERE status = ?
+     ORDER BY ended_at_ms DESC`,
+    'finished',
+  );
+
+  return rows.map(mapSessionRow);
+}
+
 export function getSamplesBySessionId(sessionId: string): PersistedTrainingSample[] {
   const database = getSQLiteDatabase();
   const rows = database.getAllSync<PersistedTrainingSampleRow>(

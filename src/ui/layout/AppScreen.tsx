@@ -9,18 +9,31 @@ interface AppScreenProps {
   readonly subtitle?: string;
   readonly children: ReactNode;
   readonly contentContainerStyle?: StyleProp<ViewStyle>;
+  readonly noScroll?: boolean;
 }
 
-export function AppScreen({ title, subtitle, children, contentContainerStyle }: AppScreenProps) {
+export function AppScreen({ title, subtitle, children, contentContainerStyle, noScroll }: AppScreenProps) {
+  const contentNode = (
+    <>
+      <View style={styles.header}>
+        <Text style={styles.title}>{title}</Text>
+        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+      </View>
+      <View style={[styles.body, noScroll && styles.bodyFlex]}>{children}</View>
+    </>
+  );
+
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
-      <ScrollView contentContainerStyle={[styles.content, contentContainerStyle]} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.title}>{title}</Text>
-          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-        </View>
-        <View style={styles.body}>{children}</View>
-      </ScrollView>
+      {noScroll ? (
+        <View style={[styles.content, styles.noScrollContainer, contentContainerStyle]}>{contentNode}</View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={[styles.content, contentContainerStyle]}
+          showsVerticalScrollIndicator={false}>
+          {contentNode}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -51,5 +64,11 @@ const styles = StyleSheet.create({
   },
   body: {
     gap: 16,
+  },
+  bodyFlex: {
+    flex: 1,
+  },
+  noScrollContainer: {
+    flex: 1,
   },
 });

@@ -51,7 +51,7 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: TrainingS
           } catch (err: unknown) {
             console.error('[TrainingSummaryScreen] Failed to delete session:', err);
           }
-          router.replace(HOME_ROUTE);
+          router.replace(exitRoute);
         },
       },
     ]);
