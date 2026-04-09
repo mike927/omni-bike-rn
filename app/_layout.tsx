@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { initializeDatabase } from '../src/services/db/migrations';
+import { registerExportProviders } from '../src/services/export/registerExportProviders';
 import { ActionButton } from '../src/ui/components/ActionButton';
 import { AppScreen } from '../src/ui/layout/AppScreen';
 import { palette } from '../src/ui/theme';
@@ -39,6 +40,7 @@ export default function RootLayout() {
   useTrainingSessionPersistence(isDatabaseReady);
 
   useEffect(() => {
+    registerExportProviders();
     void hydrateGear();
     void hydratePrefs();
   }, [hydrateGear, hydratePrefs]);
