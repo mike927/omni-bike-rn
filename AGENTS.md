@@ -1,7 +1,5 @@
 # Agent Instructions
 
-This file contains the always-on instructions for agents working in this repository.
-
 ## Project Context
 
 Omni Bike is an iOS indoor cycling companion app. It connects to a BLE stationary bike and optional HR sources, records training sessions, and syncs completed workouts to Strava.
@@ -51,13 +49,10 @@ When using `[?]` or `[-]`, include a short reason in the same task line.
 
 ## Branching And Workspace Rules
 
-- Never commit changes directly to `main`. The `main` branch is a coordination and read-only workspace.
-- **In-Place Branching**: You may use standard branches (`git checkout -b <branch>`) directly in the repository root. This is preferred for linear development.
-- **Worktree Branching**: You may create a dedicated worktree (`../omni-bike-rn-worktrees/<branch-slug>`) when explicitly requested for parallel isolation.
-- Use Conventional Commits prefixes for branch names (e.g., `feat/`, `fix/`, `docs/`, `refactor/`). Determine the prefix automatically based on the task scope.
-- Name branches as `<type>/<kebab-case-description>` (e.g., `feat/ble-metronome-engine`).
-- `branch-slug` means the exact branch name with `/` replaced by `-`.
-- When a feature branch is merged and its explicitly isolated worktree is safely stale, remove the worktree to keep the local filesystem clean.
+- Never commit changes directly to `main`.
+- **In-Place Branching**: Standard branches (`git checkout -b <branch>`) directly in the repository root. Preferred for linear development.
+- **Worktree Branching**: Dedicated worktree (`../omni-bike-rn-worktrees/<branch-slug>`) when explicitly requested for parallel isolation.
+- Name branches as `<type>/<kebab-case-description>` using Conventional Commits prefixes (e.g., `feat/`, `fix/`, `docs/`, `refactor/`). Determine the prefix automatically based on task scope.
 
 Examples:
 
@@ -78,13 +73,11 @@ Examples:
 
 ## Workflow Artifacts
 
-- `ai/local/plans/<branch-slug>.md`: the local implementation plan for the active branch. Create it before implementation. Treat this file as a read-only blueprint once approved; do not update it continuously to track progress unless the fundamental scope changes.
+- `ai/local/plans/<branch-slug>.md`: the local implementation plan for the active branch. Treat as a read-only blueprint once approved; do not update it continuously to track progress unless the fundamental scope changes.
 - `ai/local/reviews/<branch-slug>.md`: local internal review findings and follow-up notes for the active branch.
-- `ai/local/testing/<branch-slug>.md`: local saved manual testing checklist. Create or update it only when the human explicitly asks for a persistent checklist file.
+- `ai/local/testing/<branch-slug>.md`: local saved manual testing checklist. Create or update only when the human explicitly asks for a persistent checklist file.
 - Reuse the same `branch-slug` across all branch-scoped AI artifacts.
-- These files are intentionally local-only and ignored by git. Do not open PRs just to add, update, or remove them.
-- When the worktree is deleted after merge, its `ai/local/` files disappear with it, so no repo cleanup commit is needed for branch runtime state.
-- When drafting plans (`ai/local/plans/`) or reviews (`ai/local/reviews/`), agents should utilize their native artifact or rich-markdown rendering capabilities to present the document clearly with diagrams, tables, and formatted diffs.
+- These files are local-only and ignored by git. Do not open PRs just to add, update, or remove them.
 
 ## Coding Conventions
 
@@ -96,8 +89,7 @@ Examples:
 - Prefer `interface` for contracts and public API shapes. Use `type` for unions, intersections, and utility types.
 - Interfaces and type aliases use `PascalCase`. Enum members use `UPPER_CASE` or `PascalCase`.
 - Do not declare reusable interfaces or type aliases inside implementation files such as adapters, hooks, screens, or components. Put them in a dedicated sibling file, contract file, or `src/types/` module and import them where needed.
-
-- Do not use magic values (inline UUIDs, URLs, numeric constants). Define them as named constants at module scope and reference the constant everywhere. If the same value is needed in multiple files, define it once and import it.
+- Do not use magic values (inline UUIDs, URLs, numeric constants). Define named constants at module scope. If the same value is needed in multiple files, define it once and import it.
 
 ### Architecture
 
@@ -126,9 +118,9 @@ Examples:
 ### Workflow Pacing and Discipline
 
 - You must execute the workflow strictly and sequentially. Do not spontaneously skip numbered workflow steps.
-- Do not chain multiple distinct workflow steps together in a single turn. This workflow is intentionally human-gated between numbered phases: pause at the logical end of your current step, report your progress via a Chat Progress Update, and await explicit human instruction before executing the next numbered phase.
+- Do not chain multiple distinct workflow steps together in a single turn. Pause at the logical end of your current step, report your progress via a Chat Progress Update, and await explicit human instruction before executing the next numbered phase.
 - If a step is logically irrelevant for a given task (e.g., Manual Human Testing for a pure documentation update), you must still output the `**Workflow Progress**` header for that step, formally note that it is being skipped, and provide a super concise reason why. Do not silently skip past it.
-- Agents with terminal capabilities should run CLI commands natively instead of instructing the human to paste them, provided it stays within tool-call approval constraints. Leverage safe auto-runs (e.g., `// turbo` or `// turbo-all`) if the environment supports them.
+- Agents with terminal capabilities should run CLI commands natively instead of instructing the human to paste them, provided it stays within tool-call approval constraints.
 - During complex debugging, do not pollute the project root with temporary scripts or data dumps. Use the agent's isolated sandbox directory or standard OS temporary directories (`/tmp/`), and clean them up afterward.
 
 ### Chat Headers
@@ -163,9 +155,6 @@ Use this format for all standard stage transitions or turn pauses:
 ```
 
 - Use 1 to 3 short bullet lines starting with `-`.
-- If you are completely blocked, use `**Current Focus**` with a concise blocked summary in the same bullet format.
-- Tailor the bullets to the active step or immediate task (for example planning, implementation, validation, review, or testing).
-- Keep the bullets short, direct, and non-redundant.
 - In most cases, prefer a single bullet.
 - Preserve the exact `**Current Focus**` header so the message is always visually distinct and scannable in the chat UI.
 
@@ -180,12 +169,10 @@ Use this format for all standard stage transitions or turn pauses:
 ### 2. Workspace Ready
 
 - Execute the `/start-feature` command logic.
-- Never commit changes directly to `main`.
 - If the task is a resume, verify where the current branch exists and continue working there instead of creating a new workspace.
 
 ### 3. Detailed Plan Prepared
 
-- Planning is a hard gate before implementation.
 - If your host environment supports a dedicated planning mode (read-only, no file writes), activate it now before drafting the plan.
 - If the mode must be set by the human rather than the agent, pause and explicitly ask the human to enable planning mode before proceeding.
 - If the host has no true planning mode, pause and explicitly ask the human to confirm that the session is in a planning-only phase before proceeding.
@@ -194,7 +181,6 @@ Use this format for all standard stage transitions or turn pauses:
   - no branch changes
   - no commits
 - While waiting for planning mode, you may continue reading repository files needed to prepare the plan.
-- Do not treat "careful planning in normal mode" as a substitute for explicit planning-mode confirmation in hosts that require a manual switch or only support a planning-only phase.
 - Only ask questions about business/product decisions; do not ask questions that can be answered by reading the repository.
 - **Ask product/business questions interactively: always offer 2–4 concrete options per question plus a free-text escape hatch. Use the most interactive mechanism your platform provides (e.g., dedicated UI prompts, tool calls, or simply numbered lists in chat). Never ask open-ended questions when choices can be offered.**
 - If work is blocked on a business decision, update the relevant `plan.md` item with `[?]` plus a short reason.
@@ -213,7 +199,7 @@ Use this format for all standard stage transitions or turn pauses:
 - Break the work into small, meaningful sub-tasks.
 - Implement fully, not partially.
 - Keep commits focused.
-- **Do not continuously update** `ai/local/plans/<branch-slug>.md` to check off tasks while coding. Progress is tracked via `git log` and `git status`. Agents will re-sync tracking state natively on-the-fly using the `/check-state` command if context is lost.
+- **Do not continuously update** `ai/local/plans/<branch-slug>.md` to check off tasks while coding. Progress is tracked via `git log` and `git status`. Use `/check-state` to re-sync if context is lost.
 
 ### 6. Validation Complete
 
@@ -253,8 +239,7 @@ A fix loop is clean only when the selected validation passes, no unresolved bloc
 - Before opening a Pull Request, the agent MUST pause and ask the human to manually test the changes on their device or simulator.
 - Along with the testing request, provide a concise summary of what was implemented and how the change affects the user experience or behavior.
 - Every manual testing request must explicitly say whether the human needs to restart the Metro server, rebuild the app, both, or neither before testing. If no restart or rebuild is needed, say that explicitly.
-- Provide the testing checklist directly in the conversation window. Use a short numbered list for the key validation path, and expand it only as much as needed for the current change.
-- For follow-up fixes after initial manual testing, provide only the incremental retest steps that matter for the latest change unless the full flow needs to be re-run.
+- Provide the testing checklist inline. For follow-up fixes, provide only incremental retest steps unless the full flow needs re-running.
 - Do not create or update `ai/local/testing/<branch-slug>.md` unless the human explicitly asks for a saved checklist file.
 - Wait for the human's feedback. Address any issues they find.
 - Only proceed to the next step once the human explicitly approves the manual test.
@@ -291,17 +276,6 @@ A fix loop is clean only when the selected validation passes, no unresolved bloc
 - Wait for the human to confirm the PR is approved and that merging should proceed.
 - Then execute the `/finish-feature` command logic.
 - The command marks `plan.md` as `[x]`, merges the PR via GitHub CLI (merge commit), safety-checks the local workspace, removes the branch or worktree, and returns to `main`.
-
-## Validation
-
-Use normal project commands:
-
-```bash
-npm run lint
-npm run typecheck
-npm test -- --ci --runInBand
-npm run build:smoke
-```
 
 ## Skills
 
