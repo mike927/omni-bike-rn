@@ -205,6 +205,7 @@ Use this format for all standard stage transitions or turn pauses:
 
 ### 5. Implementation In Progress
 
+- **Before writing any code**, verify that the working directory is on the correct feature branch (`git branch --show-current`). Plan mode or host mode switches can silently reset the branch. If the branch is wrong, switch to the correct one before proceeding.
 - When active implementation starts, update the relevant `plan.md` item to `[~]`.
 - Break the work into small, meaningful sub-tasks.
 - Implement fully, not partially.
