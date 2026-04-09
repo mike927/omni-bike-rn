@@ -115,6 +115,16 @@ Examples:
 
 ## Feature Workflow
 
+### Workflow Scope
+
+This workflow applies to **all code changes**, not only pre-planned features in `plan.md`. Bug fixes, ad-hoc investigations, refactors, and any user request that will result in code modifications must follow the same numbered steps.
+
+For unplanned work (e.g., a bug the user reports during a session):
+
+- **Analysis is free.** Reading code, tracing logic, and discussing findings does not trigger the workflow.
+- **The moment a code change is agreed upon**, the workflow activates. Start from Step 2 (Workspace Ready) — create a branch, then proceed through planning, implementation, validation, review, testing, and PR as normal.
+- **plan.md updates are optional.** Mark an existing item if the fix addresses one; otherwise skip plan.md references in the workflow steps but follow everything else.
+
 ### Workflow Pacing and Discipline
 
 - You must execute the workflow strictly and sequentially. Do not spontaneously skip numbered workflow steps.
@@ -306,7 +316,9 @@ Skills are optional helpers. They support this file, not replace it.
 
 ## Commands
 
-Use a command when the task is a specific, repeatable procedure rather than general domain context. Commands are active procedures that complement skills (passive reference).
+Commands are active procedures for specific, repeatable tasks. They complement skills (passive reference).
+
+**Commands are mandatory.** When a workflow step references a command (e.g., "Execute the `/open-pr` command logic"), the agent must load and follow the matching `COMMAND.md` file — never improvise or inline the procedure. This applies whether triggered by the human or reached organically during the workflow.
 
 Available commands:
 
