@@ -83,10 +83,10 @@ Bike-first product UX in this phase: support a single main bike for now, while k
 
 ## Phase 4: Workout History & Management
 
-- [R] Functional session history list + detail view with summary statistics
-- [R] Session deletion
-- [R] Minimal UI elements needed for history flows
-- [R] Add comprehensive unit tests covering various test cases
+- [x] Functional session history list + detail view with summary statistics
+- [x] Session deletion
+- [x] Minimal UI elements needed for history flows
+- [x] Add comprehensive unit tests covering various test cases
 
 ## Phase 5: First-Launch Onboarding
 
