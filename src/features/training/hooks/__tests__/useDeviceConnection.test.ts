@@ -119,7 +119,7 @@ describe('useDeviceConnection', () => {
     expect(firstHrSubscription.remove).toHaveBeenCalledTimes(1);
     expect(mockHrDisconnect).toHaveBeenCalledTimes(1);
     expect(useDeviceConnectionStore.getState().hrAdapter).not.toBeNull();
-    expect(useDeviceConnectionStore.getState().latestHr).toBeNull();
+    expect(useDeviceConnectionStore.getState().latestBluetoothHr).toBeNull();
   });
 
   it('should remove active subscriptions and clear connection state when disconnecting all devices', async () => {
@@ -148,7 +148,7 @@ describe('useDeviceConnection', () => {
 
     act(() => {
       useDeviceConnectionStore.getState().updateBikeMetrics({ speed: 32, cadence: 90, power: 210 });
-      useDeviceConnectionStore.getState().updateHr(145);
+      useDeviceConnectionStore.getState().updateBluetoothHr(145);
     });
 
     await act(async () => {
@@ -162,7 +162,7 @@ describe('useDeviceConnection', () => {
     expect(useDeviceConnectionStore.getState().bikeAdapter).toBeNull();
     expect(useDeviceConnectionStore.getState().hrAdapter).toBeNull();
     expect(useDeviceConnectionStore.getState().latestBikeMetrics).toBeNull();
-    expect(useDeviceConnectionStore.getState().latestHr).toBeNull();
+    expect(useDeviceConnectionStore.getState().latestBluetoothHr).toBeNull();
     expect(useSavedGearStore.getState().bikeReconnectState).toBe('disconnected');
     expect(useSavedGearStore.getState().hrReconnectState).toBe('disconnected');
     expect(useSavedGearStore.getState().bikeAutoReconnectSuppressed).toBe(false);

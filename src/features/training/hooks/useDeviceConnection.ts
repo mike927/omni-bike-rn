@@ -105,7 +105,7 @@ interface UseDeviceConnectionReturn {
   bikeConnected: boolean;
   hrConnected: boolean;
   latestBikeMetrics: BikeMetrics | null;
-  latestHr: number | null;
+  latestBluetoothHr: number | null;
 
   // ── Actions ────────────────────────────────────────────
   connectBike: (deviceId: string, options?: BleConnectionOptions) => Promise<void>;
@@ -125,7 +125,7 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
   const bikeAdapter = useDeviceConnectionStore((s) => s.bikeAdapter);
   const hrAdapter = useDeviceConnectionStore((s) => s.hrAdapter);
   const latestBikeMetrics = useDeviceConnectionStore((s) => s.latestBikeMetrics);
-  const latestHr = useDeviceConnectionStore((s) => s.latestHr);
+  const latestBluetoothHr = useDeviceConnectionStore((s) => s.latestBluetoothHr);
 
   const disconnectBike = useCallback(async () => {
     await disconnectBikeConnectionInternal();
@@ -176,7 +176,7 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
         useSavedGearStore.getState().setHrAutoReconnectSuppressed(false);
 
         hrSub = adapter.subscribeToHeartRate((hr: number) => {
-          useDeviceConnectionStore.getState().updateHr(hr);
+          useDeviceConnectionStore.getState().updateBluetoothHr(hr);
         });
       } catch (err: unknown) {
         if (!isExpectedBleDisconnectError(err) && !isExpectedBleConnectTimeoutError(err)) {
@@ -198,7 +198,7 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
     bikeConnected: bikeAdapter !== null,
     hrConnected: hrAdapter !== null,
     latestBikeMetrics,
-    latestHr,
+    latestBluetoothHr,
     connectBike,
     connectHr,
     disconnectBike,

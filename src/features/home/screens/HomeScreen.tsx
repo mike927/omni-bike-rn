@@ -151,14 +151,18 @@ export function HomeScreen() {
       </SectionCard>
 
       <SectionCard
-        title="Heart Rate"
-        description={savedHrSource ? savedHrSource.name : 'No heart rate source saved. This is optional.'}>
+        title="HR Source"
+        description={
+          savedHrSource
+            ? savedHrSource.name
+            : 'No Bluetooth HR source saved. Chest straps and broadcast watches are optional.'
+        }>
         <Text style={styles.statusText}>Status: {hrConnected ? 'Connected' : reconnectLabel(hrReconnectState)}</Text>
         <View style={styles.actionRow}>
           {renderSavedGearActions(
             savedHrSource !== null,
             hrReconnectState,
-            'Add HR Source',
+            'Add Bluetooth HR',
             HR_SETUP_ROUTE,
             retryHr,
             () => void forgetHr(),
