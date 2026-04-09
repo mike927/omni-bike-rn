@@ -30,8 +30,8 @@ Read these in this order before feature work:
 3. `git branch --show-current`
 4. `git worktree list`
 5. Relevant files under `ai/skills/*/SKILL.md`
-6. When the user asks for a specific procedure (review, PR, validate, status), load the matching `ai/commands/*/COMMAND.md`
-8. When the task involves vendor-specific behavior or hardware, check `docs/` for trusted reference material
+6. When the user asks for a specific procedure (review, PR, validate, check-state, start-feature, open-pr, address-pr-comments, finish-feature), load the matching `ai/commands/*/COMMAND.md`
+7. When the task involves vendor-specific behavior or hardware, check `docs/` for trusted reference material
 
 `plan.md` is the single source of truth for project scope and progress.
 `branch-slug` means the branch name with `/` replaced by `-`.
@@ -84,6 +84,7 @@ Examples:
 - Reuse the same `branch-slug` across all branch-scoped AI artifacts.
 - These files are intentionally local-only and ignored by git. Do not open PRs just to add, update, or remove them.
 - When the worktree is deleted after merge, its `ai/local/` files disappear with it, so no repo cleanup commit is needed for branch runtime state.
+- When drafting plans (`ai/local/plans/`) or reviews (`ai/local/reviews/`), agents should utilize their native artifact or rich-markdown rendering capabilities to present the document clearly with diagrams, tables, and formatted diffs.
 
 ## Coding Conventions
 
@@ -125,8 +126,10 @@ Examples:
 ### Workflow Pacing and Discipline
 
 - You must execute the workflow strictly and sequentially. Do not spontaneously skip numbered workflow steps.
-- Do not chain multiple distinct workflow steps together in a single turn. You must pause at the logical end of your current step, report your progress via a Chat Progress Update, and await explicit human instruction before executing the next numbered phase.
+- Do not chain multiple distinct workflow steps together in a single turn. This workflow is intentionally human-gated between numbered phases: pause at the logical end of your current step, report your progress via a Chat Progress Update, and await explicit human instruction before executing the next numbered phase.
 - If a step is logically irrelevant for a given task (e.g., Manual Human Testing for a pure documentation update), you must still output the `**Workflow Progress**` header for that step, formally note that it is being skipped, and provide a super concise reason why. Do not silently skip past it.
+- Agents with terminal capabilities should run CLI commands natively instead of instructing the human to paste them, provided it stays within tool-call approval constraints. Leverage safe auto-runs (e.g., `// turbo` or `// turbo-all`) if the environment supports them.
+- During complex debugging, do not pollute the project root with temporary scripts or data dumps. Use the agent's isolated sandbox directory or standard OS temporary directories (`/tmp/`), and clean them up afterward.
 
 ### Chat Headers
 
@@ -182,7 +185,16 @@ Use this format for all standard stage transitions or turn pauses:
 
 ### 3. Detailed Plan Prepared
 
-- If your host environment utilizes dedicated agent operational modes (e.g., a "Planning" vs. "Edit" UI toggle or CLI flag), explicitly ask the human to ensure the correct mode is active before drafting the plan.
+- Planning is a hard gate before implementation.
+- If your host environment supports a dedicated planning mode (read-only, no file writes), activate it now before drafting the plan.
+- If the mode must be set by the human rather than the agent, pause and explicitly ask the human to enable planning mode before proceeding.
+- If the host has no true planning mode, pause and explicitly ask the human to confirm that the session is in a planning-only phase before proceeding.
+- Until planning mode is confirmed, remain read-only for normal repo work:
+  - no file edits or file creation outside `ai/local/plans/<branch-slug>.md`
+  - no branch changes
+  - no commits
+- While waiting for planning mode, you may continue reading repository files needed to prepare the plan.
+- Do not treat "careful planning in normal mode" as a substitute for explicit planning-mode confirmation in hosts that require a manual switch or only support a planning-only phase.
 - Only ask questions about business/product decisions; do not ask questions that can be answered by reading the repository.
 - **Ask product/business questions interactively: always offer 2–4 concrete options per question plus a free-text escape hatch. Use the most interactive mechanism your platform provides (e.g., dedicated UI prompts, tool calls, or simply numbered lists in chat). Never ask open-ended questions when choices can be offered.**
 - If work is blocked on a business decision, update the relevant `plan.md` item with `[?]` plus a short reason.
@@ -192,6 +204,8 @@ Use this format for all standard stage transitions or turn pauses:
 
 - Share the plan file with the user and wait for explicit approval before writing code. Discuss and iterate on the plan until approved.
 - Technical implementation choices are left to the agent unless the detailed plan exposes a product or business tradeoff that requires user input.
+- Once approved, deactivate planning mode before proceeding to implementation.
+- If the host requires the human to switch modes manually, or only supports manual planning-phase confirmation, explicitly ask the human to return the session to edit mode or confirm that implementation may begin, and wait for confirmation before writing code.
 
 ### 5. Implementation In Progress
 
@@ -208,7 +222,8 @@ Use this format for all standard stage transitions or turn pauses:
 
 ### 7. Internal Review
 
-- Execute the `/review` command logic to deeply analyze your diff for bugs, regressions, missing tests, and architecture risks before asking the human to test.
+- Before running `/review`, do a code quality pass on the branch diff: look for duplication, efficiency issues, and unnecessary nesting, and fix what you find.
+- Then execute the `/review` command logic to deeply analyze the diff for bugs, regressions, missing tests, and architecture risks.
 - Use `/review branch` as the default first pre-test review on the branch.
 - Let the `/review` command own review-file creation and cleanup behavior in `ai/local/reviews/<branch-slug>.md`.
 
@@ -271,14 +286,10 @@ A fix loop is clean only when the selected validation passes, no unresolved bloc
   - prepare updated reply text or direct GitHub replies only after the fix and required revalidation are complete
 - Repeat the PR review and fix loop up to 3 times. Stop earlier if the review queue is already clean.
 
-### 14. Ready For Merge
+### 14. Merge And Cleanup
 
-- Use `[-]` only when work is intentionally skipped or deferred, with a short reason.
-- Keep `plan.md` aligned with accepted progress, not only local code state.
-
-### 15. Merge And Cleanup
-
-- Execute the `/finish-feature` command logic.
+- Wait for the human to confirm the PR is approved and that merging should proceed.
+- Then execute the `/finish-feature` command logic.
 - The command marks `plan.md` as `[x]`, merges the PR via GitHub CLI (merge commit), safety-checks the local workspace, removes the branch or worktree, and returns to `main`.
 
 ## Validation
@@ -304,6 +315,7 @@ Available skills:
 - `ai/skills/expo-ui/SKILL.md` for Expo Router UI, navigation, styling, and components
 - `ai/skills/expo-upgrade/SKILL.md` for Expo SDK upgrades and dependency migrations
 - `ai/skills/ios-native/SKILL.md` for iOS-specific behavior
+- `ai/skills/provider-entrypoints/SKILL.md` for defining lean provider-specific entrypoint files (`CODEX.md`, `CLAUDE.md`, `GEMINI.md`) that enrich the shared workflow with provider-native capabilities
 - `ai/skills/quality-review/SKILL.md` for review checklists and quality standards
 - `ai/skills/react-native-perf/SKILL.md` for performance optimization, profiling, and bundle size
 - `ai/skills/sqlite-persistence/SKILL.md` for Expo SQLite, persistence boundaries, session-recording rules, and repository guidance
@@ -345,4 +357,6 @@ Commands complement skills, not replace them. A command may reference a skill wh
 
 This harness is provider-agnostic. All instructions live in plain markdown.
 
-If a specific AI tool requires its own config file (e.g., `.gemini/settings.json`, `CLAUDE.md`, `.cursor/rules`), that file should contain **only provider configuration** (model selection, context settings, etc.). Never duplicate instructions from `AGENTS.md` or skills into provider config files.
+If a specific AI tool requires its own config file (e.g., `.gemini/settings.json`, `CLAUDE.md`, `CODEX.md`, `.cursor/rules`), that file should contain only provider-specific configuration and minimal provider-specific execution notes that adapt `AGENTS.md` to that tool. Do not duplicate repository workflow instructions in full.
+- If a provider supports explicit plan/edit mode APIs, use them.
+- If a provider does not support agent-controlled mode switching, the workflow still requires the same plan/edit separation, but the human must perform the mode switch manually.
