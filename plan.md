@@ -124,7 +124,7 @@ Lightweight, modern onboarding shown only on first launch. 2-3 swipeable intro s
 
 Standard Bluetooth HR sensors are expected to work via the BLE HR flow before this phase. Broadcast-capable watches such as Garmin or Polar stay on that same Bluetooth HR path when they expose the standard BLE HR service. Apple Watch is a separate native integration and must only be surfaced on iPhone, never on Android. During this phase the app remains the owner of the workout session; watches act as HR sensors unless a later native watch integration explicitly says otherwise.
 
-- [R] HR priority scaffold + Bluetooth HR UX cleanup
+- [x] HR priority scaffold + Bluetooth HR UX cleanup
 - [ ] Extend gear setup and Settings to support native watch-based HR sources
 - [ ] Support Apple Watch as an iPhone-only native selectable HR source
 - [ ] Support compatible broadcast-capable watches (for example Garmin or Polar) as Bluetooth HR sources when the watch can transmit HR without owning the workout
