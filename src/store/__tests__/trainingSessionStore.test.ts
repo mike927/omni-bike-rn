@@ -144,12 +144,13 @@ describe('trainingSessionStore', () => {
       expect(useTrainingSessionStore.getState().totalDistance).toBeCloseTo(20, 5);
     });
 
-    it('should accumulate totalCalories from power', () => {
+    it('should accumulate totalCalories from power adjusted for metabolic efficiency', () => {
       useTrainingSessionStore.getState().start();
-      // 4186 W for 1 s = 4186 J = 1 kcal
+      // 4186 W for 1 s = 4186 J mechanical = 1 kcal mechanical
+      // Divided by 0.25 gross efficiency = 4 kcal metabolic
       useTrainingSessionStore.getState().tick(makeSample({ power: 4186 }));
 
-      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(1, 5);
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(4, 5);
     });
 
     it('should update currentMetrics snapshot', () => {
