@@ -1,6 +1,11 @@
 import { getExportProvider } from './exportProviderRegistry';
 import { getSessionById, getSamplesBySessionId } from '../db/trainingSessionRepository';
-import { getOrCreateProviderUpload, updateProviderUploadState } from '../db/providerUploadRepository';
+import {
+  claimProviderUpload,
+  getOrCreateProviderUpload,
+  getProviderUpload,
+  updateProviderUploadState,
+} from '../db/providerUploadRepository';
 
 export interface UploadSessionResult {
   providerId: string;
@@ -38,7 +43,19 @@ export async function uploadSessionToProvider(sessionId: string, providerId: str
     return { providerId, success: true, externalId: upload.externalId ?? undefined };
   }
 
-  updateProviderUploadState({ sessionId, providerId, uploadState: 'uploading', externalId: null, errorMessage: null });
+  const claimedUpload = claimProviderUpload({ sessionId, providerId });
+  if (!claimedUpload) {
+    const latestUpload = getProviderUpload(sessionId, providerId);
+    if (latestUpload?.uploadState === 'uploading') {
+      return { providerId, success: false, errorMessage: 'Upload already in progress.' };
+    }
+
+    if (latestUpload?.uploadState === 'uploaded') {
+      return { providerId, success: true, externalId: latestUpload.externalId ?? undefined };
+    }
+
+    return { providerId, success: false, errorMessage: 'Upload could not be started.' };
+  }
 
   try {
     const samples = getSamplesBySessionId(sessionId);

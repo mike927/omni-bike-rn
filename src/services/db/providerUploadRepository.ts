@@ -132,6 +132,41 @@ export function getOrCreateProviderUpload(input: CreateProviderUploadInput): Per
   return mapRow(row);
 }
 
+export function claimProviderUpload(input: CreateProviderUploadInput): PersistedProviderUpload | null {
+  const database = getSQLiteDatabase();
+  const now = Date.now();
+  const nextState: SessionUploadState = 'uploading';
+  const result = database.runSync(
+    `UPDATE session_provider_uploads
+     SET upload_state = ?,
+         external_id = ?,
+         error_message = ?,
+         updated_at_ms = ?
+     WHERE session_id = ? AND provider_id = ? AND upload_state IN (?, ?)`,
+    nextState,
+    null,
+    null,
+    now,
+    input.sessionId,
+    input.providerId,
+    'ready',
+    'failed',
+  );
+
+  if (result.changes === 0) {
+    return null;
+  }
+
+  const row = getProviderUploadRow(database, input.sessionId, input.providerId);
+  if (!row) {
+    throw new Error(
+      `[providerUploadRepository] Failed to claim provider upload for session "${input.sessionId}" and provider "${input.providerId}".`,
+    );
+  }
+
+  return mapRow(row);
+}
+
 export function getProviderUpload(sessionId: string, providerId: string): PersistedProviderUpload | null {
   const database = getSQLiteDatabase();
   const row = getProviderUploadRow(database, sessionId, providerId);

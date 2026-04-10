@@ -1,4 +1,5 @@
 import {
+  claimProviderUpload,
   createProviderUpload,
   deleteProviderUploadsBySessionId,
   getProviderUpload,
@@ -19,7 +20,7 @@ describe('providerUploadRepository', () => {
     const database = {
       getAllSync: jest.fn(),
       getFirstSync: jest.fn(),
-      runSync: jest.fn(),
+      runSync: jest.fn().mockReturnValue({ changes: 1, lastInsertRowId: 0 }),
     };
 
     mockGetSQLiteDatabase.mockReturnValue(database as never);
@@ -113,6 +114,46 @@ describe('providerUploadRepository', () => {
     database.getFirstSync.mockReturnValue(null);
 
     expect(getProviderUpload('session-1', 'strava')).toBeNull();
+  });
+
+  it('claims a ready upload atomically before export starts', () => {
+    const database = buildDatabase();
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(2500);
+    database.getFirstSync.mockReturnValue({
+      id: 'upload-existing',
+      sessionId: 'session-1',
+      providerId: 'strava',
+      uploadState: 'uploading',
+      externalId: null,
+      errorMessage: null,
+      createdAtMs: 1000,
+      updatedAtMs: 2500,
+    });
+
+    const result = claimProviderUpload({ sessionId: 'session-1', providerId: 'strava' });
+
+    expect(database.runSync).toHaveBeenCalledWith(
+      expect.stringContaining('WHERE session_id = ? AND provider_id = ? AND upload_state IN (?, ?)'),
+      'uploading',
+      null,
+      null,
+      2500,
+      'session-1',
+      'strava',
+      'ready',
+      'failed',
+    );
+    expect(result?.uploadState).toBe('uploading');
+
+    nowSpy.mockRestore();
+  });
+
+  it('returns null when an upload claim loses the race', () => {
+    const database = buildDatabase();
+    database.runSync.mockReturnValue({ changes: 0, lastInsertRowId: 0 });
+
+    expect(claimProviderUpload({ sessionId: 'session-1', providerId: 'strava' })).toBeNull();
+    expect(database.getFirstSync).not.toHaveBeenCalled();
   });
 
   it('returns all uploads for a session ordered by creation time', () => {
