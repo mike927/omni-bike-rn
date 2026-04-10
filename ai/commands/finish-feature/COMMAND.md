@@ -137,4 +137,3 @@ Use `-d` (safe delete) not `-D`. If the safe delete fails, investigate before fo
 ## See Also
 
 - `ai/commands/open-pr/COMMAND.md` — opens the PR (run before this command)
-- `ai/commands/address-pr-comments/COMMAND.md` — handles PR review comment cycles before merging

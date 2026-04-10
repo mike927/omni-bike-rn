@@ -4,7 +4,7 @@ description: Review checklist and quality standards for code reviews, regression
 ---
 # Quality Review
 
-Use this skill for the review checklist and quality standards applied during code reviews. For the active review procedure, see `ai/commands/review/COMMAND.md`.
+Use this skill for the review checklist and quality standards applied during code reviews.
 
 ## Review Checklist
 
@@ -15,7 +15,3 @@ Use this skill for the review checklist and quality standards applied during cod
 - [ ] No stale mock shapes (mock matches current hook return type)
 
 All other conventions (TypeScript, architecture, style, test structure) are in `AGENTS.md` § Coding Conventions.
-
-## See Also
-
-- `ai/commands/review/COMMAND.md` — the active review procedure that uses this checklist

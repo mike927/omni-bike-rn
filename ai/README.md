@@ -11,9 +11,9 @@ ai/
     check-state/       ← bootstrap/resume session context
     start-feature/     ← workspace setup for a new feature
     validate/          ← run full validation suite
-    review/            ← internal code review
+    code-review/       ← code review of branch diff (local or GitHub PR)
     open-pr/           ← open GitHub PR with standard format
-    address-pr-comments/ ← triage and fix PR review threads
+    address-code-review/ ← consume review findings and fix each actionable item
     finish-feature/    ← merge PR, clean up branch/worktree
   skills/
     architecture/      ← structure, boundaries, ownership

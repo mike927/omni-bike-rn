@@ -1,46 +1,47 @@
 ---
-name: review
+name: code-review
 description: >-
-  Run an internal code review against the current branch diff before opening a PR.
+  Run a code review against the branch diff (local working tree or GitHub PR)
+  and persist findings to the local review file.
 inputs:
-  - name: scope
-    description: 'What to review: "staged" (staged changes), "branch" (diff vs base), or "pr" (fetched PR diff)'
-    default: branch
+  - name: source
+    description: '"local" (default) reviews HEAD + working tree vs the target branch. "gh" reviews the open PR via `gh pr diff`.'
+    default: local
 outputs:
   - name: review-file
-    description: 'Review findings written to ai/local/reviews/<branch-slug>.md'
+    description: 'Findings written to ai/local/reviews/<branch-slug>.md'
   - name: recommendation
     description: 'Merge recommendation reported in chat: approve, request changes, or comment'
 ---
 
-# Review
+# Code Review
 
-Run an internal code review and report findings.
+Run an internal code review and persist findings to the local review file.
 
 ## Prerequisites
 
-- Working directory is inside a project worktree (not the repo root on `main`).
-- For `pr` scope: a PR must exist for the current branch and `gh` CLI must be authenticated.
+- Current branch is a feature branch, not `main`.
+- For `source: gh`: an open PR must exist for the current branch and `gh` CLI must be authenticated.
 
 ## Procedure
 
-### Step 1: Determine Scope And Collect Diff
+### Step 1: Collect The Diff
 
-Read the `scope` input. Default is `branch`.
+Read the `source` input. Default is `local`.
 
-| Scope    | How to collect the diff                                              |
-|----------|----------------------------------------------------------------------|
-| `staged` | `git diff --cached`                                                  |
-| `branch` | `git diff main...HEAD`                                               |
-| `pr`     | `gh pr diff` + `gh pr view --json number,title,body,url,baseRefName,headRefName` |
+| Source  | How to collect the diff                                                              |
+|---------|--------------------------------------------------------------------------------------|
+| `local` | `git diff <target-branch>...HEAD` plus any staged and unstaged working-tree changes  |
+| `gh`    | `gh pr diff` + `gh pr view --json number,title,body,url,baseRefName,headRefName`     |
 
-For `pr` scope, also fetch CI status: `gh pr checks`.
+`<target-branch>` is the merge-base branch (usually `main`).
+
+For `gh` source, also fetch CI status: `gh pr checks`.
 
 ### Step 2: Load Review Context
 
 1. Load the review checklist from `ai/skills/quality-review/SKILL.md` § Review Checklist.
-2. Read the active workspace coding and workflow guidance for cross-cutting standards.
-3. Cross-reference `plan.md` to confirm the changes align with the intended task scope.
+2. Cross-reference `plan.md` to confirm the changes align with the intended task scope.
 
 ### Step 3: Review Each Changed File
 
@@ -62,15 +63,15 @@ Flag each finding with `file:line` references and severity:
 
 ### Step 4: Write Findings
 
-If the scope is `staged`, simply output the findings in chat and skip writing a persistent file since staged changes iterate rapidly.
+Write the full review output to `ai/local/reviews/<branch-slug>.md` for **every** run, regardless of source. The review file is the canonical work queue: follow-up agents (internal fix loop, `/address-code-review`, cross-provider handoff) consume it directly. Overwrite or append to the same file on repeat runs.
 
-For `branch` or `pr` scopes, write the full review output to `ai/local/reviews/<branch-slug>.md`:
+Use this structure:
 
 ```md
 # Review: <branch-name>
 
 Date: <YYYY-MM-DD>
-Scope: <staged | branch | pr>
+Source: <local | gh>
 Recommendation: <approve | request changes | comment>
 
 ## Findings
@@ -91,7 +92,7 @@ Recommendation: <approve | request changes | comment>
 Post a summary in chat:
 
 ```md
-**Review Complete** (<scope>)
+**Review Complete** (<source>)
 Recommendation: <approve | request changes | comment>
 
 - 🐛 Bugs: <count>
@@ -104,16 +105,15 @@ Details: ai/local/reviews/<branch-slug>.md
 
 ### Step 6: Cleanup (When Resolved)
 
-If all findings in the review file are either addressed in code or explicitly acknowledged and intentionally skipped, remove the review file so `ai/local/reviews/` only contains open review work.
-
-Do not remove the review file if the PR is open and `/address-pr-comments` may still append PR review findings to it. Only clean up after all review work for the branch is complete (internal review, PR review, and all fix loops resolved).
+Remove the review file only when all findings are either addressed in code or explicitly declined, AND no further review work is expected for the branch (internal review, PR review, and all fix loops resolved). While the PR is open, `/address-code-review` may still append new findings — do not delete early.
 
 ## Completion Criteria
 
 - Every changed file has been reviewed against the checklist and conventions.
-- Findings are written to the review file with `file:line` references.
+- Findings are written to `ai/local/reviews/<branch-slug>.md` with `file:line` references.
 - A merge recommendation is posted in chat.
 
 ## See Also
 
 - `ai/skills/quality-review/SKILL.md` — review checklist and quality standards
+- `ai/commands/address-code-review/COMMAND.md` — consume findings and fix them

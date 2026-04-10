@@ -67,4 +67,4 @@ Include the first relevant error line for any failing command.
 
 ## See Also
 
-- `ai/commands/review/COMMAND.md` — typically run after validation passes
+- `ai/commands/code-review/COMMAND.md` — typically run after validation passes
