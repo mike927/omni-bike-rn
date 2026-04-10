@@ -18,6 +18,10 @@ export class StravaExportProvider implements ExportProvider {
 
   isConfigured(): boolean {
     // TODO: Phase 6 — return true when Strava OAuth tokens are present
+    if (__DEV__) {
+      return true;
+    }
+
     return false;
   }
 
