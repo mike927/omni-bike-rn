@@ -18,7 +18,7 @@ jest.mock('../../../../features/training/hooks/useDeviceConnection', () => ({
     bikeConnected: false,
     hrConnected: false,
     latestBikeMetrics: null,
-    latestHr: null,
+    latestBluetoothHr: null,
   }),
 }));
 
@@ -69,7 +69,8 @@ beforeEach(() => {
     bikeConnectionInProgress: false,
     hrConnectionInProgress: false,
     latestBikeMetrics: null,
-    latestHr: null,
+    latestBluetoothHr: null,
+    latestAppleWatchHr: null,
   });
   useSavedGearStore.setState({
     savedBike: null,

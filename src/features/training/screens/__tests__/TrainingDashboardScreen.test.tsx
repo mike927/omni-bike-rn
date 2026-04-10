@@ -24,7 +24,7 @@ const mockDeviceConnection = {
   bikeConnected: false,
   hrConnected: false,
   latestBikeMetrics: null,
-  latestHr: null,
+  latestBluetoothHr: null,
 };
 
 jest.mock('expo-router', () => ({
@@ -62,7 +62,7 @@ describe('TrainingDashboardScreen', () => {
       bikeConnected: false,
       hrConnected: false,
       latestBikeMetrics: null,
-      latestHr: null,
+      latestBluetoothHr: null,
     });
   });
 
@@ -105,7 +105,7 @@ describe('TrainingDashboardScreen', () => {
     Object.assign(mockDeviceConnection, {
       bikeConnected: true,
       hrConnected: true,
-      latestHr: 144,
+      latestBluetoothHr: 144,
     });
 
     const { getByText, queryByText } = render(<TrainingDashboardScreen />);
@@ -176,7 +176,7 @@ describe('TrainingDashboardScreen', () => {
     Object.assign(mockDeviceConnection, {
       bikeConnected: true,
       hrConnected: true,
-      latestHr: 142,
+      latestBluetoothHr: 142,
     });
 
     const { getByText } = render(<TrainingDashboardScreen />);

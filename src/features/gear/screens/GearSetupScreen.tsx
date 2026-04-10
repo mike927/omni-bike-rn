@@ -14,7 +14,7 @@ const INCOMPATIBILITY_MESSAGES: Record<ValidationFailureReason, string> = {
   missing_indoor_bike_characteristic:
     'This device uses FTMS but does not broadcast indoor bike data. It may be a different type of fitness machine.',
   missing_hr_service:
-    'This device does not broadcast a standard heart-rate signal. Only HR monitors and compatible watches in broadcast mode are supported.',
+    'This device does not broadcast a standard Bluetooth heart-rate signal. Only Bluetooth HR monitors and watches in broadcast or HR sensor mode are supported.',
   missing_hr_characteristic: 'This device has the HR service but is missing the HR Measurement characteristic.',
   connection_failed:
     'Could not complete the Bluetooth connection. Make sure the device is awake and in sensor mode, then try again.',
@@ -64,11 +64,11 @@ export function GearSetupScreen({ target }: GearSetupScreenProps) {
     router.back();
   };
 
-  const title = target === 'bike' ? 'Select Bike' : 'Select HR Source';
+  const title = target === 'bike' ? 'Select Bike' : 'Select Bluetooth HR Source';
   const subtitle =
     target === 'bike'
       ? 'Choose your FTMS-compatible bike trainer. A live signal is required before saving.'
-      : 'Choose a Bluetooth HR monitor or broadcast-capable watch. A live signal is required before saving.';
+      : 'Choose a Bluetooth HR monitor or a watch in broadcast or HR sensor mode. A live signal is required before saving.';
 
   return (
     <AppScreen title={title} subtitle={subtitle}>

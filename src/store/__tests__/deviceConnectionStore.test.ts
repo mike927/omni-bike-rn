@@ -67,7 +67,8 @@ describe('deviceConnectionStore', () => {
     it('should start with null metrics', () => {
       const state = useDeviceConnectionStore.getState();
       expect(state.latestBikeMetrics).toBeNull();
-      expect(state.latestHr).toBeNull();
+      expect(state.latestBluetoothHr).toBeNull();
+      expect(state.latestAppleWatchHr).toBeNull();
     });
 
     it('should update bike metrics', () => {
@@ -75,9 +76,14 @@ describe('deviceConnectionStore', () => {
       expect(useDeviceConnectionStore.getState().latestBikeMetrics).toEqual(sampleMetrics);
     });
 
-    it('should update HR value', () => {
-      useDeviceConnectionStore.getState().updateHr(145);
-      expect(useDeviceConnectionStore.getState().latestHr).toBe(145);
+    it('should update Bluetooth HR value', () => {
+      useDeviceConnectionStore.getState().updateBluetoothHr(145);
+      expect(useDeviceConnectionStore.getState().latestBluetoothHr).toBe(145);
+    });
+
+    it('should update Apple Watch HR value', () => {
+      useDeviceConnectionStore.getState().updateAppleWatchHr(151);
+      expect(useDeviceConnectionStore.getState().latestAppleWatchHr).toBe(151);
     });
 
     it('should overwrite previous metrics on update', () => {
@@ -93,7 +99,8 @@ describe('deviceConnectionStore', () => {
       useDeviceConnectionStore.getState().setBikeAdapter(mockBikeAdapter);
       useDeviceConnectionStore.getState().setHrAdapter(mockHrAdapter);
       useDeviceConnectionStore.getState().updateBikeMetrics(sampleMetrics);
-      useDeviceConnectionStore.getState().updateHr(145);
+      useDeviceConnectionStore.getState().updateBluetoothHr(145);
+      useDeviceConnectionStore.getState().updateAppleWatchHr(151);
 
       useDeviceConnectionStore.getState().clearAll();
 
@@ -103,14 +110,16 @@ describe('deviceConnectionStore', () => {
       expect(state.bikeConnectionInProgress).toBe(false);
       expect(state.hrConnectionInProgress).toBe(false);
       expect(state.latestBikeMetrics).toBeNull();
-      expect(state.latestHr).toBeNull();
+      expect(state.latestBluetoothHr).toBeNull();
+      expect(state.latestAppleWatchHr).toBeNull();
     });
 
     it('should clear only the bike connection state', () => {
       useDeviceConnectionStore.getState().setBikeAdapter(mockBikeAdapter);
       useDeviceConnectionStore.getState().setHrAdapter(mockHrAdapter);
       useDeviceConnectionStore.getState().updateBikeMetrics(sampleMetrics);
-      useDeviceConnectionStore.getState().updateHr(145);
+      useDeviceConnectionStore.getState().updateBluetoothHr(145);
+      useDeviceConnectionStore.getState().updateAppleWatchHr(151);
 
       useDeviceConnectionStore.getState().clearBikeConnection();
 
@@ -118,20 +127,23 @@ describe('deviceConnectionStore', () => {
       expect(state.bikeAdapter).toBeNull();
       expect(state.latestBikeMetrics).toBeNull();
       expect(state.hrAdapter).toBe(mockHrAdapter);
-      expect(state.latestHr).toBe(145);
+      expect(state.latestBluetoothHr).toBe(145);
+      expect(state.latestAppleWatchHr).toBe(151);
     });
 
     it('should clear only the HR connection state', () => {
       useDeviceConnectionStore.getState().setBikeAdapter(mockBikeAdapter);
       useDeviceConnectionStore.getState().setHrAdapter(mockHrAdapter);
       useDeviceConnectionStore.getState().updateBikeMetrics(sampleMetrics);
-      useDeviceConnectionStore.getState().updateHr(145);
+      useDeviceConnectionStore.getState().updateBluetoothHr(145);
+      useDeviceConnectionStore.getState().updateAppleWatchHr(151);
 
       useDeviceConnectionStore.getState().clearHrConnection();
 
       const state = useDeviceConnectionStore.getState();
       expect(state.hrAdapter).toBeNull();
-      expect(state.latestHr).toBeNull();
+      expect(state.latestBluetoothHr).toBeNull();
+      expect(state.latestAppleWatchHr).toBe(151);
       expect(state.bikeAdapter).toBe(mockBikeAdapter);
       expect(state.latestBikeMetrics).toEqual(sampleMetrics);
     });

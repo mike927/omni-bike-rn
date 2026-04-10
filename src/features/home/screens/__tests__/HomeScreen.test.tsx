@@ -43,7 +43,7 @@ const mockConnection = {
   bikeConnected: false,
   hrConnected: false,
   latestBikeMetrics: null,
-  latestHr: null,
+  latestBluetoothHr: null,
 };
 
 const mockSavedGear = {
@@ -91,7 +91,7 @@ describe('HomeScreen', () => {
     Object.assign(mockConnection, {
       bikeConnected: false,
       hrConnected: false,
-      latestHr: null,
+      latestBluetoothHr: null,
     });
     Object.assign(mockSavedGear, {
       savedBike: null,
@@ -109,7 +109,7 @@ describe('HomeScreen', () => {
 
     expect(getByText('Quick Start')).toBeTruthy();
     expect(getByText('Bike')).toBeTruthy();
-    expect(getByText('Heart Rate')).toBeTruthy();
+    expect(getByText('HR Source')).toBeTruthy();
     expect(getByText('Latest Workout')).toBeTruthy();
     expect(queryByText(/Latest reading:/)).toBeNull();
     expect(queryByText(/Current training state:/)).toBeNull();
@@ -144,7 +144,7 @@ describe('HomeScreen', () => {
     const { getByText } = render(<HomeScreen />);
 
     expect(getByText('Set Up Bike')).toBeTruthy();
-    expect(getByText('Add HR Source')).toBeTruthy();
+    expect(getByText('Add Bluetooth HR')).toBeTruthy();
   });
 
   it('shows reconnect actions when the saved bike reconnect failed', () => {
