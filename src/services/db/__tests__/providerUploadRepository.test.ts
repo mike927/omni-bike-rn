@@ -2,6 +2,7 @@ import {
   createProviderUpload,
   deleteProviderUploadsBySessionId,
   getProviderUpload,
+  getOrCreateProviderUpload,
   getProviderUploadsBySessionId,
   updateProviderUploadState,
 } from '../providerUploadRepository';
@@ -79,6 +80,34 @@ describe('providerUploadRepository', () => {
     );
   });
 
+  it('returns the existing provider upload when insert-or-ignore hits a duplicate', () => {
+    const database = buildDatabase();
+    database.getFirstSync.mockReturnValue({
+      id: 'upload-existing',
+      sessionId: 'session-1',
+      providerId: 'strava',
+      uploadState: 'ready',
+      externalId: null,
+      errorMessage: null,
+      createdAtMs: 1000,
+      updatedAtMs: 1000,
+    });
+
+    const result = getOrCreateProviderUpload({ sessionId: 'session-1', providerId: 'strava' });
+
+    expect(database.runSync.mock.calls[0]?.[0]).toContain('INSERT OR IGNORE INTO session_provider_uploads');
+    expect(result).toEqual({
+      id: 'upload-existing',
+      sessionId: 'session-1',
+      providerId: 'strava',
+      uploadState: 'ready',
+      externalId: null,
+      errorMessage: null,
+      createdAtMs: 1000,
+      updatedAtMs: 1000,
+    });
+  });
+
   it('returns null when no upload record exists', () => {
     const database = buildDatabase();
     database.getFirstSync.mockReturnValue(null);
@@ -117,6 +146,7 @@ describe('providerUploadRepository', () => {
       providerId: 'strava',
       uploadState: 'uploaded',
       externalId: 'ext-123',
+      errorMessage: null,
     });
 
     expect(database.runSync.mock.calls[0]?.[0]).toContain('UPDATE session_provider_uploads');
@@ -141,6 +171,7 @@ describe('providerUploadRepository', () => {
       sessionId: 'session-1',
       providerId: 'strava',
       uploadState: 'failed',
+      externalId: null,
       errorMessage: 'Network timeout',
     });
 
@@ -150,6 +181,31 @@ describe('providerUploadRepository', () => {
       null,
       'Network timeout',
       4000,
+      'session-1',
+      'strava',
+    );
+
+    nowSpy.mockRestore();
+  });
+
+  it('clears stale failure details when an upload later succeeds', () => {
+    const database = buildDatabase();
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(4500);
+
+    updateProviderUploadState({
+      sessionId: 'session-1',
+      providerId: 'strava',
+      uploadState: 'uploaded',
+      externalId: 'ext-999',
+      errorMessage: null,
+    });
+
+    expect(database.runSync).toHaveBeenCalledWith(
+      expect.any(String),
+      'uploaded',
+      'ext-999',
+      null,
+      4500,
       'session-1',
       'strava',
     );

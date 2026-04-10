@@ -1,3 +1,5 @@
+import type { SQLiteDatabase } from 'expo-sqlite';
+
 import { getSQLiteDatabase } from './database';
 import type {
   CreateProviderUploadInput,
@@ -45,6 +47,20 @@ const RANDOM_RADIX = 36;
 const RANDOM_ID_LENGTH = 8;
 const UPLOAD_ID_PREFIX = 'upload';
 
+function getProviderUploadRow(
+  database: SQLiteDatabase,
+  sessionId: string,
+  providerId: string,
+): PersistedProviderUploadRow | null {
+  return database.getFirstSync<PersistedProviderUploadRow>(
+    `SELECT ${SELECT_COLUMNS}
+     FROM session_provider_uploads
+     WHERE session_id = ? AND provider_id = ?`,
+    sessionId,
+    providerId,
+  );
+}
+
 function createUploadId(nowMs: number): string {
   const randomPart = Math.random()
     .toString(RANDOM_RADIX)
@@ -85,15 +101,40 @@ export function createProviderUpload(input: CreateProviderUploadInput): Persiste
   };
 }
 
+export function getOrCreateProviderUpload(input: CreateProviderUploadInput): PersistedProviderUpload {
+  const database = getSQLiteDatabase();
+  const now = Date.now();
+  const id = createUploadId(now);
+  const initialState: SessionUploadState = 'ready';
+
+  database.runSync(
+    `INSERT OR IGNORE INTO session_provider_uploads (
+      id, session_id, provider_id, upload_state,
+      external_id, error_message, created_at_ms, updated_at_ms
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    id,
+    input.sessionId,
+    input.providerId,
+    initialState,
+    null,
+    null,
+    now,
+    now,
+  );
+
+  const row = getProviderUploadRow(database, input.sessionId, input.providerId);
+  if (!row) {
+    throw new Error(
+      `[providerUploadRepository] Failed to load provider upload for session "${input.sessionId}" and provider "${input.providerId}".`,
+    );
+  }
+
+  return mapRow(row);
+}
+
 export function getProviderUpload(sessionId: string, providerId: string): PersistedProviderUpload | null {
   const database = getSQLiteDatabase();
-  const row = database.getFirstSync<PersistedProviderUploadRow>(
-    `SELECT ${SELECT_COLUMNS}
-     FROM session_provider_uploads
-     WHERE session_id = ? AND provider_id = ?`,
-    sessionId,
-    providerId,
-  );
+  const row = getProviderUploadRow(database, sessionId, providerId);
 
   return row ? mapRow(row) : null;
 }
@@ -116,13 +157,13 @@ export function updateProviderUploadState(input: UpdateProviderUploadStateInput)
   database.runSync(
     `UPDATE session_provider_uploads
      SET upload_state = ?,
-         external_id = COALESCE(?, external_id),
-         error_message = COALESCE(?, error_message),
+         external_id = ?,
+         error_message = ?,
          updated_at_ms = ?
      WHERE session_id = ? AND provider_id = ?`,
     input.uploadState,
-    input.externalId ?? null,
-    input.errorMessage ?? null,
+    input.externalId,
+    input.errorMessage,
     Date.now(),
     input.sessionId,
     input.providerId,

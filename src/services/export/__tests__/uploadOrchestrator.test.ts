@@ -1,7 +1,7 @@
 import { uploadSessionToProvider } from '../uploadOrchestrator';
 import { getExportProvider } from '../exportProviderRegistry';
 import { getSessionById, getSamplesBySessionId } from '../../db/trainingSessionRepository';
-import { getProviderUpload, createProviderUpload, updateProviderUploadState } from '../../db/providerUploadRepository';
+import { getOrCreateProviderUpload, updateProviderUploadState } from '../../db/providerUploadRepository';
 
 import type { ExportProvider } from '../ExportProvider';
 import type { PersistedProviderUpload } from '../../../types/sessionPersistence';
@@ -16,16 +16,16 @@ jest.mock('../../db/trainingSessionRepository', () => ({
 }));
 
 jest.mock('../../db/providerUploadRepository', () => ({
-  getProviderUpload: jest.fn(),
-  createProviderUpload: jest.fn(),
+  getOrCreateProviderUpload: jest.fn(),
   updateProviderUploadState: jest.fn(),
 }));
 
 const mockGetExportProvider = getExportProvider as jest.MockedFunction<typeof getExportProvider>;
 const mockGetSessionById = getSessionById as jest.MockedFunction<typeof getSessionById>;
 const mockGetSamplesBySessionId = getSamplesBySessionId as jest.MockedFunction<typeof getSamplesBySessionId>;
-const mockGetProviderUpload = getProviderUpload as jest.MockedFunction<typeof getProviderUpload>;
-const mockCreateProviderUpload = createProviderUpload as jest.MockedFunction<typeof createProviderUpload>;
+const mockGetOrCreateProviderUpload = getOrCreateProviderUpload as jest.MockedFunction<
+  typeof getOrCreateProviderUpload
+>;
 const mockUpdateProviderUploadState = updateProviderUploadState as jest.MockedFunction<
   typeof updateProviderUploadState
 >;
@@ -76,7 +76,7 @@ describe('uploadOrchestrator', () => {
     const provider = createMockProvider();
     mockGetExportProvider.mockReturnValue(provider);
     mockGetSessionById.mockReturnValue(FINISHED_SESSION);
-    mockGetProviderUpload.mockReturnValue(READY_UPLOAD);
+    mockGetOrCreateProviderUpload.mockReturnValue(READY_UPLOAD);
     mockGetSamplesBySessionId.mockReturnValue([]);
 
     const result = await uploadSessionToProvider('session-1', 'strava');
@@ -86,26 +86,28 @@ describe('uploadOrchestrator', () => {
       sessionId: 'session-1',
       providerId: 'strava',
       uploadState: 'uploading',
+      externalId: null,
+      errorMessage: null,
     });
     expect(mockUpdateProviderUploadState).toHaveBeenNthCalledWith(2, {
       sessionId: 'session-1',
       providerId: 'strava',
       uploadState: 'uploaded',
       externalId: 'ext-123',
+      errorMessage: null,
     });
   });
 
-  it('creates a new upload record when none exists', async () => {
+  it('loads or creates the provider upload record through the repository helper', async () => {
     const provider = createMockProvider();
     mockGetExportProvider.mockReturnValue(provider);
     mockGetSessionById.mockReturnValue(FINISHED_SESSION);
-    mockGetProviderUpload.mockReturnValue(null);
-    mockCreateProviderUpload.mockReturnValue(READY_UPLOAD);
+    mockGetOrCreateProviderUpload.mockReturnValue(READY_UPLOAD);
     mockGetSamplesBySessionId.mockReturnValue([]);
 
     await uploadSessionToProvider('session-1', 'strava');
 
-    expect(mockCreateProviderUpload).toHaveBeenCalledWith({ sessionId: 'session-1', providerId: 'strava' });
+    expect(mockGetOrCreateProviderUpload).toHaveBeenCalledWith({ sessionId: 'session-1', providerId: 'strava' });
   });
 
   it('fails gracefully when provider is not registered', async () => {
@@ -150,7 +152,7 @@ describe('uploadOrchestrator', () => {
   it('prevents double upload when already uploading', async () => {
     mockGetExportProvider.mockReturnValue(createMockProvider());
     mockGetSessionById.mockReturnValue(FINISHED_SESSION);
-    mockGetProviderUpload.mockReturnValue({ ...READY_UPLOAD, uploadState: 'uploading' });
+    mockGetOrCreateProviderUpload.mockReturnValue({ ...READY_UPLOAD, uploadState: 'uploading' });
 
     const result = await uploadSessionToProvider('session-1', 'strava');
 
@@ -162,7 +164,7 @@ describe('uploadOrchestrator', () => {
   it('returns success for already uploaded session', async () => {
     mockGetExportProvider.mockReturnValue(createMockProvider());
     mockGetSessionById.mockReturnValue(FINISHED_SESSION);
-    mockGetProviderUpload.mockReturnValue({ ...READY_UPLOAD, uploadState: 'uploaded', externalId: 'ext-99' });
+    mockGetOrCreateProviderUpload.mockReturnValue({ ...READY_UPLOAD, uploadState: 'uploaded', externalId: 'ext-99' });
 
     const result = await uploadSessionToProvider('session-1', 'strava');
 
@@ -176,7 +178,7 @@ describe('uploadOrchestrator', () => {
     });
     mockGetExportProvider.mockReturnValue(provider);
     mockGetSessionById.mockReturnValue(FINISHED_SESSION);
-    mockGetProviderUpload.mockReturnValue(READY_UPLOAD);
+    mockGetOrCreateProviderUpload.mockReturnValue(READY_UPLOAD);
     mockGetSamplesBySessionId.mockReturnValue([]);
 
     const result = await uploadSessionToProvider('session-1', 'strava');
@@ -186,6 +188,7 @@ describe('uploadOrchestrator', () => {
       sessionId: 'session-1',
       providerId: 'strava',
       uploadState: 'failed',
+      externalId: null,
       errorMessage: 'Rate limited',
     });
   });
@@ -196,7 +199,7 @@ describe('uploadOrchestrator', () => {
     });
     mockGetExportProvider.mockReturnValue(provider);
     mockGetSessionById.mockReturnValue(FINISHED_SESSION);
-    mockGetProviderUpload.mockReturnValue(READY_UPLOAD);
+    mockGetOrCreateProviderUpload.mockReturnValue(READY_UPLOAD);
     mockGetSamplesBySessionId.mockReturnValue([]);
 
     const result = await uploadSessionToProvider('session-1', 'strava');
@@ -206,6 +209,7 @@ describe('uploadOrchestrator', () => {
       sessionId: 'session-1',
       providerId: 'strava',
       uploadState: 'failed',
+      externalId: null,
       errorMessage: 'Network timeout',
     });
   });

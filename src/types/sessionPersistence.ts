@@ -57,8 +57,8 @@ export interface UpdateProviderUploadStateInput {
   sessionId: string;
   providerId: string;
   uploadState: SessionUploadState;
-  externalId?: string;
-  errorMessage?: string;
+  externalId: string | null;
+  errorMessage: string | null;
 }
 
 export interface CreateDraftSessionInput extends PersistedTrainingSummary {

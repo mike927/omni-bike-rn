@@ -1,6 +1,6 @@
 import { getExportProvider } from './exportProviderRegistry';
 import { getSessionById, getSamplesBySessionId } from '../db/trainingSessionRepository';
-import { getProviderUpload, createProviderUpload, updateProviderUploadState } from '../db/providerUploadRepository';
+import { getOrCreateProviderUpload, updateProviderUploadState } from '../db/providerUploadRepository';
 
 export interface UploadSessionResult {
   providerId: string;
@@ -28,10 +28,7 @@ export async function uploadSessionToProvider(sessionId: string, providerId: str
     return { providerId, success: false, errorMessage: `Session "${sessionId}" is not finished.` };
   }
 
-  let upload = getProviderUpload(sessionId, providerId);
-  if (!upload) {
-    upload = createProviderUpload({ sessionId, providerId });
-  }
+  const upload = getOrCreateProviderUpload({ sessionId, providerId });
 
   if (upload.uploadState === 'uploading') {
     return { providerId, success: false, errorMessage: 'Upload already in progress.' };
@@ -41,7 +38,7 @@ export async function uploadSessionToProvider(sessionId: string, providerId: str
     return { providerId, success: true, externalId: upload.externalId ?? undefined };
   }
 
-  updateProviderUploadState({ sessionId, providerId, uploadState: 'uploading' });
+  updateProviderUploadState({ sessionId, providerId, uploadState: 'uploading', externalId: null, errorMessage: null });
 
   try {
     const samples = getSamplesBySessionId(sessionId);
@@ -52,7 +49,8 @@ export async function uploadSessionToProvider(sessionId: string, providerId: str
         sessionId,
         providerId,
         uploadState: 'uploaded',
-        externalId: result.externalId,
+        externalId: result.externalId ?? null,
+        errorMessage: null,
       });
       return { providerId, success: true, externalId: result.externalId };
     }
@@ -61,7 +59,8 @@ export async function uploadSessionToProvider(sessionId: string, providerId: str
       sessionId,
       providerId,
       uploadState: 'failed',
-      errorMessage: result.errorMessage,
+      externalId: null,
+      errorMessage: result.errorMessage ?? null,
     });
     return { providerId, success: false, errorMessage: result.errorMessage };
   } catch (error: unknown) {
@@ -72,6 +71,7 @@ export async function uploadSessionToProvider(sessionId: string, providerId: str
       sessionId,
       providerId,
       uploadState: 'failed',
+      externalId: null,
       errorMessage: message,
     });
     return { providerId, success: false, errorMessage: message };
