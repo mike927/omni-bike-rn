@@ -9,6 +9,7 @@ import { ActionButton } from '../../../ui/components/ActionButton';
 import { MetricTile } from '../../../ui/components/MetricTile';
 import { SectionCard } from '../../../ui/components/SectionCard';
 import { formatDistanceKm, formatDuration, formatMetricValue } from '../../../ui/formatters';
+import { uploadSessionToProvider } from '../../../services/export/uploadOrchestrator';
 import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
 
@@ -24,6 +25,7 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: TrainingS
   const router = useRouter();
   const [session, setSession] = useState<PersistedTrainingSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
   const isPostFinishSource = source === POST_FINISH_TRAINING_SUMMARY_SOURCE;
   const primaryActionLabel = isPostFinishSource ? 'Save' : 'Done';
   const exitRoute = returnTo ?? HOME_ROUTE;
@@ -59,6 +61,22 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: TrainingS
 
   const handlePrimaryAction = () => {
     router.replace(exitRoute);
+  };
+
+  const handleUpload = async () => {
+    setIsUploading(true);
+    try {
+      const result = await uploadSessionToProvider(sessionId, 'strava');
+      if (result.success) {
+        Alert.alert('Success', 'Workout uploaded to Strava.');
+      } else {
+        Alert.alert('Upload Failed', result.errorMessage ?? 'Unknown error');
+      }
+    } catch (err: unknown) {
+      Alert.alert('Error', err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   if (isLoading) {
@@ -122,6 +140,12 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: TrainingS
 
         <View style={styles.actionRow}>
           <ActionButton label="Discard" onPress={handleDiscard} variant="danger" />
+          <ActionButton
+            label={isUploading ? 'Uploading...' : 'Upload to Strava'}
+            onPress={handleUpload}
+            variant="secondary"
+            disabled={isUploading}
+          />
           <ActionButton label={primaryActionLabel} onPress={handlePrimaryAction} />
         </View>
       </View>
