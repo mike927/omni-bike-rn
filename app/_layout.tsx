@@ -4,6 +4,9 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { initializeDatabase } from '../src/services/db/migrations';
+import { useDrizzleStudio } from 'expo-drizzle-studio-plugin';
+import { getSQLiteDatabase } from '../src/services/db/database';
+import { registerExportProviders } from '../src/services/export/registerExportProviders';
 import { ActionButton } from '../src/ui/components/ActionButton';
 import { AppScreen } from '../src/ui/layout/AppScreen';
 import { palette } from '../src/ui/theme';
@@ -28,6 +31,12 @@ export function getOnboardingGateRedirect(segments: readonly string[], onboardin
 export default function RootLayout() {
   const segments = useSegments();
   const hydrateGear = useSavedGearStore((s) => s.hydrate);
+
+  if (__DEV__) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useDrizzleStudio(getSQLiteDatabase());
+  }
+
   const hydratePrefs = useAppPreferencesStore((s) => s.hydrate);
   const prefsHydrated = useAppPreferencesStore((s) => s.hydrated);
   const onboardingCompleted = useAppPreferencesStore((s) => s.onboardingCompleted);
@@ -39,6 +48,7 @@ export default function RootLayout() {
   useTrainingSessionPersistence(isDatabaseReady);
 
   useEffect(() => {
+    registerExportProviders();
     void hydrateGear();
     void hydratePrefs();
   }, [hydrateGear, hydratePrefs]);

@@ -28,7 +28,7 @@ Read these in this order before feature work:
 3. `git branch --show-current`
 4. `git worktree list`
 5. Relevant files under `ai/skills/*/SKILL.md`
-6. When the user asks for a specific procedure (review, PR, validate, check-state, start-feature, open-pr, address-pr-comments, finish-feature), load the matching `ai/commands/*/COMMAND.md`
+6. When the user asks for a specific procedure (code-review, address-code-review, validate, check-state, start-feature, open-pr, finish-feature), load the matching `ai/commands/*/COMMAND.md`
 7. When the task involves vendor-specific behavior or hardware, check `docs/` for trusted reference material
 
 `plan.md` is the single source of truth for project scope and progress.
@@ -205,6 +205,7 @@ Use this format for all standard stage transitions or turn pauses:
 
 ### 5. Implementation In Progress
 
+- **Before writing any code**, verify that the working directory is on the correct feature branch (`git branch --show-current`). Plan mode or host mode switches can silently reset the branch. If the branch is wrong, switch to the correct one before proceeding.
 - When active implementation starts, update the relevant `plan.md` item to `[~]`.
 - Break the work into small, meaningful sub-tasks.
 - Implement fully, not partially.
@@ -218,29 +219,39 @@ Use this format for all standard stage transitions or turn pauses:
 
 ### 7. Internal Review
 
-- Before running `/review`, do a code quality pass on the branch diff: look for duplication, efficiency issues, and unnecessary nesting, and fix what you find.
-- Then execute the `/review` command logic to deeply analyze the diff for bugs, regressions, missing tests, and architecture risks.
-- Use `/review branch` as the default first pre-test review on the branch.
-- Let the `/review` command own review-file creation and cleanup behavior in `ai/local/reviews/<branch-slug>.md`.
+Internal review has two phases: a self-pass by the main agent, then a delegated deep review by a dedicated reviewer subagent with fresh context. The main agent's context is biased toward the path it already took, so self-review alone is not sufficient for logic changes.
+
+**Phase A — Self-pass (main agent).**
+
+- Run a code quality pass on the branch diff: duplication, efficiency, unnecessary nesting. Fix what you find inline.
+- This pass is cheap and benefits from full main-agent context, so it is the right place to catch obvious smells before delegating.
+
+**Phase B — Delegated review (dedicated subagent).**
+
+- Spawn a dedicated reviewer subagent with fresh context. Do not run `/code-review` inline as the main agent.
+- Before delegating, write a short review brief (2-5 sentences) covering: the intent of the change, what is explicitly out of scope, any tradeoffs already agreed with the human, and a pointer to the relevant `plan.md` item or `ai/local/plans/<branch-slug>.md`. The brief is the single biggest lever for review quality — without one the subagent produces generic noise.
+- Pass the brief plus the `/code-review` command logic to the subagent. The subagent owns `/code-review` end-to-end, including writing findings to `ai/local/reviews/<branch-slug>.md`. Default source is `local`; use `gh` only when you want to review what is actually in the open PR rather than local HEAD.
+- **Verification**: before marking this step complete, confirm that `ai/local/reviews/<branch-slug>.md` exists on disk and was updated in this run. If it was not, the subagent did not actually execute `/code-review` and the step must be re-run. All review findings — internal and PR — must persist in this file so follow-up agents across providers can act on them without re-running the review.
+- Map any provider-native subagent primitives (dedicated reviewer subagent types, isolated sub-task spawning) in the provider-specific entrypoint file, not here.
 
 ### Fix Loop Decision Rules
 
 Use these rules for Internal Review Fix Loop, Manual Testing Fix Loop, and PR Review Fix Loop so the decision logic lives in one place.
 
-| Change type | `/validate` scope | `/review` scope | Require human retest? |
+| Change type | `/validate` scope | `/code-review` execution | Require human retest? |
 |---|---|---|---|
-| Docs, comments, text-only, narrow non-runtime refactor | `quick` | `staged` | No |
-| Test-only | `test` | `staged` | No |
-| Runtime logic, routing, persistence, BLE, native, user-visible | `full` | `staged` (small fix) or `branch` (see below) | Step 10/13: yes |
-| Fix touches architecture, contracts, shared state, or could invalidate earlier review | `full` | `branch` | Step 10/13: yes |
+| Docs, comments, text-only, narrow non-runtime refactor | `quick` | inline (main agent) | No |
+| Test-only | `test` | inline (main agent) | No |
+| Runtime logic, routing, persistence, BLE, native, user-visible | `full` | inline (small fix) or respawned reviewer subagent (larger fix) | Step 10/13: yes |
+| Fix touches architecture, contracts, shared state, or could invalidate earlier review | `full` | respawned reviewer subagent | Step 10/13: yes |
 
 A fix loop is clean only when the selected validation passes, no unresolved blocking review findings remain, and any required retest or PR follow-up for that stage is complete.
 
 ### 8. Internal Review Fix Loop
 
 - If internal review finds issues, fix them before asking the human to test.
-- After each review-driven code change, follow the Fix Loop Decision Rules for validation and internal review scope.
-- Default to `/review staged` for small incremental follow-up fixes. Escalate to `/review branch` only when the rules above require it.
+- After each review-driven code change, follow the Fix Loop Decision Rules for validation scope and review execution.
+- For small incremental fixes the main agent may run `/code-review` inline since it just saw the subagent's findings and has context to verify targeted fixes. For larger fixes — or whenever the rules table says "respawned reviewer subagent" — spawn a fresh reviewer subagent with a new brief rather than reusing the main agent.
 - Do not proceed to manual testing until the fix loop is clean.
 - If internal review is already clean, mark this step complete with a short note such as `no fixes needed`.
 
@@ -258,7 +269,7 @@ A fix loop is clean only when the selected validation passes, no unresolved bloc
 ### 10. Manual Testing Fix Loop
 
 - If manual testing feedback leads to code changes, do not jump straight to PR.
-- After each manual-testing-driven code change, follow the Fix Loop Decision Rules for validation and internal review scope.
+- After each manual-testing-driven code change, follow the Fix Loop Decision Rules for validation scope and review execution.
 - Request targeted manual retesting only for the affected behavior unless the change is provably non-user-visible.
 - Stay in this loop until the human explicitly confirms the latest changes.
 
@@ -269,14 +280,14 @@ A fix loop is clean only when the selected validation passes, no unresolved bloc
 
 ### 12. PR Review Comments
 
-- Execute the `/address-pr-comments` command logic.
+- Execute the `/address-code-review` command logic.
 - GitHub review comments are the primary review queue for the branch once the PR is open.
 - Only treat a review comment as resolved after the fix is implemented, validated, and pushed.
 
 ### 13. PR Review Fix Loop
 
 - If PR review feedback leads to code changes:
-  - follow the Fix Loop Decision Rules for validation and internal review scope
+  - follow the Fix Loop Decision Rules for validation scope and review execution
   - request targeted manual retesting when the fix changes user-visible behavior, product flow, native behavior, or anything the human previously validated manually
   - prepare updated reply text or direct GitHub replies only after the fix and required revalidation are complete
 - Repeat the PR review and fix loop up to 3 times. Stop earlier if the review queue is already clean.
@@ -320,14 +331,18 @@ Commands are active procedures for specific, repeatable tasks. They complement s
 
 **Commands are mandatory.** When a workflow step references a command (e.g., "Execute the `/open-pr` command logic"), the agent must load and follow the matching `COMMAND.md` file — never improvise or inline the procedure. This applies whether triggered by the human or reached organically during the workflow.
 
+**Resolution is by file path, not by slash picker.** Slash syntax (`/code-review`, `/validate`, etc.) is ergonomic shorthand used throughout this document. The contract is always `ai/commands/<name>/COMMAND.md` — load that file directly. Do not depend on your client's command picker to surface the command; discoverability varies per client and some clients surface nothing at all. If the canonical file cannot be read, the step is blocked.
+
+**Client-specific bridges are optional.** A client may wrap commands as slash-commands, skills, or whatever primitive it supports. Bridges exist purely as ergonomic sugar for the human composing prompts — they must resolve to the same canonical file, and the harness must continue to work when they are absent. Document any such bridge in the matching provider entrypoint file, never here. Do not add a bridge for a client that is not in the user's active rotation.
+
 Available commands:
 
 - `ai/commands/check-state/COMMAND.md` — bootstrap context and analyze branch reality to help decide next steps
 - `ai/commands/start-feature/COMMAND.md` — set up the workspace for a new feature (branch name, workspace strategy, branch creation)
 - `ai/commands/validate/COMMAND.md` — run the full validation suite
-- `ai/commands/review/COMMAND.md` — internal code review (diff-based, pre-PR)
+- `ai/commands/code-review/COMMAND.md` — code review of branch diff (local working tree or GitHub PR), persisted to `ai/local/reviews/<branch-slug>.md`
 - `ai/commands/open-pr/COMMAND.md` — open a GitHub PR with the project's standard format
-- `ai/commands/address-pr-comments/COMMAND.md` — fetch PR review threads, triage, fix with Fix Loop Decision Rules, prepare reply text
+- `ai/commands/address-code-review/COMMAND.md` — consume code review findings (local file or GitHub PR threads) and fix each actionable item using the Fix Loop Decision Rules
 - `ai/commands/finish-feature/COMMAND.md` — mark plan complete, merge PR via GitHub CLI, clean up branch or worktree
 
 ### Adding A New Command

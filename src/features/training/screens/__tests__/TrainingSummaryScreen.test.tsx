@@ -10,6 +10,8 @@ import { TrainingSummaryScreen } from '../TrainingSummaryScreen';
 const mockReplace = jest.fn();
 const mockDeleteSession = jest.fn();
 const mockGetSessionById = jest.fn();
+const mockGetProviderUpload = jest.fn();
+const mockUploadSessionToProvider = jest.fn();
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn(), replace: mockReplace, back: jest.fn(), canGoBack: jest.fn() }),
@@ -26,6 +28,14 @@ jest.mock('react-native-safe-area-context', () => {
 jest.mock('../../../../services/db/trainingSessionRepository', () => ({
   deleteSession: (...args: unknown[]) => mockDeleteSession(...args),
   getSessionById: (...args: unknown[]) => mockGetSessionById(...args),
+}));
+
+jest.mock('../../../../services/db/providerUploadRepository', () => ({
+  getProviderUpload: (...args: unknown[]) => mockGetProviderUpload(...args),
+}));
+
+jest.mock('../../../../services/export/uploadOrchestrator', () => ({
+  uploadSessionToProvider: (...args: unknown[]) => mockUploadSessionToProvider(...args),
 }));
 
 describe('TrainingSummaryScreen', () => {
@@ -48,6 +58,8 @@ describe('TrainingSummaryScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetSessionById.mockReturnValue(session);
+    mockGetProviderUpload.mockReturnValue(null);
+    mockUploadSessionToProvider.mockResolvedValue({ providerId: 'strava', success: true, externalId: 'upload-1' });
   });
 
   it('shows a missing-session state when no persisted session exists', () => {
@@ -72,6 +84,8 @@ describe('TrainingSummaryScreen', () => {
     expect(getByText('1.00 km')).toBeTruthy();
     expect(getByText('50.0 kcal')).toBeTruthy();
     expect(getByText('Save')).toBeTruthy();
+    expect(getByText('Strava Upload')).toBeTruthy();
+    expect(getByText('Upload to Strava')).toBeTruthy();
   });
 
   it('deletes the session after confirming discard', () => {
@@ -153,5 +167,61 @@ describe('TrainingSummaryScreen', () => {
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith('/');
     });
+  });
+
+  it('uploads a workout to Strava from the summary screen', async () => {
+    mockGetProviderUpload.mockReturnValueOnce(null).mockReturnValueOnce({
+      id: 'upload-1',
+      sessionId: 'session-1',
+      providerId: 'strava',
+      uploadState: 'uploaded',
+      externalId: 'strava-activity-1',
+      errorMessage: null,
+      createdAtMs: 100,
+      updatedAtMs: 200,
+    });
+
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+    const { getByText } = render(
+      <TrainingSummaryScreen
+        sessionId="session-1"
+        source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE}
+        returnTo="/history"
+      />,
+    );
+
+    fireEvent.press(getByText('Upload to Strava'));
+
+    await waitFor(() => {
+      expect(mockUploadSessionToProvider).toHaveBeenCalledWith('session-1', 'strava');
+    });
+    expect(getByText('Strava Uploaded')).toBeTruthy();
+    expect(alertSpy).toHaveBeenCalledWith('Upload Complete', 'This workout was uploaded to Strava.');
+
+    alertSpy.mockRestore();
+  });
+
+  it('shows a retry state when the latest Strava upload failed', () => {
+    mockGetProviderUpload.mockReturnValue({
+      id: 'upload-1',
+      sessionId: 'session-1',
+      providerId: 'strava',
+      uploadState: 'failed',
+      externalId: null,
+      errorMessage: 'Rate limited',
+      createdAtMs: 100,
+      updatedAtMs: 200,
+    });
+
+    const { getByText } = render(
+      <TrainingSummaryScreen
+        sessionId="session-1"
+        source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE}
+        returnTo="/history"
+      />,
+    );
+
+    expect(getByText('Retry Strava')).toBeTruthy();
+    expect(getByText('Strava upload failed: Rate limited')).toBeTruthy();
   });
 });

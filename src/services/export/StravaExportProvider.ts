@@ -16,6 +16,15 @@ export class StravaExportProvider implements ExportProvider {
   readonly id = PROVIDER_ID;
   readonly name = PROVIDER_NAME;
 
+  isConfigured(): boolean {
+    // TODO: Phase 6 — return true when Strava OAuth tokens are present
+    if (__DEV__) {
+      return true;
+    }
+
+    return false;
+  }
+
   async exportSession(_session: PersistedTrainingSession, _samples: PersistedTrainingSample[]): Promise<ExportResult> {
     // TODO: Phase 6 — implement Strava OAuth + TCX/FIT upload
     return { success: true };

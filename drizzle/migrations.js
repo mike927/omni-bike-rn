@@ -2,10 +2,12 @@
 
 import journal from './meta/_journal.json';
 import m0000 from './0000_smiling_ken_ellis.sql';
+import m0001 from './0001_odd_roughhouse.sql';
 
 export default {
   journal,
   migrations: {
     m0000,
+    m0001,
   },
 };

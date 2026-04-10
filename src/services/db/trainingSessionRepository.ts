@@ -256,6 +256,7 @@ export function finalizeSession(input: FinalizeSessionInput): void {
 export function discardDraftSession(sessionId: string): void {
   const database = getSQLiteDatabase();
   database.withTransactionSync(() => {
+    database.runSync('DELETE FROM session_provider_uploads WHERE session_id = ?', sessionId);
     database.runSync('DELETE FROM training_session_samples WHERE session_id = ?', sessionId);
     database.runSync('DELETE FROM training_sessions WHERE id = ?', sessionId);
   });
@@ -365,6 +366,7 @@ export function getSamplesBySessionId(sessionId: string): PersistedTrainingSampl
 export function deleteSession(sessionId: string): void {
   const database = getSQLiteDatabase();
   database.withTransactionSync(() => {
+    database.runSync('DELETE FROM session_provider_uploads WHERE session_id = ?', sessionId);
     database.runSync('DELETE FROM training_session_samples WHERE session_id = ?', sessionId);
     database.runSync('DELETE FROM training_sessions WHERE id = ?', sessionId);
   });

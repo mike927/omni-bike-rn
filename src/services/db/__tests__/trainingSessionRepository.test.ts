@@ -131,7 +131,7 @@ describe('trainingSessionRepository', () => {
     expect(database.runSync.mock.calls[0]).toContain('ready');
   });
 
-  it('discards an unfinished draft and its samples', () => {
+  it('discards an unfinished draft and its samples and provider uploads', () => {
     const database = buildDatabase();
 
     discardDraftSession('session-1');
@@ -139,10 +139,15 @@ describe('trainingSessionRepository', () => {
     expect(database.withTransactionSync).toHaveBeenCalledTimes(1);
     expect(database.runSync).toHaveBeenNthCalledWith(
       1,
+      'DELETE FROM session_provider_uploads WHERE session_id = ?',
+      'session-1',
+    );
+    expect(database.runSync).toHaveBeenNthCalledWith(
+      2,
       'DELETE FROM training_session_samples WHERE session_id = ?',
       'session-1',
     );
-    expect(database.runSync).toHaveBeenNthCalledWith(2, 'DELETE FROM training_sessions WHERE id = ?', 'session-1');
+    expect(database.runSync).toHaveBeenNthCalledWith(3, 'DELETE FROM training_sessions WHERE id = ?', 'session-1');
   });
 
   it('returns the latest open session when one exists', () => {
@@ -354,7 +359,7 @@ describe('trainingSessionRepository', () => {
     ]);
   });
 
-  it('deletes a persisted session and its samples in one transaction', () => {
+  it('deletes a persisted session with its samples and provider uploads in one transaction', () => {
     const database = buildDatabase();
 
     deleteSession('session-9');
@@ -362,10 +367,15 @@ describe('trainingSessionRepository', () => {
     expect(database.withTransactionSync).toHaveBeenCalledTimes(1);
     expect(database.runSync).toHaveBeenNthCalledWith(
       1,
+      'DELETE FROM session_provider_uploads WHERE session_id = ?',
+      'session-9',
+    );
+    expect(database.runSync).toHaveBeenNthCalledWith(
+      2,
       'DELETE FROM training_session_samples WHERE session_id = ?',
       'session-9',
     );
-    expect(database.runSync).toHaveBeenNthCalledWith(2, 'DELETE FROM training_sessions WHERE id = ?', 'session-9');
+    expect(database.runSync).toHaveBeenNthCalledWith(3, 'DELETE FROM training_sessions WHERE id = ?', 'session-9');
   });
 
   it('updates upload state with a fresh timestamp', () => {

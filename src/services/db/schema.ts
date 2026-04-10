@@ -2,6 +2,24 @@ import { index, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-or
 
 import type { PersistedSessionStatus, SessionUploadState } from '../../types/sessionPersistence';
 
+export const sessionProviderUploadsTable = sqliteTable(
+  'session_provider_uploads',
+  {
+    id: text('id').primaryKey(),
+    sessionId: text('session_id').notNull(),
+    providerId: text('provider_id').notNull(),
+    uploadState: text('upload_state').$type<SessionUploadState>().notNull(),
+    externalId: text('external_id'),
+    errorMessage: text('error_message'),
+    createdAtMs: integer('created_at_ms').notNull(),
+    updatedAtMs: integer('updated_at_ms').notNull(),
+  },
+  (table) => [
+    uniqueIndex('session_provider_uploads_session_provider_idx').on(table.sessionId, table.providerId),
+    index('session_provider_uploads_state_idx').on(table.uploadState),
+  ],
+);
+
 export const trainingSessionsTable = sqliteTable(
   'training_sessions',
   {

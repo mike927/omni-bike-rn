@@ -37,6 +37,30 @@ export interface PersistedTrainingSample {
   metrics: MetricSnapshot;
 }
 
+export interface PersistedProviderUpload {
+  id: string;
+  sessionId: string;
+  providerId: string;
+  uploadState: SessionUploadState;
+  externalId: string | null;
+  errorMessage: string | null;
+  createdAtMs: number;
+  updatedAtMs: number;
+}
+
+export interface CreateProviderUploadInput {
+  sessionId: string;
+  providerId: string;
+}
+
+export interface UpdateProviderUploadStateInput {
+  sessionId: string;
+  providerId: string;
+  uploadState: SessionUploadState;
+  externalId: string | null;
+  errorMessage: string | null;
+}
+
 export interface CreateDraftSessionInput extends PersistedTrainingSummary {
   sessionId: string;
   startedAtMs: number;
