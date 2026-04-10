@@ -107,7 +107,7 @@ Lightweight, modern onboarding shown only on first launch. 2-3 swipeable intro s
 - [ ] Retry flow for failed uploads
 - [ ] Provider connection management (connect, disconnect, sync status)
 - [ ] Settings option to automatically upload saved workouts to a connected provider
-- [x] Manual upload action from the workout history list or workout detail view
+- [ ] Manual upload action from the workout history list or workout detail view
 - [ ] Functional Integrations screen
 - [~] Generic export payload mapping for completed training sessions
 - [ ] If a user taps `Upload` from history without a connected provider, redirect to the relevant provider connection flow
