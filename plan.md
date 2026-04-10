@@ -101,7 +101,7 @@ Lightweight, modern onboarding shown only on first launch. 2-3 swipeable intro s
 
 ## Phase 6: Integrations & External Provider Sync
 
-- [~] External training provider contract / adapter architecture for finished session uploads
+- [x] External training provider contract / adapter architecture for finished session uploads
 - [ ] First provider integration: Strava OAuth + finished session upload
 - [ ] Upload flow for completed workouts with states: `ready to upload`, `uploading`, `uploaded`, `failed`
 - [ ] Retry flow for failed uploads
