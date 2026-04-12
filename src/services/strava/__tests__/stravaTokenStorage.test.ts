@@ -3,11 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import { clearTokens, loadTokens, saveTokens } from '../stravaTokenStorage';
 import type { StravaTokens } from '../types';
 
-jest.mock('expo-secure-store', () => ({
-  setItemAsync: jest.fn(),
-  getItemAsync: jest.fn(),
-  deleteItemAsync: jest.fn(),
-}));
+jest.mock('expo-secure-store');
 
 jest.mock('../stravaConstants', () => ({
   SECURE_STORE_ACCESS_TOKEN_KEY: 'strava:accessToken',
