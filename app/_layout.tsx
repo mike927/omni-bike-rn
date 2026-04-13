@@ -12,6 +12,7 @@ import { AppScreen } from '../src/ui/layout/AppScreen';
 import { palette } from '../src/ui/theme';
 import { useSavedGearStore } from '../src/store/savedGearStore';
 import { useAppPreferencesStore } from '../src/store/appPreferencesStore';
+import { useProviderGearLinkStore } from '../src/store/providerGearLinkStore';
 import { useStravaConnectionStore } from '../src/store/stravaConnectionStore';
 import { useTrainingSessionPersistence } from '../src/features/training/hooks/useTrainingSessionPersistence';
 
@@ -41,6 +42,8 @@ export default function RootLayout() {
   const hydratePrefs = useAppPreferencesStore((s) => s.hydrate);
   const prefsHydrated = useAppPreferencesStore((s) => s.hydrated);
   const onboardingCompleted = useAppPreferencesStore((s) => s.onboardingCompleted);
+  const hydrateProviderGearLinks = useProviderGearLinkStore((s) => s.hydrate);
+  const providerGearLinksHydrated = useProviderGearLinkStore((s) => s.hydrated);
   const hydrateStrava = useStravaConnectionStore((s) => s.hydrate);
   const stravaHydrated = useStravaConnectionStore((s) => s.hydrated);
 
@@ -54,8 +57,9 @@ export default function RootLayout() {
     registerExportProviders();
     void hydrateGear();
     void hydratePrefs();
+    void hydrateProviderGearLinks();
     void hydrateStrava();
-  }, [hydrateGear, hydratePrefs, hydrateStrava]);
+  }, [hydrateGear, hydratePrefs, hydrateProviderGearLinks, hydrateStrava]);
 
   useEffect(() => {
     let isMounted = true;
@@ -103,7 +107,7 @@ export default function RootLayout() {
     );
   }
 
-  if (!isDatabaseReady || !prefsHydrated || !stravaHydrated) {
+  if (!isDatabaseReady || !prefsHydrated || !providerGearLinksHydrated || !stravaHydrated) {
     return (
       <>
         <StatusBar style="light" />
@@ -146,6 +150,13 @@ export default function RootLayout() {
         <Stack.Screen name="training" options={{ title: 'Training' }} />
         <Stack.Screen name="summary" options={{ title: 'Summary' }} />
         <Stack.Screen name="gear-setup" options={{ title: 'Select Device' }} />
+        <Stack.Screen
+          name="provider-gear-link"
+          options={{
+            title: 'Link Provider Bike',
+            headerBackTitle: 'Settings',
+          }}
+        />
       </Stack>
     </>
   );

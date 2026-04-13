@@ -3,6 +3,7 @@ const Constants = {
     extra: {
       stravaClientId: '',
       stravaClientSecret: '',
+      stravaCallbackDomain: 'localhost',
     },
   },
 };

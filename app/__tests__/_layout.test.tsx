@@ -6,6 +6,8 @@ import RootLayout, { getOnboardingGateRedirect } from '../_layout';
 import { initializeDatabase } from '../../src/services/db/migrations';
 import { useSavedGearStore } from '../../src/store/savedGearStore';
 import { useAppPreferencesStore } from '../../src/store/appPreferencesStore';
+import { useProviderGearLinkStore } from '../../src/store/providerGearLinkStore';
+import { useStravaConnectionStore } from '../../src/store/stravaConnectionStore';
 
 const mockUseSegments = jest.fn();
 const mockReactNative = jest.requireActual<typeof ReactNative>('react-native');
@@ -58,6 +60,14 @@ jest.mock('../../src/store/appPreferencesStore', () => ({
   useAppPreferencesStore: jest.fn(),
 }));
 
+jest.mock('../../src/store/providerGearLinkStore', () => ({
+  useProviderGearLinkStore: jest.fn(),
+}));
+
+jest.mock('../../src/store/stravaConnectionStore', () => ({
+  useStravaConnectionStore: jest.fn(),
+}));
+
 jest.mock('../../src/features/training/hooks/useTrainingSessionPersistence', () => ({
   useTrainingSessionPersistence: jest.fn(),
 }));
@@ -73,6 +83,16 @@ describe('RootLayout onboarding gate', () => {
     onboardingCompleted: false,
   };
 
+  const providerGearLinkState = {
+    hydrate: jest.fn().mockResolvedValue(undefined),
+    hydrated: true,
+  };
+
+  const stravaConnectionState = {
+    hydrate: jest.fn().mockResolvedValue(undefined),
+    hydrated: true,
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     (initializeDatabase as jest.Mock).mockResolvedValue(undefined);
@@ -82,6 +102,12 @@ describe('RootLayout onboarding gate', () => {
     );
     (useAppPreferencesStore as unknown as jest.Mock).mockImplementation((selector: (state: object) => unknown) =>
       selector(appPreferencesState),
+    );
+    (useProviderGearLinkStore as unknown as jest.Mock).mockImplementation((selector: (state: object) => unknown) =>
+      selector(providerGearLinkState),
+    );
+    (useStravaConnectionStore as unknown as jest.Mock).mockImplementation((selector: (state: object) => unknown) =>
+      selector(stravaConnectionState),
     );
   });
 

@@ -7,6 +7,7 @@ import {
   getProviderUpload,
   updateProviderUploadState,
 } from '../../db/providerUploadRepository';
+import { getProviderGearLink, markProviderGearLinkStale } from '../../providerGear/providerGearLinkStorage';
 
 import type { ExportProvider } from '../ExportProvider';
 import type { PersistedProviderUpload } from '../../../types/sessionPersistence';
@@ -27,6 +28,11 @@ jest.mock('../../db/providerUploadRepository', () => ({
   updateProviderUploadState: jest.fn(),
 }));
 
+jest.mock('../../providerGear/providerGearLinkStorage', () => ({
+  getProviderGearLink: jest.fn(),
+  markProviderGearLinkStale: jest.fn(),
+}));
+
 const mockGetExportProvider = getExportProvider as jest.MockedFunction<typeof getExportProvider>;
 const mockGetSessionById = getSessionById as jest.MockedFunction<typeof getSessionById>;
 const mockGetSamplesBySessionId = getSamplesBySessionId as jest.MockedFunction<typeof getSamplesBySessionId>;
@@ -38,6 +44,10 @@ const mockGetProviderUpload = getProviderUpload as jest.MockedFunction<typeof ge
 const mockUpdateProviderUploadState = updateProviderUploadState as jest.MockedFunction<
   typeof updateProviderUploadState
 >;
+const mockGetProviderGearLink = getProviderGearLink as jest.MockedFunction<typeof getProviderGearLink>;
+const mockMarkProviderGearLinkStale = markProviderGearLinkStale as jest.MockedFunction<
+  typeof markProviderGearLinkStale
+>;
 
 const FINISHED_SESSION = {
   id: 'session-1',
@@ -47,7 +57,14 @@ const FINISHED_SESSION = {
   elapsedSeconds: 60,
   totalDistanceMeters: 500,
   totalCaloriesKcal: 10,
-  currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: 500 },
+  currentMetrics: {
+    speed: 0,
+    cadence: 0,
+    power: 0,
+    heartRate: null,
+    resistance: null,
+    distance: 500,
+  },
   savedBikeSnapshot: null,
   savedHrSnapshot: null,
   uploadState: 'ready' as const,
@@ -79,6 +96,8 @@ function createMockProvider(overrides?: Partial<ExportProvider>): ExportProvider
 describe('uploadOrchestrator', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetProviderGearLink.mockResolvedValue(null);
+    mockMarkProviderGearLinkStale.mockResolvedValue(undefined);
   });
 
   it('uploads successfully and transitions state through uploading to uploaded', async () => {
@@ -86,13 +105,23 @@ describe('uploadOrchestrator', () => {
     mockGetExportProvider.mockReturnValue(provider);
     mockGetSessionById.mockReturnValue(FINISHED_SESSION);
     mockGetOrCreateProviderUpload.mockReturnValue(READY_UPLOAD);
-    mockClaimProviderUpload.mockReturnValue({ ...READY_UPLOAD, uploadState: 'uploading' });
+    mockClaimProviderUpload.mockReturnValue({
+      ...READY_UPLOAD,
+      uploadState: 'uploading',
+    });
     mockGetSamplesBySessionId.mockReturnValue([]);
 
     const result = await uploadSessionToProvider('session-1', 'strava');
 
-    expect(result).toEqual({ providerId: 'strava', success: true, externalId: 'ext-123' });
-    expect(mockClaimProviderUpload).toHaveBeenCalledWith({ sessionId: 'session-1', providerId: 'strava' });
+    expect(result).toEqual({
+      providerId: 'strava',
+      success: true,
+      externalId: 'ext-123',
+    });
+    expect(mockClaimProviderUpload).toHaveBeenCalledWith({
+      sessionId: 'session-1',
+      providerId: 'strava',
+    });
     expect(mockUpdateProviderUploadState).toHaveBeenNthCalledWith(1, {
       sessionId: 'session-1',
       providerId: 'strava',
@@ -107,12 +136,18 @@ describe('uploadOrchestrator', () => {
     mockGetExportProvider.mockReturnValue(provider);
     mockGetSessionById.mockReturnValue(FINISHED_SESSION);
     mockGetOrCreateProviderUpload.mockReturnValue(READY_UPLOAD);
-    mockClaimProviderUpload.mockReturnValue({ ...READY_UPLOAD, uploadState: 'uploading' });
+    mockClaimProviderUpload.mockReturnValue({
+      ...READY_UPLOAD,
+      uploadState: 'uploading',
+    });
     mockGetSamplesBySessionId.mockReturnValue([]);
 
     await uploadSessionToProvider('session-1', 'strava');
 
-    expect(mockGetOrCreateProviderUpload).toHaveBeenCalledWith({ sessionId: 'session-1', providerId: 'strava' });
+    expect(mockGetOrCreateProviderUpload).toHaveBeenCalledWith({
+      sessionId: 'session-1',
+      providerId: 'strava',
+    });
   });
 
   it('fails gracefully when provider is not registered', async () => {
@@ -146,7 +181,10 @@ describe('uploadOrchestrator', () => {
 
   it('fails gracefully when session is not finished', async () => {
     mockGetExportProvider.mockReturnValue(createMockProvider());
-    mockGetSessionById.mockReturnValue({ ...FINISHED_SESSION, status: 'active' as const });
+    mockGetSessionById.mockReturnValue({
+      ...FINISHED_SESSION,
+      status: 'active' as const,
+    });
 
     const result = await uploadSessionToProvider('session-1', 'strava');
 
@@ -157,7 +195,10 @@ describe('uploadOrchestrator', () => {
   it('prevents double upload when already uploading', async () => {
     mockGetExportProvider.mockReturnValue(createMockProvider());
     mockGetSessionById.mockReturnValue(FINISHED_SESSION);
-    mockGetOrCreateProviderUpload.mockReturnValue({ ...READY_UPLOAD, uploadState: 'uploading' });
+    mockGetOrCreateProviderUpload.mockReturnValue({
+      ...READY_UPLOAD,
+      uploadState: 'uploading',
+    });
 
     const result = await uploadSessionToProvider('session-1', 'strava');
 
@@ -170,11 +211,19 @@ describe('uploadOrchestrator', () => {
   it('returns success for already uploaded session', async () => {
     mockGetExportProvider.mockReturnValue(createMockProvider());
     mockGetSessionById.mockReturnValue(FINISHED_SESSION);
-    mockGetOrCreateProviderUpload.mockReturnValue({ ...READY_UPLOAD, uploadState: 'uploaded', externalId: 'ext-99' });
+    mockGetOrCreateProviderUpload.mockReturnValue({
+      ...READY_UPLOAD,
+      uploadState: 'uploaded',
+      externalId: 'ext-99',
+    });
 
     const result = await uploadSessionToProvider('session-1', 'strava');
 
-    expect(result).toEqual({ providerId: 'strava', success: true, externalId: 'ext-99' });
+    expect(result).toEqual({
+      providerId: 'strava',
+      success: true,
+      externalId: 'ext-99',
+    });
     expect(mockClaimProviderUpload).not.toHaveBeenCalled();
     expect(mockUpdateProviderUploadState).not.toHaveBeenCalled();
   });
@@ -184,11 +233,18 @@ describe('uploadOrchestrator', () => {
     mockGetSessionById.mockReturnValue(FINISHED_SESSION);
     mockGetOrCreateProviderUpload.mockReturnValue(READY_UPLOAD);
     mockClaimProviderUpload.mockReturnValue(null);
-    mockGetProviderUpload.mockReturnValue({ ...READY_UPLOAD, uploadState: 'uploading' });
+    mockGetProviderUpload.mockReturnValue({
+      ...READY_UPLOAD,
+      uploadState: 'uploading',
+    });
 
     const result = await uploadSessionToProvider('session-1', 'strava');
 
-    expect(result).toEqual({ providerId: 'strava', success: false, errorMessage: 'Upload already in progress.' });
+    expect(result).toEqual({
+      providerId: 'strava',
+      success: false,
+      errorMessage: 'Upload already in progress.',
+    });
     expect(mockGetProviderUpload).toHaveBeenCalledWith('session-1', 'strava');
     expect(mockUpdateProviderUploadState).not.toHaveBeenCalled();
   });
@@ -200,12 +256,19 @@ describe('uploadOrchestrator', () => {
     mockGetExportProvider.mockReturnValue(provider);
     mockGetSessionById.mockReturnValue(FINISHED_SESSION);
     mockGetOrCreateProviderUpload.mockReturnValue(READY_UPLOAD);
-    mockClaimProviderUpload.mockReturnValue({ ...READY_UPLOAD, uploadState: 'uploading' });
+    mockClaimProviderUpload.mockReturnValue({
+      ...READY_UPLOAD,
+      uploadState: 'uploading',
+    });
     mockGetSamplesBySessionId.mockReturnValue([]);
 
     const result = await uploadSessionToProvider('session-1', 'strava');
 
-    expect(result).toEqual({ providerId: 'strava', success: false, errorMessage: 'Rate limited' });
+    expect(result).toEqual({
+      providerId: 'strava',
+      success: false,
+      errorMessage: 'Rate limited',
+    });
     expect(mockUpdateProviderUploadState).toHaveBeenLastCalledWith({
       sessionId: 'session-1',
       providerId: 'strava',
@@ -222,18 +285,257 @@ describe('uploadOrchestrator', () => {
     mockGetExportProvider.mockReturnValue(provider);
     mockGetSessionById.mockReturnValue(FINISHED_SESSION);
     mockGetOrCreateProviderUpload.mockReturnValue(READY_UPLOAD);
-    mockClaimProviderUpload.mockReturnValue({ ...READY_UPLOAD, uploadState: 'uploading' });
+    mockClaimProviderUpload.mockReturnValue({
+      ...READY_UPLOAD,
+      uploadState: 'uploading',
+    });
     mockGetSamplesBySessionId.mockReturnValue([]);
 
     const result = await uploadSessionToProvider('session-1', 'strava');
 
-    expect(result).toEqual({ providerId: 'strava', success: false, errorMessage: 'Network timeout' });
+    expect(result).toEqual({
+      providerId: 'strava',
+      success: false,
+      errorMessage: 'Network timeout',
+    });
     expect(mockUpdateProviderUploadState).toHaveBeenLastCalledWith({
       sessionId: 'session-1',
       providerId: 'strava',
       uploadState: 'failed',
       externalId: null,
       errorMessage: 'Network timeout',
+    });
+  });
+
+  it('attaches linked gear after a successful upload when a provider mapping exists', async () => {
+    const attachGearToActivity = jest.fn().mockResolvedValue(undefined);
+    const provider = createMockProvider({ attachGearToActivity });
+    mockGetExportProvider.mockReturnValue(provider);
+    mockGetSessionById.mockReturnValue({
+      ...FINISHED_SESSION,
+      savedBikeSnapshot: { id: 'bike-1', name: 'Rave' },
+    });
+    mockGetOrCreateProviderUpload.mockReturnValue(READY_UPLOAD);
+    mockClaimProviderUpload.mockReturnValue({
+      ...READY_UPLOAD,
+      uploadState: 'uploading',
+    });
+    mockGetSamplesBySessionId.mockReturnValue([]);
+    mockGetProviderGearLink.mockResolvedValue({
+      providerId: 'strava',
+      localGearId: 'bike-1',
+      localGearType: 'bike',
+      providerGearId: 'gear-1',
+      providerGearName: 'Rave',
+      providerGearType: 'bike',
+      stale: false,
+      lastSyncedAtMs: 1,
+    });
+
+    const result = await uploadSessionToProvider('session-1', 'strava');
+
+    expect(result).toEqual({
+      providerId: 'strava',
+      success: true,
+      externalId: 'ext-123',
+    });
+    expect(mockGetProviderGearLink).toHaveBeenCalledWith('strava', 'bike-1', 'bike');
+    expect(attachGearToActivity).toHaveBeenCalledWith('ext-123', 'gear-1');
+    expect(mockUpdateProviderUploadState).toHaveBeenLastCalledWith({
+      sessionId: 'session-1',
+      providerId: 'strava',
+      uploadState: 'uploaded',
+      externalId: 'ext-123',
+      errorMessage: null,
+    });
+  });
+
+  it('clears provider gear after upload when no link exists and the provider supports explicit clearing', async () => {
+    const clearGearFromActivity = jest.fn().mockResolvedValue(undefined);
+    const provider = createMockProvider({ clearGearFromActivity });
+    mockGetExportProvider.mockReturnValue(provider);
+    mockGetSessionById.mockReturnValue({
+      ...FINISHED_SESSION,
+      savedBikeSnapshot: { id: 'bike-1', name: 'Rave' },
+    });
+    mockGetOrCreateProviderUpload.mockReturnValue(READY_UPLOAD);
+    mockClaimProviderUpload.mockReturnValue({ ...READY_UPLOAD, uploadState: 'uploading' });
+    mockGetSamplesBySessionId.mockReturnValue([]);
+    mockGetProviderGearLink.mockResolvedValue(null);
+
+    const result = await uploadSessionToProvider('session-1', 'strava');
+
+    expect(result).toEqual({
+      providerId: 'strava',
+      success: true,
+      externalId: 'ext-123',
+    });
+    expect(clearGearFromActivity).toHaveBeenCalledWith('ext-123');
+    expect(mockUpdateProviderUploadState).toHaveBeenLastCalledWith({
+      sessionId: 'session-1',
+      providerId: 'strava',
+      uploadState: 'uploaded',
+      externalId: 'ext-123',
+      errorMessage: null,
+    });
+  });
+
+  it('keeps upload successful and stores a warning when explicit gear clearing fails', async () => {
+    const clearGearFromActivity = jest
+      .fn()
+      .mockRejectedValue(new Error('Reconnect Strava to grant private activity edit access.'));
+    const provider = createMockProvider({ clearGearFromActivity });
+    mockGetExportProvider.mockReturnValue(provider);
+    mockGetSessionById.mockReturnValue({
+      ...FINISHED_SESSION,
+      savedBikeSnapshot: { id: 'bike-1', name: 'Rave' },
+    });
+    mockGetOrCreateProviderUpload.mockReturnValue(READY_UPLOAD);
+    mockClaimProviderUpload.mockReturnValue({ ...READY_UPLOAD, uploadState: 'uploading' });
+    mockGetSamplesBySessionId.mockReturnValue([]);
+    mockGetProviderGearLink.mockResolvedValue(null);
+
+    const result = await uploadSessionToProvider('session-1', 'strava');
+
+    expect(result).toEqual({
+      providerId: 'strava',
+      success: true,
+      externalId: 'ext-123',
+      warningMessage:
+        'Workout uploaded, but Strava could not clear its default bike. Reconnect Strava once, then try again.',
+    });
+    expect(mockUpdateProviderUploadState).toHaveBeenLastCalledWith({
+      sessionId: 'session-1',
+      providerId: 'strava',
+      uploadState: 'uploaded',
+      externalId: 'ext-123',
+      errorMessage: null,
+    });
+  });
+
+  it('keeps upload successful and stores a warning when gear attachment fails', async () => {
+    const attachGearToActivity = jest.fn().mockRejectedValue(new Error('Gear not found (404)'));
+    const provider = createMockProvider({ attachGearToActivity });
+    mockGetExportProvider.mockReturnValue(provider);
+    mockGetSessionById.mockReturnValue({
+      ...FINISHED_SESSION,
+      savedBikeSnapshot: { id: 'bike-1', name: 'Rave' },
+    });
+    mockGetOrCreateProviderUpload.mockReturnValue(READY_UPLOAD);
+    mockClaimProviderUpload.mockReturnValue({
+      ...READY_UPLOAD,
+      uploadState: 'uploading',
+    });
+    mockGetSamplesBySessionId.mockReturnValue([]);
+    mockGetProviderGearLink.mockResolvedValue({
+      providerId: 'strava',
+      localGearId: 'bike-1',
+      localGearType: 'bike',
+      providerGearId: 'gear-1',
+      providerGearName: 'Rave',
+      providerGearType: 'bike',
+      stale: false,
+      lastSyncedAtMs: 1,
+    });
+
+    const result = await uploadSessionToProvider('session-1', 'strava');
+
+    expect(result).toEqual({
+      providerId: 'strava',
+      success: true,
+      externalId: 'ext-123',
+      warningMessage: 'Workout uploaded, but the linked bike could not be attached. Relink it in Settings.',
+    });
+    expect(mockMarkProviderGearLinkStale).toHaveBeenCalledWith('strava', 'bike-1', 'bike');
+    expect(mockUpdateProviderUploadState).toHaveBeenLastCalledWith({
+      sessionId: 'session-1',
+      providerId: 'strava',
+      uploadState: 'uploaded',
+      externalId: 'ext-123',
+      errorMessage: null,
+    });
+  });
+
+  it('keeps the link intact and asks for Strava reconnect when the activity cannot be updated', async () => {
+    const attachGearToActivity = jest
+      .fn()
+      .mockRejectedValue(new Error('Reconnect Strava to grant private activity edit access.'));
+    const provider = createMockProvider({ attachGearToActivity });
+    mockGetExportProvider.mockReturnValue(provider);
+    mockGetSessionById.mockReturnValue({
+      ...FINISHED_SESSION,
+      savedBikeSnapshot: { id: 'bike-1', name: 'Rave' },
+    });
+    mockGetOrCreateProviderUpload.mockReturnValue(READY_UPLOAD);
+    mockClaimProviderUpload.mockReturnValue({ ...READY_UPLOAD, uploadState: 'uploading' });
+    mockGetSamplesBySessionId.mockReturnValue([]);
+    mockGetProviderGearLink.mockResolvedValue({
+      providerId: 'strava',
+      localGearId: 'bike-1',
+      localGearType: 'bike',
+      providerGearId: 'gear-1',
+      providerGearName: 'Rave',
+      providerGearType: 'bike',
+      stale: false,
+      lastSyncedAtMs: 1,
+    });
+
+    const result = await uploadSessionToProvider('session-1', 'strava');
+
+    expect(result).toEqual({
+      providerId: 'strava',
+      success: true,
+      externalId: 'ext-123',
+      warningMessage:
+        'Workout uploaded, but Strava could not attach the linked bike. Reconnect Strava once, then try again.',
+    });
+    expect(mockMarkProviderGearLinkStale).not.toHaveBeenCalled();
+    expect(mockUpdateProviderUploadState).toHaveBeenLastCalledWith({
+      sessionId: 'session-1',
+      providerId: 'strava',
+      uploadState: 'uploaded',
+      externalId: 'ext-123',
+      errorMessage: null,
+    });
+  });
+
+  it('keeps upload successful even when marking a stale link fails', async () => {
+    const attachGearToActivity = jest.fn().mockRejectedValue(new Error('Gear not found (404)'));
+    const provider = createMockProvider({ attachGearToActivity });
+    mockGetExportProvider.mockReturnValue(provider);
+    mockGetSessionById.mockReturnValue({
+      ...FINISHED_SESSION,
+      savedBikeSnapshot: { id: 'bike-1', name: 'Rave' },
+    });
+    mockGetOrCreateProviderUpload.mockReturnValue(READY_UPLOAD);
+    mockClaimProviderUpload.mockReturnValue({ ...READY_UPLOAD, uploadState: 'uploading' });
+    mockGetSamplesBySessionId.mockReturnValue([]);
+    mockGetProviderGearLink.mockResolvedValue({
+      providerId: 'strava',
+      localGearId: 'bike-1',
+      localGearType: 'bike',
+      providerGearId: 'gear-1',
+      providerGearName: 'Rave',
+      providerGearType: 'bike',
+      stale: false,
+      lastSyncedAtMs: 1,
+    });
+    mockMarkProviderGearLinkStale.mockRejectedValue(new Error('storage failure'));
+
+    const result = await uploadSessionToProvider('session-1', 'strava');
+
+    expect(result).toEqual({
+      providerId: 'strava',
+      success: true,
+      externalId: 'ext-123',
+      warningMessage: 'Workout uploaded, but the linked bike could not be attached. Relink it in Settings.',
+    });
+    expect(mockUpdateProviderUploadState).toHaveBeenLastCalledWith({
+      sessionId: 'session-1',
+      providerId: 'strava',
+      uploadState: 'uploaded',
+      externalId: 'ext-123',
+      errorMessage: null,
     });
   });
 });

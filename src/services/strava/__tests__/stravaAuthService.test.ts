@@ -17,10 +17,10 @@ jest.mock('../stravaConstants', () => ({
   STRAVA_AUTH_URL: 'https://www.strava.com/oauth/mobile/authorize',
   STRAVA_TOKEN_URL: 'https://www.strava.com/oauth/token',
   STRAVA_DEAUTH_URL: 'https://www.strava.com/oauth/deauthorize',
-  STRAVA_REDIRECT_URI: 'omnibike://oauth/callback',
+  STRAVA_REDIRECT_URI: 'omnibike://localhost/oauth/callback',
   STRAVA_CLIENT_ID: 'test-client-id',
   STRAVA_CLIENT_SECRET: 'test-client-secret',
-  STRAVA_SCOPES: 'activity:write,read',
+  STRAVA_SCOPES: 'activity:write,activity:read_all,read,profile:read_all',
   TOKEN_EXPIRY_BUFFER_MS: 300_000,
 }));
 
@@ -52,7 +52,7 @@ beforeEach(() => {
 
 describe('authorizeWithStrava', () => {
   it('exchanges code for tokens and saves them', async () => {
-    const redirectUrl = 'omnibike://oauth/callback?code=auth-code-123';
+    const redirectUrl = 'omnibike://localhost/oauth/callback?code=auth-code-123';
     mockOpenAuthSession.mockResolvedValue({ type: 'success', url: redirectUrl });
     (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
@@ -73,13 +73,13 @@ describe('authorizeWithStrava', () => {
   });
 
   it('throws when the redirect URL has no code', async () => {
-    const redirectUrl = 'omnibike://oauth/callback?error=access_denied';
+    const redirectUrl = 'omnibike://localhost/oauth/callback?error=access_denied';
     mockOpenAuthSession.mockResolvedValue({ type: 'success', url: redirectUrl });
     await expect(authorizeWithStrava()).rejects.toThrow('access_denied');
   });
 
   it('throws when token exchange HTTP request fails', async () => {
-    const redirectUrl = 'omnibike://oauth/callback?code=code-123';
+    const redirectUrl = 'omnibike://localhost/oauth/callback?code=code-123';
     mockOpenAuthSession.mockResolvedValue({ type: 'success', url: redirectUrl });
     (global.fetch as jest.Mock).mockResolvedValue({ ok: false, status: 401, text: async () => 'Unauthorized' });
     await expect(authorizeWithStrava()).rejects.toThrow('401');

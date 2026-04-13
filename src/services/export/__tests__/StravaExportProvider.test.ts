@@ -1,5 +1,10 @@
 import { getValidAccessToken } from '../../strava/stravaAuthService';
 import { uploadActivity, waitForProcessing } from '../../strava/stravaApiClient';
+import {
+  attachStravaGearToActivity,
+  clearStravaGearFromActivity,
+  listStravaGear,
+} from '../../strava/stravaGearService';
 import { useStravaConnectionStore } from '../../../store/stravaConnectionStore';
 import { StravaExportProvider } from '../StravaExportProvider';
 import type { PersistedTrainingSession, PersistedTrainingSample } from '../../../types/sessionPersistence';
@@ -17,6 +22,12 @@ jest.mock('../../strava/stravaApiClient', () => ({
   waitForProcessing: jest.fn(),
 }));
 
+jest.mock('../../strava/stravaGearService', () => ({
+  attachStravaGearToActivity: jest.fn(),
+  clearStravaGearFromActivity: jest.fn(),
+  listStravaGear: jest.fn(),
+}));
+
 jest.mock('../../strava/stravaConstants', () => ({
   STRAVA_CLIENT_ID: 'test-client-id',
 }));
@@ -30,6 +41,9 @@ jest.mock('../../../store/stravaConnectionStore', () => ({
 const mockGetValidAccessToken = getValidAccessToken as jest.Mock;
 const mockUploadActivity = uploadActivity as jest.Mock;
 const mockWaitForProcessing = waitForProcessing as jest.Mock;
+const mockAttachStravaGearToActivity = attachStravaGearToActivity as jest.Mock;
+const mockClearStravaGearFromActivity = clearStravaGearFromActivity as jest.Mock;
+const mockListStravaGear = listStravaGear as jest.Mock;
 const mockGetState = useStravaConnectionStore.getState as jest.Mock;
 
 const BASE_SESSION: PersistedTrainingSession = {
@@ -82,6 +96,12 @@ describe('exportSession', () => {
 
     expect(result.success).toBe(true);
     expect(result.externalId).toBe('99999');
+    expect(mockUploadActivity).toHaveBeenCalledWith(
+      'access-token',
+      '<tcx/>',
+      'Indoor Cycling — Nov 14, 2023',
+      'session-1.tcx',
+    );
   });
 
   it('returns failure when getValidAccessToken throws', async () => {
@@ -124,5 +144,33 @@ describe('exportSession', () => {
 
     expect(result.success).toBe(false);
     expect(result.errorMessage).toBe('duplicate of activity');
+  });
+});
+
+describe('gear operations', () => {
+  it('lists available gear via the Strava gear service', async () => {
+    mockListStravaGear.mockResolvedValue([
+      { providerId: 'strava', gearType: 'bike', id: 'gear-1', name: 'Rave', isPrimary: true },
+    ]);
+
+    await expect(provider.listAvailableGear('bike')).resolves.toEqual([
+      { providerId: 'strava', gearType: 'bike', id: 'gear-1', name: 'Rave', isPrimary: true },
+    ]);
+  });
+
+  it('attaches gear via the Strava gear service', async () => {
+    mockAttachStravaGearToActivity.mockResolvedValue(undefined);
+
+    await provider.attachGearToActivity('12345', 'gear-1');
+
+    expect(mockAttachStravaGearToActivity).toHaveBeenCalledWith('12345', 'gear-1');
+  });
+
+  it('clears gear via the Strava gear service', async () => {
+    mockClearStravaGearFromActivity.mockResolvedValue(undefined);
+
+    await provider.clearGearFromActivity?.('12345');
+
+    expect(mockClearStravaGearFromActivity).toHaveBeenCalledWith('12345');
   });
 });

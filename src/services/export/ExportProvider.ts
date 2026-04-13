@@ -1,3 +1,5 @@
+import type { GearType } from '../../types/gear';
+import type { ProviderGearSummary } from '../../types/providerGear';
 import type { PersistedTrainingSession, PersistedTrainingSample } from '../../types/sessionPersistence';
 
 export interface ExportResult {
@@ -11,4 +13,7 @@ export interface ExportProvider {
   readonly id: string;
   isConfigured(): boolean;
   exportSession(session: PersistedTrainingSession, samples: PersistedTrainingSample[]): Promise<ExportResult>;
+  listAvailableGear?: (gearType: GearType) => Promise<ProviderGearSummary[]>;
+  attachGearToActivity?: (activityId: string, providerGearId: string) => Promise<void>;
+  clearGearFromActivity?: (activityId: string) => Promise<void>;
 }

@@ -11,4 +11,5 @@ export const palette = {
   danger: '#d64545',
   accent: '#0f766e',
   tabInactive: '#7b8794',
+  primarySubtle: '#dbeafe',
 } as const;

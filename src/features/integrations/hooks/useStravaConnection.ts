@@ -2,7 +2,10 @@ import { useState } from 'react';
 
 import { authorizeWithStrava, disconnectStrava } from '../../../services/strava/stravaAuthService';
 import { useStravaConnectionStore } from '../../../store/stravaConnectionStore';
+import { useProviderGearLinkStore } from '../../../store/providerGearLinkStore';
 import type { UseStravaConnectionResult } from './useStravaConnectionTypes';
+
+const STRAVA_PROVIDER_ID = 'strava';
 
 export type { UseStravaConnectionResult } from './useStravaConnectionTypes';
 
@@ -11,6 +14,7 @@ export function useStravaConnection(): UseStravaConnectionResult {
   const athlete = useStravaConnectionStore((s) => s.athlete);
   const setConnected = useStravaConnectionStore((s) => s.setConnected);
   const setDisconnected = useStravaConnectionStore((s) => s.setDisconnected);
+  const clearLinksForProvider = useProviderGearLinkStore((s) => s.clearLinksForProvider);
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -35,6 +39,9 @@ export function useStravaConnection(): UseStravaConnectionResult {
     try {
       await disconnectStrava();
       setDisconnected();
+      // Clear saved gear links so a future reconnect with a different athlete
+      // does not reuse stale providerGearIds from the previous account.
+      await clearLinksForProvider(STRAVA_PROVIDER_ID);
       return { success: true };
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to disconnect from Strava.';

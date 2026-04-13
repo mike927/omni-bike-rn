@@ -38,6 +38,7 @@ yarn-error.*
 ai/local/
 
 # local env files
+.env
 .env*.local
 
 # typescript

@@ -52,6 +52,12 @@ function getUploadStatusMessage(upload: PersistedProviderUpload | null): string 
   }
 
   if (upload.uploadState === 'uploaded') {
+    if (upload.errorMessage) {
+      return upload.externalId
+        ? `Uploaded to ${STRAVA_PROVIDER_LABEL}. Reference: ${upload.externalId}. ${upload.errorMessage}`
+        : `Uploaded to ${STRAVA_PROVIDER_LABEL}. ${upload.errorMessage}`;
+    }
+
     return upload.externalId
       ? `Uploaded to ${STRAVA_PROVIDER_LABEL}. Reference: ${upload.externalId}`
       : `Uploaded to ${STRAVA_PROVIDER_LABEL}.`;
@@ -130,7 +136,12 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: TrainingS
         return;
       }
 
-      Alert.alert('Upload Complete', `This workout was uploaded to ${STRAVA_PROVIDER_LABEL}.`);
+      Alert.alert(
+        'Upload Complete',
+        result.warningMessage
+          ? `This workout was uploaded to ${STRAVA_PROVIDER_LABEL}. ${result.warningMessage}`
+          : `This workout was uploaded to ${STRAVA_PROVIDER_LABEL}.`,
+      );
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : `This workout could not be uploaded to ${STRAVA_PROVIDER_LABEL}.`;

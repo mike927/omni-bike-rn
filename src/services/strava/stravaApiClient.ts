@@ -1,10 +1,31 @@
+import { Paths, type File } from 'expo-file-system';
+
 import { STRAVA_UPLOAD_URL } from './stravaConstants';
 import type { StravaUploadResponse, StravaUploadResult } from './types';
 
-const STRAVA_ACTIVITY_TYPE = 'VirtualRide';
+const STRAVA_SPORT_TYPE = 'VirtualRide';
 const STRAVA_DATA_TYPE = 'tcx';
+const STRAVA_TCX_MIME_TYPE = 'application/vnd.garmin.tcx+xml';
 const POLL_INTERVAL_MS = 2000;
 const MAX_POLL_ATTEMPTS = 15;
+const STRAVA_UPLOAD_FILE_PREFIX = 'strava-upload';
+
+function logStravaRequest(message: string, payload: Record<string, unknown>): void {
+  if (!__DEV__) {
+    return;
+  }
+
+  console.warn(`[stravaApiClient] ${message}`, payload);
+}
+
+function createUploadFile(tcxData: string, externalId: string): File {
+  const safeExternalId = externalId.replaceAll(/[^a-zA-Z0-9._-]/g, '-');
+  const file = Paths.cache.createFile(`${STRAVA_UPLOAD_FILE_PREFIX}-${safeExternalId}`, STRAVA_TCX_MIME_TYPE);
+
+  file.write(tcxData);
+
+  return file;
+}
 
 /**
  * Uploads a TCX file to Strava as a new activity.
@@ -14,31 +35,65 @@ export async function uploadActivity(
   accessToken: string,
   tcxData: string,
   activityName: string,
+  externalId: string,
 ): Promise<StravaUploadResponse> {
+  const uploadFile = createUploadFile(tcxData, externalId);
   const form = new FormData();
+
   form.append('data_type', STRAVA_DATA_TYPE);
-  form.append('activity_type', STRAVA_ACTIVITY_TYPE);
+  form.append('sport_type', STRAVA_SPORT_TYPE);
   form.append('name', activityName);
-  form.append('file', new Blob([tcxData], { type: 'application/xml' }), 'activity.tcx');
+  form.append('trainer', '1');
+  form.append('external_id', externalId);
+  form.append('file', {
+    uri: uploadFile.uri,
+    name: uploadFile.name,
+    type: STRAVA_TCX_MIME_TYPE,
+  } as unknown as Blob);
 
-  const response = await fetch(STRAVA_UPLOAD_URL, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}` },
-    body: form,
-  });
+  try {
+    logStravaRequest('Uploading activity to Strava', {
+      url: STRAVA_UPLOAD_URL,
+      method: 'POST',
+      dataType: STRAVA_DATA_TYPE,
+      sportType: STRAVA_SPORT_TYPE,
+      trainer: '1',
+      externalId,
+      activityName,
+      fileName: uploadFile.name,
+    });
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`[stravaApiClient] Upload failed (${response.status}): ${text}`);
+    const response = await fetch(STRAVA_UPLOAD_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: form,
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`[stravaApiClient] Upload failed (${response.status}): ${text}`);
+    }
+
+    return (await response.json()) as StravaUploadResponse;
+  } finally {
+    try {
+      uploadFile.delete();
+    } catch (err: unknown) {
+      console.error('[stravaApiClient] Failed to delete temporary upload file:', err);
+    }
   }
-
-  return (await response.json()) as StravaUploadResponse;
 }
 
 /**
  * Polls a single upload status from Strava.
  */
 export async function pollUploadStatus(accessToken: string, uploadId: number): Promise<StravaUploadResponse> {
+  logStravaRequest('Polling Strava upload status', {
+    url: `${STRAVA_UPLOAD_URL}/${uploadId}`,
+    method: 'GET',
+    uploadId,
+  });
+
   const response = await fetch(`${STRAVA_UPLOAD_URL}/${uploadId}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
@@ -78,6 +133,14 @@ export async function waitForProcessing(accessToken: string, uploadId: number): 
     }
 
     const status = await pollUploadStatus(accessToken, uploadId);
+
+    logStravaRequest('Received Strava upload status', {
+      uploadId,
+      attempt: attempt + 1,
+      activityId: status.activity_id,
+      status: status.status,
+      error: status.error,
+    });
 
     if (status.activity_id !== null && status.activity_id !== undefined) {
       return { activityId: status.activity_id, error: null };
