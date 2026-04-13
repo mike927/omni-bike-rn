@@ -150,3 +150,7 @@ Standard Bluetooth HR sensors are expected to work via the BLE HR flow before th
 - [ ] Polish empty, loading, error, paused, and finished states
 - [ ] Add motion, typography, theming, and interaction polish
 - [ ] Final cross-screen QA for portrait and iOS live surfaces
+
+## Future Considerations
+
+- [ ] Move Strava OAuth token exchange and refresh behind a backend or other secure server-side flow so the client app no longer ships the Strava client secret
