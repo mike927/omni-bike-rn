@@ -12,6 +12,7 @@ import { AppScreen } from '../src/ui/layout/AppScreen';
 import { palette } from '../src/ui/theme';
 import { useSavedGearStore } from '../src/store/savedGearStore';
 import { useAppPreferencesStore } from '../src/store/appPreferencesStore';
+import { useStravaConnectionStore } from '../src/store/stravaConnectionStore';
 import { useTrainingSessionPersistence } from '../src/features/training/hooks/useTrainingSessionPersistence';
 
 export function getOnboardingGateRedirect(segments: readonly string[], onboardingCompleted: boolean): string | null {
@@ -40,6 +41,8 @@ export default function RootLayout() {
   const hydratePrefs = useAppPreferencesStore((s) => s.hydrate);
   const prefsHydrated = useAppPreferencesStore((s) => s.hydrated);
   const onboardingCompleted = useAppPreferencesStore((s) => s.onboardingCompleted);
+  const hydrateStrava = useStravaConnectionStore((s) => s.hydrate);
+  const stravaHydrated = useStravaConnectionStore((s) => s.hydrated);
 
   const [isDatabaseReady, setIsDatabaseReady] = useState(false);
   const [isDatabaseError, setIsDatabaseError] = useState(false);
@@ -51,7 +54,8 @@ export default function RootLayout() {
     registerExportProviders();
     void hydrateGear();
     void hydratePrefs();
-  }, [hydrateGear, hydratePrefs]);
+    void hydrateStrava();
+  }, [hydrateGear, hydratePrefs, hydrateStrava]);
 
   useEffect(() => {
     let isMounted = true;
@@ -99,7 +103,7 @@ export default function RootLayout() {
     );
   }
 
-  if (!isDatabaseReady || !prefsHydrated) {
+  if (!isDatabaseReady || !prefsHydrated || !stravaHydrated) {
     return (
       <>
         <StatusBar style="light" />

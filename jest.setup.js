@@ -19,6 +19,10 @@ console.error = (...args) => {
       '[bleDeviceValidator] Bike validation error:',
       '[bleDeviceValidator] HR validation error:',
       '[useTrainingSessionPersistence] Failed to persist training session state:',
+      '[stravaAuthService] Deauth request failed',
+      '[StravaExportProvider] Failed to get access token:',
+      '[StravaExportProvider] Upload request failed:',
+      '[StravaExportProvider] Processing poll failed:',
     ];
 
     if (expectedErrors.some((err) => message.includes(err))) {
