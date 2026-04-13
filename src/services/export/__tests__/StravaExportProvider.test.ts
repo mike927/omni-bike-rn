@@ -114,14 +114,15 @@ describe('exportSession', () => {
     expect(result.errorMessage).toBe('Invalid file format.');
   });
 
-  it('returns success without externalId when activityId is null (duplicate no-id case)', async () => {
+  it('returns failure when duplicate upload id cannot be parsed from the error string', async () => {
     mockGetValidAccessToken.mockResolvedValue('access-token');
     mockUploadActivity.mockResolvedValue({ id: 111, status: 'processing', error: null, activity_id: null });
-    mockWaitForProcessing.mockResolvedValue({ activityId: null, error: null });
+    // waitForProcessing now surfaces an error when the duplicate activity id cannot be extracted.
+    mockWaitForProcessing.mockResolvedValue({ activityId: null, error: 'duplicate of activity' });
 
     const result = await provider.exportSession(BASE_SESSION, SAMPLES);
 
-    expect(result.success).toBe(true);
-    expect(result.externalId).toBeUndefined();
+    expect(result.success).toBe(false);
+    expect(result.errorMessage).toBe('duplicate of activity');
   });
 });
