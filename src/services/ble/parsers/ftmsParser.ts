@@ -67,6 +67,8 @@ const FTMS_AVERAGE_CADENCE_FLAG = 0x0008;
 const FTMS_DISTANCE_FLAG = 0x0010;
 const FTMS_RESISTANCE_FLAG = 0x0020;
 const FTMS_POWER_FLAG = 0x0040;
+const FTMS_AVERAGE_POWER_FLAG = 0x0080;
+const FTMS_ENERGY_FLAG = 0x0100;
 const FTMS_HEART_RATE_FLAG = 0x0200;
 
 interface FtmsCursor {
@@ -78,7 +80,7 @@ type FtmsReader<T extends number> = (bytes: Uint8Array, offset: number) => T | u
 
 function skipField(cursor: FtmsCursor, shouldSkip: boolean, size: number): void {
   if (shouldSkip) {
-    cursor.offset += size;
+    cursor.offset = Math.min(cursor.offset + size, cursor.bytes.length);
   }
 }
 
@@ -109,6 +111,9 @@ function buildBikeMetrics(
   distance: number | undefined,
   resistance: number | undefined,
   heartRate: number | undefined,
+  totalEnergyKcal: number | undefined,
+  energyPerHourKcal: number | undefined,
+  energyPerMinuteKcal: number | undefined,
 ): Partial<BikeMetrics> {
   return {
     ...(speed !== undefined && { speed }),
@@ -117,6 +122,34 @@ function buildBikeMetrics(
     ...(distance !== undefined && { distance }),
     ...(resistance !== undefined && { resistance }),
     ...(heartRate !== undefined && { heartRate }),
+    ...(totalEnergyKcal !== undefined && { totalEnergyKcal }),
+    ...(energyPerHourKcal !== undefined && { energyPerHourKcal }),
+    ...(energyPerMinuteKcal !== undefined && { energyPerMinuteKcal }),
+  };
+}
+
+function readFtmsEnergy(
+  cursor: FtmsCursor,
+  shouldRead: boolean,
+): { totalEnergyKcal: number; energyPerHourKcal: number; energyPerMinuteKcal: number } | undefined {
+  if (!shouldRead) {
+    return undefined;
+  }
+
+  const totalEnergyKcal = readUint16LE(cursor.bytes, cursor.offset);
+  const energyPerHourKcal = readUint16LE(cursor.bytes, cursor.offset + 2);
+  const energyPerMinuteKcal = readUint8(cursor.bytes, cursor.offset + 4);
+
+  if (totalEnergyKcal === undefined || energyPerHourKcal === undefined || energyPerMinuteKcal === undefined) {
+    return undefined;
+  }
+
+  cursor.offset += 5;
+
+  return {
+    totalEnergyKcal,
+    energyPerHourKcal,
+    energyPerMinuteKcal,
   };
 }
 
@@ -152,12 +185,25 @@ export function parseFtmsIndoorBikeData(bytes: Uint8Array): Partial<BikeMetrics>
 
   const power = readOptionalField(cursor, (flags & FTMS_POWER_FLAG) !== 0, 2, readSint16LE);
 
+  skipField(cursor, (flags & FTMS_AVERAGE_POWER_FLAG) !== 0, 2);
+
+  const energy = readFtmsEnergy(cursor, (flags & FTMS_ENERGY_FLAG) !== 0);
+
   const heartRate = readOptionalField(cursor, (flags & FTMS_HEART_RATE_FLAG) !== 0, 1, readUint8);
 
-  // Energy is present if Bit 10 is 1 (UINT16 x 5)
   // Elapsed Time is present if Bit 11 is 1 (UINT16)
 
-  return buildBikeMetrics(speed, cadence, power, distance, resistance, heartRate);
+  return buildBikeMetrics(
+    speed,
+    cadence,
+    power,
+    distance,
+    resistance,
+    heartRate,
+    energy?.totalEnergyKcal,
+    energy?.energyPerHourKcal,
+    energy?.energyPerMinuteKcal,
+  );
 }
 
 /**

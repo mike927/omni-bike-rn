@@ -15,6 +15,9 @@ export interface BikeMetrics {
   distance?: number; // Total distance in meters
   resistance?: number; // Resistance level (varies by machine)
   heartRate?: number; // BPM (if the bike has built-in sensors)
+  totalEnergyKcal?: number; // FTMS cumulative energy in kcal
+  energyPerHourKcal?: number; // FTMS energy rate per hour
+  energyPerMinuteKcal?: number; // FTMS energy rate per minute
   status?: BikeStatus; // Machine status events
 }
 

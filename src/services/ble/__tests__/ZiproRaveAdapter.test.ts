@@ -182,8 +182,8 @@ describe('ZiproRaveAdapter', () => {
       const statusCallback = mockDevice.monitorCharacteristicForService.mock.calls[1][2];
 
       // 1. Simulate FTMS Indoor Bike Data payload:
-      // Flags (16-bit) -> 0x0074 (Binary: 0000 0000 0111 0100) -> Speed(0), Cadence(1), Distance(1), Resistance(1), Power(1)
-      const mockBytes = new Uint8Array([0x74, 0x00, 14, 6, 170, 0, 176, 4, 0, 12, 0, 150, 0]);
+      // Flags (16-bit) -> 0x0174 -> Speed(0), Cadence(1), Distance(1), Resistance(1), Power(1), Energy(1)
+      const mockBytes = new Uint8Array([0x74, 0x01, 14, 6, 170, 0, 176, 4, 0, 12, 0, 150, 0, 42, 0, 88, 2, 10]);
       const mockDataChar = { value: encodeBase64Bytes(mockBytes) };
       dataCallback(null, mockDataChar);
 
@@ -193,7 +193,9 @@ describe('ZiproRaveAdapter', () => {
         power: 150,
         distance: 1200,
         resistance: 12,
-        heartRate: undefined, // Not in flags
+        totalEnergyKcal: 42,
+        energyPerHourKcal: 600,
+        energyPerMinuteKcal: 10,
       });
 
       // 2. Simulate Machine Status Event: User Paused (0x02)

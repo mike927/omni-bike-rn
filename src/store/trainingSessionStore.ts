@@ -1,6 +1,12 @@
 import { create } from 'zustand';
 
-import { TrainingPhase, VALID_TRANSITIONS, type MetricSnapshot } from '../types/training';
+import {
+  TrainingPhase,
+  VALID_TRANSITIONS,
+  type CalorieSourceMode,
+  type MetricSnapshot,
+  type TrainingTickInput,
+} from '../types/training';
 
 const INITIAL_METRICS: MetricSnapshot = {
   speed: 0,
@@ -30,6 +36,9 @@ export interface TrainingSessionStore {
   totalCalories: number; // kcal
   currentMetrics: MetricSnapshot;
   initialDistance: number | null;
+  bikeCaloriesOffset: number | null;
+  lastBikeTotalEnergyKcal: number | null;
+  lastCalorieSourceMode: CalorieSourceMode;
 
   // ── Actions ────────────────────────────────────────────
   start: () => void;
@@ -41,11 +50,11 @@ export interface TrainingSessionStore {
   /**
    * Called once per second by the MetronomeEngine.
    *
-   * Receives a **pre-merged** MetricSnapshot (the engine has already applied
-   * source-priority logic for HR, calories, etc.) so the store stays
-   * source-agnostic and easy to extend with new sensors.
+   * Receives a **pre-merged** 1 Hz tick payload (the engine has already applied
+   * source-priority logic for HR and gathered calorie-source metadata) so the
+   * store stays source-agnostic and easy to extend with new sensors.
    */
-  tick: (metrics: MetricSnapshot) => void;
+  tick: (input: TrainingTickInput) => void;
 }
 
 function transitionTo(from: TrainingPhase, to: TrainingPhase): TrainingPhase {
@@ -63,6 +72,9 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
   totalDistance: 0,
   totalCalories: 0,
   initialDistance: null,
+  bikeCaloriesOffset: null,
+  lastBikeTotalEnergyKcal: null,
+  lastCalorieSourceMode: 'none',
   currentMetrics: { ...INITIAL_METRICS, distance: null },
 
   // ── Transitions ────────────────────────────────────────
@@ -84,12 +96,25 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
       totalDistance: 0,
       totalCalories: 0,
       initialDistance: null,
+      bikeCaloriesOffset: null,
+      lastBikeTotalEnergyKcal: null,
+      lastCalorieSourceMode: 'none',
       currentMetrics: { ...INITIAL_METRICS, distance: null },
     }),
 
   // ── Tick (called by MetronomeEngine every 1 s) ─────────
-  tick: (metrics) => {
-    const { phase, elapsedSeconds, totalDistance, totalCalories, initialDistance } = get();
+  tick: (input) => {
+    const { metrics, bikeTotalEnergyKcal, hasLiveExternalHr } = input;
+    const {
+      phase,
+      elapsedSeconds,
+      totalDistance,
+      totalCalories,
+      initialDistance,
+      bikeCaloriesOffset,
+      lastBikeTotalEnergyKcal,
+      lastCalorieSourceMode,
+    } = get();
     if (phase !== TrainingPhase.Active) return;
 
     // Distance logic: Prefer raw hardware output over derived speed integration
@@ -108,14 +133,42 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
       newTotalDistance += distanceDelta;
     }
 
-    // Metabolic calorie delta: mechanical work adjusted for gross efficiency
-    const calorieDelta = metrics.power / JOULES_PER_KCAL / GROSS_MECHANICAL_EFFICIENCY;
+    let nextTotalCalories = totalCalories;
+    let nextBikeCaloriesOffset = bikeCaloriesOffset;
+    let nextLastBikeTotalEnergyKcal: number | null = null;
+    let nextCalorieSourceMode: CalorieSourceMode = 'none';
+
+    if (hasLiveExternalHr) {
+      // Metabolic calorie delta: mechanical work adjusted for gross efficiency
+      const calorieDelta = metrics.power / JOULES_PER_KCAL / GROSS_MECHANICAL_EFFICIENCY;
+      nextTotalCalories = totalCalories + calorieDelta;
+      nextBikeCaloriesOffset = null;
+      nextCalorieSourceMode = 'app';
+    } else if (bikeTotalEnergyKcal === null) {
+      nextBikeCaloriesOffset = null;
+    } else {
+      const shouldRebaseBikeCalories =
+        bikeCaloriesOffset === null ||
+        lastCalorieSourceMode !== 'bike' ||
+        (lastBikeTotalEnergyKcal !== null && bikeTotalEnergyKcal < lastBikeTotalEnergyKcal);
+
+      if (shouldRebaseBikeCalories) {
+        nextBikeCaloriesOffset = totalCalories - bikeTotalEnergyKcal;
+      }
+
+      nextTotalCalories = bikeTotalEnergyKcal + (nextBikeCaloriesOffset ?? 0);
+      nextLastBikeTotalEnergyKcal = bikeTotalEnergyKcal;
+      nextCalorieSourceMode = 'bike';
+    }
 
     set({
       elapsedSeconds: elapsedSeconds + 1,
       totalDistance: newTotalDistance,
       initialDistance: newInitialDistance,
-      totalCalories: totalCalories + calorieDelta,
+      totalCalories: nextTotalCalories,
+      bikeCaloriesOffset: nextBikeCaloriesOffset,
+      lastBikeTotalEnergyKcal: nextLastBikeTotalEnergyKcal,
+      lastCalorieSourceMode: nextCalorieSourceMode,
       currentMetrics: metrics,
     });
   },

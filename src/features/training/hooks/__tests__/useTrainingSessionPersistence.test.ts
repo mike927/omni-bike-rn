@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { useTrainingSessionPersistence } from '../useTrainingSessionPersistence';
 import { useSavedGearStore } from '../../../../store/savedGearStore';
 import { useTrainingSessionStore } from '../../../../store/trainingSessionStore';
-import { TrainingPhase, type MetricSnapshot } from '../../../../types/training';
+import { TrainingPhase, type MetricSnapshot, type TrainingTickInput } from '../../../../types/training';
 import * as trainingSessionRepository from '../../../../services/db/trainingSessionRepository';
 
 jest.mock('../../../../services/db/trainingSessionRepository', () => ({
@@ -41,6 +41,12 @@ describe('useTrainingSessionPersistence', () => {
     distance: 525,
   };
 
+  const tickInput: TrainingTickInput = {
+    metrics: sample,
+    bikeTotalEnergyKcal: null,
+    hasLiveExternalHr: true,
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     useTrainingSessionStore.setState({
@@ -49,6 +55,9 @@ describe('useTrainingSessionPersistence', () => {
       totalDistance: 0,
       totalCalories: 0,
       initialDistance: null,
+      bikeCaloriesOffset: null,
+      lastBikeTotalEnergyKcal: null,
+      lastCalorieSourceMode: 'none',
       currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: null },
     });
     useSavedGearStore.setState({
@@ -86,7 +95,7 @@ describe('useTrainingSessionPersistence', () => {
     });
 
     act(() => {
-      useTrainingSessionStore.getState().tick(sample);
+      useTrainingSessionStore.getState().tick(tickInput);
     });
 
     await waitFor(() => {
@@ -123,7 +132,7 @@ describe('useTrainingSessionPersistence', () => {
     });
 
     act(() => {
-      useTrainingSessionStore.getState().tick(sample);
+      useTrainingSessionStore.getState().tick(tickInput);
       useTrainingSessionStore.getState().finish();
     });
 
@@ -144,7 +153,7 @@ describe('useTrainingSessionPersistence', () => {
     });
 
     act(() => {
-      useTrainingSessionStore.getState().tick(sample);
+      useTrainingSessionStore.getState().tick(tickInput);
       useTrainingSessionStore.getState().reset();
     });
 
@@ -165,7 +174,7 @@ describe('useTrainingSessionPersistence', () => {
     });
 
     act(() => {
-      useTrainingSessionStore.getState().tick(sample);
+      useTrainingSessionStore.getState().tick(tickInput);
       useTrainingSessionStore.getState().finish();
       useTrainingSessionStore.getState().reset();
     });
@@ -182,7 +191,7 @@ describe('useTrainingSessionPersistence', () => {
 
     act(() => {
       useTrainingSessionStore.getState().start();
-      useTrainingSessionStore.getState().tick(sample);
+      useTrainingSessionStore.getState().tick(tickInput);
       useTrainingSessionStore.getState().finish();
     });
 
@@ -206,9 +215,9 @@ describe('useTrainingSessionPersistence', () => {
     });
 
     act(() => {
-      useTrainingSessionStore.getState().tick(sample);
-      useTrainingSessionStore.getState().tick(sample);
-      useTrainingSessionStore.getState().tick(sample);
+      useTrainingSessionStore.getState().tick(tickInput);
+      useTrainingSessionStore.getState().tick(tickInput);
+      useTrainingSessionStore.getState().tick(tickInput);
     });
 
     await waitFor(() => {
@@ -236,7 +245,7 @@ describe('useTrainingSessionPersistence', () => {
     });
 
     act(() => {
-      useTrainingSessionStore.getState().tick(sample);
+      useTrainingSessionStore.getState().tick(tickInput);
     });
 
     await waitFor(() => {

@@ -78,7 +78,7 @@ Bike-first product UX in this phase: support a single main bike for now, while k
 - [x] Finish flow from app: confirmation before completing, then navigate to summary and require an explicit save-or-discard choice when tapping `Done` — addressed in Screen Logic Revision
 - [x] Finished workout summary screen (save, discard, deferred upload entry points) — addressed in Screen Logic Revision
 - [-] Bike stop handling: freeze the session and prompt the user to finish instead of auto-completing immediately - deferred by product decision
-- [ ] Parse and use bike-reported calories from FTMS Energy field (Zipro Rave Bit 10) as an alternative calorie source
+- [x] Parse and use bike-reported calories from FTMS Energy field (Zipro Rave Bit 10) as an alternative calorie source
 - [ ] Crash recovery / interrupted session restore
 - [ ] Add comprehensive unit tests covering various test cases
 
@@ -113,6 +113,7 @@ Lightweight, modern onboarding shown only on first launch. 2-3 swipeable intro s
 - [ ] If a user taps `Upload` from history without a connected provider, redirect to the relevant provider connection flow
 - [x] Minimal UI elements needed for integrations, export, and provider sync flows
 - [ ] Add comprehensive unit tests covering various test cases
+- [ ] Strava webhook is not working for "localhost" once oauth is agreed - it hangs on "accounts.google.com"
 
 ## Phase 7: Extras & Platform Features
 
