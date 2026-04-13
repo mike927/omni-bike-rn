@@ -168,7 +168,9 @@ export async function uploadSessionToProvider(sessionId: string, providerId: str
         providerId,
         uploadState: 'uploaded',
         externalId: result.externalId ?? null,
-        errorMessage: warningMessage ?? null,
+        // Gear-attach warnings are surfaced once via the return value but not stored
+        // permanently, so the upload record stays clean and doesn't block future retries.
+        errorMessage: null,
       });
       return { providerId, success: true, externalId: result.externalId, warningMessage };
     }

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import {
+  clearProviderGearLinks,
   loadProviderGearLinks,
   markProviderGearLinkStale,
   removeProviderGearLink,
@@ -16,6 +17,8 @@ export interface ProviderGearLinkStore {
   upsertLink: (link: LinkedProviderGear) => Promise<void>;
   removeLink: (providerId: ProviderId, localGearId: string, localGearType: GearType) => Promise<void>;
   markLinkStale: (providerId: ProviderId, localGearId: string, localGearType: GearType) => Promise<void>;
+  /** Clears all stored gear links for a provider. Call on provider disconnect to prevent stale links being reused after account switch. */
+  clearLinksForProvider: (providerId: ProviderId) => Promise<void>;
 }
 
 function isSameLink(
@@ -70,5 +73,10 @@ export const useProviderGearLinkStore = create<ProviderGearLinkStore>((set, get)
         isSameLink(item, providerId, localGearId, localGearType) ? { ...item, stale: true } : item,
       ),
     }));
+  },
+
+  clearLinksForProvider: async (providerId) => {
+    await clearProviderGearLinks();
+    set((state) => ({ links: state.links.filter((item) => item.providerId !== providerId) }));
   },
 }));

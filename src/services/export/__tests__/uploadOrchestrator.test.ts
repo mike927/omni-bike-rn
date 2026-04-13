@@ -409,8 +409,7 @@ describe('uploadOrchestrator', () => {
       providerId: 'strava',
       uploadState: 'uploaded',
       externalId: 'ext-123',
-      errorMessage:
-        'Workout uploaded, but Strava could not clear its default bike. Reconnect Strava once, then try again.',
+      errorMessage: null,
     });
   });
 
@@ -453,7 +452,7 @@ describe('uploadOrchestrator', () => {
       providerId: 'strava',
       uploadState: 'uploaded',
       externalId: 'ext-123',
-      errorMessage: 'Workout uploaded, but the linked bike could not be attached. Relink it in Settings.',
+      errorMessage: null,
     });
   });
 
@@ -496,8 +495,7 @@ describe('uploadOrchestrator', () => {
       providerId: 'strava',
       uploadState: 'uploaded',
       externalId: 'ext-123',
-      errorMessage:
-        'Workout uploaded, but Strava could not attach the linked bike. Reconnect Strava once, then try again.',
+      errorMessage: null,
     });
   });
 
@@ -537,7 +535,7 @@ describe('uploadOrchestrator', () => {
       providerId: 'strava',
       uploadState: 'uploaded',
       externalId: 'ext-123',
-      errorMessage: 'Workout uploaded, but the linked bike could not be attached. Relink it in Settings.',
+      errorMessage: null,
     });
   });
 });

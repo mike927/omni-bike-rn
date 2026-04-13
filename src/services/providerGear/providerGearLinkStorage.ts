@@ -71,7 +71,10 @@ export async function getProviderGearLink(
   localGearType: GearType,
 ): Promise<LinkedProviderGear | null> {
   const current = await loadProviderGearLinks();
-  return current.find((item) => isSameLink(item, providerId, localGearId, localGearType)) ?? null;
+  const link = current.find((item) => isSameLink(item, providerId, localGearId, localGearType));
+  // Stale links are excluded so the upload orchestrator falls back to the "no linked gear" path
+  // rather than retrying an invalid providerGearId on every future upload.
+  return link && !link.stale ? link : null;
 }
 
 export async function clearProviderGearLinks(): Promise<void> {
