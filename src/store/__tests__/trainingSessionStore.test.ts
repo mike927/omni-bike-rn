@@ -204,7 +204,10 @@ describe('trainingSessionStore', () => {
       expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(2, 5);
 
       useTrainingSessionStore.getState().tick(makeTickInput({ power: 4186 }, { hasLiveExternalHr: true }));
-      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(6, 5);
+      const state = useTrainingSessionStore.getState();
+
+      expect(state.totalCalories).toBeCloseTo(6, 5);
+      expect(state.bikeCaloriesOffset).toBeNull();
     });
 
     it('should rebase bike calories again after a no-data gap', () => {
@@ -215,10 +218,14 @@ describe('trainingSessionStore', () => {
       expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(2, 5);
 
       useTrainingSessionStore.getState().tick(makeTickInput());
-      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(2, 5);
+      let state = useTrainingSessionStore.getState();
+      expect(state.totalCalories).toBeCloseTo(2, 5);
+      expect(state.bikeCaloriesOffset).toBeNull();
 
       useTrainingSessionStore.getState().tick(makeTickInput({}, { bikeTotalEnergyKcal: 60 }));
-      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(2, 5);
+      state = useTrainingSessionStore.getState();
+      expect(state.totalCalories).toBeCloseTo(2, 5);
+      expect(state.bikeCaloriesOffset).toBeCloseTo(-58, 5);
     });
 
     it('should rebase bike calories if the bike counter resets mid-session', () => {

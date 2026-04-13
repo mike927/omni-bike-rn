@@ -142,6 +142,7 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
       // Metabolic calorie delta: mechanical work adjusted for gross efficiency
       const calorieDelta = metrics.power / JOULES_PER_KCAL / GROSS_MECHANICAL_EFFICIENCY;
       nextTotalCalories = totalCalories + calorieDelta;
+      nextBikeCaloriesOffset = null;
       nextCalorieSourceMode = 'app';
     } else if (bikeTotalEnergyKcal !== null) {
       const shouldRebaseBikeCalories =
@@ -156,6 +157,8 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
       nextTotalCalories = bikeTotalEnergyKcal + (nextBikeCaloriesOffset ?? 0);
       nextLastBikeTotalEnergyKcal = bikeTotalEnergyKcal;
       nextCalorieSourceMode = 'bike';
+    } else {
+      nextBikeCaloriesOffset = null;
     }
 
     set({
