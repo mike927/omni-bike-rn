@@ -16,6 +16,7 @@ import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
 
 const HOME_ROUTE = '/';
+const SETTINGS_ROUTE = '/(tabs)/settings';
 const STRAVA_PROVIDER_ID = 'strava';
 const STRAVA_PROVIDER_LABEL = 'Strava';
 
@@ -109,7 +110,7 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: TrainingS
     if (!useStravaConnectionStore.getState().connected) {
       Alert.alert('Strava Not Connected', 'Connect your Strava account in Settings to upload workouts.', [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Go to Settings', onPress: () => router.push('/(tabs)/settings') },
+        { text: 'Go to Settings', onPress: () => router.push(SETTINGS_ROUTE) },
       ]);
       return;
     }

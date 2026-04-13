@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { getConnectedAthlete, isStravaConnected } from '../services/strava/stravaAuthService';
+import { loadTokens } from '../services/strava/stravaTokenStorage';
 import type { StravaAthlete } from '../services/strava/types';
 
 export interface StravaConnectionStore {
@@ -20,9 +20,8 @@ export const useStravaConnectionStore = create<StravaConnectionStore>((set, get)
 
   hydrate: async () => {
     if (get().hydrated) return;
-    const connected = await isStravaConnected();
-    const athlete = connected ? await getConnectedAthlete() : null;
-    set({ connected, athlete, hydrated: true });
+    const tokens = await loadTokens();
+    set({ connected: tokens !== null, athlete: tokens?.athlete ?? null, hydrated: true });
   },
 
   setConnected: (athlete) => set({ connected: true, athlete }),

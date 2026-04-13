@@ -1,15 +1,19 @@
-import { isStravaConnected, getConnectedAthlete } from '../../services/strava/stravaAuthService';
+import { loadTokens } from '../../services/strava/stravaTokenStorage';
 import { useStravaConnectionStore } from '../stravaConnectionStore';
 
-jest.mock('../../services/strava/stravaAuthService', () => ({
-  isStravaConnected: jest.fn(),
-  getConnectedAthlete: jest.fn(),
+jest.mock('../../services/strava/stravaTokenStorage', () => ({
+  loadTokens: jest.fn(),
 }));
 
-const mockIsStravaConnected = isStravaConnected as jest.Mock;
-const mockGetConnectedAthlete = getConnectedAthlete as jest.Mock;
+const mockLoadTokens = loadTokens as jest.Mock;
 
 const SAMPLE_ATHLETE = { id: 1, firstName: 'Jane', lastName: 'Rider' };
+const SAMPLE_TOKENS = {
+  accessToken: 'access',
+  refreshToken: 'refresh',
+  expiresAt: 9999999999,
+  athlete: SAMPLE_ATHLETE,
+};
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -19,8 +23,7 @@ beforeEach(() => {
 describe('stravaConnectionStore', () => {
   describe('hydrate', () => {
     it('sets connected and athlete when tokens exist', async () => {
-      mockIsStravaConnected.mockResolvedValue(true);
-      mockGetConnectedAthlete.mockResolvedValue(SAMPLE_ATHLETE);
+      mockLoadTokens.mockResolvedValue(SAMPLE_TOKENS);
 
       await useStravaConnectionStore.getState().hydrate();
 
@@ -31,7 +34,7 @@ describe('stravaConnectionStore', () => {
     });
 
     it('sets disconnected when no tokens exist', async () => {
-      mockIsStravaConnected.mockResolvedValue(false);
+      mockLoadTokens.mockResolvedValue(null);
 
       await useStravaConnectionStore.getState().hydrate();
 
@@ -46,7 +49,7 @@ describe('stravaConnectionStore', () => {
 
       await useStravaConnectionStore.getState().hydrate();
 
-      expect(mockIsStravaConnected).not.toHaveBeenCalled();
+      expect(mockLoadTokens).not.toHaveBeenCalled();
     });
   });
 
