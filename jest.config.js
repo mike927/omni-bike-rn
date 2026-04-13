@@ -14,6 +14,8 @@ module.exports = {
     '\\.sql$': '<rootDir>/src/__mocks__/sql.ts',
     '^expo-web-browser$': '<rootDir>/src/__mocks__/expo-web-browser.ts',
     '^expo-secure-store$': '<rootDir>/src/__mocks__/expo-secure-store.ts',
+    '^expo-constants$': '<rootDir>/src/__mocks__/expo-constants.ts',
+    '^expo-auth-session$': '<rootDir>/src/__mocks__/expo-auth-session.ts',
   },
   roots: ['<rootDir>/src'],
   testMatch: ['**/*.test.ts', '**/*.test.tsx'],

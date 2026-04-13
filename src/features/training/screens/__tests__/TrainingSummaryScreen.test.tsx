@@ -38,6 +38,13 @@ jest.mock('../../../../services/export/uploadOrchestrator', () => ({
   uploadSessionToProvider: (...args: unknown[]) => mockUploadSessionToProvider(...args),
 }));
 
+const mockStravaGetState = jest.fn();
+jest.mock('../../../../store/stravaConnectionStore', () => ({
+  useStravaConnectionStore: {
+    getState: (...args: unknown[]) => mockStravaGetState(...args),
+  },
+}));
+
 describe('TrainingSummaryScreen', () => {
   const session = {
     id: 'session-1',
@@ -60,6 +67,8 @@ describe('TrainingSummaryScreen', () => {
     mockGetSessionById.mockReturnValue(session);
     mockGetProviderUpload.mockReturnValue(null);
     mockUploadSessionToProvider.mockResolvedValue({ providerId: 'strava', success: true, externalId: 'upload-1' });
+    // Default: Strava connected so upload guard passes in most tests.
+    mockStravaGetState.mockReturnValue({ connected: true });
   });
 
   it('shows a missing-session state when no persisted session exists', () => {
@@ -197,6 +206,28 @@ describe('TrainingSummaryScreen', () => {
     });
     expect(getByText('Strava Uploaded')).toBeTruthy();
     expect(alertSpy).toHaveBeenCalledWith('Upload Complete', 'This workout was uploaded to Strava.');
+
+    alertSpy.mockRestore();
+  });
+
+  it('shows a not-connected alert when upload is tapped without Strava connected', async () => {
+    mockStravaGetState.mockReturnValue({ connected: false });
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+
+    const { getByText } = render(
+      <TrainingSummaryScreen
+        sessionId="session-1"
+        source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE}
+        returnTo="/history"
+      />,
+    );
+
+    fireEvent.press(getByText('Upload to Strava'));
+
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalledWith('Strava Not Connected', expect.any(String), expect.any(Array));
+    });
+    expect(mockUploadSessionToProvider).not.toHaveBeenCalled();
 
     alertSpy.mockRestore();
   });

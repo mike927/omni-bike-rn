@@ -3,6 +3,7 @@ import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { useDeviceConnection } from '../../training/hooks/useDeviceConnection';
+import { useStravaConnection } from '../../integrations/hooks/useStravaConnection';
 import { ActionButton } from '../../../ui/components/ActionButton';
 import { SectionCard } from '../../../ui/components/SectionCard';
 import { AppScreen } from '../../../ui/layout/AppScreen';
@@ -12,6 +13,36 @@ export function SettingsScreen() {
   const router = useRouter();
   const { bikeConnected, hrConnected, disconnectAll } = useDeviceConnection();
   const { savedBike, savedHrSource, forgetBike, forgetHr } = useSavedGear();
+  const {
+    isConnected: stravaConnected,
+    athleteName,
+    isLoading: stravaLoading,
+    connect,
+    disconnect,
+  } = useStravaConnection();
+
+  const handleStravaConnect = async () => {
+    const result = await connect();
+    if (!result.success) {
+      Alert.alert('Connection Failed', result.errorMessage ?? 'Could not connect to Strava.');
+    }
+  };
+
+  const handleStravaDisconnect = async () => {
+    Alert.alert('Disconnect Strava', 'Remove your Strava connection? Existing uploads will not be affected.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Disconnect',
+        style: 'destructive',
+        onPress: async () => {
+          const result = await disconnect();
+          if (!result.success) {
+            Alert.alert('Disconnect Failed', result.errorMessage ?? 'Could not disconnect from Strava.');
+          }
+        },
+      },
+    ]);
+  };
 
   const handleDisconnect = async () => {
     try {
@@ -64,6 +95,34 @@ export function SettingsScreen() {
           variant="danger"
           disabled={!bikeConnected && !hrConnected}
         />
+      </SectionCard>
+
+      <SectionCard title="Integrations">
+        <View style={styles.gearRow}>
+          <View style={styles.gearInfo}>
+            <Text style={styles.gearLabel}>Strava</Text>
+            <Text style={styles.gearName}>
+              {stravaConnected && athleteName ? athleteName : stravaConnected ? 'Connected' : 'Not connected'}
+            </Text>
+          </View>
+          <View style={styles.gearActions}>
+            {stravaConnected ? (
+              <ActionButton
+                label="Disconnect"
+                onPress={() => void handleStravaDisconnect()}
+                variant="danger"
+                disabled={stravaLoading}
+              />
+            ) : (
+              <ActionButton
+                label={stravaLoading ? 'Connecting...' : 'Connect Strava'}
+                onPress={() => void handleStravaConnect()}
+                variant="secondary"
+                disabled={stravaLoading}
+              />
+            )}
+          </View>
+        </View>
       </SectionCard>
     </AppScreen>
   );
