@@ -29,6 +29,17 @@ export interface MetricSnapshot {
   distance: number | null;
 }
 
+export interface TrainingTickInput {
+  /** Point-in-time snapshot stored in the training session state and DB samples. */
+  metrics: MetricSnapshot;
+  /** Cumulative FTMS energy reported by the bike. */
+  bikeTotalEnergyKcal: number | null;
+  /** Whether an external HR source is actively reporting on this tick. */
+  hasLiveExternalHr: boolean;
+}
+
+export type CalorieSourceMode = 'app' | 'bike' | 'none';
+
 /** Allowed transitions for the training state machine. */
 export const VALID_TRANSITIONS: Readonly<Record<TrainingPhase, readonly TrainingPhase[]>> = {
   [TrainingPhase.Idle]: [TrainingPhase.Active],

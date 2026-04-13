@@ -181,6 +181,15 @@ export class ZiproRaveAdapter implements BikeAdapter {
               ...(parsedMetrics.heartRate !== undefined && {
                 heartRate: parsedMetrics.heartRate,
               }),
+              ...(parsedMetrics.totalEnergyKcal !== undefined && {
+                totalEnergyKcal: parsedMetrics.totalEnergyKcal,
+              }),
+              ...(parsedMetrics.energyPerHourKcal !== undefined && {
+                energyPerHourKcal: parsedMetrics.energyPerHourKcal,
+              }),
+              ...(parsedMetrics.energyPerMinuteKcal !== undefined && {
+                energyPerMinuteKcal: parsedMetrics.energyPerMinuteKcal,
+              }),
             };
 
             this.metricsCallback?.(this.latestMetrics);

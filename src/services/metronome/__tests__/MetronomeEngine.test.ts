@@ -30,6 +30,9 @@ describe('MetronomeEngine', () => {
       totalDistance: 0,
       totalCalories: 0,
       initialDistance: null,
+      bikeCaloriesOffset: null,
+      lastBikeTotalEnergyKcal: null,
+      lastCalorieSourceMode: 'none',
       currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: null },
     });
   });
@@ -116,6 +119,30 @@ describe('MetronomeEngine', () => {
       expect(state.currentMetrics.power).toBe(0);
       expect(state.currentMetrics.heartRate).toBeNull();
     });
+
+    it('should use bike-reported calories when no live external HR is present', () => {
+      useTrainingSessionStore.getState().start();
+      useDeviceConnectionStore.getState().updateBikeMetrics({
+        speed: 25,
+        cadence: 80,
+        power: 150,
+        totalEnergyKcal: 200,
+      });
+
+      engine.start();
+      jest.advanceTimersByTime(1000);
+      expect(useTrainingSessionStore.getState().totalCalories).toBe(0);
+
+      useDeviceConnectionStore.getState().updateBikeMetrics({
+        speed: 25,
+        cadence: 80,
+        power: 150,
+        totalEnergyKcal: 203,
+      });
+
+      jest.advanceTimersByTime(1000);
+      expect(useTrainingSessionStore.getState().totalCalories).toBe(3);
+    });
   });
 
   describe('HR priority', () => {
@@ -188,6 +215,26 @@ describe('MetronomeEngine', () => {
       jest.advanceTimersByTime(1000);
 
       expect(useTrainingSessionStore.getState().currentMetrics.heartRate).toBeNull();
+    });
+
+    it('should keep app-calculated calories when external HR is live even if bike energy is available', () => {
+      useTrainingSessionStore.getState().start();
+
+      const bikeMetrics: BikeMetrics = {
+        speed: 25,
+        cadence: 80,
+        power: 4186,
+        heartRate: 72,
+        totalEnergyKcal: 500,
+      };
+      useDeviceConnectionStore.getState().updateBikeMetrics(bikeMetrics);
+      useDeviceConnectionStore.getState().updateBluetoothHr(145);
+
+      engine.start();
+      jest.advanceTimersByTime(1000);
+
+      expect(useTrainingSessionStore.getState().currentMetrics.heartRate).toBe(145);
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(4, 5);
     });
   });
 

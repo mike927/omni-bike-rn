@@ -1,5 +1,5 @@
 import { useTrainingSessionStore } from '../trainingSessionStore';
-import { TrainingPhase, type MetricSnapshot } from '../../types/training';
+import { TrainingPhase, type MetricSnapshot, type TrainingTickInput } from '../../types/training';
 
 describe('trainingSessionStore', () => {
   beforeEach(() => {
@@ -12,6 +12,9 @@ describe('trainingSessionStore', () => {
       totalDistance: 0,
       totalCalories: 0,
       initialDistance: null,
+      bikeCaloriesOffset: null,
+      lastBikeTotalEnergyKcal: null,
+      lastCalorieSourceMode: 'none',
       currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: null },
     });
     void store; // suppress unused
@@ -24,6 +27,16 @@ describe('trainingSessionStore', () => {
     heartRate: 140,
     resistance: 8,
     distance: null,
+    ...overrides,
+  });
+
+  const makeTickInput = (
+    metricOverrides: Partial<MetricSnapshot> = {},
+    overrides: Partial<TrainingTickInput> = {},
+  ): TrainingTickInput => ({
+    metrics: makeSample(metricOverrides),
+    bikeTotalEnergyKcal: null,
+    hasLiveExternalHr: false,
     ...overrides,
   });
 
@@ -116,47 +129,116 @@ describe('trainingSessionStore', () => {
   describe('tick()', () => {
     it('should increment elapsedSeconds when Active', () => {
       useTrainingSessionStore.getState().start();
-      useTrainingSessionStore.getState().tick(makeSample());
+      useTrainingSessionStore.getState().tick(makeTickInput());
 
       expect(useTrainingSessionStore.getState().elapsedSeconds).toBe(1);
     });
 
     it('should not increment when Paused', () => {
       useTrainingSessionStore.getState().start();
-      useTrainingSessionStore.getState().tick(makeSample());
+      useTrainingSessionStore.getState().tick(makeTickInput());
       useTrainingSessionStore.getState().pause();
-      useTrainingSessionStore.getState().tick(makeSample());
+      useTrainingSessionStore.getState().tick(makeTickInput());
 
       expect(useTrainingSessionStore.getState().elapsedSeconds).toBe(1);
     });
 
     it('should not increment when Idle', () => {
-      useTrainingSessionStore.getState().tick(makeSample());
+      useTrainingSessionStore.getState().tick(makeTickInput());
       expect(useTrainingSessionStore.getState().elapsedSeconds).toBe(0);
     });
 
     it('should accumulate totalDistance from speed', () => {
       useTrainingSessionStore.getState().start();
       // 36 km/h = 10 m/s → 10 m per tick
-      useTrainingSessionStore.getState().tick(makeSample({ speed: 36 }));
-      useTrainingSessionStore.getState().tick(makeSample({ speed: 36 }));
+      useTrainingSessionStore.getState().tick(makeTickInput({ speed: 36 }));
+      useTrainingSessionStore.getState().tick(makeTickInput({ speed: 36 }));
 
       expect(useTrainingSessionStore.getState().totalDistance).toBeCloseTo(20, 5);
     });
 
-    it('should accumulate totalCalories from power adjusted for metabolic efficiency', () => {
+    it('should accumulate totalCalories from power adjusted for metabolic efficiency when external HR is live', () => {
       useTrainingSessionStore.getState().start();
       // 4186 W for 1 s = 4186 J mechanical = 1 kcal mechanical
       // Divided by 0.25 gross efficiency = 4 kcal metabolic
-      useTrainingSessionStore.getState().tick(makeSample({ power: 4186 }));
+      useTrainingSessionStore.getState().tick(makeTickInput({ power: 4186 }, { hasLiveExternalHr: true }));
 
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(4, 5);
+    });
+
+    it('should hold totalCalories when external HR is absent and bike calories are unavailable', () => {
+      useTrainingSessionStore.getState().start();
+      useTrainingSessionStore.getState().tick(makeTickInput({ power: 4186 }));
+
+      expect(useTrainingSessionStore.getState().totalCalories).toBe(0);
+    });
+
+    it('should follow normalized bike calories when external HR is absent', () => {
+      useTrainingSessionStore.getState().start();
+
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { bikeTotalEnergyKcal: 100 }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBe(0);
+
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { bikeTotalEnergyKcal: 103 }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBe(3);
+    });
+
+    it('should switch from app-calculated calories to bike calories without a jump', () => {
+      useTrainingSessionStore.getState().start();
+
+      useTrainingSessionStore.getState().tick(makeTickInput({ power: 4186 }, { hasLiveExternalHr: true }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(4, 5);
+
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { bikeTotalEnergyKcal: 120 }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(4, 5);
+
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { bikeTotalEnergyKcal: 122 }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(6, 5);
+    });
+
+    it('should switch from bike calories back to app-calculated calories continuously', () => {
+      useTrainingSessionStore.getState().start();
+
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { bikeTotalEnergyKcal: 80 }));
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { bikeTotalEnergyKcal: 82 }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(2, 5);
+
+      useTrainingSessionStore.getState().tick(makeTickInput({ power: 4186 }, { hasLiveExternalHr: true }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(6, 5);
+    });
+
+    it('should rebase bike calories again after a no-data gap', () => {
+      useTrainingSessionStore.getState().start();
+
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { bikeTotalEnergyKcal: 50 }));
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { bikeTotalEnergyKcal: 52 }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(2, 5);
+
+      useTrainingSessionStore.getState().tick(makeTickInput());
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(2, 5);
+
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { bikeTotalEnergyKcal: 60 }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(2, 5);
+    });
+
+    it('should rebase bike calories if the bike counter resets mid-session', () => {
+      useTrainingSessionStore.getState().start();
+
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { bikeTotalEnergyKcal: 80 }));
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { bikeTotalEnergyKcal: 82 }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(2, 5);
+
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { bikeTotalEnergyKcal: 1 }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(2, 5);
+
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { bikeTotalEnergyKcal: 3 }));
       expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(4, 5);
     });
 
     it('should update currentMetrics snapshot', () => {
       useTrainingSessionStore.getState().start();
       const sample = makeSample({ speed: 30, heartRate: 155 });
-      useTrainingSessionStore.getState().tick(sample);
+      useTrainingSessionStore.getState().tick(makeTickInput({ speed: 30, heartRate: 155 }));
 
       expect(useTrainingSessionStore.getState().currentMetrics).toEqual(sample);
     });
@@ -165,7 +247,7 @@ describe('trainingSessionStore', () => {
   describe('reset()', () => {
     it('should reset an active session back to Idle', () => {
       useTrainingSessionStore.getState().start();
-      useTrainingSessionStore.getState().tick(makeSample({ distance: 500 }));
+      useTrainingSessionStore.getState().tick(makeTickInput({ distance: 500 }, { bikeTotalEnergyKcal: 75 }));
 
       useTrainingSessionStore.getState().reset();
 
@@ -175,11 +257,14 @@ describe('trainingSessionStore', () => {
       expect(state.totalDistance).toBe(0);
       expect(state.totalCalories).toBe(0);
       expect(state.initialDistance).toBeNull();
+      expect(state.bikeCaloriesOffset).toBeNull();
+      expect(state.lastBikeTotalEnergyKcal).toBeNull();
+      expect(state.lastCalorieSourceMode).toBe('none');
     });
 
     it('should reset a paused session back to Idle', () => {
       useTrainingSessionStore.getState().start();
-      useTrainingSessionStore.getState().tick(makeSample({ distance: 500 }));
+      useTrainingSessionStore.getState().tick(makeTickInput({ distance: 500 }, { bikeTotalEnergyKcal: 75 }));
       useTrainingSessionStore.getState().pause();
 
       useTrainingSessionStore.getState().reset();
@@ -190,12 +275,15 @@ describe('trainingSessionStore', () => {
       expect(state.totalDistance).toBe(0);
       expect(state.totalCalories).toBe(0);
       expect(state.initialDistance).toBeNull();
+      expect(state.bikeCaloriesOffset).toBeNull();
+      expect(state.lastBikeTotalEnergyKcal).toBeNull();
+      expect(state.lastCalorieSourceMode).toBe('none');
     });
 
     it('should return all values to initial state', () => {
       useTrainingSessionStore.getState().start();
-      useTrainingSessionStore.getState().tick(makeSample());
-      useTrainingSessionStore.getState().tick(makeSample());
+      useTrainingSessionStore.getState().tick(makeTickInput());
+      useTrainingSessionStore.getState().tick(makeTickInput());
       useTrainingSessionStore.getState().finish();
       useTrainingSessionStore.getState().reset();
 
@@ -205,6 +293,9 @@ describe('trainingSessionStore', () => {
       expect(state.totalDistance).toBe(0);
       expect(state.totalCalories).toBe(0);
       expect(state.initialDistance).toBeNull();
+      expect(state.bikeCaloriesOffset).toBeNull();
+      expect(state.lastBikeTotalEnergyKcal).toBeNull();
+      expect(state.lastCalorieSourceMode).toBe('none');
       expect(state.currentMetrics).toEqual({
         speed: 0,
         cadence: 0,
