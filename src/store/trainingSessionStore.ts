@@ -144,7 +144,9 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
       nextTotalCalories = totalCalories + calorieDelta;
       nextBikeCaloriesOffset = null;
       nextCalorieSourceMode = 'app';
-    } else if (bikeTotalEnergyKcal !== null) {
+    } else if (bikeTotalEnergyKcal === null) {
+      nextBikeCaloriesOffset = null;
+    } else {
       const shouldRebaseBikeCalories =
         bikeCaloriesOffset === null ||
         lastCalorieSourceMode !== 'bike' ||
@@ -157,8 +159,6 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
       nextTotalCalories = bikeTotalEnergyKcal + (nextBikeCaloriesOffset ?? 0);
       nextLastBikeTotalEnergyKcal = bikeTotalEnergyKcal;
       nextCalorieSourceMode = 'bike';
-    } else {
-      nextBikeCaloriesOffset = null;
     }
 
     set({

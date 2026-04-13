@@ -4,7 +4,6 @@ import { TrainingPhase, type MetricSnapshot, type TrainingTickInput } from '../.
 describe('trainingSessionStore', () => {
   beforeEach(() => {
     // Reset store to initial state between tests
-    const store = useTrainingSessionStore.getState();
     // Force-reset regardless of current phase
     useTrainingSessionStore.setState({
       phase: TrainingPhase.Idle,
@@ -17,7 +16,6 @@ describe('trainingSessionStore', () => {
       lastCalorieSourceMode: 'none',
       currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: null },
     });
-    void store; // suppress unused
   });
 
   const makeSample = (overrides: Partial<MetricSnapshot> = {}): MetricSnapshot => ({
