@@ -1,9 +1,12 @@
 import type { ExportProvider, ExportResult } from './ExportProvider';
 import { serializeSessionToTcx } from './formats/tcxSerializer';
 import { getValidAccessToken } from '../strava/stravaAuthService';
+import { attachStravaGearToActivity, clearStravaGearFromActivity, listStravaGear } from '../strava/stravaGearService';
 import { uploadActivity, waitForProcessing } from '../strava/stravaApiClient';
 import { STRAVA_CLIENT_ID } from '../strava/stravaConstants';
 import { useStravaConnectionStore } from '../../store/stravaConnectionStore';
+import type { GearType } from '../../types/gear';
+import type { ProviderGearSummary } from '../../types/providerGear';
 import type { PersistedTrainingSession, PersistedTrainingSample } from '../../types/sessionPersistence';
 
 const PROVIDER_ID = 'strava';
@@ -38,10 +41,11 @@ export class StravaExportProvider implements ExportProvider {
 
     const tcxData = serializeSessionToTcx(session, samples);
     const activityName = buildActivityName(session);
+    const externalId = `${session.id}.tcx`;
 
     let uploadResponse;
     try {
-      uploadResponse = await uploadActivity(accessToken, tcxData, activityName);
+      uploadResponse = await uploadActivity(accessToken, tcxData, activityName, externalId);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to upload activity to Strava.';
       console.error('[StravaExportProvider] Upload request failed:', err);
@@ -65,5 +69,17 @@ export class StravaExportProvider implements ExportProvider {
       success: true,
       externalId: result.activityId !== null ? String(result.activityId) : undefined,
     };
+  }
+
+  async listAvailableGear(gearType: GearType): Promise<ProviderGearSummary[]> {
+    return listStravaGear(gearType);
+  }
+
+  async attachGearToActivity(activityId: string, providerGearId: string): Promise<void> {
+    await attachStravaGearToActivity(activityId, providerGearId);
+  }
+
+  async clearGearFromActivity(activityId: string): Promise<void> {
+    await clearStravaGearFromActivity(activityId);
   }
 }

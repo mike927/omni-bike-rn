@@ -1,5 +1,7 @@
 import type { ConfigContext, ExpoConfig } from 'expo/config';
 
+const DEFAULT_STRAVA_CALLBACK_DOMAIN = 'localhost';
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'omni-bike-rn',
@@ -57,5 +59,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // then set these environment variables (or EAS secrets for CI builds).
     stravaClientId: process.env.STRAVA_CLIENT_ID ?? '',
     stravaClientSecret: process.env.STRAVA_CLIENT_SECRET ?? '',
+    stravaCallbackDomain: process.env.STRAVA_CALLBACK_DOMAIN ?? DEFAULT_STRAVA_CALLBACK_DOMAIN,
   },
 });

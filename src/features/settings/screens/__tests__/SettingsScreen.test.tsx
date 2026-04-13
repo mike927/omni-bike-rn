@@ -19,6 +19,22 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush }),
 }));
 
+const mockStravaConnection = {
+  isConnected: false,
+  athleteName: null as string | null,
+  isLoading: false,
+  connect: jest.fn(),
+  disconnect: jest.fn(),
+};
+
+const mockProviderBikeLinking = {
+  currentLink: null,
+  status: 'not_linked' as const,
+  needsReconnect: false,
+  errorMessage: null as string | null,
+  openProviderGearManagement: jest.fn(),
+};
+
 const mockConnection = {
   bikeConnected: false,
   hrConnected: false,
@@ -45,11 +61,33 @@ jest.mock('../../../gear/hooks/useSavedGear', () => ({
   useSavedGear: () => mockSavedGear,
 }));
 
+jest.mock('../../../integrations/hooks/useStravaConnection', () => ({
+  useStravaConnection: () => mockStravaConnection,
+}));
+
+jest.mock('../../../integrations/hooks/useProviderBikeLinking', () => ({
+  useProviderBikeLinking: () => mockProviderBikeLinking,
+}));
+
 describe('SettingsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     Object.assign(mockConnection, { bikeConnected: false, hrConnected: false });
     Object.assign(mockSavedGear, { savedBike: null, savedHrSource: null });
+    Object.assign(mockStravaConnection, {
+      isConnected: false,
+      athleteName: null,
+      isLoading: false,
+      connect: jest.fn(),
+      disconnect: jest.fn(),
+    });
+    Object.assign(mockProviderBikeLinking, {
+      currentLink: null,
+      status: 'not_linked',
+      needsReconnect: false,
+      errorMessage: null,
+      openProviderGearManagement: jest.fn(),
+    });
     useSavedGearStore.setState({ bikeReconnectState: 'idle', hrReconnectState: 'idle' });
   });
 

@@ -4,6 +4,13 @@ jest.mock('../stravaConstants', () => ({
   STRAVA_UPLOAD_URL: 'https://www.strava.com/api/v3/uploads',
 }));
 
+const { __expoFileSystemMock } = jest.requireMock('expo-file-system') as {
+  __expoFileSystemMock: {
+    getFile: (uri: string) => unknown;
+    reset: () => void;
+  };
+};
+
 const ACCESS_TOKEN = 'test-access-token';
 const UPLOAD_ID = 12345;
 
@@ -22,9 +29,7 @@ beforeEach(() => {
   jest.useFakeTimers();
   global.fetch = jest.fn();
   global.FormData = MockFormData as unknown as typeof FormData;
-  global.Blob = jest
-    .fn()
-    .mockImplementation((parts: unknown[], options: unknown) => ({ parts, options })) as unknown as typeof Blob;
+  __expoFileSystemMock.reset();
 });
 
 afterEach(() => {
@@ -41,7 +46,7 @@ describe('uploadActivity', () => {
     };
     (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => mockResponse });
 
-    const result = await uploadActivity(ACCESS_TOKEN, '<tcx/>', 'Indoor Cycling - Apr 13, 2026');
+    const result = await uploadActivity(ACCESS_TOKEN, '<tcx/>', 'Indoor Cycling - Apr 13, 2026', 'session-1.tcx');
 
     expect(global.fetch).toHaveBeenCalledWith(
       'https://www.strava.com/api/v3/uploads',
@@ -51,11 +56,33 @@ describe('uploadActivity', () => {
       }),
     );
     expect(result.id).toBe(UPLOAD_ID);
+
+    const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+    const form = fetchCall?.[1]?.body as MockFormData;
+    expect(form.getEntries()).toEqual(
+      expect.arrayContaining([
+        ['data_type', 'tcx'],
+        ['sport_type', 'VirtualRide'],
+        ['trainer', '1'],
+        ['external_id', 'session-1.tcx'],
+      ]),
+    );
   });
 
   it('throws when the server returns a non-ok response', async () => {
     (global.fetch as jest.Mock).mockResolvedValue({ ok: false, status: 422, text: async () => 'Unprocessable' });
-    await expect(uploadActivity(ACCESS_TOKEN, '<tcx/>', 'name')).rejects.toThrow('422');
+    await expect(uploadActivity(ACCESS_TOKEN, '<tcx/>', 'name', 'session-1.tcx')).rejects.toThrow('422');
+  });
+
+  it('writes a temporary tcx file and deletes it after upload', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: UPLOAD_ID, status: 'processing', error: null, activity_id: null }),
+    });
+
+    await uploadActivity(ACCESS_TOKEN, '<tcx/>', 'Indoor Cycling - Apr 13, 2026', 'session-1.tcx');
+
+    expect(__expoFileSystemMock.getFile('file://mock-cache/strava-upload-session-1.tcx')).toBeUndefined();
   });
 });
 

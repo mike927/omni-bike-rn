@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
+import { useProviderBikeLinking } from '../../integrations/hooks/useProviderBikeLinking';
 import { useDeviceConnection } from '../../training/hooks/useDeviceConnection';
 import { useStravaConnection } from '../../integrations/hooks/useStravaConnection';
 import { ActionButton } from '../../../ui/components/ActionButton';
@@ -20,11 +21,23 @@ export function SettingsScreen() {
     connect,
     disconnect,
   } = useStravaConnection();
+  const {
+    currentLink,
+    status: providerBikeStatus,
+    needsReconnect: providerBikeNeedsReconnect,
+    errorMessage: providerBikeErrorMessage,
+    openProviderGearManagement,
+  } = useProviderBikeLinking('strava', savedBike);
 
   const handleStravaConnect = async () => {
     const result = await connect();
     if (!result.success) {
       Alert.alert('Connection Failed', result.errorMessage ?? 'Could not connect to Strava.');
+      return;
+    }
+
+    if (savedBike) {
+      router.push('/provider-gear-link?provider=strava');
     }
   };
 
@@ -123,6 +136,64 @@ export function SettingsScreen() {
             )}
           </View>
         </View>
+
+        {stravaConnected ? <View style={styles.divider} /> : null}
+
+        {stravaConnected ? (
+          <View style={styles.integrationBlock}>
+            <Text style={styles.gearLabel}>Linked Bike</Text>
+            {savedBike ? (
+              <>
+                <Text style={styles.gearName}>
+                  {currentLink
+                    ? currentLink.stale
+                      ? `Relink ${savedBike.name}`
+                      : `Linked to ${currentLink.providerGearName}`
+                    : providerBikeStatus === 'no_provider_gear'
+                      ? 'No Strava bikes found'
+                      : 'Not linked'}
+                </Text>
+                <Text style={styles.integrationBody}>
+                  {providerBikeNeedsReconnect
+                    ? 'Reconnect Strava once to grant bike-linking access.'
+                    : providerBikeStatus === 'no_provider_gear'
+                      ? 'Uploads can continue without gear. Create a bike in Strava if you want it attached automatically.'
+                      : currentLink?.stale
+                        ? 'The previously linked Strava bike is no longer available.'
+                        : currentLink
+                          ? 'Future Strava uploads will attach this bike automatically.'
+                          : 'Pick which Strava bike should be attached to future uploads from this Omni Bike.'}
+                </Text>
+                <View style={styles.gearActions}>
+                  <ActionButton
+                    label={currentLink ? 'Relink Bike' : 'Link Bike'}
+                    onPress={() => router.push('/provider-gear-link?provider=strava')}
+                    variant="secondary"
+                  />
+                  {providerBikeStatus === 'no_provider_gear' ? (
+                    <ActionButton
+                      label="Open Strava Gear"
+                      onPress={() => {
+                        void openProviderGearManagement();
+                      }}
+                      variant="ghost"
+                    />
+                  ) : null}
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={styles.gearName}>Save a bike first</Text>
+                <Text style={styles.integrationBody}>
+                  Set up your bike in My Gear before linking provider gear for uploads.
+                </Text>
+              </>
+            )}
+            {providerBikeErrorMessage && !providerBikeNeedsReconnect ? (
+              <Text style={styles.integrationErrorText}>{providerBikeErrorMessage}</Text>
+            ) : null}
+          </View>
+        ) : null}
       </SectionCard>
     </AppScreen>
   );
@@ -158,5 +229,18 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: palette.border,
+  },
+  integrationBlock: {
+    gap: 8,
+  },
+  integrationBody: {
+    color: palette.textMuted,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  integrationErrorText: {
+    color: palette.danger,
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

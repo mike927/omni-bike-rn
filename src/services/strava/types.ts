@@ -4,6 +4,12 @@ export interface StravaAthlete {
   lastName: string;
 }
 
+export interface StravaGear {
+  id: string;
+  name: string;
+  primary: boolean;
+}
+
 export interface StravaTokens {
   accessToken: string;
   refreshToken: string;
@@ -36,4 +42,15 @@ export interface StravaTokenResponse {
     firstname: string;
     lastname: string;
   };
+}
+
+export interface StravaDetailedAthleteResponse {
+  id: number;
+  firstname: string;
+  lastname: string;
+  bikes?: {
+    id: string;
+    name: string;
+    primary: boolean;
+  }[];
 }

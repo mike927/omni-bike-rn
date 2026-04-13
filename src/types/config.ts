@@ -5,4 +5,5 @@
 export interface ExpoExtra {
   stravaClientId: string;
   stravaClientSecret: string;
+  stravaCallbackDomain: string;
 }
