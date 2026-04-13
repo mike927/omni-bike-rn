@@ -108,10 +108,10 @@ Lightweight, modern onboarding shown only on first launch. 2-3 swipeable intro s
 - [x] Provider connection management (connect, disconnect, sync status)
 - [ ] Settings option to automatically upload saved workouts to a connected provider
 - [x] Manual upload action from the workout history list or workout detail view
-- [~] Functional Integrations screen
+- [x] Functional Integrations screen
 - [x] Generic export payload mapping for completed training sessions
 - [ ] If a user taps `Upload` from history without a connected provider, redirect to the relevant provider connection flow
-- [~] Minimal UI elements needed for integrations, export, and provider sync flows
+- [x] Minimal UI elements needed for integrations, export, and provider sync flows
 - [ ] Add comprehensive unit tests covering various test cases
 
 ## Phase 7: Extras & Platform Features
