@@ -80,7 +80,7 @@ type FtmsReader<T extends number> = (bytes: Uint8Array, offset: number) => T | u
 
 function skipField(cursor: FtmsCursor, shouldSkip: boolean, size: number): void {
   if (shouldSkip) {
-    cursor.offset += size;
+    cursor.offset = Math.min(cursor.offset + size, cursor.bytes.length);
   }
 }
 

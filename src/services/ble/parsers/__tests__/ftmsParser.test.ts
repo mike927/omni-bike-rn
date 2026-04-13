@@ -105,6 +105,11 @@ describe('parseFtmsIndoorBikeData', () => {
     expect(parseFtmsIndoorBikeData(payload)).toEqual({ speed: 25 });
   });
 
+  it('keeps parsed speed when average power bytes are truncated', () => {
+    const payload = buildPayload(0x00c0, 0xc4, 0x09, 0xf6, 0xff, 0x01);
+    expect(parseFtmsIndoorBikeData(payload)).toEqual({ speed: 25, power: -10 });
+  });
+
   it('keeps parsed speed when heart rate byte is truncated', () => {
     const payload = buildPayload(0x0200, 0xc4, 0x09);
     expect(parseFtmsIndoorBikeData(payload)).toEqual({ speed: 25 });
