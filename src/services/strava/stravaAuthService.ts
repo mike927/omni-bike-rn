@@ -11,21 +11,10 @@ import {
   TOKEN_EXPIRY_BUFFER_MS,
 } from './stravaConstants';
 import { clearTokens, loadTokens, saveTokens } from './stravaTokenStorage';
-import type { StravaAthlete, StravaTokens } from './types';
+import type { StravaAthlete, StravaTokenResponse, StravaTokens } from './types';
 
 /** Promise-based mutex to prevent concurrent token refreshes. */
 let refreshPromise: Promise<StravaTokens> | null = null;
-
-interface StravaTokenResponse {
-  access_token: string;
-  refresh_token: string;
-  expires_at: number;
-  athlete?: {
-    id: number;
-    firstname: string;
-    lastname: string;
-  };
-}
 
 function parseAthleteFromResponse(raw: StravaTokenResponse['athlete']): StravaAthlete {
   return {

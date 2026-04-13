@@ -119,10 +119,25 @@ describe('waitForProcessing', () => {
     };
     (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => duplicate });
 
-    const promise = waitForProcessing(ACCESS_TOKEN, UPLOAD_ID);
-    const result = await promise;
+    const result = await waitForProcessing(ACCESS_TOKEN, UPLOAD_ID);
 
     expect(result.activityId).toBe(77777);
+    expect(result.error).toBeNull();
+  });
+
+  it('extracts the activity id and not a date when the error string contains a date before the id', async () => {
+    // Real Strava format: date numbers appear before the activity id — the regex must skip them.
+    const duplicate = {
+      id: UPLOAD_ID,
+      status: 'There was an error processing your activity.',
+      error: 'duplicate of activity Id: 12345678 uploaded on April 13, 2026',
+      activity_id: null,
+    };
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => duplicate });
+
+    const result = await waitForProcessing(ACCESS_TOKEN, UPLOAD_ID);
+
+    expect(result.activityId).toBe(12345678);
     expect(result.error).toBeNull();
   });
 

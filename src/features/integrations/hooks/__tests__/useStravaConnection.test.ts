@@ -25,6 +25,17 @@ const mockAuthorize = authorizeWithStrava as jest.Mock;
 const mockDisconnect = disconnectStrava as jest.Mock;
 const mockUseStore = useStravaConnectionStore as unknown as jest.Mock;
 
+// Stable mock store functions — declared once so reference equality holds across renders.
+const mockSetConnected = jest.fn();
+const mockSetDisconnected = jest.fn();
+
+type MockStoreState = {
+  connected: boolean;
+  athlete: { id: number; firstName: string; lastName: string } | null;
+  setConnected: jest.Mock;
+  setDisconnected: jest.Mock;
+};
+
 const SAMPLE_TOKENS = {
   accessToken: 'access',
   refreshToken: 'refresh',
@@ -35,15 +46,13 @@ const SAMPLE_TOKENS = {
 describe('useStravaConnection', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseStore.mockImplementation(
-      (
-        selector: (s: {
-          connected: boolean;
-          athlete: null;
-          setConnected: jest.Mock;
-          setDisconnected: jest.Mock;
-        }) => unknown,
-      ) => selector({ connected: false, athlete: null, setConnected: jest.fn(), setDisconnected: jest.fn() }),
+    mockUseStore.mockImplementation((selector: (s: MockStoreState) => unknown) =>
+      selector({
+        connected: false,
+        athlete: null,
+        setConnected: mockSetConnected,
+        setDisconnected: mockSetDisconnected,
+      }),
     );
   });
 
@@ -54,21 +63,13 @@ describe('useStravaConnection', () => {
   });
 
   it('returns isConnected=true and formatted athleteName when connected', () => {
-    mockUseStore.mockImplementation(
-      (
-        selector: (s: {
-          connected: boolean;
-          athlete: { id: number; firstName: string; lastName: string };
-          setConnected: jest.Mock;
-          setDisconnected: jest.Mock;
-        }) => unknown,
-      ) =>
-        selector({
-          connected: true,
-          athlete: SAMPLE_TOKENS.athlete,
-          setConnected: jest.fn(),
-          setDisconnected: jest.fn(),
-        }),
+    mockUseStore.mockImplementation((selector: (s: MockStoreState) => unknown) =>
+      selector({
+        connected: true,
+        athlete: SAMPLE_TOKENS.athlete,
+        setConnected: mockSetConnected,
+        setDisconnected: mockSetDisconnected,
+      }),
     );
     const { result } = renderHook(() => useStravaConnection());
     expect(result.current.isConnected).toBe(true);

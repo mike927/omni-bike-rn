@@ -25,3 +25,15 @@ export interface StravaUploadResult {
   activityId: number | null;
   error: string | null;
 }
+
+/** Raw token response shape returned by Strava's token and refresh endpoints. */
+export interface StravaTokenResponse {
+  access_token: string;
+  refresh_token: string;
+  expires_at: number;
+  athlete?: {
+    id: number;
+    firstname: string;
+    lastname: string;
+  };
+}

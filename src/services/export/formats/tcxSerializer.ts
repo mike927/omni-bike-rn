@@ -10,11 +10,11 @@ function kmhToMs(kmh: number): number {
 
 function escapeXml(value: string): string {
   return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&apos;');
 }
 
 function resolveDistanceMeters(
@@ -33,18 +33,18 @@ function resolveDistanceMeters(
 
 function buildTrackpoint(sample: PersistedTrainingSample, distanceMeters: number): string {
   const hrSection =
-    sample.metrics.heartRate !== null
-      ? `
+    sample.metrics.heartRate === null
+      ? ''
+      : `
         <HeartRateBpm>
           <Value>${sample.metrics.heartRate}</Value>
-        </HeartRateBpm>`
-      : '';
+        </HeartRateBpm>`;
 
   return `
       <Trackpoint>
         <Time>${escapeXml(msToIso(sample.recordedAtMs))}</Time>
         <DistanceMeters>${distanceMeters.toFixed(1)}</DistanceMeters>
-        <Cadence>${sample.metrics.cadence}</Cadence>${hrSection}
+        <Cadence>${Math.min(sample.metrics.cadence, 254)}</Cadence>${hrSection}
         <Extensions>
           <ns3:TPX>
             <ns3:Speed>${kmhToMs(sample.metrics.speed).toFixed(3)}</ns3:Speed>
@@ -76,7 +76,7 @@ export function serializeSessionToTcx(session: PersistedTrainingSession, samples
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2 http://www.garmin.com/xmlschemas/TrainingCenterDatabasev2.xsd">
   <Activities>
-    <Activity Sport="Biking">
+    <Activity Sport="Biking"><!-- Strava ignores this attribute; activity_type is set via the multipart form field (VirtualRide) -->
       <Id>${startTime}</Id>
       <Lap StartTime="${startTime}">
         <TotalTimeSeconds>${session.elapsedSeconds}</TotalTimeSeconds>

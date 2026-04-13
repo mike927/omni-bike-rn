@@ -53,14 +53,17 @@ export async function pollUploadStatus(accessToken: string, uploadId: number): P
 
 /**
  * Extracts an activity id from a Strava duplicate-upload error string.
- * Strava returns errors like: "There was an activity with this file uploaded in January, ..."
- * and includes the activity id in the error string as a number after "activity".
+ * Strava returns errors like: "There was an activity with this file uploaded on April 13, 2026. Activity Id: 12345678"
+ * The pattern anchors to the word "activity" to skip any date numbers that precede the id.
  * Returns null if no id can be parsed.
  */
 function extractDuplicateActivityId(errorMessage: string): number | null {
-  const match = /\b(\d+)\b/.exec(errorMessage);
-  if (!match || !match[1]) return null;
+  const match = /activity\s+(?:id[:\s]+)?(\d+)/i.exec(errorMessage);
+
+  if (!match?.[1]) return null;
+
   const id = Number(match[1]);
+
   return Number.isFinite(id) ? id : null;
 }
 

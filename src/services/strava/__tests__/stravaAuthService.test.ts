@@ -138,6 +138,23 @@ describe('getValidAccessToken', () => {
     mockLoadTokens.mockResolvedValue(null);
     await expect(getValidAccessToken()).rejects.toThrow('Not connected');
   });
+
+  it('issues only one refresh request when called concurrently with an expired token', async () => {
+    const expiredTokens: StravaTokens = { ...SAMPLE_TOKENS, expiresAt: Math.floor(Date.now() / 1000) - 60 };
+    mockLoadTokens.mockResolvedValue(expiredTokens);
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => MOCK_TOKEN_RESPONSE,
+    });
+    mockSaveTokens.mockResolvedValue(undefined);
+
+    const [token1, token2] = await Promise.all([getValidAccessToken(), getValidAccessToken()]);
+
+    expect(token1).toBe('new-access');
+    expect(token2).toBe('new-access');
+    // Both callers share one refresh — fetch should be called exactly once.
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('disconnectStrava', () => {

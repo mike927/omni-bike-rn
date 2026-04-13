@@ -58,10 +58,10 @@ beforeEach(() => {
 });
 
 describe('isConfigured', () => {
-  it('returns false when client ID is missing', () => {
-    jest.resetModules();
-    // Covered implicitly — mock always sets STRAVA_CLIENT_ID to 'test-client-id',
-    // so we test the connected-store branch here.
+  it('returns false when store shows disconnected', () => {
+    // Note: the mock always sets STRAVA_CLIENT_ID to 'test-client-id', so
+    // the missing-client-id branch is not exercised here. This test covers
+    // the connected-store check via the store mock.
     mockGetState.mockReturnValue({ connected: false });
     expect(provider.isConfigured()).toBe(false);
   });
