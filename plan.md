@@ -102,14 +102,14 @@ Lightweight, modern onboarding shown only on first launch. 2-3 swipeable intro s
 ## Phase 6: Integrations & External Provider Sync
 
 - [x] External training provider contract / adapter architecture for finished session uploads
-- [ ] First provider integration: Strava OAuth + finished session upload
-- [ ] Upload flow for completed workouts with states: `ready to upload`, `uploading`, `uploaded`, `failed`
-- [ ] Retry flow for failed uploads
-- [ ] Provider connection management (connect, disconnect, sync status)
+- [x] First provider integration: Strava OAuth + finished session upload
+- [x] Upload flow for completed workouts with states: `ready to upload`, `uploading`, `uploaded`, `failed`
+- [x] Retry flow for failed uploads
+- [x] Provider connection management (connect, disconnect, sync status)
 - [ ] Settings option to automatically upload saved workouts to a connected provider
 - [x] Manual upload action from the workout history list or workout detail view
 - [ ] Functional Integrations screen
-- [~] Generic export payload mapping for completed training sessions
+- [x] Generic export payload mapping for completed training sessions
 - [ ] If a user taps `Upload` from history without a connected provider, redirect to the relevant provider connection flow
 - [ ] Minimal UI elements needed for integrations, export, and provider sync flows
 - [ ] Add comprehensive unit tests covering various test cases
@@ -150,3 +150,7 @@ Standard Bluetooth HR sensors are expected to work via the BLE HR flow before th
 - [ ] Polish empty, loading, error, paused, and finished states
 - [ ] Add motion, typography, theming, and interaction polish
 - [ ] Final cross-screen QA for portrait and iOS live surfaces
+
+## Future Considerations
+
+- [ ] Move Strava OAuth token exchange and refresh behind a backend or other secure server-side flow so the client app no longer ships the Strava client secret

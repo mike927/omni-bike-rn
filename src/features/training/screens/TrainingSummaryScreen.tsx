@@ -6,6 +6,7 @@ import { POST_FINISH_TRAINING_SUMMARY_SOURCE, type TrainingSummarySource } from 
 import { deleteSession, getSessionById } from '../../../services/db/trainingSessionRepository';
 import { getProviderUpload } from '../../../services/db/providerUploadRepository';
 import { uploadSessionToProvider } from '../../../services/export/uploadOrchestrator';
+import { useStravaConnectionStore } from '../../../store/stravaConnectionStore';
 import type { PersistedProviderUpload, PersistedTrainingSession } from '../../../types/sessionPersistence';
 import { ActionButton } from '../../../ui/components/ActionButton';
 import { MetricTile } from '../../../ui/components/MetricTile';
@@ -15,6 +16,7 @@ import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
 
 const HOME_ROUTE = '/';
+const SETTINGS_ROUTE = '/(tabs)/settings';
 const STRAVA_PROVIDER_ID = 'strava';
 const STRAVA_PROVIDER_LABEL = 'Strava';
 
@@ -105,6 +107,14 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: TrainingS
   };
 
   const handleUploadToStrava = async () => {
+    if (!useStravaConnectionStore.getState().connected) {
+      Alert.alert('Strava Not Connected', 'Connect your Strava account in Settings to upload workouts.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Go to Settings', onPress: () => router.push(SETTINGS_ROUTE) },
+      ]);
+      return;
+    }
+
     setIsUploading(true);
 
     try {
