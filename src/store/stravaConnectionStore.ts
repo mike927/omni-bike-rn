@@ -20,8 +20,13 @@ export const useStravaConnectionStore = create<StravaConnectionStore>((set, get)
 
   hydrate: async () => {
     if (get().hydrated) return;
-    const tokens = await loadTokens();
-    set({ connected: tokens !== null, athlete: tokens?.athlete ?? null, hydrated: true });
+    try {
+      const tokens = await loadTokens();
+      set({ connected: tokens !== null, athlete: tokens?.athlete ?? null, hydrated: true });
+    } catch (err: unknown) {
+      console.error('[stravaConnectionStore] Failed to load tokens during hydration:', err);
+      set({ connected: false, athlete: null, hydrated: true });
+    }
   },
 
   setConnected: (athlete) => set({ connected: true, athlete }),

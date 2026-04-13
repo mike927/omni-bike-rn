@@ -84,10 +84,13 @@ export async function waitForProcessing(accessToken: string, uploadId: number): 
     }
 
     if (status.error) {
-      // Strava signals duplicate uploads via an error string; treat as success.
       if (status.error.toLowerCase().includes('duplicate')) {
         const activityId = extractDuplicateActivityId(status.error);
-        return { activityId, error: null };
+        // Only treat as success when we can recover the existing activity id.
+        // If the id can't be parsed, surface the duplicate message so the user can retry.
+        if (activityId !== null) {
+          return { activityId, error: null };
+        }
       }
       return { activityId: null, error: status.error };
     }

@@ -2,14 +2,9 @@ import { useState } from 'react';
 
 import { authorizeWithStrava, disconnectStrava } from '../../../services/strava/stravaAuthService';
 import { useStravaConnectionStore } from '../../../store/stravaConnectionStore';
+import type { UseStravaConnectionResult } from './useStravaConnectionTypes';
 
-export interface UseStravaConnectionResult {
-  isConnected: boolean;
-  athleteName: string | null;
-  isLoading: boolean;
-  connect: () => Promise<{ success: boolean; errorMessage?: string }>;
-  disconnect: () => Promise<{ success: boolean; errorMessage?: string }>;
-}
+export type { UseStravaConnectionResult } from './useStravaConnectionTypes';
 
 export function useStravaConnection(): UseStravaConnectionResult {
   const connected = useStravaConnectionStore((s) => s.connected);
