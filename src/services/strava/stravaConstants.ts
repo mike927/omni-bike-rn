@@ -28,10 +28,10 @@ export const STRAVA_REDIRECT_URI = AuthSession.makeRedirectUri({ scheme: 'omnibi
 
 export const STRAVA_SCOPES = 'activity:write,read';
 
-export const SECURE_STORE_ACCESS_TOKEN_KEY = 'strava:accessToken';
-export const SECURE_STORE_REFRESH_TOKEN_KEY = 'strava:refreshToken';
-export const SECURE_STORE_EXPIRES_AT_KEY = 'strava:expiresAt';
-export const SECURE_STORE_ATHLETE_KEY = 'strava:athlete';
+export const SECURE_STORE_ACCESS_TOKEN_KEY = 'strava.accessToken';
+export const SECURE_STORE_REFRESH_TOKEN_KEY = 'strava.refreshToken';
+export const SECURE_STORE_EXPIRES_AT_KEY = 'strava.expiresAt';
+export const SECURE_STORE_ATHLETE_KEY = 'strava.athlete';
 
 /** Refresh the access token this many ms before it expires. */
 export const TOKEN_EXPIRY_BUFFER_MS = 300_000;

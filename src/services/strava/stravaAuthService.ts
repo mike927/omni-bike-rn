@@ -124,11 +124,9 @@ export async function getValidAccessToken(): Promise<string> {
   }
 
   // Deduplicate concurrent refresh calls.
-  if (!refreshPromise) {
-    refreshPromise = refreshAccessToken().finally(() => {
-      refreshPromise = null;
-    });
-  }
+  refreshPromise ??= refreshAccessToken().finally(() => {
+    refreshPromise = null;
+  });
 
   const refreshed = await refreshPromise;
   return refreshed.accessToken;
