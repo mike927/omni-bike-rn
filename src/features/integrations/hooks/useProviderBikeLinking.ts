@@ -3,7 +3,7 @@ import { Linking } from 'react-native';
 
 import { getExportProvider } from '../../../services/export/exportProviderRegistry';
 import { listPotentialProviderGearMatches } from '../../../services/export/providerGearMatcher';
-import { STRAVA_GEAR_SETTINGS_URL } from '../../../services/strava/stravaConstants';
+import { STRAVA_GEAR_SETTINGS_URL, STRAVA_RECONNECT_ERROR_MARKER } from '../../../services/strava/stravaConstants';
 import { useProviderGearLinkStore } from '../../../store/providerGearLinkStore';
 import type { SavedDevice } from '../../../types/gear';
 import type { LinkedProviderGear, ProviderGearLinkStatus, ProviderGearSummary } from '../../../types/providerGear';
@@ -47,7 +47,7 @@ export function useProviderBikeLinking(
   const [availableGear, setAvailableGear] = useState<ProviderGearSummary[]>([]);
   const [selectedGearId, setSelectedGearId] = useState<string | null>(null);
   const [potentialMatches, setPotentialMatches] = useState<ProviderGearSummary[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [needsReconnect, setNeedsReconnect] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -116,7 +116,7 @@ export function useProviderBikeLinking(
       setPotentialMatches([]);
       setSelectedGearId(null);
       setErrorMessage(message);
-      setNeedsReconnect(message.includes('Reconnect'));
+      setNeedsReconnect(message.includes(STRAVA_RECONNECT_ERROR_MARKER));
     } finally {
       setIsLoading(false);
     }

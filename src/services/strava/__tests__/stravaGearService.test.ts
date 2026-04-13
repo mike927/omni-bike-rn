@@ -1,5 +1,5 @@
 import { getValidAccessToken } from '../stravaAuthService';
-import { attachStravaGearToActivity, listStravaGear } from '../stravaGearService';
+import { attachStravaGearToActivity, clearStravaGearFromActivity, listStravaGear } from '../stravaGearService';
 
 jest.mock('../stravaAuthService', () => ({
   getValidAccessToken: jest.fn(),
@@ -7,6 +7,8 @@ jest.mock('../stravaAuthService', () => ({
 
 jest.mock('../stravaConstants', () => ({
   STRAVA_API_URL: 'https://www.strava.com/api/v3',
+  STRAVA_CLEAR_GEAR_ID: '',
+  STRAVA_RECONNECT_ERROR_MARKER: 'Reconnect Strava',
 }));
 
 const mockGetValidAccessToken = getValidAccessToken as jest.MockedFunction<typeof getValidAccessToken>;
@@ -120,5 +122,17 @@ describe('attachStravaGearToActivity', () => {
 
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).toContain('Reconnect Strava');
+  });
+});
+
+describe('clearStravaGearFromActivity', () => {
+  it('sends an empty string gear_id to clear gear from the activity', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true });
+
+    await clearStravaGearFromActivity('12345');
+
+    const fetchCall = (global.fetch as jest.Mock).mock.calls[0];
+    const body = JSON.parse(fetchCall?.[1]?.body as string) as Record<string, unknown>;
+    expect(body.gear_id).toBe('');
   });
 });

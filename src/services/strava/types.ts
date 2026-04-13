@@ -48,9 +48,5 @@ export interface StravaDetailedAthleteResponse {
   id: number;
   firstname: string;
   lastname: string;
-  bikes?: {
-    id: string;
-    name: string;
-    primary: boolean;
-  }[];
+  bikes?: StravaGear[];
 }

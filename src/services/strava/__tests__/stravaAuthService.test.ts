@@ -20,7 +20,7 @@ jest.mock('../stravaConstants', () => ({
   STRAVA_REDIRECT_URI: 'omnibike://localhost/oauth/callback',
   STRAVA_CLIENT_ID: 'test-client-id',
   STRAVA_CLIENT_SECRET: 'test-client-secret',
-  STRAVA_SCOPES: 'activity:write,read',
+  STRAVA_SCOPES: 'activity:write,activity:read_all,read,profile:read_all',
   TOKEN_EXPIRY_BUFFER_MS: 300_000,
 }));
 

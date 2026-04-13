@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 
 import { useProviderBikeLinking } from '../hooks/useProviderBikeLinking';
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
@@ -98,6 +98,12 @@ export function ProviderGearLinkScreen({ providerId }: ProviderGearLinkScreenPro
             Reconnect Strava once to grant bike-list access, then return here to finish linking.
           </Text>
           <ActionButton label="Back to Settings" onPress={() => router.replace(SETTINGS_ROUTE)} />
+        </SectionCard>
+      ) : null}
+
+      {isLoading && !needsReconnect && availableGear.length === 0 ? (
+        <SectionCard title="Loading Provider Bikes">
+          <ActivityIndicator color={palette.primary} />
         </SectionCard>
       ) : null}
 
@@ -210,7 +216,7 @@ const styles = StyleSheet.create({
   },
   gearRowSelected: {
     borderColor: palette.primary,
-    backgroundColor: '#dbeafe',
+    backgroundColor: palette.primarySubtle,
   },
   gearInfo: {
     flex: 1,

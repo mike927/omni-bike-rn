@@ -41,3 +41,9 @@ export const SECURE_STORE_ATHLETE_KEY = 'strava.athlete';
 
 /** Refresh the access token this many ms before it expires. */
 export const TOKEN_EXPIRY_BUFFER_MS = 300_000;
+
+/** Value sent to Strava's PUT /activities/:id to clear any attached gear. */
+export const STRAVA_CLEAR_GEAR_ID = '';
+
+/** Substring embedded in errors from stravaGearService that signals a reconnect is required. */
+export const STRAVA_RECONNECT_ERROR_MARKER = 'Reconnect Strava';

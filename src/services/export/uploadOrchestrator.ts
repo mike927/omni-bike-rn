@@ -1,5 +1,6 @@
 import { getExportProvider } from './exportProviderRegistry';
 import { getSessionById, getSamplesBySessionId } from '../db/trainingSessionRepository';
+import { STRAVA_RECONNECT_ERROR_MARKER } from '../strava/stravaConstants';
 import {
   claimProviderUpload,
   getOrCreateProviderUpload,
@@ -121,7 +122,7 @@ export async function uploadSessionToProvider(sessionId: string, providerId: str
               }
             }
 
-            warningMessage = message.includes('Reconnect Strava')
+            warningMessage = message.includes(STRAVA_RECONNECT_ERROR_MARKER)
               ? 'Workout uploaded, but Strava could not attach the linked bike. Reconnect Strava once, then try again.'
               : 'Workout uploaded, but the linked bike could not be attached. Relink it in Settings.';
           }
@@ -148,7 +149,7 @@ export async function uploadSessionToProvider(sessionId: string, providerId: str
               error,
             );
 
-            warningMessage = message.includes('Reconnect Strava')
+            warningMessage = message.includes(STRAVA_RECONNECT_ERROR_MARKER)
               ? 'Workout uploaded, but Strava could not clear its default bike. Reconnect Strava once, then try again.'
               : 'Workout uploaded, but Strava may still apply its default bike. Check your Strava gear settings.';
           }

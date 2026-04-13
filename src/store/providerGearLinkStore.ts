@@ -18,6 +18,15 @@ export interface ProviderGearLinkStore {
   markLinkStale: (providerId: ProviderId, localGearId: string, localGearType: GearType) => Promise<void>;
 }
 
+function isSameLink(
+  item: LinkedProviderGear,
+  providerId: string,
+  localGearId: string,
+  localGearType: GearType,
+): boolean {
+  return item.providerId === providerId && item.localGearId === localGearId && item.localGearType === localGearType;
+}
+
 function updateLinks(links: LinkedProviderGear[], nextLink: LinkedProviderGear): LinkedProviderGear[] {
   return [
     ...links.filter(
@@ -50,10 +59,7 @@ export const useProviderGearLinkStore = create<ProviderGearLinkStore>((set, get)
   removeLink: async (providerId, localGearId, localGearType) => {
     await removeProviderGearLink(providerId, localGearId, localGearType);
     set((state) => ({
-      links: state.links.filter(
-        (item) =>
-          !(item.providerId === providerId && item.localGearId === localGearId && item.localGearType === localGearType),
-      ),
+      links: state.links.filter((item) => !isSameLink(item, providerId, localGearId, localGearType)),
     }));
   },
 
@@ -61,9 +67,7 @@ export const useProviderGearLinkStore = create<ProviderGearLinkStore>((set, get)
     await markProviderGearLinkStale(providerId, localGearId, localGearType);
     set((state) => ({
       links: state.links.map((item) =>
-        item.providerId === providerId && item.localGearId === localGearId && item.localGearType === localGearType
-          ? { ...item, stale: true }
-          : item,
+        isSameLink(item, providerId, localGearId, localGearType) ? { ...item, stale: true } : item,
       ),
     }));
   },

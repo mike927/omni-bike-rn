@@ -1,7 +1,7 @@
 import type { GearType } from '../../types/gear';
 import type { ProviderGearSummary } from '../../types/providerGear';
 import { getValidAccessToken } from './stravaAuthService';
-import { STRAVA_API_URL } from './stravaConstants';
+import { STRAVA_API_URL, STRAVA_CLEAR_GEAR_ID, STRAVA_RECONNECT_ERROR_MARKER } from './stravaConstants';
 import type { StravaDetailedAthleteResponse } from './types';
 
 const STRAVA_PROVIDER_ID = 'strava';
@@ -127,7 +127,7 @@ export async function attachStravaGearToActivity(activityId: string, providerGea
 
     if (response.status === 401 || response.status === 403 || isActivityNotFoundResponse(response.status, text)) {
       throw new Error(
-        `[stravaGearService] Failed to attach gear to activity (${response.status}): ${text} Reconnect Strava to grant private activity edit access.`,
+        `[stravaGearService] Failed to attach gear to activity (${response.status}): ${text} ${STRAVA_RECONNECT_ERROR_MARKER} to grant private activity edit access.`,
       );
     }
 
@@ -136,5 +136,5 @@ export async function attachStravaGearToActivity(activityId: string, providerGea
 }
 
 export async function clearStravaGearFromActivity(activityId: string): Promise<void> {
-  await attachStravaGearToActivity(activityId, 'none');
+  await attachStravaGearToActivity(activityId, STRAVA_CLEAR_GEAR_ID);
 }
