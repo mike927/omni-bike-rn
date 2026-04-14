@@ -1,16 +1,10 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import type { PersistedTrainingSession } from '../../../types/sessionPersistence';
 import { ActionButton } from '../../../ui/components/ActionButton';
 import { SectionCard } from '../../../ui/components/SectionCard';
 import { formatDistanceKm, formatDuration, formatSessionDate } from '../../../ui/formatters';
 import { palette } from '../../../ui/theme';
-
-interface InterruptedSessionCardProps {
-  session: PersistedTrainingSession;
-  onResume: () => void;
-  onDiscard: () => void;
-}
+import type { InterruptedSessionCardProps } from './InterruptedSessionCard.types';
 
 export function InterruptedSessionCard({ session, onResume, onDiscard }: InterruptedSessionCardProps) {
   return (

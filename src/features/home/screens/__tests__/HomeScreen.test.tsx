@@ -24,7 +24,6 @@ jest.mock('../../../gear/hooks/useAutoReconnect');
 jest.mock('../../../gear/hooks/useSavedGear');
 jest.mock('../../../training/hooks/useTrainingSession');
 jest.mock('../../../training/hooks/useDeviceConnection');
-jest.mock('../../../training/hooks/useInterruptedSession');
 
 const mockSession = {
   phase: 'idle',

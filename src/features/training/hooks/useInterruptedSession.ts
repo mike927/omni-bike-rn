@@ -6,6 +6,7 @@ import { useTrainingSessionStore } from '../../../store/trainingSessionStore';
 import { TrainingPhase, type TrainingSessionRestoreInput } from '../../../types/training';
 import type { PersistedTrainingSession } from '../../../types/sessionPersistence';
 import { seedFromPersistedSession } from './useTrainingSessionPersistence';
+import type { UseInterruptedSessionReturn } from './InterruptedSessionTypes';
 
 function toRestoreInput(session: PersistedTrainingSession): TrainingSessionRestoreInput {
   return {
@@ -14,12 +15,6 @@ function toRestoreInput(session: PersistedTrainingSession): TrainingSessionResto
     totalCalories: session.totalCaloriesKcal,
     currentMetrics: session.currentMetrics,
   };
-}
-
-interface UseInterruptedSessionReturn {
-  interruptedSession: PersistedTrainingSession | null;
-  resumeInterruptedSession: () => boolean;
-  discardInterruptedSession: () => boolean;
 }
 
 export function useInterruptedSession(): UseInterruptedSessionReturn {

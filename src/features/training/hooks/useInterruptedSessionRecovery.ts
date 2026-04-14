@@ -38,11 +38,19 @@ export function useInterruptedSessionRecovery(isEnabled: boolean): void {
       return;
     }
 
-    const normalizedSession =
-      interruptedSession.status === 'active'
-        ? (normalizeRecoveredSessionToPaused(interruptedSession.id) ?? interruptedSession)
-        : interruptedSession;
+    if (interruptedSession.status === 'active') {
+      const normalizedSession = normalizeRecoveredSessionToPaused(interruptedSession.id);
+      if (!normalizedSession) {
+        console.warn(
+          '[useInterruptedSessionRecovery] Could not normalize active session to paused; skipping recovery.',
+        );
+        useInterruptedSessionStore.getState().clear();
+        return;
+      }
+      useInterruptedSessionStore.getState().setInterruptedSession(normalizedSession);
+      return;
+    }
 
-    useInterruptedSessionStore.getState().setInterruptedSession(normalizedSession);
+    useInterruptedSessionStore.getState().setInterruptedSession(interruptedSession);
   }, [isEnabled]);
 }
