@@ -76,11 +76,8 @@ Recommendation: <approve | request changes | comment>
 
 ## Findings
 
-### <file-path>:<line>
-**Severity**: <bug | regression | convention | suggestion>
-<Description of the issue and recommended fix>
-
-### ...
+- [ ] `<file-path>:<line>` [<severity>] - <Description of the issue and recommended fix>
+- [ ] ...
 
 ## Summary
 

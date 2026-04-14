@@ -62,6 +62,7 @@ Examples:
 
 ## Commit Rules
 
+- **No Auto-Committing:** Never run `git commit` automatically after writing code or modifying files unless the human explicitly instructed you to do so in their prompt. Always leave the working tree dirty, report the changes made, and wait for the human to review the diff in their IDE and suggest the next action.
 - Use Conventional Commits.
 - Make focused commits per meaningful sub-task, not one large commit at the end.
 
@@ -179,27 +180,23 @@ Use this format for all standard stage transitions or turn pauses:
 
 ### 2. Workspace Ready
 
-- **This step must complete before Step 3 begins.** The feature branch must exist and be checked out before any planning mode is activated, because Step 3 writes the plan to `ai/local/plans/<branch-slug>.md` and that path is only valid once the branch exists.
+- **This step must complete before Step 3 begins.** The feature branch must exist and be checked out before you enter the planning state, because Step 3 writes the plan to `ai/local/plans/<branch-slug>.md` and that path is only valid once the branch exists.
 - Execute the `/start-feature` command logic.
 - If the task is a resume, verify where the current branch exists and continue working there instead of creating a new workspace.
-- If the host has already entered planning mode before this step ran (e.g. the human or a prior agent toggled it early), pause and ask the human to exit planning mode so the branch can be created. Do not attempt to draft a plan from `main`.
+- Do not attempt to draft a plan from `main`.
 
 ### 3. Detailed Plan Prepared
 
 - **Prerequisite: Step 2 (Workspace Ready) must be complete** before this step begins.
-- If your host environment supports a dedicated planning mode (read-only, no file writes), activate it now before drafting the plan.
-- If the mode must be set by the human rather than the agent, pause and explicitly ask the human to enable planning mode before proceeding.
-- If the host has no true planning mode, pause and explicitly ask the human to confirm that the session is in a planning-only phase before proceeding.
-- Until planning mode is confirmed, remain read-only for normal repo work:
-  - no file edits or file creation outside `ai/local/plans/<branch-slug>.md`
-  - no branch changes
-  - no commits
-- While waiting for planning mode, you may continue reading repository files needed to prepare the plan.
+- **Agent-Enforced Planning State:** You are now in a strict planning state. Until the human explicitly approves the plan in Step 4, you are under a **Read-Only Mandate** for the main codebase.
+- **Allowed Actions:** You may use search tools, read files, and write to `ai/local/plans/<branch-slug>.md`.
+- **Forbidden Actions:** You MUST NOT create, modify, or delete any source code, configuration files, or write to any path outside of `ai/local/plans/`. Do not execute `git commit`. You do not need a host UI toggle to enforce this; enforce it yourself.
+- While in this planning state, you may continue reading repository files needed to prepare the plan.
 - Only ask questions about business/product decisions; do not ask questions that can be answered by reading the repository.
 - **Ask product/business questions interactively: always offer 2–4 concrete options per question plus a free-text escape hatch. Use the most interactive mechanism your platform provides (e.g., dedicated UI prompts, tool calls, or simply numbered lists in chat). Never ask open-ended questions when choices can be offered.**
 - If work is blocked on a business decision, update the relevant `plan.md` item with `[?]` plus a short reason.
 - Before implementation, write a detailed plan to `ai/local/plans/<branch-slug>.md` based on the relevant raw task in `plan.md`. The detailed plan must be specific enough to execute without further design decisions during implementation.
-- **Canonical plan location.** The plan must always end up at `ai/local/plans/<branch-slug>.md`. If your host's planning mode writes the draft to a host-managed path, that copy is only a draft — the moment the plan is complete, immediately move it (not copy — the host-local file must not linger) to `ai/local/plans/<branch-slug>.md` so there is a single canonical file. Do not leave plans stranded in host memory or per-agent local storage, and never rely on a host-managed plan path for review, approval, or hand-off.
+- **Canonical plan location.** The plan must always end up at `ai/local/plans/<branch-slug>.md`. If your host provides a draft path, that copy is only a draft — the moment the plan is complete, immediately move it to `ai/local/plans/<branch-slug>.md` so there is a single canonical file. Do not leave plans stranded in host memory or per-agent local storage.
 - Every saved plan file must end with a final section titled `## What Will Be Available After Completion`. This must be the bottom section of the file and should concisely describe the completed capabilities, user flows, integrations, screens, behaviors, and other meaningful deliverables that will exist after the task is done. Favor end-state outcomes over implementation recap; mention technical/internal deliverables only when they materially affect what will be available after completion.
 - After saving the plan, run `/review-plan`. If the recommendation is `revise`, run `/address-plan-review` to resolve findings, then re-run `/review-plan`. Repeat until `/review-plan` reports `ready`. **Only a `ready` result from `/review-plan` passes the plan-quality gate — do not advance to Step 4 until it is reached.** If `/address-plan-review` reports `blocked`, surface the unresolved questions to the human and wait for answers before re-running `/review-plan`.
 
@@ -207,8 +204,7 @@ Use this format for all standard stage transitions or turn pauses:
 
 - Share the plan file with the user and wait for explicit approval before writing code. Discuss and iterate on the plan until approved.
 - Technical implementation choices are left to the agent unless the detailed plan exposes a product or business tradeoff that requires user input.
-- Once approved, deactivate planning mode before proceeding to implementation.
-- If the host requires the human to switch modes manually, or only supports manual planning-phase confirmation, explicitly ask the human to return the session to edit mode or confirm that implementation may begin, and wait for confirmation before writing code.
+- **Exiting Planning State:** Only after the user explicitly replies with "Approved" (or similar), the Read-Only Mandate is lifted. You may now proceed to Step 5 and utilize all tools to modify the codebase.
 
 ### 5. Implementation In Progress
 

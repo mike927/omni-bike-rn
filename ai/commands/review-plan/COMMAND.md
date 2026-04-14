@@ -133,15 +133,15 @@ Relevant plan.md item: <quoted task line or "none identified">
 
 ## Must Change
 
-- <blocking issue>
+- [ ] <blocking issue>
 
 ## Suggested Improvements
 
-- <non-blocking improvement>
+- [ ] <non-blocking improvement>
 
 ## Missing Decisions
 
-- <decision still unresolved>
+- [ ] <decision still unresolved>
 
 ## Summary
 
@@ -152,6 +152,7 @@ Rules:
 
 - Always list positives first.
 - Keep required changes actionable and specific.
+- Format all actionable items (Must Change, Suggested Improvements, Missing Decisions) as Markdown checklists (`- [ ] <issue>`) so they can be checked off during resolution.
 - Do not rewrite the plan or edit the canonical plan file.
 - If a section has no items, write `- None.`
 - If no prior review file exists, create it from scratch using the structure above.
