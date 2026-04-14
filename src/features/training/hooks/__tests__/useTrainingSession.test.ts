@@ -293,6 +293,7 @@ describe('useTrainingSession', () => {
 
   it('should freeze (pause) the session when bike telemetry goes stale while Active', () => {
     jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-04-14T12:00:00.000Z'));
 
     try {
       const { result } = renderHook(() => useTrainingSession());
@@ -311,6 +312,7 @@ describe('useTrainingSession', () => {
 
       act(() => {
         jest.advanceTimersByTime(5000);
+        useTrainingSessionStore.setState({ elapsedSeconds: 5 });
       });
 
       expect(result.current.phase).toBe(TrainingPhase.Paused);

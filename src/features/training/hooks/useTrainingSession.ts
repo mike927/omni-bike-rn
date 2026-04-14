@@ -259,32 +259,12 @@ export function useTrainingSession(): UseTrainingSessionReturn {
       return;
     }
 
-    const millisecondsUntilStale = Math.max(0, lastBikeSignalAtMs + BIKE_SIGNAL_STALE_TIMEOUT_MS - Date.now());
+    if (Date.now() - lastBikeSignalAtMs < BIKE_SIGNAL_STALE_TIMEOUT_MS) {
+      return;
+    }
 
-    const timeoutId = setTimeout(() => {
-      if (suppressDisconnectPauseRef.current) {
-        return;
-      }
-
-      const currentPhase = useTrainingSessionStore.getState().phase;
-      const currentBikeAdapter = useDeviceConnectionStore.getState().bikeAdapter;
-      const currentLastBikeSignalAtMs = useDeviceConnectionStore.getState().lastBikeSignalAtMs;
-
-      if (currentPhase !== TrainingPhase.Active || currentBikeAdapter === null || currentLastBikeSignalAtMs === null) {
-        return;
-      }
-
-      if (Date.now() - currentLastBikeSignalAtMs < BIKE_SIGNAL_STALE_TIMEOUT_MS) {
-        return;
-      }
-
-      freezeActiveSession();
-    }, millisecondsUntilStale);
-
-    return () => {
-      clearTimeout(timeoutId);
-    };
-  }, [bikeAdapter, freezeActiveSession, lastBikeSignalAtMs, phase]);
+    freezeActiveSession();
+  }, [bikeAdapter, elapsedSeconds, freezeActiveSession, lastBikeSignalAtMs, phase]);
 
   useEffect(
     () => () => {
