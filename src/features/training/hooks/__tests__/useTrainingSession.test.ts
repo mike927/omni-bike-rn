@@ -291,6 +291,36 @@ describe('useTrainingSession', () => {
     expect(mockEngineStop).toHaveBeenCalledTimes(1);
   });
 
+  it('should freeze (pause) the session when bike telemetry goes stale while Active', () => {
+    jest.useFakeTimers();
+
+    try {
+      const { result } = renderHook(() => useTrainingSession());
+
+      act(() => {
+        useDeviceConnectionStore.getState().updateBikeMetrics({
+          speed: 25,
+          cadence: 80,
+          power: 150,
+        });
+        result.current.start();
+      });
+
+      mockSetControlState.mockClear();
+      mockEngineStop.mockClear();
+
+      act(() => {
+        jest.advanceTimersByTime(5000);
+      });
+
+      expect(result.current.phase).toBe(TrainingPhase.Paused);
+      expect(mockSetControlState).not.toHaveBeenCalled();
+      expect(mockEngineStop).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('should keep a paused session paused when the bike disconnects', async () => {
     const { result } = renderHook(() => useTrainingSession());
 

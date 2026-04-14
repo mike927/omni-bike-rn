@@ -9,6 +9,7 @@ import { disconnectAllDeviceConnections } from './useDeviceConnection';
 import { getActiveSessionId } from './useTrainingSessionPersistence';
 
 const FINISH_STOP_COMMAND_TIMEOUT_MS = 2000;
+const BIKE_SIGNAL_STALE_TIMEOUT_MS = 5000;
 
 interface UseTrainingSessionReturn {
   // ── Read-only state ────────────────────────────────────
@@ -45,6 +46,7 @@ export function useTrainingSession(): UseTrainingSessionReturn {
   const totalCalories = useTrainingSessionStore((s) => s.totalCalories);
   const currentMetrics = useTrainingSessionStore((s) => s.currentMetrics);
   const bikeAdapter = useDeviceConnectionStore((s) => s.bikeAdapter);
+  const lastBikeSignalAtMs = useDeviceConnectionStore((s) => s.lastBikeSignalAtMs);
 
   const ensureEngineRunning = useCallback(() => {
     if (!engineRef.current) {
@@ -247,6 +249,42 @@ export function useTrainingSession(): UseTrainingSessionReturn {
 
     freezeActiveSession();
   }, [bikeAdapter, freezeActiveSession, phase]);
+
+  useEffect(() => {
+    if (phase !== TrainingPhase.Active) {
+      return;
+    }
+
+    if (bikeAdapter === null || lastBikeSignalAtMs === null || suppressDisconnectPauseRef.current) {
+      return;
+    }
+
+    const millisecondsUntilStale = Math.max(0, lastBikeSignalAtMs + BIKE_SIGNAL_STALE_TIMEOUT_MS - Date.now());
+
+    const timeoutId = setTimeout(() => {
+      if (suppressDisconnectPauseRef.current) {
+        return;
+      }
+
+      const currentPhase = useTrainingSessionStore.getState().phase;
+      const currentBikeAdapter = useDeviceConnectionStore.getState().bikeAdapter;
+      const currentLastBikeSignalAtMs = useDeviceConnectionStore.getState().lastBikeSignalAtMs;
+
+      if (currentPhase !== TrainingPhase.Active || currentBikeAdapter === null || currentLastBikeSignalAtMs === null) {
+        return;
+      }
+
+      if (Date.now() - currentLastBikeSignalAtMs < BIKE_SIGNAL_STALE_TIMEOUT_MS) {
+        return;
+      }
+
+      freezeActiveSession();
+    }, millisecondsUntilStale);
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [bikeAdapter, freezeActiveSession, lastBikeSignalAtMs, phase]);
 
   useEffect(
     () => () => {

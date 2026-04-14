@@ -20,6 +20,7 @@ export interface DeviceConnectionStore {
 
   // ── Latest raw readings ────────────────────────────────
   latestBikeMetrics: BikeMetrics | null;
+  lastBikeSignalAtMs: number | null;
   latestBluetoothHr: number | null;
   latestAppleWatchHr: number | null;
 
@@ -42,20 +43,30 @@ export const useDeviceConnectionStore = create<DeviceConnectionStore>((set) => (
   bikeConnectionInProgress: false,
   hrConnectionInProgress: false,
   latestBikeMetrics: null,
+  lastBikeSignalAtMs: null,
   latestBluetoothHr: null,
   latestAppleWatchHr: null,
 
-  setBikeAdapter: (adapter) => set({ bikeAdapter: adapter }),
+  setBikeAdapter: (adapter) =>
+    set({
+      bikeAdapter: adapter,
+      lastBikeSignalAtMs: adapter ? Date.now() : null,
+    }),
   setHrAdapter: (adapter) => set({ hrAdapter: adapter }),
   setBikeConnectionInProgress: (connecting) => set({ bikeConnectionInProgress: connecting }),
   setHrConnectionInProgress: (connecting) => set({ hrConnectionInProgress: connecting }),
-  updateBikeMetrics: (metrics) => set({ latestBikeMetrics: metrics }),
+  updateBikeMetrics: (metrics) =>
+    set({
+      latestBikeMetrics: metrics,
+      lastBikeSignalAtMs: Date.now(),
+    }),
   updateBluetoothHr: (hr) => set({ latestBluetoothHr: hr }),
   updateAppleWatchHr: (hr) => set({ latestAppleWatchHr: hr }),
   clearBikeConnection: () =>
     set({
       bikeAdapter: null,
       latestBikeMetrics: null,
+      lastBikeSignalAtMs: null,
     }),
   // Apple Watch HR is independent of the BLE HR lifecycle — only clear Bluetooth here.
   clearHrConnection: () =>
@@ -70,6 +81,7 @@ export const useDeviceConnectionStore = create<DeviceConnectionStore>((set) => (
       bikeConnectionInProgress: false,
       hrConnectionInProgress: false,
       latestBikeMetrics: null,
+      lastBikeSignalAtMs: null,
       latestBluetoothHr: null,
       latestAppleWatchHr: null,
     }),
