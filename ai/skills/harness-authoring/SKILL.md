@@ -7,6 +7,13 @@ description: Rules and anti-patterns for creating or modifying harness files —
 
 Use this skill when creating, editing, or reviewing any harness file: `AGENTS.md`, `ai/commands/*/COMMAND.md`, `ai/skills/*/SKILL.md`, `ai/commands/README.md`, `ai/README.md`, or provider bridge files under `.claude/`, `.agents/`, etc.
 
+## Core Philosophy
+
+When modifying the harness, every change must align with these three pillars:
+1. **The Wizard Flow:** The workflow must feel like a guided, step-by-step wizard. The agent should strictly enforce stage boundaries, explicitly announce when a step is complete, and clearly hand off the decision to move to the next step to the human.
+2. **Provider-Agnostic Core:** The harness must execute flawlessly whether running in Gemini CLI, Claude Code, Cursor, or a custom script. Never rely on host-specific UI toggles or proprietary tool names inside the core workflow.
+3. **Premium, Pro Feel:** Interactions should be high-signal and low-noise. Use native interactive UI tools (like `ask_user`) when available instead of forcing the human to type text. Avoid verbose apologies, over-explaining, or lecturing the human.
+
 ## Harness File Map
 
 | File | Role |
@@ -20,6 +27,8 @@ Use this skill when creating, editing, or reviewing any harness file: `AGENTS.md
 
 ## Rules For `AGENTS.md`
 
+- **Keep it minimal.** Avoid verbose phrasing and defensive over-explaining. State constraints simply (e.g., "Requires explicit human approval" instead of "The agent must NEVER spontaneously decide...").
+- **Instruct the agent, not the human.** `AGENTS.md` is an instruction manual for the AI. Avoid writing sentences that tell the human what to type or do; instead, tell the agent how to react when the human performs an action.
 - **Single source of truth.** Every workflow rule lives here once. If you find the same rule stated in a command or skill, move it here and replace the copy with a reference.
 - **Agent-agnostic.** No provider-specific names, paths, or syntax. Repo-canonical paths (e.g. `ai/local/plans/<branch-slug>.md`) and shell commands are legitimate. What is banned: provider tool names ("Claude Code"), provider-managed paths (`~/.claude/plans/`), and provider-specific API syntax.
 - **No duplication across sections.** If a rule is stated in Workflow Pacing, do not restate it verbatim in the numbered workflow step — a one-line cross-reference is enough.
@@ -47,10 +56,11 @@ Use this skill when creating, editing, or reviewing any harness file: `AGENTS.md
 
 Before writing or moving content into a harness file, answer:
 
-1. **Is it the right file type?** Active procedure → command. Passive domain knowledge → skill. Workflow rule → `AGENTS.md`.
-2. **Does it already exist?** Search for the rule before adding it. If it exists somewhere else, create a reference instead.
-3. **Is it agent-agnostic?** If it names a provider, tool, or host-specific path, it belongs in a provider bridge or entrypoint, not in a shared file.
-4. **Does it have a clear owner?** Each rule should live in exactly one place. If you are unsure where it belongs, prefer `AGENTS.md` over a command, and a command over a skill.
+1. **Is it technically viable?** Verify that any proposed interaction, tool use, or auto-switching behavior is actually supported by the host environments before mandating it.
+2. **Is it the right file type?** Active procedure → command. Passive domain knowledge → skill. Workflow rule → `AGENTS.md`.
+3. **Does it already exist?** Search for the rule before adding it. If it exists somewhere else, create a reference instead.
+4. **Is it agent-agnostic?** If it names a provider, tool, or host-specific path, it belongs in a provider bridge or entrypoint, not in a shared file.
+5. **Does it have a clear owner?** Each rule should live in exactly one place. If you are unsure where it belongs, prefer `AGENTS.md` over a command, and a command over a skill.
 
 If any condition fails, do not add the content. Fix the ownership first.
 
@@ -58,6 +68,7 @@ If any condition fails, do not add the content. Fix the ownership first.
 
 | Anti-pattern | Fix |
 |---|---|
+| Verbose defensive instructions ("The agent must NEVER spontaneously decide...") | State the constraint simply ("Requires explicit human approval; never auto-select") |
 | Command defines its own quality criteria inline | Cross-reference the authoritative criteria in `AGENTS.md` or the primary command |
 | Same rule stated in Workflow Pacing AND a numbered step | Keep the full rule in Workflow Pacing; replace the step copy with one line: "Prerequisite: see Workflow Pacing" |
 | Workflow step repeats repo-wide commit or naming conventions already defined elsewhere in `AGENTS.md` | Keep only the step-specific instruction (for example when a commit must exist) and rely on the global section for commit style or naming rules |
@@ -72,3 +83,4 @@ If any condition fails, do not add the content. Fix the ownership first.
 
 - `ai/skills/provider-entrypoints/SKILL.md` — rules specific to provider bridge and entrypoint files
 - `ai/commands/README.md` — file format contract for commands
+file format contract for commands

@@ -118,13 +118,14 @@ Examples:
 
 ### Workflow Scope
 
-This workflow applies to **all code changes**, not only pre-planned features in `plan.md`. Bug fixes, ad-hoc investigations, refactors, and any user request that will result in code modifications must follow the same numbered steps.
+This workflow applies to **all code changes**, not only pre-planned features in `plan.md`. Bug fixes, ad-hoc investigations, refactors, and any user request that will result in code modifications must follow the same numbered steps, with one exception for small, unplanned work:
 
-For unplanned work (e.g., a bug the user reports during a session):
+For unplanned work (e.g., a bug the user reports during a session, a quick chore, or a minor refactor):
 
 - **Analysis is free.** Reading code, tracing logic, and discussing findings does not trigger the workflow.
-- **The moment a code change is agreed upon**, the workflow activates. Start from Step 2 (Workspace Ready) — create a branch, then proceed through planning, implementation, validation, review, testing, and PR as normal.
-- **plan.md updates are optional.** Mark an existing item if the fix addresses one; otherwise skip plan.md references in the workflow steps but follow everything else.
+- **The moment a code change is agreed upon**, the workflow activates.
+- **Fast Track (Optional):** For minor tasks, skip formal planning and review (Steps 3, 4, 7, 8) and proceed from Step 2 directly to Step 5. *Requires explicit human approval; never auto-select.*
+- **plan.md updates are optional.** Mark an existing item if the fix addresses one; otherwise skip `plan.md` references in the workflow steps.
 
 ### Workflow Pacing and Discipline
 
@@ -150,53 +151,42 @@ For unplanned work (e.g., a bug the user reports during a session):
 
 ### Chat Progress Updates
 
-- Use the `**Current Focus**` header only for meaningful progress updates.
-- Default to a single `**Current Focus**` update at the start of a work burst.
-- Send another one only when there is a real transition: stage change, blocker, need for user input, or a notably long-running task.
-- Do not send repeated progress updates for every small loop iteration, quick status check, tightly-coupled follow-up command, or each step inside a commit/push/validate loop.
-- *Note:* At session start (Step 1), the explicit `/check-state` snapshot command format takes precedence. Do not stack a `**Current Focus**` update on top of a `/check-state` block.
-- If the task does not require every step (e.g., simple debugging), the status message must explicitly reflect the actual active stage instead of implying false sequential progress.
+- **Make progression visible:** The human must feel the forward momentum of the workflow. At every stage boundary, explicitly announce that the current step is complete and name the next step you are moving to.
+- Use the `**Workflow Progress**` header for step transitions and meaningful progress updates (e.g., entering a fix loop, pausing for testing, or completing a step).
+- Do not send repeated progress updates for every small loop iteration, quick status check, or tightly-coupled follow-up command.
+- *Note:* At session start (Step 1), the explicit `/check-state` snapshot command format takes precedence.
 
 Use this format for all standard stage transitions or turn pauses:
 
 ```md
-**Current Focus**
-- <concise summary>
-- <optional concise summary>
-- <optional concise summary>
+**Workflow Progress: Step <N> Complete**
+- <concise summary of what was just achieved>
+- <optional concise summary of the next step>
+
+**Next:** Proceed to Step <N+1>?
 ```
 
-- Use 1 to 3 short bullet lines starting with `-`.
-- In most cases, prefer a single bullet.
-- Preserve the exact `**Current Focus**` header so the message is always visually distinct and scannable in the chat UI.
+- Preserve the exact `**Workflow Progress**` header so the message is always visually distinct and scannable in the chat UI.
 
 ### 1. Bootstrap / Resume Context
 
-- When opening a new chat window, the human should initiate the flow with a simple prompt like "start" (to begin a known feature), "resume" (to pick up an active branch), or by explicitly calling `/check-state` or `/next-task` (to propose the next logical task from `plan.md`).
-- **If the current branch is not `main`:** Treat the session as a resume by default. Invoke the `/check-state` command logic to analyze the workspace reality, and continue from the logically implied step based on the status snapshot. Do not restart planning or implementation from scratch unless explicitly instructed.
-- **If the current branch is `main`:** Verify the working tree is clean. If it is dirty, stop and ask the human to stash or commit their changes before proceeding. If clean, treat the session as a new task and continue to Step 2.
+- **Initiating the flow:** The human can begin a known feature with "start", pick up an active branch with "resume", or call `/next-task` to propose the next logical task from `plan.md`.
+- **If the current branch is not `main`:** Treat the session as a resume. Invoke `/check-state` to analyze workspace reality and continue from the logically active step. Do not restart planning or implementation from scratch.
+- **If the current branch is `main`:** Verify the working tree is clean. If dirty, stop and ask the human to stash or commit changes. If clean, treat as a new task and continue to Step 2.
 
 ### 2. Workspace Ready
 
-- **This step must complete before Step 3 begins.** The feature branch must exist and be checked out before you enter the planning state, because Step 3 writes the plan to `ai/local/plans/<branch-slug>.md` and that path is only valid once the branch exists.
-- Execute the `/start-feature` command logic.
-- If the task is a resume, verify where the current branch exists and continue working there instead of creating a new workspace.
-- Do not attempt to draft a plan from `main`.
+- **Prerequisite:** The feature branch must exist before Step 3. Do not plan on `main`.
+- **If resuming:** Skip `/start-feature` and proceed to the active step.
+- **If new task:** Execute `/start-feature` to create the branch.
 
 ### 3. Detailed Plan Prepared
 
-- **Prerequisite: Step 2 (Workspace Ready) must be complete** before this step begins.
-- **Agent-Enforced Planning State:** You are now in a strict planning state. Until the human explicitly approves the plan in Step 4, you are under a **Read-Only Mandate** for the main codebase.
-- **Allowed Actions:** You may use search tools, read files, and write to `ai/local/plans/<branch-slug>.md`.
-- **Forbidden Actions:** You MUST NOT create, modify, or delete any source code, configuration files, or write to any path outside of `ai/local/plans/`. Do not execute `git commit`. You do not need a host UI toggle to enforce this; enforce it yourself.
-- While in this planning state, you may continue reading repository files needed to prepare the plan.
-- Only ask questions about business/product decisions; do not ask questions that can be answered by reading the repository.
-- **Ask product/business questions interactively: always offer 2–4 concrete options per question plus a free-text escape hatch. Use the most interactive mechanism your platform provides (e.g., dedicated UI prompts, tool calls, or simply numbered lists in chat). Never ask open-ended questions when choices can be offered.**
-- If work is blocked on a business decision, update the relevant `plan.md` item with `[?]` plus a short reason.
-- Before implementation, write a detailed plan to `ai/local/plans/<branch-slug>.md` based on the relevant raw task in `plan.md`. The detailed plan must be specific enough to execute without further design decisions during implementation.
-- **Canonical plan location.** The plan must always end up at `ai/local/plans/<branch-slug>.md`. If your host provides a draft path, that copy is only a draft — the moment the plan is complete, immediately move it to `ai/local/plans/<branch-slug>.md` so there is a single canonical file. Do not leave plans stranded in host memory or per-agent local storage.
-- Every saved plan file must end with a final section titled `## What Will Be Available After Completion`. This must be the bottom section of the file and should concisely describe the completed capabilities, user flows, integrations, screens, behaviors, and other meaningful deliverables that will exist after the task is done. Favor end-state outcomes over implementation recap; mention technical/internal deliverables only when they materially affect what will be available after completion.
-- After saving the plan, run `/review-plan`. If the recommendation is `revise`, run `/address-plan-review` to resolve findings, then re-run `/review-plan`. Repeat until `/review-plan` reports `ready`. **Only a `ready` result from `/review-plan` passes the plan-quality gate — do not advance to Step 4 until it is reached.** If `/address-plan-review` reports `blocked`, surface the unresolved questions to the human and wait for answers before re-running `/review-plan`.
+- **Prerequisite:** Step 2 must be complete.
+- **Read-Only Mandate:** You are now in a strict planning state. If your host provides a tool to enter a dedicated planning mode (e.g., `enter_plan_mode`), invoke it now. Otherwise, pause and ask the human to manually enable plan mode and select a dedicated reasoning model before continuing. Until the plan is approved (Step 4), you may ONLY search/read files and write to `ai/local/plans/<branch-slug>.md`. Do not modify source code or commit changes.
+- **Questions:** Read the codebase to answer technical questions yourself. If you need product/business decisions, ask interactively (offer 2-4 concrete options plus a free-text escape hatch) or mark the `plan.md` item `[?]` with a reason.
+- **Draft the Plan:** Write a detailed, actionable plan to `ai/local/plans/<branch-slug>.md` based on `plan.md`. The final section must always be `## What Will Be Available After Completion` (focusing on user-facing outcomes, not just internal technical details).
+- **Quality Gate:** Run `/review-plan`. If it reports `revise`, resolve findings with `/address-plan-review` and re-run `/review-plan`. If any step reports `blocked`, pause and wait for the human to answer the missing questions. You may only advance to Step 4 when `/review-plan` returns a `ready` recommendation.
 
 ### 4. Detailed Plan Approved
 
