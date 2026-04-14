@@ -49,6 +49,9 @@ Confirm: on `main`, working tree is clean. If either check fails, stop, report t
 
 ### Step 2: Propose Branch Name
 
+If `type` and `description` were provided as inputs (e.g., passed from `/next-task`), skip to constructing the branch name and do not prompt the user for confirmation unless they explicitly requested it.
+
+If they were not provided:
 1. Read `plan.md` and identify the relevant unstarted task.
 2. Infer the Conventional Commits `type` from the task scope:
    - New capability → `feat`
@@ -56,8 +59,10 @@ Confirm: on `main`, working tree is clean. If either check fails, stop, report t
    - Documentation or workflow only → `docs`
    - Structural refactor, no behaviour change → `refactor`
 3. Derive a short kebab-case `description` from the task title.
-4. Construct the proposed branch name: `<type>/<description>`.
-5. Surface it to the user for confirmation before creating anything:
+
+Construct the proposed branch name: `<type>/<description>`.
+
+If the inputs were inferred rather than provided, surface the proposed name to the user for confirmation before creating anything:
 
 ```
 Proposed branch: feat/ble-metronome-engine
@@ -68,15 +73,12 @@ Do not proceed until the user confirms or provides a corrected name.
 
 ### Step 3: Ask Workspace Strategy
 
-Present exactly two numbered options and wait for an explicit choice:
+Present the workspace strategy options using the most interactive mechanism your platform provides (e.g., a multiple-choice UI tool like `ask_user` if available, or a numbered list in chat):
 
-```
-Workspace strategy:
-1. In-Place Branch — stay in the repo root, run git checkout -b. Standard, lightweight.
-2. Dedicated Worktree — create a parallel directory at ../omni-bike-rn-worktrees/<branch-slug>. Use for parallel isolation.
-```
+- **Option 1:** `In-Place Branch` — stay in the repo root, run `git checkout -b`. Standard, lightweight.
+- **Option 2:** `Dedicated Worktree` — create a parallel directory at `../omni-bike-rn-worktrees/<branch-slug>`. Use for parallel isolation.
 
-Do not default silently — this question must be answered explicitly.
+If your platform does not support interactive UI tools, print the options as a numbered list and explicitly wait for the user's choice. Do not default silently — this question must be answered explicitly.
 
 ### Step 4: Create The Workspace
 
