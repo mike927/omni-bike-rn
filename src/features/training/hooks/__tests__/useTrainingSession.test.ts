@@ -110,6 +110,30 @@ describe('useTrainingSession', () => {
     warnSpy.mockRestore();
   });
 
+  it('should not resume a paused session when the bike is not connected', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    useDeviceConnectionStore.getState().setBikeAdapter(null);
+
+    const { result } = renderHook(() => useTrainingSession());
+
+    act(() => {
+      useTrainingSessionStore.setState({ phase: TrainingPhase.Paused });
+    });
+
+    expect(result.current.phase).toBe(TrainingPhase.Paused);
+
+    act(() => {
+      result.current.resume();
+    });
+
+    expect(result.current.phase).toBe(TrainingPhase.Paused);
+    expect(mockEngineStart).not.toHaveBeenCalled();
+    expect(mockSetControlState).not.toHaveBeenCalledWith(BikeStatus.Started);
+    expect(warnSpy).toHaveBeenCalledWith('[useTrainingSession] Cannot resume session: bike not connected');
+
+    warnSpy.mockRestore();
+  });
+
   it('should stop the bike when finishing an active session', async () => {
     const { result } = renderHook(() => useTrainingSession());
 
@@ -245,6 +269,90 @@ describe('useTrainingSession', () => {
     expect(mockDisconnect).not.toHaveBeenCalled();
   });
 
+  it('should freeze (pause) the session when the bike disconnects while Active', async () => {
+    const { result } = renderHook(() => useTrainingSession());
+
+    act(() => {
+      result.current.start();
+    });
+
+    mockSetControlState.mockClear();
+    mockEngineStop.mockClear();
+
+    act(() => {
+      useDeviceConnectionStore.getState().clearBikeConnection();
+    });
+
+    await waitFor(() => {
+      expect(result.current.phase).toBe(TrainingPhase.Paused);
+    });
+
+    expect(mockSetControlState).not.toHaveBeenCalled();
+    expect(mockEngineStop).toHaveBeenCalledTimes(1);
+  });
+
+  it('should freeze (pause) the session and mark the bike disconnected when telemetry goes stale while Active', () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-04-14T12:00:00.000Z'));
+
+    try {
+      const { result } = renderHook(() => useTrainingSession());
+
+      act(() => {
+        useDeviceConnectionStore.getState().updateBikeMetrics({
+          speed: 25,
+          cadence: 80,
+          power: 150,
+        });
+        result.current.start();
+      });
+
+      mockSetControlState.mockClear();
+      mockEngineStop.mockClear();
+
+      act(() => {
+        jest.advanceTimersByTime(5000);
+        useTrainingSessionStore.setState({ elapsedSeconds: 5 });
+      });
+
+      expect(result.current.phase).toBe(TrainingPhase.Paused);
+      expect(mockSetControlState).not.toHaveBeenCalled();
+      expect(mockEngineStop).toHaveBeenCalledTimes(1);
+      expect(mockDisconnect).toHaveBeenCalledTimes(1);
+      expect(useDeviceConnectionStore.getState().bikeAdapter).toBeNull();
+      expect(useSavedGearStore.getState().bikeReconnectState).toBe('disconnected');
+      expect(useSavedGearStore.getState().bikeAutoReconnectSuppressed).toBe(false);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('should keep a paused session paused when the bike disconnects', async () => {
+    const { result } = renderHook(() => useTrainingSession());
+
+    act(() => {
+      result.current.start();
+    });
+
+    act(() => {
+      result.current.pause();
+    });
+
+    mockSetControlState.mockClear();
+    mockEngineStop.mockClear();
+
+    act(() => {
+      useDeviceConnectionStore.getState().clearBikeConnection();
+    });
+
+    await waitFor(() => {
+      expect(result.current.phase).toBe(TrainingPhase.Paused);
+    });
+
+    expect(mockSetControlState).not.toHaveBeenCalled();
+    expect(mockEngineStop).not.toHaveBeenCalled();
+  });
+
   it('should disconnect devices and reset session without sending bike reset command', async () => {
     const disconnectAllSpy = jest.spyOn(deviceConnectionModule, 'disconnectAllDeviceConnections');
     const { result } = renderHook(() => useTrainingSession());
@@ -277,6 +385,30 @@ describe('useTrainingSession', () => {
     expect(useSavedGearStore.getState().hrAutoReconnectSuppressed).toBe(true);
 
     disconnectAllSpy.mockRestore();
+  });
+
+  it('should not transiently pause when reset intentionally disconnects an active workout', async () => {
+    const phaseTransitions: TrainingPhase[] = [];
+    const unsubscribe = useTrainingSessionStore.subscribe((state, previousState) => {
+      if (state.phase !== previousState.phase) {
+        phaseTransitions.push(state.phase);
+      }
+    });
+
+    const { result } = renderHook(() => useTrainingSession());
+
+    act(() => {
+      result.current.start();
+    });
+
+    await act(async () => {
+      await result.current.reset();
+    });
+
+    expect(result.current.phase).toBe(TrainingPhase.Idle);
+    expect(phaseTransitions).toEqual([TrainingPhase.Active, TrainingPhase.Idle]);
+
+    unsubscribe();
   });
 
   it('should wait for the pending bike stop command before disconnecting on summary done', async () => {
@@ -380,6 +512,34 @@ describe('useTrainingSession', () => {
     expect(mockHrDisconnect).toHaveBeenCalledTimes(1);
     expect(useDeviceConnectionStore.getState().bikeAdapter).toBeNull();
     expect(useDeviceConnectionStore.getState().hrAdapter).toBeNull();
+  });
+
+  it('should stay finished if the bike disconnects after finish', async () => {
+    const { result } = renderHook(() => useTrainingSession());
+
+    act(() => {
+      result.current.start();
+    });
+
+    act(() => {
+      result.current.finish();
+    });
+
+    await waitFor(() => {
+      expect(result.current.phase).toBe(TrainingPhase.Finished);
+    });
+
+    mockEngineStop.mockClear();
+
+    act(() => {
+      useDeviceConnectionStore.getState().clearBikeConnection();
+    });
+
+    await waitFor(() => {
+      expect(result.current.phase).toBe(TrainingPhase.Finished);
+    });
+
+    expect(mockEngineStop).not.toHaveBeenCalled();
   });
 
   it('should return null from finishAndDisconnect when idle', async () => {

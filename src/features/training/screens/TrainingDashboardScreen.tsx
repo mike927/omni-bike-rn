@@ -27,6 +27,14 @@ function getPhaseSummary(phase: TrainingPhase): string {
   return 'Ride paused';
 }
 
+function getDisconnectedCalloutBody(phase: TrainingPhase): string {
+  if (phase === TrainingPhase.Paused) {
+    return 'Reconnect your saved bike or choose one in setup before you resume this interrupted workout.';
+  }
+
+  return 'Connect your saved bike or choose one in setup before you start a workout from this screen.';
+}
+
 export function TrainingDashboardScreen() {
   const router = useRouter();
   const session = useTrainingSession();
@@ -36,7 +44,8 @@ export function TrainingDashboardScreen() {
   // takes precedence; Bluetooth HR is a pre-start preview. Apple Watch fallback will be added
   // when the native Watch data flow is wired up.
   const resolvedHeartRate = session.currentMetrics.heartRate ?? latestBluetoothHr;
-  const showDisconnectedState = session.phase === TrainingPhase.Idle && !bikeConnected;
+  const showDisconnectedState =
+    !bikeConnected && (session.phase === TrainingPhase.Idle || session.phase === TrainingPhase.Paused);
 
   const handleFinish = async () => {
     if (isFinishing) return;
@@ -102,7 +111,9 @@ export function TrainingDashboardScreen() {
             {session.phase === TrainingPhase.Active ? (
               <ActionButton label="Pause" onPress={session.pause} variant="secondary" />
             ) : null}
-            {session.phase === TrainingPhase.Paused ? <ActionButton label="Resume" onPress={session.resume} /> : null}
+            {session.phase === TrainingPhase.Paused ? (
+              <ActionButton label="Resume" onPress={session.resume} disabled={!bikeConnected} />
+            ) : null}
             {(session.phase === TrainingPhase.Active || session.phase === TrainingPhase.Paused) && (
               <ActionButton
                 label={isFinishing ? 'Finishing...' : 'Finish'}
@@ -116,9 +127,7 @@ export function TrainingDashboardScreen() {
           {showDisconnectedState ? (
             <View style={styles.callout}>
               <Text style={styles.calloutTitle}>Bike connection required</Text>
-              <Text style={styles.calloutBody}>
-                Connect your saved bike or choose one in setup before you start a workout from this screen.
-              </Text>
+              <Text style={styles.calloutBody}>{getDisconnectedCalloutBody(session.phase)}</Text>
               <View style={styles.actionRow}>
                 <ActionButton label="Set Up Bike" onPress={() => router.push(BIKE_SETUP_ROUTE)} variant="secondary" />
                 <ActionButton label="Back Home" onPress={() => router.replace(HOME_ROUTE)} variant="ghost" />

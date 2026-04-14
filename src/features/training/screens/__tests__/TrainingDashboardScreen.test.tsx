@@ -127,6 +127,18 @@ describe('TrainingDashboardScreen', () => {
     expect(queryByText('Pause')).toBeNull();
   });
 
+  it('shows reconnection guidance when a paused session has no bike connection', () => {
+    Object.assign(mockSession, { phase: 'paused' });
+    Object.assign(mockDeviceConnection, { bikeConnected: false });
+
+    const { getByText } = render(<TrainingDashboardScreen />);
+
+    expect(getByText('Bike connection required')).toBeTruthy();
+    expect(
+      getByText('Reconnect your saved bike or choose one in setup before you resume this interrupted workout.'),
+    ).toBeTruthy();
+  });
+
   it('does not show a summary action once the session is already finished', () => {
     Object.assign(mockSession, { phase: 'finished' });
     Object.assign(mockDeviceConnection, { bikeConnected: true });

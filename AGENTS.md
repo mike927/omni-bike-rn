@@ -127,8 +127,9 @@ For unplanned work (e.g., a bug the user reports during a session):
 
 ### Workflow Pacing and Discipline
 
-- You must execute the workflow strictly and sequentially. Do not spontaneously skip numbered workflow steps.
+- You must execute the workflow strictly and sequentially. Do not spontaneously skip numbered workflow steps. In particular, (branch creation) must always precede planning — never enter planning mode while still on `main`, because the plan file path `ai/local/plans/<branch-slug>.md` is not valid without a feature branch and planning mode is read-only, so it locks you out of branch creation until you exit.
 - Do not chain multiple distinct workflow steps together in a single turn. Pause at the logical end of your current step, report your progress via a Chat Progress Update, and await explicit human instruction before executing the next numbered phase.
+- At every workflow stage boundary, explicitly ask the user whether to proceed to the next step. Use the most interactive confirmation mechanism your host provides; otherwise ask directly in chat. Do not treat a plain status statement like "the next step is X" as sufficient handoff. Before offering that handoff, make sure the current step's required save/validation work is actually complete so the next step begins from the expected repo state.
 - If a step is logically irrelevant for a given task (e.g., Manual Human Testing for a pure documentation update), you must still output the `**Workflow Progress**` header for that step, formally note that it is being skipped, and provide a super concise reason why. Do not silently skip past it.
 - Agents with terminal capabilities should run CLI commands natively instead of instructing the human to paste them, provided it stays within tool-call approval constraints.
 - During complex debugging, do not pollute the project root with temporary scripts or data dumps. Use the agent's isolated sandbox directory or standard OS temporary directories (`/tmp/`), and clean them up afterward.
@@ -178,11 +179,14 @@ Use this format for all standard stage transitions or turn pauses:
 
 ### 2. Workspace Ready
 
+- **This step must complete before Step 3 begins.** The feature branch must exist and be checked out before any planning mode is activated, because Step 3 writes the plan to `ai/local/plans/<branch-slug>.md` and that path is only valid once the branch exists.
 - Execute the `/start-feature` command logic.
 - If the task is a resume, verify where the current branch exists and continue working there instead of creating a new workspace.
+- If the host has already entered planning mode before this step ran (e.g. the human or a prior agent toggled it early), pause and ask the human to exit planning mode so the branch can be created. Do not attempt to draft a plan from `main`.
 
 ### 3. Detailed Plan Prepared
 
+- **Prerequisite: Step 2 (Workspace Ready) must be complete** before this step begins.
 - If your host environment supports a dedicated planning mode (read-only, no file writes), activate it now before drafting the plan.
 - If the mode must be set by the human rather than the agent, pause and explicitly ask the human to enable planning mode before proceeding.
 - If the host has no true planning mode, pause and explicitly ask the human to confirm that the session is in a planning-only phase before proceeding.
@@ -195,7 +199,9 @@ Use this format for all standard stage transitions or turn pauses:
 - **Ask product/business questions interactively: always offer 2–4 concrete options per question plus a free-text escape hatch. Use the most interactive mechanism your platform provides (e.g., dedicated UI prompts, tool calls, or simply numbered lists in chat). Never ask open-ended questions when choices can be offered.**
 - If work is blocked on a business decision, update the relevant `plan.md` item with `[?]` plus a short reason.
 - Before implementation, write a detailed plan to `ai/local/plans/<branch-slug>.md` based on the relevant raw task in `plan.md`. The detailed plan must be specific enough to execute without further design decisions during implementation.
+- **Canonical plan location.** The plan must always end up at `ai/local/plans/<branch-slug>.md`. If your host's planning mode writes the draft to a host-managed path, that copy is only a draft — the moment the plan is complete, immediately move it (not copy — the host-local file must not linger) to `ai/local/plans/<branch-slug>.md` so there is a single canonical file. Do not leave plans stranded in host memory or per-agent local storage, and never rely on a host-managed plan path for review, approval, or hand-off.
 - Every saved plan file must end with a final section titled `## What Will Be Available After Completion`. This must be the bottom section of the file and should concisely describe the completed capabilities, user flows, integrations, screens, behaviors, and other meaningful deliverables that will exist after the task is done. Favor end-state outcomes over implementation recap; mention technical/internal deliverables only when they materially affect what will be available after completion.
+- After saving the plan, run `/review-plan`. If the recommendation is `revise`, run `/address-plan-review` to resolve findings, then re-run `/review-plan`. Repeat until `/review-plan` reports `ready`. **Only a `ready` result from `/review-plan` passes the plan-quality gate — do not advance to Step 4 until it is reached.** If `/address-plan-review` reports `blocked`, surface the unresolved questions to the human and wait for answers before re-running `/review-plan`.
 
 ### 4. Detailed Plan Approved
 
@@ -254,6 +260,7 @@ A fix loop is clean only when the selected validation passes, no unresolved bloc
 - After each review-driven code change, follow the Fix Loop Decision Rules for validation scope and review execution.
 - For small incremental fixes the main agent may run `/code-review` inline since it just saw the subagent's findings and has context to verify targeted fixes. For larger fixes — or whenever the rules table says "respawned reviewer subagent" — spawn a fresh reviewer subagent with a new brief rather than reusing the main agent.
 - Do not proceed to manual testing until the fix loop is clean.
+- Once the internal review fix loop is clean, end Step 8 in a saved state: automatically commit the resulting changes before Step 9 so manual testing starts from a clean working tree. Verify that `git status --short` is clean before offering the Step 9 handoff. Do not stop to ask the user for a separate commit confirmation at this point. If no review-driven code changes were needed, explicitly note that no commit was created.
 - If internal review is already clean, mark this step complete with a short note such as `no fixes needed`.
 
 ### 9. Manual Human Testing
@@ -305,13 +312,14 @@ Use a skill when the task clearly matches that domain.
 
 Available skills:
 
+- `ai/skills/harness-authoring/SKILL.md` for creating or modifying harness files (`AGENTS.md`, commands, skills, provider bridges)
 - `ai/skills/architecture/SKILL.md` for boundaries, ownership, and structure
 - `ai/skills/ble-hardware/SKILL.md` for BLE, FTMS, bike devices, or heart-rate work
 - `ai/skills/drizzle-expo/SKILL.md` for official Drizzle ORM workflow in Expo: schema changes, drizzle-kit generation, bundled migrations, and startup wiring
 - `ai/skills/expo-ui/SKILL.md` for Expo Router UI, navigation, styling, and components
 - `ai/skills/expo-upgrade/SKILL.md` for Expo SDK upgrades and dependency migrations
 - `ai/skills/ios-native/SKILL.md` for iOS-specific behavior
-- `ai/skills/provider-entrypoints/SKILL.md` for defining lean provider-specific entrypoint files (`CODEX.md`, `CLAUDE.md`, `GEMINI.md`) that enrich the shared workflow with provider-native capabilities
+- `ai/skills/provider-entrypoints/SKILL.md` for defining lean provider-specific entrypoint files that enrich the shared workflow with provider-native capabilities
 - `ai/skills/quality-review/SKILL.md` for review checklists and quality standards
 - `ai/skills/react-native-perf/SKILL.md` for performance optimization, profiling, and bundle size
 - `ai/skills/sqlite-persistence/SKILL.md` for Expo SQLite, persistence boundaries, session-recording rules, and repository guidance
@@ -340,6 +348,8 @@ Available commands:
 
 - `ai/commands/check-state/COMMAND.md` — bootstrap context and analyze branch reality to help decide next steps
 - `ai/commands/start-feature/COMMAND.md` — set up the workspace for a new feature (branch name, workspace strategy, branch creation)
+- `ai/commands/review-plan/COMMAND.md` — review the active branch plan for decision-completeness, workflow alignment, and implementation readiness
+- `ai/commands/address-plan-review/COMMAND.md` — triage plan-review findings, update the plan intentionally, and record applied or declined suggestions
 - `ai/commands/validate/COMMAND.md` — run the full validation suite
 - `ai/commands/code-review/COMMAND.md` — code review of branch diff (local working tree or GitHub PR), persisted to `ai/local/reviews/<branch-slug>.md`
 - `ai/commands/open-pr/COMMAND.md` — open a GitHub PR with the project's standard format
@@ -359,6 +369,6 @@ Commands complement skills, not replace them. A command may reference a skill wh
 
 This harness is provider-agnostic. All instructions live in plain markdown.
 
-If a specific AI tool requires its own config file (e.g., `.gemini/settings.json`, `CLAUDE.md`, `CODEX.md`, `.cursor/rules`), that file should contain only provider-specific configuration and minimal provider-specific execution notes that adapt `AGENTS.md` to that tool. Do not duplicate repository workflow instructions in full.
+If a specific AI tool requires its own config file, that file should contain only provider-specific configuration and minimal provider-specific execution notes that adapt `AGENTS.md` to that tool. Do not duplicate repository workflow instructions in full.
 - If a provider supports explicit plan/edit mode APIs, use them.
 - If a provider does not support agent-controlled mode switching, the workflow still requires the same plan/edit separation, but the human must perform the mode switch manually.

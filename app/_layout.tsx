@@ -14,6 +14,7 @@ import { useSavedGearStore } from '../src/store/savedGearStore';
 import { useAppPreferencesStore } from '../src/store/appPreferencesStore';
 import { useProviderGearLinkStore } from '../src/store/providerGearLinkStore';
 import { useStravaConnectionStore } from '../src/store/stravaConnectionStore';
+import { useInterruptedSessionRecovery } from '../src/features/training/hooks/useInterruptedSessionRecovery';
 import { useTrainingSessionPersistence } from '../src/features/training/hooks/useTrainingSessionPersistence';
 
 export function getOnboardingGateRedirect(segments: readonly string[], onboardingCompleted: boolean): string | null {
@@ -52,6 +53,7 @@ export default function RootLayout() {
   const [databaseInitAttempt, setDatabaseInitAttempt] = useState(0);
 
   useTrainingSessionPersistence(isDatabaseReady);
+  useInterruptedSessionRecovery(isDatabaseReady && onboardingCompleted);
 
   useEffect(() => {
     registerExportProviders();

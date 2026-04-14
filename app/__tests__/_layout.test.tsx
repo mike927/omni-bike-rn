@@ -72,6 +72,10 @@ jest.mock('../../src/features/training/hooks/useTrainingSessionPersistence', () 
   useTrainingSessionPersistence: jest.fn(),
 }));
 
+jest.mock('../../src/features/training/hooks/useInterruptedSessionRecovery', () => ({
+  useInterruptedSessionRecovery: jest.fn(),
+}));
+
 describe('RootLayout onboarding gate', () => {
   const savedGearState = {
     hydrate: jest.fn().mockResolvedValue(undefined),

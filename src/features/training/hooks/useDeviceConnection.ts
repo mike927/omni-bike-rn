@@ -39,6 +39,29 @@ function updateReconnectStateAfterHrDisconnect(disconnectSucceeded: boolean, sup
   setHrReconnectState(disconnectSucceeded ? 'disconnected' : 'failed');
 }
 
+export async function handleUnexpectedBikeDisconnect(): Promise<void> {
+  bikeMetricsSub?.remove();
+  bikeMetricsSub = null;
+
+  const store = useDeviceConnectionStore.getState();
+  const existingBikeAdapter = store.bikeAdapter;
+
+  store.clearBikeConnection();
+  updateReconnectStateAfterBikeDisconnect(true, false);
+
+  if (!existingBikeAdapter) {
+    return;
+  }
+
+  try {
+    await existingBikeAdapter.disconnect();
+  } catch (err: unknown) {
+    if (!isExpectedBleDisconnectError(err)) {
+      console.error('[useDeviceConnection] Unexpected bike disconnect cleanup error:', err);
+    }
+  }
+}
+
 async function disconnectBikeConnectionInternal(options?: DisconnectDeviceConnectionsOptions): Promise<void> {
   const updateReconnectState = options?.updateReconnectState ?? false;
   const suppressAutoReconnect = options?.suppressAutoReconnect ?? false;

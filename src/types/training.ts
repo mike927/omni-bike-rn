@@ -29,6 +29,13 @@ export interface MetricSnapshot {
   distance: number | null;
 }
 
+export interface TrainingSessionRestoreInput {
+  elapsedSeconds: number;
+  totalDistance: number;
+  totalCalories: number;
+  currentMetrics: MetricSnapshot;
+}
+
 export interface TrainingTickInput {
   /** Point-in-time snapshot stored in the training session state and DB samples. */
   metrics: MetricSnapshot;

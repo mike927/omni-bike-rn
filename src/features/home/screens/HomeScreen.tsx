@@ -1,10 +1,12 @@
 import type { ReactNode } from 'react';
 import { useRouter } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
+import { InterruptedSessionCard } from '../components/InterruptedSessionCard';
 import { useLatestWorkout } from '../../training/hooks/useLatestWorkout';
+import { useInterruptedSession } from '../../training/hooks/useInterruptedSession';
 import {
   buildTrainingSummaryRoute,
   SAVED_SESSION_TRAINING_SUMMARY_SOURCE,
@@ -104,6 +106,7 @@ function renderLatestWorkoutContent(
 export function HomeScreen() {
   const router = useRouter();
   const session = useTrainingSession();
+  const { interruptedSession, resumeInterruptedSession, discardInterruptedSession } = useInterruptedSession();
   const { bikeConnected, hrConnected } = useDeviceConnection();
   const { savedBike, savedHrSource, forgetBike, forgetHr } = useSavedGear();
   const { bikeReconnectState, hrReconnectState, retryBike, retryHr } = useAutoReconnect();
@@ -119,8 +122,43 @@ export function HomeScreen() {
     router.push(buildTrainingSummaryRoute(latestWorkout.id, SAVED_SESSION_TRAINING_SUMMARY_SOURCE, '/'));
   };
 
+  const handleResumeInterruptedSession = () => {
+    if (resumeInterruptedSession()) {
+      router.push(TRAINING_ROUTE);
+    }
+  };
+
+  const handleDiscardInterruptedSession = () => {
+    if (!interruptedSession) {
+      return;
+    }
+
+    Alert.alert(
+      'Discard Interrupted Session',
+      'This interrupted workout and its saved samples will be permanently deleted.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Discard',
+          style: 'destructive',
+          onPress: () => {
+            discardInterruptedSession();
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <AppScreen title="Home" subtitle="Start a ride, reconnect your saved gear, or jump back into your latest summary.">
+      {interruptedSession ? (
+        <InterruptedSessionCard
+          session={interruptedSession}
+          onResume={handleResumeInterruptedSession}
+          onDiscard={handleDiscardInterruptedSession}
+        />
+      ) : null}
+
       <SectionCard title="Quick Start" description="Begin a workout as soon as your main bike is connected.">
         <ActionButton
           label={getTrainingButtonLabel(session.phase)}
