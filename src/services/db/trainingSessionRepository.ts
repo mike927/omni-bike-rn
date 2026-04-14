@@ -308,6 +308,7 @@ export function getLatestOpenSession(): PersistedTrainingSession | null {
 export function finalizeStaleOpenSessions(nowMs: number, maxAgeMs: number): PersistedTrainingSession[] {
   const database = getSQLiteDatabase();
   const staleBeforeMs = nowMs - maxAgeMs;
+
   const rows = database.getAllSync<PersistedTrainingSessionRow>(
     `SELECT ${SESSION_SELECT_COLUMNS}
      FROM training_sessions
@@ -319,8 +320,8 @@ export function finalizeStaleOpenSessions(nowMs: number, maxAgeMs: number): Pers
     staleBeforeMs,
   );
 
-  return rows
-    .map((row) => {
+  database.withTransactionSync(() => {
+    rows.forEach((row) => {
       finalizeSession({
         sessionId: row.id,
         endedAtMs: row.updatedAtMs,
@@ -337,9 +338,11 @@ export function finalizeStaleOpenSessions(nowMs: number, maxAgeMs: number): Pers
           distance: row.currentDistanceMeters,
         },
       });
+    });
+  });
 
-      return getSessionById(row.id);
-    })
+  return rows
+    .map((row) => getSessionById(row.id))
     .filter((session): session is PersistedTrainingSession => session !== null);
 }
 
