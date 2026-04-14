@@ -5,7 +5,7 @@ import { useTrainingSessionStore } from '../../../store/trainingSessionStore';
 import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
 import { BikeStatus } from '../../../services/ble/BikeAdapter';
 import { TrainingPhase, type MetricSnapshot } from '../../../types/training';
-import { disconnectAllDeviceConnections } from './useDeviceConnection';
+import { disconnectAllDeviceConnections, handleUnexpectedBikeDisconnect } from './useDeviceConnection';
 import { getActiveSessionId } from './useTrainingSessionPersistence';
 
 const FINISH_STOP_COMMAND_TIMEOUT_MS = 2000;
@@ -248,6 +248,7 @@ export function useTrainingSession(): UseTrainingSessionReturn {
     }
 
     freezeActiveSession();
+    void handleUnexpectedBikeDisconnect();
   }, [bikeAdapter, freezeActiveSession, phase]);
 
   useEffect(() => {
@@ -264,6 +265,7 @@ export function useTrainingSession(): UseTrainingSessionReturn {
     }
 
     freezeActiveSession();
+    void handleUnexpectedBikeDisconnect();
   }, [bikeAdapter, elapsedSeconds, freezeActiveSession, lastBikeSignalAtMs, phase]);
 
   useEffect(

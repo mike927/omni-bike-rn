@@ -291,7 +291,7 @@ describe('useTrainingSession', () => {
     expect(mockEngineStop).toHaveBeenCalledTimes(1);
   });
 
-  it('should freeze (pause) the session when bike telemetry goes stale while Active', () => {
+  it('should freeze (pause) the session and mark the bike disconnected when telemetry goes stale while Active', () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2026-04-14T12:00:00.000Z'));
 
@@ -318,6 +318,10 @@ describe('useTrainingSession', () => {
       expect(result.current.phase).toBe(TrainingPhase.Paused);
       expect(mockSetControlState).not.toHaveBeenCalled();
       expect(mockEngineStop).toHaveBeenCalledTimes(1);
+      expect(mockDisconnect).toHaveBeenCalledTimes(1);
+      expect(useDeviceConnectionStore.getState().bikeAdapter).toBeNull();
+      expect(useSavedGearStore.getState().bikeReconnectState).toBe('disconnected');
+      expect(useSavedGearStore.getState().bikeAutoReconnectSuppressed).toBe(false);
     } finally {
       jest.useRealTimers();
     }
