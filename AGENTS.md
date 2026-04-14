@@ -28,7 +28,7 @@ Read these in this order before feature work:
 3. `git branch --show-current`
 4. `git worktree list`
 5. Relevant files under `ai/skills/*/SKILL.md`
-6. When the user asks for a specific procedure (code-review, address-code-review, validate, check-state, start-feature, open-pr, finish-feature), load the matching `ai/commands/*/COMMAND.md`
+6. When the user asks for a specific procedure (next-task, code-review, address-code-review, validate, check-state, start-feature, open-pr, finish-feature), load the matching `ai/commands/*/COMMAND.md`
 7. When the task involves vendor-specific behavior or hardware, check `docs/` for trusted reference material
 
 `plan.md` is the single source of truth for project scope and progress.
@@ -172,11 +172,9 @@ Use this format for all standard stage transitions or turn pauses:
 
 ### 1. Bootstrap / Resume Context
 
-- If the current branch is not `main`, treat the session as a resume:
-  - invoke the `/check-state` command logic to analyze the actual workspace reality
-  - continue from the logically implied step based on the status snapshot
-  - do not restart planning or implementation from scratch
-- If the current branch is `main`, treat the session as a new task and continue to step 2.
+- When opening a new chat window, the human should initiate the flow with a simple prompt like "start" (to begin a known feature), "resume" (to pick up an active branch), or by explicitly calling `/check-state` or `/next-task` (to propose the next logical task from `plan.md`).
+- **If the current branch is not `main`:** Treat the session as a resume by default. Invoke the `/check-state` command logic to analyze the workspace reality, and continue from the logically implied step based on the status snapshot. Do not restart planning or implementation from scratch unless explicitly instructed.
+- **If the current branch is `main`:** Verify the working tree is clean. If it is dirty, stop and ask the human to stash or commit their changes before proceeding. If clean, treat the session as a new task and continue to Step 2.
 
 ### 2. Workspace Ready
 
@@ -343,6 +341,7 @@ Commands are active procedures for specific, repeatable tasks. They complement s
 Available commands:
 
 - `ai/commands/check-state/COMMAND.md` — bootstrap context and analyze branch reality to help decide next steps
+- `ai/commands/next-task/COMMAND.md` — read plan.md, find the next unstarted task, and propose it to the user
 - `ai/commands/start-feature/COMMAND.md` — set up the workspace for a new feature (branch name, workspace strategy, branch creation)
 - `ai/commands/review-plan/COMMAND.md` — review the active branch plan for decision-completeness, workflow alignment, and implementation readiness
 - `ai/commands/address-plan-review/COMMAND.md` — triage plan-review findings, update the plan intentionally, and record applied or declined suggestions

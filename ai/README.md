@@ -9,6 +9,7 @@ ai/
   local/               ← ignored per-worktree runtime state (plans, reviews, testing)
   commands/            ← active procedures invoked by name (see AGENTS.md § Commands)
     check-state/       ← bootstrap/resume session context
+    next-task/         ← read plan.md and propose the next logical task to start
     start-feature/     ← workspace setup for a new feature
     review-plan/       ← review the active branch plan before implementation
     address-plan-review/ ← address plan-review findings without blindly accepting them
