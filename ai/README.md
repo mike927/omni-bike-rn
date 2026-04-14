@@ -10,6 +10,8 @@ ai/
   commands/            ← active procedures invoked by name (see AGENTS.md § Commands)
     check-state/       ← bootstrap/resume session context
     start-feature/     ← workspace setup for a new feature
+    review-plan/       ← review the active branch plan before implementation
+    address-plan-review/ ← address plan-review findings without blindly accepting them
     validate/          ← run full validation suite
     code-review/       ← code review of branch diff (local or GitHub PR)
     open-pr/           ← open GitHub PR with standard format
@@ -21,7 +23,9 @@ ai/
     drizzle-expo/      ← official Drizzle ORM workflow for Expo + SQLite
     expo-ui/           ← Expo Router UI, navigation, styling (from expo/skills)
     expo-upgrade/      ← Expo SDK upgrades, dependency migrations (from expo/skills)
+    harness-authoring/ ← rules for creating or modifying AGENTS.md, commands, and skills
     ios-native/        ← iOS platform integration
+    provider-entrypoints/ ← rules for provider-specific bridge and entrypoint files
     quality-review/    ← review checklists and quality standards
     react-native-perf/ ← RN performance, profiling, bundle size (from callstackincubator/agent-skills)
     sqlite-persistence/← Expo SQLite, session persistence rules, repositories
