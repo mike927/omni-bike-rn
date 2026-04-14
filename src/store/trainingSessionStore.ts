@@ -5,6 +5,7 @@ import {
   VALID_TRANSITIONS,
   type CalorieSourceMode,
   type MetricSnapshot,
+  type TrainingSessionRestoreInput,
   type TrainingTickInput,
 } from '../types/training';
 
@@ -38,6 +39,7 @@ export interface TrainingSessionStore {
   initialDistance: number | null;
   bikeCaloriesOffset: number | null;
   lastBikeTotalEnergyKcal: number | null;
+  lastBikeDistance: number | null;
   lastCalorieSourceMode: CalorieSourceMode;
 
   // ── Actions ────────────────────────────────────────────
@@ -46,6 +48,7 @@ export interface TrainingSessionStore {
   resume: () => void;
   finish: () => void;
   reset: () => void;
+  restore: (input: TrainingSessionRestoreInput) => void;
 
   /**
    * Called once per second by the MetronomeEngine.
@@ -74,6 +77,7 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
   initialDistance: null,
   bikeCaloriesOffset: null,
   lastBikeTotalEnergyKcal: null,
+  lastBikeDistance: null,
   lastCalorieSourceMode: 'none',
   currentMetrics: { ...INITIAL_METRICS, distance: null },
 
@@ -98,8 +102,23 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
       initialDistance: null,
       bikeCaloriesOffset: null,
       lastBikeTotalEnergyKcal: null,
+      lastBikeDistance: null,
       lastCalorieSourceMode: 'none',
       currentMetrics: { ...INITIAL_METRICS, distance: null },
+    }),
+
+  restore: (input) =>
+    set({
+      phase: TrainingPhase.Paused,
+      elapsedSeconds: input.elapsedSeconds,
+      totalDistance: input.totalDistance,
+      totalCalories: input.totalCalories,
+      currentMetrics: input.currentMetrics,
+      initialDistance: null,
+      bikeCaloriesOffset: null,
+      lastBikeTotalEnergyKcal: null,
+      lastBikeDistance: null,
+      lastCalorieSourceMode: 'none',
     }),
 
   // ── Tick (called by MetronomeEngine every 1 s) ─────────
@@ -113,6 +132,7 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
       initialDistance,
       bikeCaloriesOffset,
       lastBikeTotalEnergyKcal,
+      lastBikeDistance,
       lastCalorieSourceMode,
     } = get();
     if (phase !== TrainingPhase.Active) return;
@@ -120,13 +140,22 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
     // Distance logic: Prefer raw hardware output over derived speed integration
     let newTotalDistance = totalDistance;
     let newInitialDistance = initialDistance;
+    let nextLastBikeDistance = lastBikeDistance;
 
     if (metrics.distance !== null && metrics.distance !== undefined) {
-      // Capture the distance the moment the session actually starts receiving data
-      if (initialDistance === null) {
-        newInitialDistance = metrics.distance;
+      // Distance Rebase Logic: Detect if the bike counter reset (e.g. power cycle)
+      // or if this is the first data point for the session.
+      const shouldRebaseDistance =
+        initialDistance === null || (lastBikeDistance !== null && metrics.distance < lastBikeDistance);
+
+      if (shouldRebaseDistance) {
+        // Capture a new baseline. We subtract the current totalDistance from the hardware
+        // reading so that the calculated totalDistance remains monotonic and continuous.
+        newInitialDistance = metrics.distance - totalDistance;
       }
+
       newTotalDistance = metrics.distance - (newInitialDistance ?? metrics.distance);
+      nextLastBikeDistance = metrics.distance;
     } else {
       // Fallback: Distance delta (speed is km/h → m/s = speed / 3.6 for 1s)
       const distanceDelta = (metrics.speed / 3.6) * 1;
@@ -168,6 +197,7 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
       totalCalories: nextTotalCalories,
       bikeCaloriesOffset: nextBikeCaloriesOffset,
       lastBikeTotalEnergyKcal: nextLastBikeTotalEnergyKcal,
+      lastBikeDistance: nextLastBikeDistance,
       lastCalorieSourceMode: nextCalorieSourceMode,
       currentMetrics: metrics,
     });

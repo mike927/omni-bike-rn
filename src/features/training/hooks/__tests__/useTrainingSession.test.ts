@@ -110,6 +110,30 @@ describe('useTrainingSession', () => {
     warnSpy.mockRestore();
   });
 
+  it('should not resume a paused session when the bike is not connected', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    useDeviceConnectionStore.getState().setBikeAdapter(null);
+
+    const { result } = renderHook(() => useTrainingSession());
+
+    act(() => {
+      useTrainingSessionStore.setState({ phase: TrainingPhase.Paused });
+    });
+
+    expect(result.current.phase).toBe(TrainingPhase.Paused);
+
+    act(() => {
+      result.current.resume();
+    });
+
+    expect(result.current.phase).toBe(TrainingPhase.Paused);
+    expect(mockEngineStart).not.toHaveBeenCalled();
+    expect(mockSetControlState).not.toHaveBeenCalledWith(BikeStatus.Started);
+    expect(warnSpy).toHaveBeenCalledWith('[useTrainingSession] Cannot resume session: bike not connected');
+
+    warnSpy.mockRestore();
+  });
+
   it('should stop the bike when finishing an active session', async () => {
     const { result } = renderHook(() => useTrainingSession());
 

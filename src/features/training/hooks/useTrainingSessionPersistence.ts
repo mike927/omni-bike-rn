@@ -18,6 +18,11 @@ const SAMPLE_ID_PREFIX = 'sample';
 const RANDOM_RADIX = 36;
 const RANDOM_ID_LENGTH = 8;
 
+interface PersistedSessionSeed {
+  sessionId: string;
+  lastSampleSequence: number;
+}
+
 /**
  * Module-level reference to the active session ID managed by the persistence
  * hook. Allows external callers (e.g. {@link useTrainingSession}) to read the
@@ -26,9 +31,22 @@ const RANDOM_ID_LENGTH = 8;
  * Safe to call only while {@link useTrainingSessionPersistence} is mounted.
  */
 let moduleActiveSessionId: string | null = null;
+let pendingPersistedSeed: PersistedSessionSeed | null = null;
+let applyPersistedSeed: ((seed: PersistedSessionSeed) => void) | null = null;
 
 export function getActiveSessionId(): string | null {
   return moduleActiveSessionId;
+}
+
+export function seedFromPersistedSession(sessionId: string, lastSampleSequence: number): void {
+  const seed = { sessionId, lastSampleSequence };
+
+  if (applyPersistedSeed) {
+    applyPersistedSeed(seed);
+    return;
+  }
+
+  pendingPersistedSeed = seed;
 }
 
 function toDeviceSnapshot(device: SavedDevice | null): PersistedDeviceSnapshot | null {
@@ -65,6 +83,13 @@ export function useTrainingSessionPersistence(isEnabled = true): void {
       moduleActiveSessionId = id;
     };
 
+    const hydratePersistedSession = ({ sessionId, lastSampleSequence }: PersistedSessionSeed) => {
+      setActiveSessionId(sessionId);
+      persistedSessionIdRef.current = sessionId;
+      nextSampleSequenceRef.current = lastSampleSequence + 1;
+      pendingPersistedSeed = null;
+    };
+
     const clearActiveSession = (sessionId: string | null = null) => {
       if (sessionId === null || activeSessionIdRef.current === sessionId) {
         setActiveSessionId(null);
@@ -77,6 +102,11 @@ export function useTrainingSessionPersistence(isEnabled = true): void {
         persistedSessionIdRef.current = null;
       }
     };
+
+    applyPersistedSeed = hydratePersistedSession;
+    if (pendingPersistedSeed) {
+      hydratePersistedSession(pendingPersistedSeed);
+    }
 
     const enqueue = (task: () => void, onError?: () => void) => {
       writeQueueRef.current = writeQueueRef.current
@@ -250,6 +280,9 @@ export function useTrainingSessionPersistence(isEnabled = true): void {
 
     return () => {
       unsubscribe();
+      if (applyPersistedSeed === hydratePersistedSession) {
+        applyPersistedSeed = null;
+      }
       moduleActiveSessionId = null;
     };
   }, [isEnabled]);

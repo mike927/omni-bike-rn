@@ -13,6 +13,7 @@ import type {
 import type { MetricSnapshot } from '../../types/training';
 
 const COMPLETED_UPLOAD_STATE: SessionUploadState = 'ready';
+export const STALE_SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 interface PersistedTrainingSessionRow {
   id: string;
@@ -49,6 +50,10 @@ interface PersistedTrainingSampleRow {
   heartRateBpm: number | null;
   resistanceLevel: number | null;
   distanceMeters: number | null;
+}
+
+interface LastSampleSequenceRow {
+  maxSequence: number | null;
 }
 
 function mapSampleRow(row: PersistedTrainingSampleRow): PersistedTrainingSample {
@@ -300,6 +305,65 @@ export function getLatestOpenSession(): PersistedTrainingSession | null {
   return row ? mapSessionRow(row) : null;
 }
 
+export function finalizeStaleOpenSessions(nowMs: number, maxAgeMs: number): PersistedTrainingSession[] {
+  const database = getSQLiteDatabase();
+  const staleBeforeMs = nowMs - maxAgeMs;
+  const rows = database.getAllSync<PersistedTrainingSessionRow>(
+    `SELECT ${SESSION_SELECT_COLUMNS}
+     FROM training_sessions
+     WHERE status IN (?, ?)
+       AND updated_at_ms < ?
+     ORDER BY updated_at_ms ASC`,
+    'active',
+    'paused',
+    staleBeforeMs,
+  );
+
+  return rows
+    .map((row) => {
+      finalizeSession({
+        sessionId: row.id,
+        endedAtMs: row.updatedAtMs,
+        updatedAtMs: row.updatedAtMs,
+        elapsedSeconds: row.elapsedSeconds,
+        totalDistanceMeters: row.totalDistanceMeters,
+        totalCaloriesKcal: row.totalCaloriesKcal,
+        currentMetrics: {
+          speed: row.currentSpeedKmh,
+          cadence: row.currentCadenceRpm,
+          power: row.currentPowerWatts,
+          heartRate: row.currentHeartRateBpm,
+          resistance: row.currentResistanceLevel,
+          distance: row.currentDistanceMeters,
+        },
+      });
+
+      return getSessionById(row.id);
+    })
+    .filter((session): session is PersistedTrainingSession => session !== null);
+}
+
+export function normalizeRecoveredSessionToPaused(sessionId: string): PersistedTrainingSession | null {
+  const session = getSessionById(sessionId);
+  if (!session || session.status === 'finished') {
+    return null;
+  }
+
+  if (session.status === 'paused') {
+    return session;
+  }
+
+  const database = getSQLiteDatabase();
+  database.runSync(
+    'UPDATE training_sessions SET status = ? WHERE id = ? AND status = ?',
+    'paused',
+    sessionId,
+    'active',
+  );
+
+  return getSessionById(sessionId);
+}
+
 export function getSessionById(sessionId: string): PersistedTrainingSession | null {
   const database = getSQLiteDatabase();
   const row = database.getFirstSync<PersistedTrainingSessionRow>(
@@ -361,6 +425,18 @@ export function getSamplesBySessionId(sessionId: string): PersistedTrainingSampl
   );
 
   return rows.map(mapSampleRow);
+}
+
+export function getLastSampleSequence(sessionId: string): number {
+  const database = getSQLiteDatabase();
+  const row = database.getFirstSync<LastSampleSequenceRow>(
+    `SELECT MAX(sequence) AS maxSequence
+     FROM training_session_samples
+     WHERE session_id = ?`,
+    sessionId,
+  );
+
+  return row?.maxSequence ?? -1;
 }
 
 export function deleteSession(sessionId: string): void {

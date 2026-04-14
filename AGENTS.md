@@ -259,6 +259,7 @@ A fix loop is clean only when the selected validation passes, no unresolved bloc
 - After each review-driven code change, follow the Fix Loop Decision Rules for validation scope and review execution.
 - For small incremental fixes the main agent may run `/code-review` inline since it just saw the subagent's findings and has context to verify targeted fixes. For larger fixes — or whenever the rules table says "respawned reviewer subagent" — spawn a fresh reviewer subagent with a new brief rather than reusing the main agent.
 - Do not proceed to manual testing until the fix loop is clean.
+- Once the internal review fix loop is clean, end Step 8 in a saved state: commit the resulting changes before Step 9 so manual testing starts from a clean working tree. If no review-driven code changes were needed, explicitly note that no commit was created.
 - If internal review is already clean, mark this step complete with a short note such as `no fixes needed`.
 
 ### 9. Manual Human Testing

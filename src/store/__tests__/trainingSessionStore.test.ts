@@ -13,6 +13,7 @@ describe('trainingSessionStore', () => {
       initialDistance: null,
       bikeCaloriesOffset: null,
       lastBikeTotalEnergyKcal: null,
+      lastBikeDistance: null,
       lastCalorieSourceMode: 'none',
       currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: null },
     });
@@ -240,6 +241,33 @@ describe('trainingSessionStore', () => {
       expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(4, 5);
     });
 
+    it('should rebase bike distance if the bike counter resets mid-session', () => {
+      useTrainingSessionStore.getState().start();
+
+      useTrainingSessionStore.getState().tick(makeTickInput({ distance: 500 }));
+      useTrainingSessionStore.getState().tick(makeTickInput({ distance: 520 }));
+      expect(useTrainingSessionStore.getState().totalDistance).toBeCloseTo(20, 5);
+
+      useTrainingSessionStore.getState().tick(makeTickInput({ distance: 10 }));
+      expect(useTrainingSessionStore.getState().totalDistance).toBeCloseTo(20, 5);
+
+      useTrainingSessionStore.getState().tick(makeTickInput({ distance: 25 }));
+      expect(useTrainingSessionStore.getState().totalDistance).toBeCloseTo(35, 5);
+    });
+
+    it('should keep distance and bike calories monotonic when both counters reset together', () => {
+      useTrainingSessionStore.getState().start();
+
+      useTrainingSessionStore.getState().tick(makeTickInput({ distance: 500 }, { bikeTotalEnergyKcal: 100 }));
+      useTrainingSessionStore.getState().tick(makeTickInput({ distance: 520 }, { bikeTotalEnergyKcal: 102 }));
+      expect(useTrainingSessionStore.getState().totalDistance).toBeCloseTo(20, 5);
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(2, 5);
+
+      useTrainingSessionStore.getState().tick(makeTickInput({ distance: 10 }, { bikeTotalEnergyKcal: 1 }));
+      expect(useTrainingSessionStore.getState().totalDistance).toBeCloseTo(20, 5);
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(2, 5);
+    });
+
     it('should update currentMetrics snapshot', () => {
       useTrainingSessionStore.getState().start();
       const sample = makeSample({ speed: 30, heartRate: 155 });
@@ -264,6 +292,7 @@ describe('trainingSessionStore', () => {
       expect(state.initialDistance).toBeNull();
       expect(state.bikeCaloriesOffset).toBeNull();
       expect(state.lastBikeTotalEnergyKcal).toBeNull();
+      expect(state.lastBikeDistance).toBeNull();
       expect(state.lastCalorieSourceMode).toBe('none');
     });
 
@@ -282,6 +311,7 @@ describe('trainingSessionStore', () => {
       expect(state.initialDistance).toBeNull();
       expect(state.bikeCaloriesOffset).toBeNull();
       expect(state.lastBikeTotalEnergyKcal).toBeNull();
+      expect(state.lastBikeDistance).toBeNull();
       expect(state.lastCalorieSourceMode).toBe('none');
     });
 
@@ -300,6 +330,7 @@ describe('trainingSessionStore', () => {
       expect(state.initialDistance).toBeNull();
       expect(state.bikeCaloriesOffset).toBeNull();
       expect(state.lastBikeTotalEnergyKcal).toBeNull();
+      expect(state.lastBikeDistance).toBeNull();
       expect(state.lastCalorieSourceMode).toBe('none');
       expect(state.currentMetrics).toEqual({
         speed: 0,
@@ -309,6 +340,48 @@ describe('trainingSessionStore', () => {
         resistance: null,
         distance: null,
       });
+    });
+  });
+
+  describe('restore()', () => {
+    it('hydrates a persisted session snapshot into Paused', () => {
+      useTrainingSessionStore.getState().restore({
+        elapsedSeconds: 120,
+        totalDistance: 1500,
+        totalCalories: 45.5,
+        currentMetrics: makeSample({ speed: 0, cadence: 0, power: 0, distance: 1500 }),
+      });
+
+      const state = useTrainingSessionStore.getState();
+      expect(state.phase).toBe(TrainingPhase.Paused);
+      expect(state.elapsedSeconds).toBe(120);
+      expect(state.totalDistance).toBe(1500);
+      expect(state.totalCalories).toBe(45.5);
+      expect(state.initialDistance).toBeNull();
+      expect(state.bikeCaloriesOffset).toBeNull();
+      expect(state.lastBikeTotalEnergyKcal).toBeNull();
+      expect(state.lastBikeDistance).toBeNull();
+      expect(state.lastCalorieSourceMode).toBe('none');
+    });
+
+    it('rebases distance and bike calories on the first post-restore tick', () => {
+      useTrainingSessionStore.getState().restore({
+        elapsedSeconds: 90,
+        totalDistance: 150,
+        totalCalories: 20,
+        currentMetrics: makeSample({ speed: 0, cadence: 0, power: 0, distance: 780 }),
+      });
+
+      useTrainingSessionStore.getState().resume();
+      useTrainingSessionStore.getState().tick(makeTickInput({ distance: 25 }, { bikeTotalEnergyKcal: 5 }));
+
+      const state = useTrainingSessionStore.getState();
+      expect(state.totalDistance).toBeCloseTo(150, 5);
+      expect(state.totalCalories).toBeCloseTo(20, 5);
+      expect(state.lastBikeDistance).toBe(25);
+      expect(state.bikeCaloriesOffset).toBeCloseTo(15, 5);
+      expect(state.lastBikeTotalEnergyKcal).toBe(5);
+      expect(state.lastCalorieSourceMode).toBe('bike');
     });
   });
 });

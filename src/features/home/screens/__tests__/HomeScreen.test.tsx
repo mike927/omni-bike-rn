@@ -24,6 +24,7 @@ jest.mock('../../../gear/hooks/useAutoReconnect');
 jest.mock('../../../gear/hooks/useSavedGear');
 jest.mock('../../../training/hooks/useTrainingSession');
 jest.mock('../../../training/hooks/useDeviceConnection');
+jest.mock('../../../training/hooks/useInterruptedSession');
 
 const mockSession = {
   phase: 'idle',
@@ -61,6 +62,7 @@ const mockAutoReconnect = {
 };
 
 const mockLatestWorkoutHook = jest.fn();
+const mockInterruptedSessionHook = jest.fn();
 
 jest.mock('../../../training/hooks/useTrainingSession', () => ({
   useTrainingSession: () => mockSession,
@@ -80,6 +82,10 @@ jest.mock('../../../gear/hooks/useAutoReconnect', () => ({
 
 jest.mock('../../../training/hooks/useLatestWorkout', () => ({
   useLatestWorkout: () => mockLatestWorkoutHook(),
+}));
+
+jest.mock('../../../training/hooks/useInterruptedSession', () => ({
+  useInterruptedSession: () => mockInterruptedSessionHook(),
 }));
 
 describe('HomeScreen', () => {
@@ -102,6 +108,11 @@ describe('HomeScreen', () => {
       hrReconnectState: 'idle',
     });
     mockLatestWorkoutHook.mockReturnValue(null);
+    mockInterruptedSessionHook.mockReturnValue({
+      interruptedSession: null,
+      resumeInterruptedSession: jest.fn(),
+      discardInterruptedSession: jest.fn(),
+    });
   });
 
   it('renders the simplified home sections', () => {
@@ -113,9 +124,40 @@ describe('HomeScreen', () => {
     expect(getByText('Latest Workout')).toBeTruthy();
     expect(queryByText(/Latest reading:/)).toBeNull();
     expect(queryByText(/Current training state:/)).toBeNull();
-    expect(queryByText('Resume Interrupted Session')).toBeNull();
+    expect(queryByText('Interrupted Session')).toBeNull();
     expect(queryByText('History')).toBeNull();
     expect(queryByText('Settings')).toBeNull();
+  });
+
+  it('renders and resumes an interrupted session from Home', () => {
+    const resumeInterruptedSession = jest.fn(() => true);
+    mockInterruptedSessionHook.mockReturnValue({
+      interruptedSession: {
+        id: 'session-interrupted',
+        status: 'paused',
+        startedAtMs: 100,
+        endedAtMs: null,
+        elapsedSeconds: 600,
+        totalDistanceMeters: 5400,
+        totalCaloriesKcal: 88.4,
+        currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: null },
+        savedBikeSnapshot: null,
+        savedHrSnapshot: null,
+        uploadState: null,
+        createdAtMs: 100,
+        updatedAtMs: 700,
+      },
+      resumeInterruptedSession,
+      discardInterruptedSession: jest.fn(),
+    });
+
+    const { getByText } = render(<HomeScreen />);
+
+    expect(getByText('Interrupted Session')).toBeTruthy();
+
+    fireEvent.press(getByText('Resume'));
+    expect(resumeInterruptedSession).toHaveBeenCalledTimes(1);
+    expect(mockPush).toHaveBeenCalledWith('/training');
   });
 
   it('keeps Start Training disabled until the bike is connected', () => {

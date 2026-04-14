@@ -113,8 +113,14 @@ export function useTrainingSession(): UseTrainingSessionReturn {
       return;
     }
 
+    const bikeAdapter = useDeviceConnectionStore.getState().bikeAdapter;
+    if (!bikeAdapter) {
+      console.warn('[useTrainingSession] Cannot resume session: bike not connected');
+      return;
+    }
+
     useTrainingSessionStore.getState().resume();
-    void useDeviceConnectionStore.getState().bikeAdapter?.setControlState(BikeStatus.Started);
+    void bikeAdapter.setControlState(BikeStatus.Started);
     ensureEngineRunning();
   }, [ensureEngineRunning]);
 

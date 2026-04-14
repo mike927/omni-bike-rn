@@ -23,12 +23,14 @@ Use this skill when creating, editing, or reviewing any harness file: `AGENTS.md
 - **Single source of truth.** Every workflow rule lives here once. If you find the same rule stated in a command or skill, move it here and replace the copy with a reference.
 - **Agent-agnostic.** No provider-specific names, paths, or syntax. Repo-canonical paths (e.g. `ai/local/plans/<branch-slug>.md`) and shell commands are legitimate. What is banned: provider tool names ("Claude Code"), provider-managed paths (`~/.claude/plans/`), and provider-specific API syntax.
 - **No duplication across sections.** If a rule is stated in Workflow Pacing, do not restate it verbatim in the numbered workflow step — a one-line cross-reference is enough.
+- **Step text should add only step-specific behavior.** If a repo-wide rule already exists elsewhere in `AGENTS.md` (for example branch naming, commit style, or plan-state semantics), do not repeat that guidance inside an individual workflow step unless the step introduces a new exception or ownership boundary.
 - **Loop procedures need exit conditions.** Any review-fix or review-address loop must state: the entry condition, the cycle body, which specific command and result value exits the loop, and what the next workflow step is after exit.
 
 ## Rules For `COMMAND.md`
 
 - **Agent-agnostic.** Commands are provider-neutral procedures. Repo file paths and shell commands are legitimate and expected. What is banned: provider-specific names (e.g. "Claude Code"), paths managed by a specific AI host (e.g. `~/.claude/plans/`), and provider-specific API calls or primitives.
 - **Reference, don't restate.** When a command enforces a rule defined in `AGENTS.md`, cite the section: "per `AGENTS.md` § X" or "see `AGENTS.md` § X". Do not copy the rule text into the command.
+- **Commit ownership, not commit style.** If a command requires creating a commit, it should say when that commit must happen and what it should contain, but it should rely on `AGENTS.md` for global commit-style rules instead of restating message conventions inline.
 - **No inline workflow-state definitions.** Prerequisites that describe workflow phase (e.g. "still in the planning phase") must reference the numbered step in `AGENTS.md`, not define the state themselves.
 - **Explicit loop endpoints.** If a command participates in a loop (review → fix → re-review), its chat report must state which recommendation continues the loop, which exits it, and what the next action is after each outcome.
 - **Evaluation criteria belong to one place.** If two commands share the same quality checklist, the second must cross-reference the first rather than repeat the list.
@@ -57,6 +59,8 @@ If any condition fails, do not add the content. Fix the ownership first.
 |---|---|
 | Command defines its own quality criteria inline | Cross-reference the authoritative criteria in `AGENTS.md` or the primary command |
 | Same rule stated in Workflow Pacing AND a numbered step | Keep the full rule in Workflow Pacing; replace the step copy with one line: "Prerequisite: see Workflow Pacing" |
+| Workflow step repeats repo-wide commit or naming conventions already defined elsewhere in `AGENTS.md` | Keep only the step-specific instruction (for example when a commit must exist) and rely on the global section for commit style or naming rules |
+| Command restates global commit-message conventions already defined in `AGENTS.md` | Keep the command focused on when to commit and cite `AGENTS.md` for the commit rules |
 | Command prerequisite defines workflow phase without citing `AGENTS.md` step number | Replace with "Step N (Section Title) of the feature workflow in `AGENTS.md` must be complete" |
 | Command loop with no exit condition | Add explicit `ready`/`revise`/`blocked` outcomes with next-step instructions for each |
 | Provider-specific name or host-managed path in `AGENTS.md` or a command | Replace with generic term ("your host", "provider-specific entrypoint file"). Repo paths and shell commands are not violations. |

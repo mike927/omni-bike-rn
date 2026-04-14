@@ -1,6 +1,10 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 
-import { useTrainingSessionPersistence } from '../useTrainingSessionPersistence';
+import {
+  getActiveSessionId,
+  seedFromPersistedSession,
+  useTrainingSessionPersistence,
+} from '../useTrainingSessionPersistence';
 import { useSavedGearStore } from '../../../../store/savedGearStore';
 import { useTrainingSessionStore } from '../../../../store/trainingSessionStore';
 import { TrainingPhase, type MetricSnapshot, type TrainingTickInput } from '../../../../types/training';
@@ -57,6 +61,7 @@ describe('useTrainingSessionPersistence', () => {
       initialDistance: null,
       bikeCaloriesOffset: null,
       lastBikeTotalEnergyKcal: null,
+      lastBikeDistance: null,
       lastCalorieSourceMode: 'none',
       currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: null },
     });
@@ -250,6 +255,66 @@ describe('useTrainingSessionPersistence', () => {
 
     await waitFor(() => {
       expect(mockAppendSample).not.toHaveBeenCalled();
+    });
+  });
+
+  it('continues a restored session sequence when the hook is already mounted', async () => {
+    renderHook(() => useTrainingSessionPersistence());
+
+    act(() => {
+      seedFromPersistedSession('restored-session', 3);
+      useTrainingSessionStore.setState({
+        phase: TrainingPhase.Paused,
+        elapsedSeconds: 12,
+        totalDistance: 120,
+        totalCalories: 8,
+        currentMetrics: sample,
+      });
+    });
+
+    act(() => {
+      useTrainingSessionStore.getState().resume();
+      useTrainingSessionStore.getState().tick(tickInput);
+    });
+
+    await waitFor(() => {
+      expect(mockUpdateSessionStatus).toHaveBeenCalledWith(
+        expect.objectContaining({ sessionId: 'restored-session', status: 'active' }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(mockAppendSample).toHaveBeenCalledWith(
+        expect.objectContaining({ sessionId: 'restored-session', sequence: 4 }),
+      );
+    });
+
+    expect(getActiveSessionId()).toBe('restored-session');
+  });
+
+  it('consumes a queued persisted seed when the hook mounts later', async () => {
+    act(() => {
+      seedFromPersistedSession('queued-session', 1);
+      useTrainingSessionStore.setState({
+        phase: TrainingPhase.Paused,
+        elapsedSeconds: 7,
+        totalDistance: 70,
+        totalCalories: 4,
+        currentMetrics: sample,
+      });
+    });
+
+    renderHook(() => useTrainingSessionPersistence());
+
+    act(() => {
+      useTrainingSessionStore.getState().resume();
+      useTrainingSessionStore.getState().tick(tickInput);
+    });
+
+    await waitFor(() => {
+      expect(mockAppendSample).toHaveBeenCalledWith(
+        expect.objectContaining({ sessionId: 'queued-session', sequence: 2 }),
+      );
     });
   });
 });

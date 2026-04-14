@@ -3,12 +3,15 @@ import {
   createDraftSession,
   deleteSession,
   discardDraftSession,
+  finalizeStaleOpenSessions,
   finalizeSession,
   getFinishedSessions,
+  getLastSampleSequence,
   getLatestFinishedSession,
   getLatestOpenSession,
   getSamplesBySessionId,
   getSessionById,
+  normalizeRecoveredSessionToPaused,
   updateUploadState,
   updateSessionStatus,
 } from '../trainingSessionRepository';
@@ -357,6 +360,144 @@ describe('trainingSessionRepository', () => {
         },
       },
     ]);
+  });
+
+  it('returns -1 when a session has no persisted samples yet', () => {
+    const database = buildDatabase();
+    database.getFirstSync.mockReturnValue({ maxSequence: null });
+
+    expect(getLastSampleSequence('session-1')).toBe(-1);
+  });
+
+  it('returns the highest persisted sample sequence', () => {
+    const database = buildDatabase();
+    database.getFirstSync.mockReturnValue({ maxSequence: 7 });
+
+    expect(getLastSampleSequence('session-1')).toBe(7);
+  });
+
+  it('finalizes stale open sessions using their last updated timestamp', () => {
+    const database = buildDatabase();
+    database.getAllSync.mockReturnValue([
+      {
+        id: 'session-stale',
+        status: 'paused',
+        startedAtMs: 100,
+        endedAtMs: null,
+        elapsedSeconds: 55,
+        totalDistanceMeters: 1200,
+        totalCaloriesKcal: 35,
+        currentSpeedKmh: 0,
+        currentCadenceRpm: 0,
+        currentPowerWatts: 0,
+        currentHeartRateBpm: 140,
+        currentResistanceLevel: 6,
+        currentDistanceMeters: 1200,
+        savedBikeId: null,
+        savedBikeName: null,
+        savedHrId: null,
+        savedHrName: null,
+        uploadState: null,
+        createdAtMs: 100,
+        updatedAtMs: 500,
+      },
+    ]);
+    database.getFirstSync.mockReturnValue({
+      id: 'session-stale',
+      status: 'finished',
+      startedAtMs: 100,
+      endedAtMs: 500,
+      elapsedSeconds: 55,
+      totalDistanceMeters: 1200,
+      totalCaloriesKcal: 35,
+      currentSpeedKmh: 0,
+      currentCadenceRpm: 0,
+      currentPowerWatts: 0,
+      currentHeartRateBpm: 140,
+      currentResistanceLevel: 6,
+      currentDistanceMeters: 1200,
+      savedBikeId: null,
+      savedBikeName: null,
+      savedHrId: null,
+      savedHrName: null,
+      uploadState: 'ready',
+      createdAtMs: 100,
+      updatedAtMs: 500,
+    });
+
+    const finalizedSessions = finalizeStaleOpenSessions(1000, 200);
+
+    expect(database.runSync.mock.calls[0]).toContain('finished');
+    expect(database.runSync.mock.calls[0]).toContain(500);
+    expect(finalizedSessions).toHaveLength(1);
+    expect(finalizedSessions[0]?.status).toBe('finished');
+  });
+
+  it('leaves fresh open sessions untouched during stale finalization', () => {
+    const database = buildDatabase();
+    database.getAllSync.mockReturnValue([]);
+
+    expect(finalizeStaleOpenSessions(1000, 200)).toEqual([]);
+    expect(database.runSync).not.toHaveBeenCalled();
+  });
+
+  it('normalizes recovered active sessions to paused without touching updated_at_ms', () => {
+    const database = buildDatabase();
+    database.getFirstSync
+      .mockReturnValueOnce({
+        id: 'session-active',
+        status: 'active',
+        startedAtMs: 100,
+        endedAtMs: null,
+        elapsedSeconds: 40,
+        totalDistanceMeters: 800,
+        totalCaloriesKcal: 22,
+        currentSpeedKmh: 18,
+        currentCadenceRpm: 82,
+        currentPowerWatts: 180,
+        currentHeartRateBpm: 141,
+        currentResistanceLevel: 5,
+        currentDistanceMeters: 800,
+        savedBikeId: null,
+        savedBikeName: null,
+        savedHrId: null,
+        savedHrName: null,
+        uploadState: null,
+        createdAtMs: 100,
+        updatedAtMs: 400,
+      })
+      .mockReturnValueOnce({
+        id: 'session-active',
+        status: 'paused',
+        startedAtMs: 100,
+        endedAtMs: null,
+        elapsedSeconds: 40,
+        totalDistanceMeters: 800,
+        totalCaloriesKcal: 22,
+        currentSpeedKmh: 18,
+        currentCadenceRpm: 82,
+        currentPowerWatts: 180,
+        currentHeartRateBpm: 141,
+        currentResistanceLevel: 5,
+        currentDistanceMeters: 800,
+        savedBikeId: null,
+        savedBikeName: null,
+        savedHrId: null,
+        savedHrName: null,
+        uploadState: null,
+        createdAtMs: 100,
+        updatedAtMs: 400,
+      });
+
+    const normalizedSession = normalizeRecoveredSessionToPaused('session-active');
+
+    expect(database.runSync).toHaveBeenCalledWith(
+      'UPDATE training_sessions SET status = ? WHERE id = ? AND status = ?',
+      'paused',
+      'session-active',
+      'active',
+    );
+    expect(normalizedSession?.status).toBe('paused');
   });
 
   it('deletes a persisted session with its samples and provider uploads in one transaction', () => {
