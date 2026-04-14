@@ -37,12 +37,14 @@ interface UseTrainingSessionReturn {
 export function useTrainingSession(): UseTrainingSessionReturn {
   const engineRef = useRef<MetronomeEngine | null>(null);
   const pendingFinishStopRef = useRef<Promise<void> | null>(null);
+  const suppressDisconnectPauseRef = useRef(false);
 
   const phase = useTrainingSessionStore((s) => s.phase);
   const elapsedSeconds = useTrainingSessionStore((s) => s.elapsedSeconds);
   const totalDistance = useTrainingSessionStore((s) => s.totalDistance);
   const totalCalories = useTrainingSessionStore((s) => s.totalCalories);
   const currentMetrics = useTrainingSessionStore((s) => s.currentMetrics);
+  const bikeAdapter = useDeviceConnectionStore((s) => s.bikeAdapter);
 
   const ensureEngineRunning = useCallback(() => {
     if (!engineRef.current) {
@@ -59,6 +61,15 @@ export function useTrainingSession(): UseTrainingSessionReturn {
       engineRef.current = null;
     }
   }, []);
+
+  const freezeActiveSession = useCallback(() => {
+    if (useTrainingSessionStore.getState().phase !== TrainingPhase.Active) {
+      return;
+    }
+
+    useTrainingSessionStore.getState().pause();
+    stopEngine(false);
+  }, [stopEngine]);
 
   const awaitPendingFinishStop = useCallback(async () => {
     const pendingStop = pendingFinishStopRef.current;
@@ -87,14 +98,14 @@ export function useTrainingSession(): UseTrainingSessionReturn {
       return;
     }
 
-    const bikeAdapter = useDeviceConnectionStore.getState().bikeAdapter;
-    if (!bikeAdapter) {
+    const currentBikeAdapter = useDeviceConnectionStore.getState().bikeAdapter;
+    if (!currentBikeAdapter) {
       console.warn('[useTrainingSession] Cannot start session: bike not connected');
       return;
     }
 
     useTrainingSessionStore.getState().start();
-    void bikeAdapter.setControlState(BikeStatus.Started);
+    void currentBikeAdapter.setControlState(BikeStatus.Started);
     ensureEngineRunning();
   }, [ensureEngineRunning]);
 
@@ -113,21 +124,21 @@ export function useTrainingSession(): UseTrainingSessionReturn {
       return;
     }
 
-    const bikeAdapter = useDeviceConnectionStore.getState().bikeAdapter;
-    if (!bikeAdapter) {
+    const currentBikeAdapter = useDeviceConnectionStore.getState().bikeAdapter;
+    if (!currentBikeAdapter) {
       console.warn('[useTrainingSession] Cannot resume session: bike not connected');
       return;
     }
 
     useTrainingSessionStore.getState().resume();
-    void bikeAdapter.setControlState(BikeStatus.Started);
+    void currentBikeAdapter.setControlState(BikeStatus.Started);
     ensureEngineRunning();
   }, [ensureEngineRunning]);
 
   const finishSession = useCallback(() => {
-    const bikeAdapter = useDeviceConnectionStore.getState().bikeAdapter;
-    if (bikeAdapter) {
-      pendingFinishStopRef.current = bikeAdapter.setControlState(BikeStatus.Stopped).catch((err: unknown) => {
+    const currentBikeAdapter = useDeviceConnectionStore.getState().bikeAdapter;
+    if (currentBikeAdapter) {
+      pendingFinishStopRef.current = currentBikeAdapter.setControlState(BikeStatus.Stopped).catch((err: unknown) => {
         console.error('[useTrainingSession] Bike stop failed before disconnect:', err);
       });
     } else {
@@ -139,9 +150,15 @@ export function useTrainingSession(): UseTrainingSessionReturn {
   }, [stopEngine]);
 
   const resetSessionAndConnections = useCallback(async () => {
-    await awaitPendingFinishStop();
-    await disconnectAllDeviceConnections({ updateReconnectState: true, suppressAutoReconnect: true });
-    useTrainingSessionStore.getState().reset();
+    suppressDisconnectPauseRef.current = true;
+
+    try {
+      await awaitPendingFinishStop();
+      await disconnectAllDeviceConnections({ updateReconnectState: true, suppressAutoReconnect: true });
+      useTrainingSessionStore.getState().reset();
+    } finally {
+      suppressDisconnectPauseRef.current = false;
+    }
   }, [awaitPendingFinishStop]);
 
   const finish = useCallback(() => {
@@ -163,9 +180,15 @@ export function useTrainingSession(): UseTrainingSessionReturn {
 
     const sessionId = getActiveSessionId();
 
-    await awaitPendingFinishStop();
-    await disconnectAllDeviceConnections({ updateReconnectState: true, suppressAutoReconnect: true });
-    useTrainingSessionStore.getState().reset();
+    suppressDisconnectPauseRef.current = true;
+
+    try {
+      await awaitPendingFinishStop();
+      await disconnectAllDeviceConnections({ updateReconnectState: true, suppressAutoReconnect: true });
+      useTrainingSessionStore.getState().reset();
+    } finally {
+      suppressDisconnectPauseRef.current = false;
+    }
 
     return sessionId;
   }, [finishSession, awaitPendingFinishStop]);
@@ -198,12 +221,11 @@ export function useTrainingSession(): UseTrainingSessionReturn {
         // Ignore when already Paused — a Stopped echo can come from our own setControlState(Stopped) call.
         // When Active, both Paused and Stopped should freeze the session until the user resumes or finishes.
         if (currentPhase === TrainingPhase.Active) {
-          useTrainingSessionStore.getState().pause();
-          stopEngine(false);
+          freezeActiveSession();
         }
       }
     },
-    [ensureEngineRunning, stopEngine],
+    [ensureEngineRunning, freezeActiveSession],
   );
 
   // ── Sync from Bike to App ──────────────────────────────
@@ -213,6 +235,18 @@ export function useTrainingSession(): UseTrainingSessionReturn {
     if (!latestBikeStatus) return;
     syncFromBikeStatus(latestBikeStatus);
   }, [latestBikeStatus, syncFromBikeStatus]);
+
+  useEffect(() => {
+    if (phase !== TrainingPhase.Active) {
+      return;
+    }
+
+    if (bikeAdapter !== null || suppressDisconnectPauseRef.current) {
+      return;
+    }
+
+    freezeActiveSession();
+  }, [bikeAdapter, freezeActiveSession, phase]);
 
   useEffect(
     () => () => {
