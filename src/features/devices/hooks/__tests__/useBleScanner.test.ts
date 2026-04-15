@@ -91,6 +91,54 @@ describe('useBleScanner', () => {
       });
     });
 
+    it('admits a nameless device when it passes the client filter', async () => {
+      // Regression guard: an earlier revision gated admission on `device.name`
+      // truthiness, which silently dropped broadcast-capable Garmin/Polar
+      // watches whose advertisement packet had not yet parsed a local name
+      // but did carry a wearable vendor Company ID in manufacturerData. The
+      // whole point of client-side filtering on scanFilters.ts is to accept
+      // those candidates, so the scan callback must not re-introduce the
+      // name gate. The UI renders 'Unknown Device' as a fallback label.
+      (bleManager.state as jest.Mock).mockResolvedValue('PoweredOn');
+      const namelessCandidate = { id: 'nameless-1', name: null };
+      (bleManager.startDeviceScan as jest.Mock).mockImplementation((_uuids, _options, listener) => {
+        listener(null, namelessCandidate);
+      });
+      const clientFilter = jest.fn().mockReturnValue(true);
+
+      const { result } = renderHook(() => useBleScanner(null, clientFilter));
+
+      act(() => {
+        result.current.scanForDevices();
+      });
+
+      await waitFor(() => {
+        expect(result.current.devices).toEqual([namelessCandidate]);
+      });
+      expect(clientFilter).toHaveBeenCalledWith(namelessCandidate);
+    });
+
+    it('drops a nameless device when the client filter rejects it', async () => {
+      (bleManager.state as jest.Mock).mockResolvedValue('PoweredOn');
+      const namelessNoise = { id: 'noise-1', name: null };
+      (bleManager.startDeviceScan as jest.Mock).mockImplementation((_uuids, _options, listener) => {
+        listener(null, namelessNoise);
+      });
+      const clientFilter = jest.fn().mockReturnValue(false);
+
+      const { result } = renderHook(() => useBleScanner(null, clientFilter));
+
+      act(() => {
+        result.current.scanForDevices();
+      });
+
+      // Give the filter a tick to run.
+      await waitFor(() => {
+        expect(clientFilter).toHaveBeenCalledWith(namelessNoise);
+      });
+      expect(result.current.devices).toEqual([]);
+    });
+
     it('should not add duplicate devices to the list', async () => {
       (bleManager.state as jest.Mock).mockResolvedValue('PoweredOn');
       const mockDevice = { id: 'device-1', name: 'Test Device' };

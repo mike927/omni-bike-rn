@@ -7,8 +7,35 @@ import { useDeviceConnection } from '../../training/hooks/useDeviceConnection';
 import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
 import { useSavedGearStore } from '../../../store/savedGearStore';
 import { validateBikeDevice, validateHrDevice } from '../../../services/ble/bleDeviceValidator';
-import { BIKE_SCAN_SERVICE_UUIDS, HR_SCAN_SERVICE_UUIDS } from '../../../services/ble/bleUuids';
+import { BIKE_SCAN_SERVICE_UUIDS } from '../../../services/ble/bleUuids';
+import { isLikelyHrCandidate } from '../../../services/ble/scanFilters';
 import type { GearType, ValidationFailureReason } from '../../../types/gear';
+
+// HR scan intentionally uses no service-UUID filter.
+//
+// iOS `CBCentralManager.scanForPeripherals(withServices:)` filters strictly by
+// service UUIDs contained in the advertisement packet. Many broadcast-capable
+// watches — including the Garmin Venu family — do NOT advertise the standard
+// BLE HR service `0x180D` in the advertisement packet; they expose it only
+// after GATT connection. Filtering by `[HR_SERVICE_UUID]` silently drops those
+// watches from scan results even though they are valid BLE HR sensors.
+//
+// We therefore scan without a service filter for HR and rely on:
+//   1. `isLikelyHrCandidate` in `scanFilters.ts` — client-side heuristic that
+//      requires POSITIVE HR proof: either the advertisement contains `0x180D`
+//      directly (standard chest straps), or `manufacturerData` begins with a
+//      known wearable vendor Company ID (Garmin `0x0087`, Polar `0x006B`,
+//      Suunto, COROS, Amazfit, Wahoo). Empty advertisements are REJECTED —
+//      Apple-family devices, Samsung TVs, and Marshall speakers all advertise
+//      with null `serviceUUIDs`, so "empty ad implies wearable" was a false-
+//      positive magnet and was removed. See the scanFilters.ts docstring for
+//      the full rationale and captured real-hardware evidence.
+//   2. `validateHrDevice` in `bleDeviceValidator.ts` — post-connection GATT
+//      check that is the authoritative gate for `0x180D` / `0x2A37` presence.
+//
+// This is a deliberate trade of a slightly broader nearby-devices list for
+// real Garmin/Polar watch support.
+const HR_SCAN_SERVICE_FILTER = null;
 
 const SIGNAL_TIMEOUT_MS = 8000;
 
@@ -37,7 +64,10 @@ export function useGearSetup(target: GearType): UseGearSetupReturn {
     error: scanError,
     scanForDevices,
     stopScanning,
-  } = useBleScanner(target === 'bike' ? BIKE_SCAN_SERVICE_UUIDS : HR_SCAN_SERVICE_UUIDS);
+  } = useBleScanner(
+    target === 'bike' ? BIKE_SCAN_SERVICE_UUIDS : HR_SCAN_SERVICE_FILTER,
+    target === 'hr' ? isLikelyHrCandidate : null,
+  );
   const { connectBike, connectHr, disconnectBike, disconnectHr } = useDeviceConnection();
   const persistBike = useSavedGearStore((s) => s.persistBike);
   const persistHr = useSavedGearStore((s) => s.persistHr);

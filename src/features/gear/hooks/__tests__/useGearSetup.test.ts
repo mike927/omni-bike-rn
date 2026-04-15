@@ -4,23 +4,26 @@ import { useGearSetup } from '../useGearSetup';
 import * as bleDeviceValidator from '../../../../services/ble/bleDeviceValidator';
 import { useDeviceConnectionStore } from '../../../../store/deviceConnectionStore';
 import { useSavedGearStore } from '../../../../store/savedGearStore';
+import { BIKE_SCAN_SERVICE_UUIDS } from '../../../../services/ble/bleUuids';
+import { isLikelyHrCandidate } from '../../../../services/ble/scanFilters';
 
 jest.mock('../../../../services/ble/bleDeviceValidator');
 jest.mock('../../../../services/gear/gearStorage');
 const mockRequestBlePermission = jest.fn();
 const mockScanForDevices = jest.fn();
 const mockStopScanning = jest.fn();
+const mockUseBleScanner = jest.fn(() => ({
+  devices: [],
+  isScanning: false,
+  error: null,
+  scanForDevices: mockScanForDevices,
+  stopScanning: mockStopScanning,
+}));
 jest.mock('../../../../features/devices/hooks/useBlePermission', () => ({
   useBlePermission: () => ({ requestBlePermission: mockRequestBlePermission }),
 }));
 jest.mock('../../../../features/devices/hooks/useBleScanner', () => ({
-  useBleScanner: () => ({
-    devices: [],
-    isScanning: false,
-    error: null,
-    scanForDevices: mockScanForDevices,
-    stopScanning: mockStopScanning,
-  }),
+  useBleScanner: (...args: unknown[]) => mockUseBleScanner(...(args as [])),
 }));
 const mockDisconnectBike = jest.fn();
 const mockDisconnectHr = jest.fn();
@@ -62,6 +65,23 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.useRealTimers();
+});
+
+describe('scan service filter', () => {
+  it('uses the FTMS service filter and no client filter for bike scans', () => {
+    renderHook(() => useGearSetup('bike'));
+    expect(mockUseBleScanner).toHaveBeenCalledWith(BIKE_SCAN_SERVICE_UUIDS, null);
+  });
+
+  it('uses null (no OS filter) + isLikelyHrCandidate client filter for HR scans', () => {
+    // Regression guard: iOS scanForPeripherals(withServices:) filters by the
+    // advertisement packet. Garmin Venu and similar watches do not advertise
+    // 0x180D, so filtering silently drops them. The OS filter must stay null
+    // and the client-side heuristic must stay wired in to keep the scan list
+    // free of laptops/TVs/headphones.
+    renderHook(() => useGearSetup('hr'));
+    expect(mockUseBleScanner).toHaveBeenCalledWith(null, isLikelyHrCandidate);
+  });
 });
 
 describe('valid device flow (bike)', () => {
