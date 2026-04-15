@@ -66,14 +66,14 @@ describe('isLikelyHrCandidate', () => {
       expect(isLikelyHrCandidate(device)).toBe(true);
     });
 
-    it('accepts a Garmin Venu that advertises no service UUIDs at all', () => {
-      // Empirical Venu gen 1 behaviour: empty advertisement in HR Broadcast mode.
-      const device = makeDevice({ serviceUUIDs: null });
-      expect(isLikelyHrCandidate(device)).toBe(true);
-    });
-
-    it('accepts a device whose advertisement is an empty service-UUID array', () => {
-      const device = makeDevice({ serviceUUIDs: [] });
+    it('accepts a Garmin watch in HR Broadcast mode via the Garmin Company ID in manufacturer data', () => {
+      // Broadcast-capable watches that do not advertise 0x180D in the ad
+      // packet must still surface via the wearable vendor allowlist. Garmin
+      // populates manufacturer data with Company ID 0x0087.
+      const device = makeDevice({
+        serviceUUIDs: null,
+        manufacturerData: manufacturerDataWithCompanyId(0x0087),
+      });
       expect(isLikelyHrCandidate(device)).toBe(true);
     });
 
@@ -126,6 +126,33 @@ describe('isLikelyHrCandidate', () => {
         serviceUUIDs: ['0000fed2-0000-1000-8000-00805f9b34fb'],
         manufacturerData: manufacturerDataWithCompanyId(0x004c),
       });
+      expect(isLikelyHrCandidate(device)).toBe(false);
+    });
+
+    // The following four cases mirror the real advertisement shapes captured
+    // on the author's hardware during diagnosis. They used to be *accepted*
+    // by the earlier "empty-ad → accept" rule and are the reason that rule
+    // was removed. See scanFilters.ts for the full rationale.
+    it('rejects a MacBook advertising with null serviceUUIDs and null manufacturer data', () => {
+      const device = makeDevice({ serviceUUIDs: null, manufacturerData: null });
+      expect(isLikelyHrCandidate(device)).toBe(false);
+    });
+
+    it('rejects a Samsung TV advertising with null serviceUUIDs but Samsung manufacturer data', () => {
+      const device = makeDevice({
+        serviceUUIDs: null,
+        manufacturerData: manufacturerDataWithCompanyId(0x0075),
+      });
+      expect(isLikelyHrCandidate(device)).toBe(false);
+    });
+
+    it('rejects an Apple Watch advertising with null serviceUUIDs and null manufacturer data', () => {
+      const device = makeDevice({ serviceUUIDs: null, manufacturerData: null });
+      expect(isLikelyHrCandidate(device)).toBe(false);
+    });
+
+    it('rejects a device whose advertisement is an empty service-UUID array', () => {
+      const device = makeDevice({ serviceUUIDs: [] });
       expect(isLikelyHrCandidate(device)).toBe(false);
     });
   });

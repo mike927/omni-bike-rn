@@ -74,9 +74,11 @@ function advertisementExposesHrService(serviceUUIDs: readonly string[] | null | 
  * the OS level therefore silently drops every Garmin watch, so we scan
  * broadly and filter client-side here.
  *
- * The unfiltered iOS scan returns laptops, TVs, headphones, and nearby
- * phones. This predicate removes them without re-introducing the bug that
- * hides Garmin watches.
+ * The unfiltered iOS scan returns laptops, TVs, headphones, phones, and
+ * Apple-ecosystem devices. This predicate removes them by requiring
+ * POSITIVE proof that the device is HR-related, rather than using
+ * "no-negative-signal" heuristics that false-positive on Apple Continuity
+ * advertisements.
  *
  * ## Accept rules (device is shown if ANY hold)
  *
@@ -86,11 +88,29 @@ function advertisementExposesHrService(serviceUUIDs: readonly string[] | null | 
  *      Company ID (Garmin, Polar, Suunto, COROS, Amazfit, Wahoo). Defensive
  *      positive match for watches whose broadcast advertisement contains
  *      vendor-proprietary services but not `0x180D`.
- *   3. Advertisement exposes NO service UUIDs at all. Empirically what
- *      Garmin Venu (gen 1) does in HR Broadcast mode: empty service UUID
- *      list, often no manufacturer data either. Laptops, TVs, and headphones
- *      effectively always advertise *something* (Apple Continuity,
- *      AirPlay, A2DP, etc.), so this branch is safe to take as a positive.
+ *
+ * ## Empty-advertisement devices are rejected
+ *
+ * An earlier version of this filter accepted any device that advertised
+ * with `serviceUUIDs` null-or-empty, on the assumption that Garmin Venu gen 1
+ * broadcasts that way and that "real" noise devices (laptops, TVs, headphones)
+ * always advertise at least one service UUID. Real on-device diagnostic
+ * logging against the author's environment proved that assumption wrong:
+ *
+ *   - `MacBook Pro` (local)      → serviceUUIDs=null, manufacturerData=null
+ *   - `[TV] Samsung 7 Series`    → serviceUUIDs=null, manufacturerData=Samsung
+ *   - `Apple Watch`              → serviceUUIDs=null, manufacturerData=null
+ *   - `STANMORE III [LE]`        → serviceUUIDs=null, manufacturerData=null
+ *
+ * Apple-family devices and Samsung TVs strip serviceUUIDs from the general
+ * advertisement packet and communicate via Apple Continuity / vendor-private
+ * channels instead, so "empty ad == wearable" is strictly a false positive.
+ * The filter therefore requires a positive HR signal (rule 1 or rule 2).
+ *
+ * If this turns out to hide a real broadcast-mode watch (e.g. a specific
+ * Venu firmware that advertises completely empty), the fix is to add that
+ * vendor's Company ID to `WEARABLE_VENDOR_COMPANY_IDS` — not to re-introduce
+ * the empty-ad branch.
  *
  * ## Not authoritative
  *
@@ -106,5 +126,5 @@ export function isLikelyHrCandidate(device: Device): boolean {
   const companyId = extractCompanyId(device.manufacturerData);
   if (companyId !== null && WEARABLE_VENDOR_COMPANY_IDS.has(companyId)) return true;
 
-  return !device.serviceUUIDs || device.serviceUUIDs.length === 0;
+  return false;
 }
