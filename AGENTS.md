@@ -62,7 +62,7 @@ Examples:
 
 ## Commit Rules
 
-- **No Auto-Committing:** Never run `git commit` automatically after writing code or modifying files unless the human explicitly instructed you to do so in their prompt. Always leave the working tree dirty, report the changes made, and wait for the human to review the diff in their IDE and suggest the next action.
+- **No Auto-Committing:** Never run `git commit` automatically after writing code or modifying files unless the human explicitly instructed you to do so in their prompt. Always leave the working tree dirty, report the changes made, and wait for the human to review the diff in their IDE and suggest the next action. **Exceptions:** (1) The automated pipeline (Steps 6–9) is pre-approved by the human's Step 5 approval; commits within that pipeline may run without a separate prompt. (2) `/address-code-review` always commits each fix as part of its procedure — the human's decision to run the command is the explicit instruction to commit.
 - Use Conventional Commits.
 - Make focused commits per meaningful sub-task, not one large commit at the end.
 
@@ -230,12 +230,13 @@ Internal review has two phases: a self-pass by the main agent, then a delegated 
 - Run a code quality pass on the branch diff: duplication, efficiency, unnecessary nesting. Fix what you find inline.
 - This pass is cheap and benefits from full main-agent context, so it is the right place to catch obvious smells before delegating.
 
-**Phase B — Delegated review (dedicated subagent).**
+**Phase B — Deep review (preferred: subagent delegation; fallback: main agent inline).**
 
-- Spawn a dedicated reviewer subagent with fresh context. Do not run `/code-review` inline as the main agent.
-- Before delegating, write a short review brief (2-5 sentences) covering: the intent of the change, what is explicitly out of scope, any tradeoffs already agreed with the human, and a pointer to the relevant `plan.md` item or `ai/local/plans/<branch-slug>.md`. The brief is the single biggest lever for review quality — without one the subagent produces generic noise.
-- Pass the brief plus the `/code-review` command logic to the subagent. The subagent owns `/code-review` end-to-end, including writing findings to `ai/local/reviews/<branch-slug>.md`. Default source is `local`; use `gh` only when you want to review what is actually in the open PR rather than local HEAD.
-- **Verification**: before marking this step complete, confirm that `ai/local/reviews/<branch-slug>.md` exists on disk and was updated in this run. If it was not, the subagent did not actually execute `/code-review` and the step must be re-run. All review findings — internal and PR — must persist in this file so follow-up agents across providers can act on them without re-running the review.
+- **Path decision:** If the provider supports subagent delegation, spawn a dedicated reviewer subagent with fresh context (preferred). If not, run `/code-review` inline as the main agent and note this in the step summary.
+- **Brief (both paths):** Write a short review brief (2–5 sentences) covering: the intent of the change, what is explicitly out of scope, any tradeoffs already agreed with the human, and a pointer to the relevant `plan.md` item or `ai/local/plans/<branch-slug>.md`. The brief is the single biggest lever for review quality — without one the review produces generic noise.
+- **Delegated path:** Pass the brief plus the `/code-review` command logic to the subagent. The subagent owns `/code-review` end-to-end, including writing findings to `ai/local/reviews/<branch-slug>.md`. Default source is `local`; use `gh` only when you want to review what is actually in the open PR rather than local HEAD. **Verification:** before marking this step complete, confirm that `ai/local/reviews/<branch-slug>.md` exists on disk and was updated in this run — if not, the subagent did not execute `/code-review` and the step must be re-run.
+- **Inline path:** Run `/code-review` directly as the main agent using the brief as context. Findings land in `ai/local/reviews/<branch-slug>.md` as usual.
+- All review findings — internal and PR — must persist in this file so follow-up agents across providers can act on them without re-running the review.
 - Map any provider-native subagent primitives (dedicated reviewer subagent types, isolated sub-task spawning) in the provider-specific entrypoint file, not here.
 - **Proceed:** Post a `**Workflow Progress: Step 8 Complete**` message, then proceed directly to Step 9.
 
@@ -285,7 +286,7 @@ A fix loop is clean only when the selected validation passes, no unresolved bloc
 ### 13. PR Review Comments
 
 - **Entry:** PR has incoming review comments.
-- **Address:** Execute `/address-code-review` to consume and fix all actionable findings.
+- **Address:** Execute `/address-code-review` to consume and fix all actionable findings. Each fix is committed and pushed as part of the command.
 - **Issues found:** Proceed to Step 14.
 - **No actionable comments:** Skip Step 14 and proceed to Step 15.
 
