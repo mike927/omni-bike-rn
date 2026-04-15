@@ -124,15 +124,16 @@ For unplanned work (e.g., a bug the user reports during a session, a quick chore
 
 - **Analysis is free.** Reading code, tracing logic, and discussing findings does not trigger the workflow.
 - **The moment a code change is agreed upon**, the workflow activates.
-- **Fast Track (Optional):** For minor tasks, skip formal planning and review (Steps 3, 4, 7, 8) and proceed from Step 2 directly to Step 5. *Requires explicit human approval; never auto-select.*
+- **Fast Track (Optional):** For minor tasks, skip formal planning and review (Steps 3, 4, 5, 8, 9) and proceed from Step 2 directly to Step 6. *Requires explicit human approval; never auto-select.*
 - **plan.md updates are optional.** Mark an existing item if the fix addresses one; otherwise skip `plan.md` references in the workflow steps.
 
 ### Workflow Pacing and Discipline
 
 - You must execute the workflow strictly and sequentially. Do not spontaneously skip numbered workflow steps. In particular, (branch creation) must always precede planning — never enter planning mode while still on `main`, because the plan file path `ai/local/plans/<branch-slug>.md` is not valid without a feature branch and planning mode is read-only, so it locks you out of branch creation until you exit.
-- Do not chain multiple distinct workflow steps together in a single turn. Pause at the logical end of your current step, report your progress via a Chat Progress Update, and await explicit human instruction before executing the next numbered phase.
-- At every workflow stage boundary, explicitly ask the user whether to proceed to the next step. Use the most interactive confirmation mechanism your host provides; otherwise ask directly in chat. Do not treat a plain status statement like "the next step is X" as sufficient handoff. Before offering that handoff, make sure the current step's required save/validation work is actually complete so the next step begins from the expected repo state.
+- Do not chain multiple distinct workflow steps together in a single turn. Pause at the logical end of your current step, report your progress via a Chat Progress Update, and await explicit human instruction before executing the next numbered phase. **Exception:** the automated pipeline (Steps 6–9) — see below.
+- At every human-gated workflow stage boundary, explicitly ask the user whether to proceed to the next step. Use the most interactive confirmation mechanism your host provides; otherwise ask directly in chat. Do not treat a plain status statement like "the next step is X" as sufficient handoff. Before offering that handoff, make sure the current step's required save/validation work is actually complete so the next step begins from the expected repo state.
 - If a step is logically irrelevant for a given task (e.g., Manual Human Testing for a pure documentation update), you must still output the `**Workflow Progress**` header for that step, formally note that it is being skipped, and provide a super concise reason why. Do not silently skip past it.
+- **Automated pipeline (Steps 6–9):** Once the human approves the plan in Step 5, proceed through Implementation → Validation → Internal Review → Internal Review Fix Loop without pausing for human confirmation. Step 10 (Manual Human Testing) is the first conditional checkpoint: pause if the change is user-visible, skip automatically if not.
 - Agents with terminal capabilities should run CLI commands natively instead of instructing the human to paste them, provided it stays within tool-call approval constraints.
 - During complex debugging, do not pollute the project root with temporary scripts or data dumps. Use the agent's isolated sandbox directory or standard OS temporary directories (`/tmp/`), and clean them up afterward.
 
@@ -166,49 +167,61 @@ Use this format for all standard stage transitions or turn pauses:
 **Next:** Proceed to Step <N+1>?
 ```
 
+Automated pipeline steps (6–9) post the header and summary but omit the `**Next:**` line — they proceed directly without asking.
+
 - Preserve the exact `**Workflow Progress**` header so the message is always visually distinct and scannable in the chat UI.
 
-### 1. Bootstrap / Resume Context
+### 1. Bootstrapping
 
-- **Initiating the flow:** The human can begin a known feature with "start", pick up an active branch with "resume", or call `/next-task` to propose the next logical task from `plan.md`.
-- **If the current branch is not `main`:** Treat the session as a resume. Invoke `/check-state` to analyze workspace reality and continue from the logically active step. Do not restart planning or implementation from scratch.
-- **If the current branch is `main`:** Verify the working tree is clean. If dirty, stop and ask the human to stash or commit changes. If clean, treat as a new task and continue to Step 2.
+- **Not on `main`:** Treat as a resume. Run `/check-state` to establish branch reality and continue from the logically active step.
+- **On `main`, dirty:** Stop. Ask the human to stash or commit before continuing.
+- **On `main`, clean:** Treat as a new task. Continue to Step 2.
 
-### 2. Workspace Ready
+### 2. Workspace Preparing
 
-- **Prerequisite:** The feature branch must exist before Step 3. Do not plan on `main`.
-- **If resuming:** Skip `/start-feature` and proceed to the active step.
-- **If new task:** Execute `/start-feature` to create the branch.
+- **Resuming:** Branch already exists — skip to the active step.
+- **New task:** Run `/start-feature` to create the branch. Do not plan on `main`.
 
-### 3. Detailed Plan Prepared
+### 3. Plan Drafting
 
-- **Prerequisite:** Step 2 must be complete.
-- **Read-Only Mandate:** You are now in a strict planning state. If your host provides a tool to enter a dedicated planning mode (e.g., `enter_plan_mode`), invoke it now. Otherwise, pause and ask the human to manually enable plan mode and select a dedicated reasoning model before continuing. Until the plan is approved (Step 4), you may ONLY search/read files and write to `ai/local/plans/<branch-slug>.md`. Do not modify source code or commit changes.
-- **Questions:** Read the codebase to answer technical questions yourself. If you need product/business decisions, ask interactively (offer 2-4 concrete options plus a free-text escape hatch) or mark the `plan.md` item `[?]` with a reason.
-- **Draft the Plan:** Write a detailed, actionable plan to `ai/local/plans/<branch-slug>.md` based on `plan.md`. The final section must always be `## What Will Be Available After Completion` (focusing on user-facing outcomes, not just internal technical details).
-- **Quality Gate:** Run `/review-plan`. If it reports `revise`, resolve findings with `/address-plan-review` and re-run `/review-plan`. If any step reports `blocked`, pause and wait for the human to answer the missing questions. You may only advance to Step 4 when `/review-plan` returns a `ready` recommendation.
+- **Prerequisite:** Feature branch exists (Step 2 complete).
+- **Plan mode:** Activate plan mode now. Use your host's dedicated tool if one is available; otherwise ask the human to enable it and select a reasoning model before continuing. Until approved (Step 5), you may ONLY search/read files and write to `ai/local/plans/<branch-slug>.md`. Do not modify source code or commit changes.
+- **Questions:** Derive technical decisions from the codebase. For product or business decisions, ask interactively (offer 2–4 concrete options plus a free-text escape hatch) or mark the `plan.md` item `[?]` with a reason.
+- **Draft:** Write a detailed, actionable plan to `ai/local/plans/<branch-slug>.md`. The final section must always be `## What Will Be Available After Completion`, focused on user-facing outcomes.
+- **Yield:** Post a `**Workflow Progress: Step 3 Complete**` message and ask whether to proceed to Step 4.
 
-### 4. Detailed Plan Approved
+### 4. Plan Reviewing
 
-- Share the plan file with the user and wait for explicit approval before writing code. Discuss and iterate on the plan until approved.
-- Technical implementation choices are left to the agent unless the detailed plan exposes a product or business tradeoff that requires user input.
-- **Exiting Planning State:** Only after the user explicitly replies with "Approved" (or similar), the Read-Only Mandate is lifted. You may now proceed to Step 5 and utilize all tools to modify the codebase.
+- **Prerequisite:** Plan file exists at `ai/local/plans/<branch-slug>.md`.
+- **Review loop:** Run `/review-plan`.
+  - `ready` → exit the loop.
+  - `revise` → run `/address-plan-review`, then re-run `/review-plan`.
+  - `blocked` → surface `Needs User Input` questions to the human; await answers; re-run `/review-plan`.
+- **Exit:** `/review-plan` returns `ready` with no unresolved blocking findings.
+- **Yield:** Post a `**Workflow Progress: Step 4 Complete**` message including the plan path, review path, and state line `reviewed | addressed | ready for human approval`. Ask whether to proceed to Step 5.
 
-### 5. Implementation In Progress
+### 5. Plan Approving
 
-- **Before writing any code**, verify that the working directory is on the correct feature branch (`git branch --show-current`). Plan mode or host mode switches can silently reset the branch. If the branch is wrong, switch to the correct one before proceeding.
-- When active implementation starts, update the relevant `plan.md` item to `[~]`.
-- Break the work into small, meaningful sub-tasks.
-- Implement fully, not partially.
-- Keep commits focused.
-- **Do not continuously update** `ai/local/plans/<branch-slug>.md` to check off tasks while coding. Progress is tracked via `git log` and `git status`. Use `/check-state` to re-sync if context is lost.
+- **Prerequisite:** Step 4 complete; plan state is `reviewed | addressed | ready for human approval`.
+- **Approval:** Wait for the human's explicit approval. Discuss tradeoffs exposed by the plan if needed; technical implementation choices are left to the agent.
+- **On approval:** Lift the Read-Only Mandate. Post a `**Workflow Progress: Step 5 Complete**` message with state line `reviewed | addressed | approved | ready to implement`, then proceed directly into the automated pipeline at Step 6.
 
-### 6. Validation Complete
+### 6. Implementation In Progress
 
-- Execute the `/validate` command logic.
-- Do not move forward to review or testing until validation explicitly passes.
+- **Prerequisite:** Step 5 complete; Read-Only Mandate lifted.
+- **Branch check:** Confirm the working directory is on the correct feature branch (`git branch --show-current`). If not, switch before writing any code.
+- **Track progress:** Mark the relevant `plan.md` item `[~]` when implementation starts.
+- **Implement:** Work in small, focused sub-tasks. Implement fully — no partial stubs. Keep commits scoped to one meaningful change each.
+- **Re-sync:** Do not update `ai/local/plans/<branch-slug>.md` to track progress — use `git log` and `git status`. Run `/check-state` if context is lost.
+- **Proceed:** Post a `**Workflow Progress: Step 6 Complete**` summary of what was implemented, then proceed directly to Step 7.
 
-### 7. Internal Review
+### 7. Validation Complete
+
+- **Validate:** Execute `/validate`.
+- **On failure:** Fix blocking issues and re-run `/validate`. Repeat until it passes.
+- **Proceed:** Post a `**Workflow Progress: Step 7 Complete**` message, then proceed directly to Step 8.
+
+### 8. Internal Review
 
 Internal review has two phases: a self-pass by the main agent, then a delegated deep review by a dedicated reviewer subagent with fresh context. The main agent's context is biased toward the path it already took, so self-review alone is not sufficient for logic changes.
 
@@ -224,6 +237,7 @@ Internal review has two phases: a self-pass by the main agent, then a delegated 
 - Pass the brief plus the `/code-review` command logic to the subagent. The subagent owns `/code-review` end-to-end, including writing findings to `ai/local/reviews/<branch-slug>.md`. Default source is `local`; use `gh` only when you want to review what is actually in the open PR rather than local HEAD.
 - **Verification**: before marking this step complete, confirm that `ai/local/reviews/<branch-slug>.md` exists on disk and was updated in this run. If it was not, the subagent did not actually execute `/code-review` and the step must be re-run. All review findings — internal and PR — must persist in this file so follow-up agents across providers can act on them without re-running the review.
 - Map any provider-native subagent primitives (dedicated reviewer subagent types, isolated sub-task spawning) in the provider-specific entrypoint file, not here.
+- **Proceed:** Post a `**Workflow Progress: Step 8 Complete**` message, then proceed directly to Step 9.
 
 ### Fix Loop Decision Rules
 
@@ -233,62 +247,61 @@ Use these rules for Internal Review Fix Loop, Manual Testing Fix Loop, and PR Re
 |---|---|---|---|
 | Docs, comments, text-only, narrow non-runtime refactor | `quick` | inline (main agent) | No |
 | Test-only | `test` | inline (main agent) | No |
-| Runtime logic, routing, persistence, BLE, native, user-visible | `full` | inline (small fix) or respawned reviewer subagent (larger fix) | Step 10/13: yes |
-| Fix touches architecture, contracts, shared state, or could invalidate earlier review | `full` | respawned reviewer subagent | Step 10/13: yes |
+| Runtime logic, routing, persistence, BLE, native, user-visible | `full` | inline (small fix) or respawned reviewer subagent (larger fix) | Step 11/14: yes |
+| Fix touches architecture, contracts, shared state, or could invalidate earlier review | `full` | respawned reviewer subagent | Step 11/14: yes |
 
 A fix loop is clean only when the selected validation passes, no unresolved blocking review findings remain, and any required retest or PR follow-up for that stage is complete.
 
-### 8. Internal Review Fix Loop
+### 9. Internal Review Fix Loop
 
 - If internal review finds issues, fix them before asking the human to test.
 - After each review-driven code change, follow the Fix Loop Decision Rules for validation scope and review execution.
 - For small incremental fixes the main agent may run `/code-review` inline since it just saw the subagent's findings and has context to verify targeted fixes. For larger fixes — or whenever the rules table says "respawned reviewer subagent" — spawn a fresh reviewer subagent with a new brief rather than reusing the main agent.
 - Do not proceed to manual testing until the fix loop is clean.
-- Once the internal review fix loop is clean, end Step 8 in a saved state: automatically commit the resulting changes before Step 9 so manual testing starts from a clean working tree. Verify that `git status --short` is clean before offering the Step 9 handoff. Do not stop to ask the user for a separate commit confirmation at this point. If no review-driven code changes were needed, explicitly note that no commit was created.
-- If internal review is already clean, mark this step complete with a short note such as `no fixes needed`.
+- Once the fix loop is clean, automatically commit the resulting changes. Verify `git status --short` is clean. If no review-driven changes were needed, note that explicitly instead of creating an empty commit.
+- **Proceed:** Post a `**Workflow Progress: Step 9 Complete**` message, then proceed directly to Step 10.
 
-### 9. Manual Human Testing
+### 10. Manual Human Testing
 
-- Before opening a Pull Request, the agent MUST pause and ask the human to manually test the changes on their device or simulator.
-- Along with the testing request, provide a concise summary of what was implemented and how the change affects the user experience or behavior.
-- Every manual testing request must explicitly say whether the human needs to restart the Metro server, rebuild the app, both, or neither before testing. If no restart or rebuild is needed, say that explicitly.
-- Provide the testing checklist inline. For follow-up fixes, provide only incremental retest steps unless the full flow needs re-running.
-- Do not create or update `ai/local/testing/<branch-slug>.md` unless the human explicitly asks for a saved checklist file.
-- Wait for the human's feedback. Address any issues they find.
-- Only proceed to the next step once the human explicitly approves the manual test.
-- When implementation is complete and approved locally, update the plan item to `[R]`.
+- **Not user-visible** (docs, harness, config, test-only): skip per Workflow Pacing skip rules and proceed directly to Step 12.
+- **User-visible change:** Pause and present the testing checklist. Include a concise summary of what changed and how it affects user experience or behavior. Explicitly state whether the human needs to restart Metro, rebuild the app, both, or neither.
+- **Checklist:** Provide inline. For follow-up fixes, provide only incremental retest steps unless the full flow needs re-running. Do not create `ai/local/testing/<branch-slug>.md` unless the human explicitly asks.
+- **Issues reported:** Proceed to Step 11.
+- **Approved:** Mark the `plan.md` item `[R]` and proceed to Step 12.
 
-### 10. Manual Testing Fix Loop
+### 11. Manual Testing Fix Loop
 
-- If manual testing feedback leads to code changes, do not jump straight to PR.
-- After each manual-testing-driven code change, follow the Fix Loop Decision Rules for validation scope and review execution.
-- Request targeted manual retesting only for the affected behavior unless the change is provably non-user-visible.
-- Stay in this loop until the human explicitly confirms the latest changes.
+- **Entry:** Human reported issues in Step 10.
+- **Fix loop:** After each fix, follow the Fix Loop Decision Rules for validation scope and review execution. Request targeted retesting only for the affected behavior.
+- **Exit:** Human explicitly approves the latest changes.
+- **Proceed:** Mark the `plan.md` item `[R]` and proceed to Step 12.
 
-### 11. PR Open
+### 12. PR Open
 
-- Execute the `/open-pr` command logic.
-- The `/open-pr` command owns the `plan.md [x]` commit — it marks the task as completed and pushes the commit as part of its final step. No additional plan update is needed after this step.
+- **Prerequisite:** Step 10 or 11 complete; `plan.md` item marked `[R]`.
+- **Open:** Execute `/open-pr`. The command owns the `plan.md [x]` commit and push.
+- **Yield:** Post a `**Workflow Progress: Step 12 Complete**` message with the PR URL, then ask whether to proceed to Step 13.
 
-### 12. PR Review Comments
+### 13. PR Review Comments
 
-- Execute the `/address-code-review` command logic.
-- GitHub review comments are the primary review queue for the branch once the PR is open.
-- Only treat a review comment as resolved after the fix is implemented, validated, and pushed.
+- **Entry:** PR has incoming review comments.
+- **Address:** Execute `/address-code-review` to consume and fix all actionable findings.
+- **Issues found:** Proceed to Step 14.
+- **No actionable comments:** Skip Step 14 and proceed to Step 15.
 
-### 13. PR Review Fix Loop
+### 14. PR Review Fix Loop
 
-- If PR review feedback leads to code changes:
-  - follow the Fix Loop Decision Rules for validation scope and review execution
-  - request targeted manual retesting when the fix changes user-visible behavior, product flow, native behavior, or anything the human previously validated manually
-  - prepare updated reply text or direct GitHub replies only after the fix and required revalidation are complete
-- Repeat the PR review and fix loop up to 3 times. Stop earlier if the review queue is already clean.
+- **Entry:** Actionable review findings from Step 13.
+- **Fix loop:** After each fix, follow the Fix Loop Decision Rules for validation scope and review execution. Request targeted manual retesting when the fix changes user-visible behavior.
+- **Cap:** Repeat up to 3 cycles. If the review queue is still not clean after 3, surface the remaining findings to the human.
+- **Exit:** Review queue is clean and all replies are posted.
+- **Proceed:** Post a `**Workflow Progress: Step 14 Complete**` message and ask whether to proceed to Step 15.
 
-### 14. Merge And Cleanup
+### 15. Merge And Cleanup
 
-- Wait for the human to confirm the PR is approved and that merging should proceed.
-- Then execute the `/finish-feature` command logic.
-- The command marks `plan.md` as `[x]`, merges the PR via GitHub CLI (merge commit), safety-checks the local workspace, removes the branch or worktree, and returns to `main`.
+- **Prerequisite:** Human confirms the PR is approved and merging should proceed.
+- **Merge:** Execute `/finish-feature`. The command merges via GitHub CLI, safety-checks the workspace, removes the branch or worktree, and returns to `main`.
+- **Complete:** Post a `**Workflow Progress: Step 15 Complete**` message marking the feature done.
 
 ## Skills
 
