@@ -35,13 +35,13 @@ Garmin's public support matrix at the source URL above is the authoritative list
 
 As of **2026-04-15**, the safest product stance for Omni Bike is:
 
-- **Treat `Venu 2` and newer as officially compatible targets** for the BLE HR sensor flow. Garmin's current cross-model support article explicitly lists the Venu 2 family under watches that can broadcast heart rate to Bluetooth devices and apps, and the Venu 2 / Venu 3 manuals expose the corresponding Broadcast Heart Rate flow.
-- **Do not market `Venu` gen 1 as compatible.** Real hardware testing on firmware 7.80 produced a definitive negative result for iPhone BLE discovery (details below), and the owner's manual language for this model is ANT+-scoped.
-- **Do not promise compatibility for older Garmin lines solely because they contain a menu item named "Broadcast".** The presence of a watch-side menu label is not sufficient; the watch must actually emit a BLE HR peripheral that iOS can discover.
+- **Treat a Garmin watch as compatible only when it exposes a real BLE HR sensor role that Omni Bike can validate.** In practice that means the watch must enter a broadcast mode that results in a connectable BLE peripheral whose post-connect GATT table contains service `0x180D` and characteristic `0x2A37`.
+- **Do not market compatibility based solely on model family, marketing pages, or the presence of a watch-side menu item named "Broadcast".** Those signals are not sufficient on their own; the watch must actually emit a BLE HR peripheral that iOS can discover.
+- **When in doubt, trust runtime behaviour over model assumptions.** If the watch never appears during iPhone BLE discovery, or it connects but fails `validateHrDevice`, Omni Bike should treat it as incompatible regardless of branding or menu copy.
 
 For user-facing compatibility copy, the correct summary is therefore:
 
-> `Garmin Venu 2 and newer are the primary supported Garmin watch targets. Older Garmin models may expose a similarly named feature, but should be treated as best-effort until verified on real hardware.`
+> `A Garmin watch is compatible with Omni Bike only when it can broadcast a standard Bluetooth heart-rate signal that iPhone can discover and the app can validate as service 0x180D with characteristic 0x2A37.`
 
 ### Tested vs expected
 
