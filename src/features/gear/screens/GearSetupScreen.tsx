@@ -1,5 +1,6 @@
+import React, { useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Alert, Linking, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useGearSetup } from '../hooks/useGearSetup';
 import { ActionButton } from '../../../ui/components/ActionButton';
@@ -14,13 +15,47 @@ const INCOMPATIBILITY_MESSAGES: Record<ValidationFailureReason, string> = {
   missing_indoor_bike_characteristic:
     'This device uses FTMS but does not broadcast indoor bike data. It may be a different type of fitness machine.',
   missing_hr_service:
-    'This device does not broadcast a standard Bluetooth heart-rate signal. Only Bluetooth HR monitors and watches in broadcast or HR sensor mode are supported.',
+    'This device is not broadcasting a standard Bluetooth heart-rate signal. Only Bluetooth HR monitors and watches in broadcast or HR sensor mode are supported — if you are pairing a watch, make sure broadcast mode is enabled (see hint below).',
   missing_hr_characteristic: 'This device has the HR service but is missing the HR Measurement characteristic.',
   connection_failed:
     'Could not complete the Bluetooth connection. Make sure the device is awake and in sensor mode, then try again.',
   no_live_signal:
     'Device connected but no data arrived within 8 seconds. Make sure it is awake and actively sending data, then try again.',
 };
+
+const HR_BROADCAST_HINT_ERRORS: ReadonlySet<ValidationFailureReason> = new Set<ValidationFailureReason>([
+  'missing_hr_service',
+  'missing_hr_characteristic',
+  'no_live_signal',
+]);
+
+const HR_BROADCAST_HINT = {
+  headline: 'Pairing a Garmin or Polar watch?',
+  steps: [
+    'On your Garmin watch (Fenix / Forerunner / Venu / Vivoactive): hold UP to open the menu.',
+    'Go to Settings → Sensors & Accessories → Wrist Heart Rate.',
+    'Select Broadcast HR (or Broadcast During Activity).',
+    'Confirm the broadcast icon appears on the watch face before you return to this screen.',
+  ],
+  footer:
+    'Polar watches: see your model\u2019s manual for the broadcast-mode button path. Some watches stop broadcasting when the display sleeps — keep the watch awake during pairing.',
+} as const;
+
+const HR_DUAL_RECORDING_HINT = {
+  headline: 'Want this workout in Garmin Connect too?',
+  flows: [
+    {
+      title: 'Flow 1 — HR sensor only',
+      body: 'Enable HR Broadcast on your watch (don\u2019t start an activity) → start training here. One record. The workout will appear in Strava if connected, but not in Garmin Connect.',
+    },
+    {
+      title: 'Flow 2 — Dual recording (recommended if you use Garmin Training Load, Body Battery, or VO2 Max)',
+      body: 'Start Indoor Cycling on your watch first → then start training here. Two records: full bike data in this app → Strava, wrist HR activity in Garmin Connect with full ecosystem credit. Some duplication, but each side records what it is best at.',
+    },
+  ],
+  footer:
+    'Why there is no one-tap option: Garmin\u2019s iOS SDK does not allow phone apps to remote-start a watch activity. A unified single-tap flow would require a Garmin Connect IQ companion app, which is tracked as a future task.',
+} as const;
 
 const SAVE_LABEL: Record<GearType, string> = {
   bike: 'Use This Bike',
@@ -29,6 +64,30 @@ const SAVE_LABEL: Record<GearType, string> = {
 
 interface GearSetupScreenProps {
   target: GearType;
+}
+
+interface HintBlockProps {
+  headline: string;
+  expanded: boolean;
+  onToggle: () => void;
+  testID?: string;
+  children: React.ReactNode;
+}
+
+function HintBlock({ headline, expanded, onToggle, testID, children }: HintBlockProps) {
+  return (
+    <View style={styles.hintContainer} testID={testID}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        onPress={onToggle}
+        style={styles.hintToggleRow}>
+        <Text style={styles.hintHeadline}>{headline}</Text>
+        <Text style={styles.hintCaret}>{expanded ? '▾' : '▸'}</Text>
+      </Pressable>
+      {expanded ? <View style={styles.hintBody}>{children}</View> : null}
+    </View>
+  );
 }
 
 export function GearSetupScreen({ target }: GearSetupScreenProps) {
@@ -47,6 +106,26 @@ export function GearSetupScreen({ target }: GearSetupScreenProps) {
     save,
     reset,
   } = useGearSetup(target);
+  const [broadcastHintExpanded, setBroadcastHintExpanded] = useState(false);
+  const [dualRecordingHintExpanded, setDualRecordingHintExpanded] = useState(false);
+
+  const showBroadcastHint =
+    target === 'hr' && validationError !== null && HR_BROADCAST_HINT_ERRORS.has(validationError);
+
+  const renderBroadcastHint = (testID: string) => (
+    <HintBlock
+      testID={testID}
+      headline={HR_BROADCAST_HINT.headline}
+      expanded={broadcastHintExpanded}
+      onToggle={() => setBroadcastHintExpanded((prev) => !prev)}>
+      {HR_BROADCAST_HINT.steps.map((stepText, index) => (
+        <Text key={index} style={styles.hintStep}>
+          {index + 1}. {stepText}
+        </Text>
+      ))}
+      <Text style={styles.hintFooter}>{HR_BROADCAST_HINT.footer}</Text>
+    </HintBlock>
+  );
 
   const handleScanPress = async () => {
     const permission = await startScan();
@@ -72,6 +151,24 @@ export function GearSetupScreen({ target }: GearSetupScreenProps) {
 
   return (
     <AppScreen title={title} subtitle={subtitle}>
+      {target === 'hr' ? (
+        <SectionCard title="Garmin Connect Tip">
+          <HintBlock
+            testID="dual-recording-hint"
+            headline={HR_DUAL_RECORDING_HINT.headline}
+            expanded={dualRecordingHintExpanded}
+            onToggle={() => setDualRecordingHintExpanded((prev) => !prev)}>
+            {HR_DUAL_RECORDING_HINT.flows.map((flow) => (
+              <View key={flow.title} style={styles.hintFlow}>
+                <Text style={styles.hintFlowTitle}>{flow.title}</Text>
+                <Text style={styles.hintFlowBody}>{flow.body}</Text>
+              </View>
+            ))}
+            <Text style={styles.hintFooter}>{HR_DUAL_RECORDING_HINT.footer}</Text>
+          </HintBlock>
+        </SectionCard>
+      ) : null}
+
       <SectionCard title="Scan Controls">
         {scanError ? <Text style={styles.errorText}>{scanError}</Text> : null}
         <ActionButton
@@ -98,6 +195,7 @@ export function GearSetupScreen({ target }: GearSetupScreenProps) {
                     {showError && validationError ? (
                       <Text style={styles.incompatibilityText}>{INCOMPATIBILITY_MESSAGES[validationError]}</Text>
                     ) : null}
+                    {showError && showBroadcastHint ? renderBroadcastHint('broadcast-hint-inline') : null}
                     {isSelected && step === 'validating' ? (
                       <Text style={styles.statusText}>Validating device…</Text>
                     ) : null}
@@ -125,6 +223,7 @@ export function GearSetupScreen({ target }: GearSetupScreenProps) {
       {step === 'error' && validationError ? (
         <SectionCard title="Device Issue">
           <Text style={styles.errorText}>{INCOMPATIBILITY_MESSAGES[validationError]}</Text>
+          {showBroadcastHint ? renderBroadcastHint('broadcast-hint-card') : null}
           <ActionButton label="Try Another Device" onPress={reset} fullWidth />
         </SectionCard>
       ) : null}
@@ -186,5 +285,56 @@ const styles = StyleSheet.create({
     color: palette.textMuted,
     fontSize: 14,
     lineHeight: 20,
+  },
+  hintContainer: {
+    marginTop: 4,
+    gap: 6,
+  },
+  hintToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  hintHeadline: {
+    color: palette.textMuted,
+    fontSize: 13,
+    fontWeight: '600',
+    flexShrink: 1,
+  },
+  hintCaret: {
+    color: palette.textMuted,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  hintBody: {
+    gap: 6,
+    marginTop: 4,
+  },
+  hintStep: {
+    color: palette.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  hintFlow: {
+    gap: 2,
+  },
+  hintFlowTitle: {
+    color: palette.text,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  hintFlowBody: {
+    color: palette.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  hintFooter: {
+    color: palette.textMuted,
+    fontSize: 12,
+    fontStyle: 'italic',
+    lineHeight: 16,
+    marginTop: 2,
   },
 });

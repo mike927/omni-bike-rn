@@ -110,6 +110,7 @@ Lightweight, modern onboarding shown only on first launch. 2-3 swipeable intro s
 - [x] Manual upload action from the workout history list or workout detail view
 - [x] Functional Integrations screen
 - [x] Generic export payload mapping for completed training sessions
+- [ ] Garmin Connect as additional upload provider (OAuth + .FIT upload, sitting alongside Strava via the existing provider-adapter contract; depends on Phase 7 .FIT export)
 - [ ] If a user taps `Upload` from history without a connected provider, redirect to the relevant provider connection flow
 - [x] Minimal UI elements needed for integrations, export, and provider sync flows
 - [ ] Add comprehensive unit tests covering various test cases
@@ -128,7 +129,8 @@ Standard Bluetooth HR sensors are expected to work via the BLE HR flow before th
 - [x] HR priority scaffold + Bluetooth HR UX cleanup
 - [ ] Extend gear setup and Settings to support native watch-based HR sources
 - [ ] Support Apple Watch as an iPhone-only native selectable HR source
-- [ ] Support compatible broadcast-capable watches (for example Garmin or Polar) as Bluetooth HR sources when the watch can transmit HR without owning the workout
+- [~] Support compatible broadcast-capable watches (for example Garmin or Polar) as Bluetooth HR sources when the watch can transmit HR without owning the workout
+- [ ] Garmin Connect IQ companion app for one-tap start/stop sync between the iOS app and a Garmin watch (Monkey C; store-distributed; mirror of the Apple Watch companion task above)
 - [ ] Native WatchOS companion app (SwiftUI + HealthKit workout session)
 - [ ] Real-time HR streaming via WatchConnectivity
 - [ ] HR source priority logic (Watch > BLE HR monitor > Bike pulse)
