@@ -62,7 +62,7 @@ Examples:
 
 ## Commit Rules
 
-- **No Auto-Committing:** Never run `git commit` automatically after writing code or modifying files unless the human explicitly instructed you to do so in their prompt. Always leave the working tree dirty, report the changes made, and wait for the human to review the diff in their IDE and suggest the next action. **Exceptions:** (1) The automated pipeline (Steps 6–9) is pre-approved by the human's Step 5 approval; commits within that pipeline may run without a separate prompt. (2) `/address-code-review` always commits each fix as part of its procedure — the human's decision to run the command is the explicit instruction to commit.
+- **No Auto-Committing:** Never run `git commit` automatically after writing code or modifying files unless the human explicitly instructed you to do so in their prompt. Always leave the working tree dirty, report the changes made, and wait for the human to review the diff in their IDE and suggest the next action. **Exceptions:** (1) The automated pipeline (Steps 6–9) is pre-approved by the human's Step 5 approval; commits within that pipeline may run without a separate prompt. (2) `/address-code-review` always commits and pushes each fix as part of its procedure — the human's decision to run the command is the explicit instruction to commit and push.
 - Use Conventional Commits.
 - Make focused commits per meaningful sub-task, not one large commit at the end.
 
