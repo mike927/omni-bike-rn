@@ -31,6 +31,18 @@ The feature is available on most modern Garmin wrist-based HR watches. Commonly 
 
 Garmin's public support matrix at the source URL above is the authoritative list. Do not hard-code family-specific behaviour in app code.
 
+### Product stance for Omni Bike
+
+As of **2026-04-15**, the safest product stance for Omni Bike is:
+
+- **Treat `Venu 2` and newer as officially compatible targets** for the BLE HR sensor flow. Garmin's current cross-model support article explicitly lists the Venu 2 family under watches that can broadcast heart rate to Bluetooth devices and apps, and the Venu 2 / Venu 3 manuals expose the corresponding Broadcast Heart Rate flow.
+- **Do not market `Venu` gen 1 as compatible.** Real hardware testing on firmware 7.80 produced a definitive negative result for iPhone BLE discovery (details below), and the owner's manual language for this model is ANT+-scoped.
+- **Do not promise compatibility for older Garmin lines solely because they contain a menu item named "Broadcast".** The presence of a watch-side menu label is not sufficient; the watch must actually emit a BLE HR peripheral that iOS can discover.
+
+For user-facing compatibility copy, the correct summary is therefore:
+
+> `Garmin Venu 2 and newer are the primary supported Garmin watch targets. Older Garmin models may expose a similarly named feature, but should be treated as best-effort until verified on real hardware.`
+
 ### Tested vs expected
 
 Omni Bike's runtime HR path (`StandardHrAdapter`, `validateHrDevice`, `isLikelyHrCandidate`) is vendor-agnostic and routes solely on the standard BLE HR service `0x180D` / characteristic `0x2A37` plus a wearable vendor Company ID allowlist. That means **any** watch that actually advertises BLE HR in broadcast mode flows through the same code with zero per-model branching. The table below records what has been physically verified versus what is expected to work on the basis of Garmin's public documentation but has not been exercised on real hardware.
@@ -45,6 +57,32 @@ Omni Bike's runtime HR path (`StandardHrAdapter`, `validateHrDevice`, `isLikelyH
 | Epix, Instinct 2, Tactix 7, Enduro 2, Marq Gen 2 | Expected to work per Garmin support matrix. | Unverified on real hardware. |
 
 **If a user reports that a listed-as-expected model does not appear in the scan list**, capture `[ScanDump]` output (see diagnostic logging pathway in the next section) and compare to the "real advertisement shapes" table. The fix is almost always a small addition to `WEARABLE_VENDOR_COMPANY_IDS` in `scanFilters.ts` — not an architectural change.
+
+## Detection contract with Omni Bike
+
+This section answers the practical question: **what hardware / software elements must exist for Omni Bike to detect a Garmin watch as a valid HR sensor and then receive live BPM?**
+
+All of the following must be true at the same time:
+
+1. **The watch must expose a real BLE Heart Rate sensor role right now.**
+   - Required over GATT after connection:
+     - service `0x180D`
+     - characteristic `0x2A37`
+   - A watch merely having a manual page or menu item named "Broadcast Heart Rate" is **not** enough. Omni Bike's acceptance test is the post-connect GATT table, not marketing copy.
+2. **The watch must be in the correct runtime mode.**
+   - `Broadcast Heart Rate`, `HR Broadcast`, or the model-specific equivalent must be active.
+   - On models that only sustain broadcast during an activity, a compatible activity (for example Indoor Cycling) must already be running.
+   - If the model drops broadcast when the display sleeps or when the user exits the broadcast screen, the user must keep the watch in the state that actually emits the BLE peripheral.
+3. **iPhone BLE discovery must be able to see the watch.**
+   - Bluetooth must be enabled.
+   - Omni Bike must have Bluetooth permission.
+   - No other app may hold the watch's BLE link exclusively during pairing; in practice, Garmin Connect Mobile is the usual conflict and should be force-quit during troubleshooting.
+4. **The watch must pass Omni Bike's scan + validation pipeline.**
+   - Scan stage: the device must either advertise standard HR service `0x180D`, or present manufacturer data whose Company ID matches a known wearable vendor allowlist (Garmin `0x0087`, Polar `0x006B`, Suunto `0x01E7`, COROS `0x0553`, Amazfit `0x0157`, Wahoo `0x0067`).
+   - Validation stage: after connection, `validateHrDevice(deviceId)` must find both `0x180D` and `0x2A37`.
+   - Data stage: `StandardHrAdapter` must then receive notifications on `0x2A37`; only then is the sensor considered live.
+
+If any one of the four conditions above is false, the user may still see Garmin-branded UI on the watch, but Omni Bike is correct to reject or fail the pairing attempt.
 
 ## How to enable it
 
