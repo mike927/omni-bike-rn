@@ -46,13 +46,14 @@ Format the options clearly:
 - **Option 1:** `[Phase/Priority Name]` - `<task description>`
 - **Option 2:** `[Phase/Priority Name]` - `<task description>`
 - **Option 3:** `[Phase/Priority Name]` - `<task description>`
-- **Option 4:** `Cancel / None`
+- **Option 4:** Something else / new — the human describes what they have in mind; search `plan.md` for a matching entry or, if none exists, propose adding a new one before proceeding
+- **Option 5:** Cancel / None
 
 If your platform does not support interactive UI tools, print the options as a numbered list and explicitly pause execution, waiting for the user to reply with their choice.
 
 ### Step 4: Prepare And Handoff
 
-Once the user selects a task:
+Once the user selects a task (including a task sourced or created via Option 4):
 
 1. Infer the Conventional Commits `type` based on the selected task (e.g., `feat` for new features, `fix` for bugs, `test` for tests, `docs` for documentation).
 2. Derive a short, kebab-case `description` from the task title (e.g., `core-training-unit-tests`).
