@@ -92,7 +92,13 @@ describe('GearSetupScreen', () => {
 
       fireEvent.press(getByText('Pairing a Garmin or Polar watch?'));
 
-      expect(getByText(/hold UP to open the menu/)).toBeTruthy();
+      // The step text is intentionally family-agnostic: it names multiple
+      // Garmin families with their distinct button paths rather than
+      // collapsing them to a single "hold UP" instruction that is incorrect
+      // for Venu / Vivoactive hardware. See the HR_BROADCAST_HINT constant
+      // in GearSetupScreen.tsx.
+      expect(getByText(/Open your watch/)).toBeTruthy();
+      expect(getByText(/top-right button on Venu/)).toBeTruthy();
       expect(getByText(/Sensors & Accessories/)).toBeTruthy();
     });
   });
