@@ -45,16 +45,7 @@ For `gh` source, also fetch CI status: `gh pr checks`.
 
 ### Step 3: Review Each Changed File
 
-For every file in the diff:
-
-1. **Logic**: Does the change match the plan item? Any scope creep or missing behaviour?
-2. **Edge cases**: Null, empty, disconnected state, error paths.
-3. **Duplication**: Any unnecessary repetition of UI or data logic?
-4. **Tests**: Are mocks reset in `beforeEach` with `jest.clearAllMocks()`? Do mock shapes match current return types?
-5. **Conventions**: TypeScript strict mode compliance, adapter pattern usage, layer direction, tagged logging, `unknown` for caught errors.
-6. **Architecture**: No upward imports (features → services → parsers). Types in dedicated files, not inline in implementation.
-
-Flag each finding with `file:line` references and severity:
+For every file in the diff, apply the checklist loaded in Step 2. Flag each finding with `file:line` references and severity:
 
 - **bug** — incorrect behaviour or crash risk
 - **regression** — breaks existing functionality
@@ -76,11 +67,8 @@ Recommendation: <approve | request changes | comment>
 
 ## Findings
 
-### <file-path>:<line>
-**Severity**: <bug | regression | convention | suggestion>
-<Description of the issue and recommended fix>
-
-### ...
+- [ ] `<file-path>:<line>` [<severity>] - <Description of the issue and recommended fix>
+- [ ] ...
 
 ## Summary
 
@@ -102,10 +90,6 @@ Recommendation: <approve | request changes | comment>
 
 Details: ai/local/reviews/<branch-slug>.md
 ```
-
-### Step 6: Cleanup (When Resolved)
-
-Remove the review file only when all findings are either addressed in code or explicitly declined, AND no further review work is expected for the branch (internal review, PR review, and all fix loops resolved). While the PR is open, `/address-code-review` may still append new findings — do not delete early.
 
 ## Completion Criteria
 

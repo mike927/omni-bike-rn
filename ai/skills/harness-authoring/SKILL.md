@@ -7,68 +7,79 @@ description: Rules and anti-patterns for creating or modifying harness files —
 
 Use this skill when creating, editing, or reviewing any harness file: `AGENTS.md`, `ai/commands/*/COMMAND.md`, `ai/skills/*/SKILL.md`, `ai/commands/README.md`, `ai/README.md`, or provider bridge files under `.claude/`, `.agents/`, etc.
 
+## Guiding Principles
+
+Apply these to every harness file before writing or accepting a change.
+
+- **Wizard Flow.** Enforce stage boundaries. Announce Step N complete, name Step N+1, hand off the decision to the human.
+- **Provider-Agnostic.** No provider names, paths, or primitives in shared files. Repo-canonical paths and shell commands are fine.
+- **Agent-First.** Instructions target the agent. Describe how the agent reacts when the human acts — not what the human should type or do.
+- **Concise over verbose.** State constraints simply. "Requires explicit human approval" beats "The agent must NEVER spontaneously decide...".
+- **Simple over engineered.** No speculative rules or abstractions for hypothetical future cases. Add workflow complexity only when a real observed problem demands it.
+- **Technically viable.** Before mandating a behavior (mode switch, tool call, UI primitive), verify it is actually supported in target host environments.
+- **Style coherent.** Use consistent formatting patterns within a file and across related files. If steps use bold-label bullets, all steps use bold-label bullets.
+- **Logic coherent.** Every loop, conditional, and state machine must have explicit entry condition, cycle body, and exit/proceed. No dangling loops or implicit exits.
+
 ## Harness File Map
 
 | File | Role |
 |---|---|
-| `AGENTS.md` | Single source of truth for workflow, conventions, and project rules. Agent-agnostic. |
-| `ai/commands/*/COMMAND.md` | Active procedures invoked by name. Agent-agnostic. Reference `AGENTS.md`; never duplicate it. |
-| `ai/skills/*/SKILL.md` | Passive domain context loaded when relevant. Agent-agnostic. |
+| `AGENTS.md` | Single source of truth for workflow, conventions, and project rules. |
+| `ai/commands/*/COMMAND.md` | Active procedures invoked by name. Reference `AGENTS.md`; never duplicate it. |
+| `ai/skills/*/SKILL.md` | Passive domain context loaded when relevant. |
 | `ai/commands/README.md` | File format contract for commands. Update when the command shape changes. |
 | `ai/README.md` | Directory index. Update when commands or skills are added or removed. |
-| Provider bridges (`.claude/commands/*.md`, etc.) | Thin pointers to canonical `COMMAND.md` files. One line only. See `ai/skills/provider-entrypoints/SKILL.md`. |
+| Provider bridges | Thin pointers to canonical `COMMAND.md` files. One line only. |
 
 ## Rules For `AGENTS.md`
 
-- **Single source of truth.** Every workflow rule lives here once. If you find the same rule stated in a command or skill, move it here and replace the copy with a reference.
-- **Agent-agnostic.** No provider-specific names, paths, or syntax. Repo-canonical paths (e.g. `ai/local/plans/<branch-slug>.md`) and shell commands are legitimate. What is banned: provider tool names ("Claude Code"), provider-managed paths (`~/.claude/plans/`), and provider-specific API syntax.
-- **No duplication across sections.** If a rule is stated in Workflow Pacing, do not restate it verbatim in the numbered workflow step — a one-line cross-reference is enough.
-- **Step text should add only step-specific behavior.** If a repo-wide rule already exists elsewhere in `AGENTS.md` (for example branch naming, commit style, or plan-state semantics), do not repeat that guidance inside an individual workflow step unless the step introduces a new exception or ownership boundary.
-- **Loop procedures need exit conditions.** Any review-fix or review-address loop must state: the entry condition, the cycle body, which specific command and result value exits the loop, and what the next workflow step is after exit.
+- **Single source of truth.** Every workflow rule lives here once. If found in a command or skill, move it here and replace the copy with a reference.
+- **No duplication across sections.** If a rule is in Workflow Pacing, do not restate it in a numbered step — use a cross-reference.
+- **Loop procedures need exit conditions.** Any loop must state: entry condition, cycle body, which result value exits, and the next step after exit.
 
 ## Rules For `COMMAND.md`
 
-- **Agent-agnostic.** Commands are provider-neutral procedures. Repo file paths and shell commands are legitimate and expected. What is banned: provider-specific names (e.g. "Claude Code"), paths managed by a specific AI host (e.g. `~/.claude/plans/`), and provider-specific API calls or primitives.
-- **Reference, don't restate.** When a command enforces a rule defined in `AGENTS.md`, cite the section: "per `AGENTS.md` § X" or "see `AGENTS.md` § X". Do not copy the rule text into the command.
-- **Commit ownership, not commit style.** If a command requires creating a commit, it should say when that commit must happen and what it should contain, but it should rely on `AGENTS.md` for global commit-style rules instead of restating message conventions inline.
-- **Owned artifact construction may restate syntax when necessary.** A command that directly constructs an artifact such as a branch name or PR title may restate the required format if that detail is necessary to execute the procedure, but it should avoid re-explaining global policy that already lives in `AGENTS.md`.
-- **No inline workflow-state definitions.** Prerequisites that describe workflow phase (e.g. "still in the planning phase") must reference the numbered step in `AGENTS.md`, not define the state themselves.
-- **Explicit loop endpoints.** If a command participates in a loop (review → fix → re-review), its chat report must state which recommendation continues the loop, which exits it, and what the next action is after each outcome.
-- **Evaluation criteria belong to one place.** If two commands share the same quality checklist, the second must cross-reference the first rather than repeat the list.
-- **`See Also` is mandatory.** Every command must end with a `## See Also` section linking to related commands and skills.
+- **Reference, don't restate.** Cite `AGENTS.md` sections rather than copying rule text.
+- **Commit ownership, not commit style.** State when and what to commit; rely on `AGENTS.md` for message conventions.
+- **Artifact syntax may be restated.** A command building a branch name or PR title may include the required format — but not the policy behind it.
+- **No inline workflow-state definitions.** Prerequisites must reference the `AGENTS.md` step number, not define the state themselves.
+- **Explicit loop endpoints.** Report which recommendation continues the loop, which exits it, and what happens after each outcome.
+- **Evaluation criteria belong to one place.** If two commands share a checklist, the second cross-references the first.
+- **`See Also` is mandatory.** Every command ends with a `## See Also` section.
 
 ## Rules For `SKILL.md`
 
-- **Passive context only.** Skills describe domain knowledge, patterns, and known issues. They do not invoke procedures or describe workflow steps — that belongs in `AGENTS.md` or a command.
+- **Passive context only.** Domain knowledge, patterns, known issues. No procedures or workflow steps.
 - **No duplication with `AGENTS.md`.** If the skill restates a general workflow rule, remove it.
-- **Stable and reusable.** Skills contain content that applies across multiple features or tasks in that domain, not one-off instructions.
+- **Stable and reusable.** Content applies across multiple features, not one-off instructions.
 
 ## Decision Filter — Adding Or Changing Content
 
-Before writing or moving content into a harness file, answer:
+1. **Right file type?** Active procedure → command. Passive knowledge → skill. Workflow rule → `AGENTS.md`.
+2. **Already exists?** Search before adding. If it exists, create a reference instead.
+3. **Single owner?** Prefer `AGENTS.md` over a command, and a command over a skill.
+4. **Technically viable?** Verify proposed behavior is supported in target environments.
+5. **Agent-agnostic?** Provider names or host paths belong in a provider bridge only.
 
-1. **Is it the right file type?** Active procedure → command. Passive domain knowledge → skill. Workflow rule → `AGENTS.md`.
-2. **Does it already exist?** Search for the rule before adding it. If it exists somewhere else, create a reference instead.
-3. **Is it agent-agnostic?** If it names a provider, tool, or host-specific path, it belongs in a provider bridge or entrypoint, not in a shared file.
-4. **Does it have a clear owner?** Each rule should live in exactly one place. If you are unsure where it belongs, prefer `AGENTS.md` over a command, and a command over a skill.
-
-If any condition fails, do not add the content. Fix the ownership first.
+If any condition fails, fix ownership first.
 
 ## Common Anti-Patterns
 
 | Anti-pattern | Fix |
 |---|---|
-| Command defines its own quality criteria inline | Cross-reference the authoritative criteria in `AGENTS.md` or the primary command |
-| Same rule stated in Workflow Pacing AND a numbered step | Keep the full rule in Workflow Pacing; replace the step copy with one line: "Prerequisite: see Workflow Pacing" |
-| Workflow step repeats repo-wide commit or naming conventions already defined elsewhere in `AGENTS.md` | Keep only the step-specific instruction (for example when a commit must exist) and rely on the global section for commit style or naming rules |
-| Command restates global commit-message conventions already defined in `AGENTS.md` | Keep the command focused on when to commit and cite `AGENTS.md` for the commit rules |
-| Command strips out naming syntax that it actually needs in order to build a branch name or PR title | Keep the minimum format details required to produce the artifact, and remove only the duplicated policy explanation |
-| Command prerequisite defines workflow phase without citing `AGENTS.md` step number | Replace with "Step N (Section Title) of the feature workflow in `AGENTS.md` must be complete" |
-| Command loop with no exit condition | Add explicit `ready`/`revise`/`blocked` outcomes with next-step instructions for each |
-| Provider-specific name or host-managed path in `AGENTS.md` or a command | Replace with generic term ("your host", "provider-specific entrypoint file"). Repo paths and shell commands are not violations. |
-| `ai/README.md` not updated after adding a command or skill | Always update the directory index when adding or removing files |
+| Verbose defensive instructions | State the constraint simply |
+| Step instructs the human what to type | Rewrite as how the agent reacts to a human action |
+| Inconsistent formatting across steps or files | Normalise to one bold-label bullet pattern |
+| Loop with no explicit exit condition | Add entry, cycle body, exit value, and proceed |
+| Command defines quality criteria inline | Cross-reference the authoritative source |
+| Same rule in Workflow Pacing and a numbered step | Keep in Workflow Pacing; replace step copy with a cross-reference |
+| Command repeats global commit or naming conventions | Keep only the step-specific instruction |
+| Prerequisite defines workflow phase without citing a step number | Replace with "Step N of `AGENTS.md` must be complete" |
+| Provider-specific name in a shared file | Replace with "your host"; repo paths are not violations |
+| `ai/README.md` not updated after adding a file | Always update the directory index |
+| Speculative rule added "for future flexibility" | Remove it; add complexity only when a real problem demands it |
 
 ## See Also
 
-- `ai/skills/provider-entrypoints/SKILL.md` — rules specific to provider bridge and entrypoint files
+- `ai/skills/provider-entrypoints/SKILL.md` — rules for provider bridge and entrypoint files
 - `ai/commands/README.md` — file format contract for commands

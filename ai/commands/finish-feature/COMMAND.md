@@ -19,9 +19,8 @@ Close out a completed feature: ensure `plan.md` is marked `[x]`, merge the PR us
 
 ## Prerequisites
 
+- Step 15 (Merge And Cleanup) of `AGENTS.md` has been reached: PR is approved and the human has confirmed merging should proceed.
 - Current branch is the feature branch (not `main`).
-- All implementation is complete, validated, reviewed, and pushed.
-- A PR exists for this branch on GitHub.
 - `gh` CLI is authenticated (`gh auth status`).
 
 ## Procedure
@@ -83,7 +82,7 @@ git stash list
 ```
 
 Check:
-- No unpushed commits that are not already on `origin/main` (the plan commit from Step 1 is now merged, so this list should be empty).
+- All commits from this branch are in `origin/main` — `git log origin/main..HEAD` must output nothing.
 - No uncommitted changes.
 - No stash entries that contain feature work.
 

@@ -64,7 +64,7 @@ If `pr-number` is not provided, infer it:
 gh pr view --json number,url,state --jq '{number,url,state}'
 ```
 
-Collect threads where `isResolved` is `false`. Append them to `ai/local/reviews/<branch-slug>.md` under a `## PR Review Threads` section. If there are no unresolved threads, report and stop:
+Collect threads where `isResolved` is `false`. Append them to `ai/local/reviews/<branch-slug>.md` under a `## PR Review Threads` section, formatted as checklists (`- [ ] <file:line> - <comment>`). If there are no unresolved threads, report and stop:
 
 ```
 **Code Review Addressed**
@@ -97,23 +97,20 @@ For each bug, architecture, convention, and accepted suggestion — in that prio
 
 For each **question** (gh source): draft a reply explaining the existing behaviour or design decision. No code change needed.
 
-For each **intentionally-declined** item: write a brief reason in `ai/local/reviews/<branch-slug>.md` under a `## Declined Items` section.
+For each **intentionally-declined** item: you will append a brief reason inline in Step 5.
 
-### Step 5: Update Review File
+### Step 5: Update Review File (In-Place)
 
-Append to `ai/local/reviews/<branch-slug>.md`:
+Do NOT delete or move items to new sections. Update the findings in `ai/local/reviews/<branch-slug>.md` **in-place**.
 
-```md
-## Addressed Items
+For each finding you process, use your text replacement tool to change `[ ]` to `[x]` and append your resolution inline using the `->` symbol.
 
-- <finding summary> → fixed in `<short-hash>` (<file:line>)
-- ...
+**Format:**
+`- [x] <file:line> [<severity>] - <description> -> FIXED: <commit-hash>`
+`- [x] <file:line> [<severity>] - <description> -> ANSWERED: <brief answer>`
+`- [x] <file:line> [<severity>] - <description> -> DECLINED: <reason>`
 
-## Declined Items
-
-- <finding summary> — <reason for declining>
-- ...
-```
+*Why this matters:* Single-line replacements are safe and prevent document corruption. Do not attempt to restructure the Markdown headers.
 
 ### Step 6: Prepare Reply Text (gh source only)
 
