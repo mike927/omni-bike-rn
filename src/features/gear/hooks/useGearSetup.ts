@@ -22,8 +22,14 @@ import type { GearType, ValidationFailureReason } from '../../../types/gear';
 //
 // We therefore scan without a service filter for HR and rely on:
 //   1. `isLikelyHrCandidate` in `scanFilters.ts` — client-side heuristic that
-//      excludes laptops/TVs/headphones/phones while still admitting watches
-//      with empty advertisements and known wearable vendor IDs.
+//      requires POSITIVE HR proof: either the advertisement contains `0x180D`
+//      directly (standard chest straps), or `manufacturerData` begins with a
+//      known wearable vendor Company ID (Garmin `0x0087`, Polar `0x006B`,
+//      Suunto, COROS, Amazfit, Wahoo). Empty advertisements are REJECTED —
+//      Apple-family devices, Samsung TVs, and Marshall speakers all advertise
+//      with null `serviceUUIDs`, so "empty ad implies wearable" was a false-
+//      positive magnet and was removed. See the scanFilters.ts docstring for
+//      the full rationale and captured real-hardware evidence.
 //   2. `validateHrDevice` in `bleDeviceValidator.ts` — post-connection GATT
 //      check that is the authoritative gate for `0x180D` / `0x2A37` presence.
 //
