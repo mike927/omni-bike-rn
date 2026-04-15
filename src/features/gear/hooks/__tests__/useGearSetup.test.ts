@@ -4,23 +4,25 @@ import { useGearSetup } from '../useGearSetup';
 import * as bleDeviceValidator from '../../../../services/ble/bleDeviceValidator';
 import { useDeviceConnectionStore } from '../../../../store/deviceConnectionStore';
 import { useSavedGearStore } from '../../../../store/savedGearStore';
+import { BIKE_SCAN_SERVICE_UUIDS } from '../../../../services/ble/bleUuids';
 
 jest.mock('../../../../services/ble/bleDeviceValidator');
 jest.mock('../../../../services/gear/gearStorage');
 const mockRequestBlePermission = jest.fn();
 const mockScanForDevices = jest.fn();
 const mockStopScanning = jest.fn();
+const mockUseBleScanner = jest.fn(() => ({
+  devices: [],
+  isScanning: false,
+  error: null,
+  scanForDevices: mockScanForDevices,
+  stopScanning: mockStopScanning,
+}));
 jest.mock('../../../../features/devices/hooks/useBlePermission', () => ({
   useBlePermission: () => ({ requestBlePermission: mockRequestBlePermission }),
 }));
 jest.mock('../../../../features/devices/hooks/useBleScanner', () => ({
-  useBleScanner: () => ({
-    devices: [],
-    isScanning: false,
-    error: null,
-    scanForDevices: mockScanForDevices,
-    stopScanning: mockStopScanning,
-  }),
+  useBleScanner: (...args: unknown[]) => mockUseBleScanner(...(args as [])),
 }));
 const mockDisconnectBike = jest.fn();
 const mockDisconnectHr = jest.fn();
@@ -62,6 +64,21 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.useRealTimers();
+});
+
+describe('scan service filter', () => {
+  it('uses the FTMS service filter for bike scans', () => {
+    renderHook(() => useGearSetup('bike'));
+    expect(mockUseBleScanner).toHaveBeenCalledWith(BIKE_SCAN_SERVICE_UUIDS);
+  });
+
+  it('uses null (no filter) for HR scans so broadcast-mode watches surface on iOS', () => {
+    // Regression guard: iOS scanForPeripherals(withServices:) filters by the
+    // advertisement packet. Garmin Venu and similar watches do not advertise
+    // 0x180D, so filtering silently drops them. Must stay null.
+    renderHook(() => useGearSetup('hr'));
+    expect(mockUseBleScanner).toHaveBeenCalledWith(null);
+  });
 });
 
 describe('valid device flow (bike)', () => {

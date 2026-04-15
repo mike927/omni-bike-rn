@@ -39,8 +39,10 @@ This text is mirrored in `GearSetupScreen.tsx` via the `HR_BROADCAST_HINT` modul
 
 ## Known limitations
 
-- **Single subscriber.** Most Garmin watches advertise only one concurrent BLE HR subscriber. If another app or device is already connected to the watch's HR broadcast, Omni Bike will not see it.
+- **Advertisement packet does NOT include `0x180D`.** This is the single biggest gotcha for iOS integration. Garmin watches in HR Broadcast mode (verified on Venu gen 1 with firmware 6.x) expose the standard BLE HR service `0x180D` / characteristic `0x2A37` through GATT *after* connection, but they do **not** include `0x180D` in the advertisement packet. iOS `CBCentralManager.scanForPeripherals(withServices:)` filters strictly by advertised service UUIDs, which means passing `[0x180D]` as a scan filter silently drops every Garmin watch in broadcast mode from scan results even though they are valid BLE HR sensors. Chest straps (e.g. Garmin HRM-Dual) do advertise `0x180D` and are unaffected. Omni Bike therefore scans without a service-UUID filter for HR (`useGearSetup.ts` → `HR_SCAN_SERVICE_FILTER = null`) and relies on the post-connection `validateHrDevice` check to reject non-HR peripherals. A regression test in `useGearSetup.test.ts` locks this in. Do not reintroduce a service filter for HR.
+- **Single subscriber.** Most Garmin watches accept only one concurrent BLE HR subscriber. If Garmin Connect Mobile (or any other app) is already connected to the watch over BLE, Omni Bike will not discover it. Kill Garmin Connect Mobile before pairing.
 - **Display sleep.** Some models stop broadcasting (or drop the advertisement) when the watch display sleeps. Keep the display awake during the pairing flow.
+- **Broadcast screen must stay active on Venu.** Venu gen 1 exits broadcast mode when the user navigates away from the broadcast-HR screen. Do not press Back between enabling broadcast and tapping `Select` in the app.
 - **Auto-exit on some models.** Certain models exit Broadcast HR mode automatically after a timeout or when the watch enters a power-saving state. If reconnect fails mid-session, check the watch.
 - **Wrist-HR accuracy.** Wrist HR is inherently less accurate than a chest strap under cold start, rapid HR changes, and high-intensity intervals. This is a hardware limitation, not something the app can correct.
 

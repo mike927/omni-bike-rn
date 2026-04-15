@@ -7,8 +7,25 @@ import { useDeviceConnection } from '../../training/hooks/useDeviceConnection';
 import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
 import { useSavedGearStore } from '../../../store/savedGearStore';
 import { validateBikeDevice, validateHrDevice } from '../../../services/ble/bleDeviceValidator';
-import { BIKE_SCAN_SERVICE_UUIDS, HR_SCAN_SERVICE_UUIDS } from '../../../services/ble/bleUuids';
+import { BIKE_SCAN_SERVICE_UUIDS } from '../../../services/ble/bleUuids';
 import type { GearType, ValidationFailureReason } from '../../../types/gear';
+
+// HR scan intentionally uses no service-UUID filter.
+//
+// iOS `CBCentralManager.scanForPeripherals(withServices:)` filters strictly by
+// service UUIDs contained in the advertisement packet. Many broadcast-capable
+// watches — including the Garmin Venu family — do NOT advertise the standard
+// BLE HR service `0x180D` in the advertisement packet; they expose it only
+// after GATT connection. Filtering by `[HR_SERVICE_UUID]` silently drops those
+// watches from scan results even though they are valid BLE HR sensors.
+//
+// We therefore scan without a service filter for HR and rely on the existing
+// post-connection `validateHrDevice` check (`bleDeviceValidator.ts`) to reject
+// anything that does not expose `0x180D` / `0x2A37` after GATT discovery.
+// `useBleScanner` already filters out devices without an advertised name, so
+// the scan list still excludes unnamed beacons. This is a deliberate trade
+// of a noisier nearby-devices list for real Garmin/Polar watch support.
+const HR_SCAN_SERVICE_FILTER = null;
 
 const SIGNAL_TIMEOUT_MS = 8000;
 
@@ -37,7 +54,7 @@ export function useGearSetup(target: GearType): UseGearSetupReturn {
     error: scanError,
     scanForDevices,
     stopScanning,
-  } = useBleScanner(target === 'bike' ? BIKE_SCAN_SERVICE_UUIDS : HR_SCAN_SERVICE_UUIDS);
+  } = useBleScanner(target === 'bike' ? BIKE_SCAN_SERVICE_UUIDS : HR_SCAN_SERVICE_FILTER);
   const { connectBike, connectHr, disconnectBike, disconnectHr } = useDeviceConnection();
   const persistBike = useSavedGearStore((s) => s.persistBike);
   const persistHr = useSavedGearStore((s) => s.persistHr);
