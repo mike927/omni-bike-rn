@@ -15,12 +15,12 @@ outputs:
 
 # Address Plan Review
 
-Consume the active branch's plan-review findings, decide which items are worth applying, decline weak or incorrect suggestions with explicit reasons, and update the canonical plan without turning it into a review scrapbook. This command is the resolution pass of the plan-quality gate described in `AGENTS.md` § 3 (Detailed Plan Prepared).
+Consume the active branch's plan-review findings, decide which items are worth applying, decline weak or incorrect suggestions with explicit reasons, and update the canonical plan without turning it into a review scrapbook. This command is the resolution pass of the plan-quality gate described in `AGENTS.md` § 4 (Plan Reviewing).
 
 ## Prerequisites
 
 - Current branch is a feature branch, not `main`.
-- The feature workflow is in Step 3 (Detailed Plan Prepared) or Step 4 (Detailed Plan Approved) of `AGENTS.md` — i.e., the plan has not yet been approved for implementation.
+- The feature workflow is in Step 3 (Plan Drafting), Step 4 (Plan Reviewing), or Step 5 (Plan Approving) of `AGENTS.md` — i.e., the plan has not yet been approved for implementation.
 - The canonical plan file exists at `ai/local/plans/<branch-slug>.md`.
 - The canonical review file exists at `ai/local/plans/<branch-slug>.review.md`.
 - The working tree is clean apart from the current branch's plan and plan-review artifacts. If unrelated tracked files are dirty, stop and report the blocker.
@@ -148,7 +148,7 @@ If the command stopped early because of `main`, missing files, or unrelated dirt
 
 Also append one of these next-step lines based on the recommendation:
 
-- `ready` → "All findings resolved. Re-run `/review-plan` to refresh the review file and confirm the quality gate before proceeding to Step 4."
+- `ready` → "All findings resolved. Re-run `/review-plan` to refresh the review file and confirm the quality gate before proceeding to Step 5."
 - `revise` → "Re-run `/review-plan` to generate updated findings, then `/address-plan-review` again."
 - `blocked` → "Surface the `Needs User Input` questions to the human. After answers are received, re-run `/review-plan` to re-enter the loop."
 

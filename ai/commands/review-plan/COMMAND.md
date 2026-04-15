@@ -13,7 +13,7 @@ outputs:
 
 # Review Plan
 
-Review the active feature branch's canonical plan file and record what is already strong, what must change, and what decisions are still missing before implementation continues. This command is the plan-quality gate described in `AGENTS.md` § 3 (Detailed Plan Prepared).
+Review the active feature branch's canonical plan file and record what is already strong, what must change, and what decisions are still missing before implementation continues. This command is the plan-quality gate described in `AGENTS.md` § 4 (Plan Reviewing).
 
 ## Prerequisites
 
@@ -70,7 +70,7 @@ If no relevant `plan.md` item can be identified:
 
 ### Step 4: Evaluate The Plan
 
-Review the plan against the requirements in `AGENTS.md` § 3 (Detailed Plan Prepared) and the artifact conventions in `AGENTS.md` § Workflow Artifacts. Do not apply generic prose quality standards — only check alignment with repo rules.
+Review the plan against the requirements in `AGENTS.md` § 4 (Plan Reviewing) and the artifact conventions in `AGENTS.md` § Workflow Artifacts. Do not apply generic prose quality standards — only check alignment with repo rules.
 
 Check each area against the relevant `AGENTS.md` requirement:
 
@@ -177,7 +177,7 @@ Details: ai/local/plans/<branch-slug>.review.md
 If the command stopped early because the branch was `main` or the canonical plan file was missing, report that blocker clearly and do not create a review file.
 
 When the recommendation is `ready`, append to the summary:
-> Plan quality gate passed. Proceed to Step 4: Detailed Plan Approved — share the plan with the human for approval.
+> Plan quality gate passed. Proceed to Step 5: Plan Approving — share the plan with the human for approval.
 
 When the recommendation is `revise`, append:
 > Run `/address-plan-review` to resolve the blocking findings, then re-run `/review-plan`.

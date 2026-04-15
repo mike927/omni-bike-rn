@@ -80,7 +80,16 @@ Present the workspace strategy options using the most interactive mechanism your
 
 If your platform does not support interactive UI tools, print the options as a numbered list and explicitly wait for the user's choice. Do not default silently — this question must be answered explicitly.
 
-### Step 4: Create The Workspace
+### Step 4: Ask Workflow Track
+
+Present the workflow track options using the most interactive mechanism your platform provides (e.g., a multiple-choice UI tool like `ask_user` if available, or a numbered list in chat):
+
+- **Option 1:** `Standard Track` — proceed to Step 3 (Plan Drafting).
+- **Option 2:** `Fast Track` — skip planning/review; proceed directly to Step 6 (Implementation In Progress). Only for ad-hoc bug fixes or minor chores.
+
+If your platform does not support interactive UI tools, print the options as a numbered list and explicitly wait for the user's choice. Do not default silently.
+
+### Step 5: Create The Workspace
 
 Derive `branch-slug` = branch name with `/` replaced by `-` (e.g., `feat-ble-metronome-engine`).
 
@@ -108,7 +117,7 @@ mkdir -p ../omni-bike-rn-worktrees
 git worktree add ../omni-bike-rn-worktrees/<branch-slug> -b <branch-name>
 ```
 
-### Step 5: Confirm The Workspace
+### Step 6: Confirm The Workspace
 
 ```bash
 git branch --show-current     # for in-place
@@ -118,19 +127,20 @@ git worktree list             # for worktree
 
 Verify the new branch is active in the correct directory.
 
-### Step 6: Report And Pause
+### Step 7: Report And Pause
 
 ```
-**Workspace Ready**
+**Workspace Preparing**
 - Branch: `<branch-name>`
 - Slug: `<branch-slug>`
 - Mode: in-place | worktree at `../omni-bike-rn-worktrees/<branch-slug>`
+- Track: `<Standard | Fast Track>`
 - Working directory: `<path>`
 
-Ready for Step 3: Detailed Plan Prepared.
+Ready for <Step 3: Plan Drafting | Step 6: Implementation In Progress>.
 ```
 
-Yield control. Do not proceed to plan creation — that belongs to Step 3 of the Feature Workflow and requires a separate agent turn.
+Yield control. Do not proceed to the next step without user instruction.
 
 ## Completion Criteria
 
