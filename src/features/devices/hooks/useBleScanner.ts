@@ -30,7 +30,38 @@ export function useBleScanner(serviceUUIDs: string[] | null = null, clientFilter
         }
 
         if (device && device.name) {
+          // TEMPORARY DIAGNOSTIC: dump full advertisement for every named device seen
+          // during the scan so we can tune isLikelyHrCandidate against real hardware
+          // (Garmin Venu gen 1 vs MacBook / Samsung TV / generic BLE noise). Remove
+          // after the scan-filter heuristic is confirmed against real data.
+          if (__DEV__) {
+            const mfg = device.manufacturerData;
+            let companyIdHex: string | null = null;
+            if (mfg) {
+              try {
+                // eslint-disable-next-line @typescript-eslint/no-require-imports
+                const { Buffer } = require('buffer');
+                const bytes = Buffer.from(mfg, 'base64');
+                if (bytes.length >= 2) {
+                  const lo = bytes[0] ?? 0;
+                  const hi = bytes[1] ?? 0;
+                  companyIdHex = `0x${((hi << 8) | lo).toString(16).padStart(4, '0')}`;
+                }
+              } catch {
+                companyIdHex = 'decode_error';
+              }
+            }
+            console.warn(
+              `[ScanDump] name="${device.name}" id=${device.id} rssi=${device.rssi} ` +
+                `serviceUUIDs=${JSON.stringify(device.serviceUUIDs)} ` +
+                `manufacturerData=${mfg ?? 'null'} companyId=${companyIdHex ?? 'none'}`,
+            );
+          }
+
           if (clientFilter && !clientFilter(device)) {
+            if (__DEV__) {
+              console.warn(`[ScanDump]   -> REJECTED by clientFilter`);
+            }
             return;
           }
           setDevices((prevDevices) => {
