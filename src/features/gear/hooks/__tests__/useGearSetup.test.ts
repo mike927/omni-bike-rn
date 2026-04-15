@@ -5,6 +5,7 @@ import * as bleDeviceValidator from '../../../../services/ble/bleDeviceValidator
 import { useDeviceConnectionStore } from '../../../../store/deviceConnectionStore';
 import { useSavedGearStore } from '../../../../store/savedGearStore';
 import { BIKE_SCAN_SERVICE_UUIDS } from '../../../../services/ble/bleUuids';
+import { isLikelyHrCandidate } from '../../../../services/ble/scanFilters';
 
 jest.mock('../../../../services/ble/bleDeviceValidator');
 jest.mock('../../../../services/gear/gearStorage');
@@ -67,17 +68,19 @@ afterEach(() => {
 });
 
 describe('scan service filter', () => {
-  it('uses the FTMS service filter for bike scans', () => {
+  it('uses the FTMS service filter and no client filter for bike scans', () => {
     renderHook(() => useGearSetup('bike'));
-    expect(mockUseBleScanner).toHaveBeenCalledWith(BIKE_SCAN_SERVICE_UUIDS);
+    expect(mockUseBleScanner).toHaveBeenCalledWith(BIKE_SCAN_SERVICE_UUIDS, null);
   });
 
-  it('uses null (no filter) for HR scans so broadcast-mode watches surface on iOS', () => {
+  it('uses null (no OS filter) + isLikelyHrCandidate client filter for HR scans', () => {
     // Regression guard: iOS scanForPeripherals(withServices:) filters by the
     // advertisement packet. Garmin Venu and similar watches do not advertise
-    // 0x180D, so filtering silently drops them. Must stay null.
+    // 0x180D, so filtering silently drops them. The OS filter must stay null
+    // and the client-side heuristic must stay wired in to keep the scan list
+    // free of laptops/TVs/headphones.
     renderHook(() => useGearSetup('hr'));
-    expect(mockUseBleScanner).toHaveBeenCalledWith(null);
+    expect(mockUseBleScanner).toHaveBeenCalledWith(null, isLikelyHrCandidate);
   });
 });
 

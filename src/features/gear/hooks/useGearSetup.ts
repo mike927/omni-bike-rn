@@ -8,6 +8,7 @@ import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
 import { useSavedGearStore } from '../../../store/savedGearStore';
 import { validateBikeDevice, validateHrDevice } from '../../../services/ble/bleDeviceValidator';
 import { BIKE_SCAN_SERVICE_UUIDS } from '../../../services/ble/bleUuids';
+import { isLikelyHrCandidate } from '../../../services/ble/scanFilters';
 import type { GearType, ValidationFailureReason } from '../../../types/gear';
 
 // HR scan intentionally uses no service-UUID filter.
@@ -19,12 +20,15 @@ import type { GearType, ValidationFailureReason } from '../../../types/gear';
 // after GATT connection. Filtering by `[HR_SERVICE_UUID]` silently drops those
 // watches from scan results even though they are valid BLE HR sensors.
 //
-// We therefore scan without a service filter for HR and rely on the existing
-// post-connection `validateHrDevice` check (`bleDeviceValidator.ts`) to reject
-// anything that does not expose `0x180D` / `0x2A37` after GATT discovery.
-// `useBleScanner` already filters out devices without an advertised name, so
-// the scan list still excludes unnamed beacons. This is a deliberate trade
-// of a noisier nearby-devices list for real Garmin/Polar watch support.
+// We therefore scan without a service filter for HR and rely on:
+//   1. `isLikelyHrCandidate` in `scanFilters.ts` — client-side heuristic that
+//      excludes laptops/TVs/headphones/phones while still admitting watches
+//      with empty advertisements and known wearable vendor IDs.
+//   2. `validateHrDevice` in `bleDeviceValidator.ts` — post-connection GATT
+//      check that is the authoritative gate for `0x180D` / `0x2A37` presence.
+//
+// This is a deliberate trade of a slightly broader nearby-devices list for
+// real Garmin/Polar watch support.
 const HR_SCAN_SERVICE_FILTER = null;
 
 const SIGNAL_TIMEOUT_MS = 8000;
@@ -54,7 +58,10 @@ export function useGearSetup(target: GearType): UseGearSetupReturn {
     error: scanError,
     scanForDevices,
     stopScanning,
-  } = useBleScanner(target === 'bike' ? BIKE_SCAN_SERVICE_UUIDS : HR_SCAN_SERVICE_FILTER);
+  } = useBleScanner(
+    target === 'bike' ? BIKE_SCAN_SERVICE_UUIDS : HR_SCAN_SERVICE_FILTER,
+    target === 'hr' ? isLikelyHrCandidate : null,
+  );
   const { connectBike, connectHr, disconnectBike, disconnectHr } = useDeviceConnection();
   const persistBike = useSavedGearStore((s) => s.persistBike);
   const persistHr = useSavedGearStore((s) => s.persistHr);
