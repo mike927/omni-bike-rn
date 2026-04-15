@@ -6,7 +6,7 @@ Sources:
   - https://www8.garmin.com/manuals-apac/webhelp/venu/EN-SG/GUID-4CC0ED9D-7C84-4B2E-994D-979121734430-8682.html (Venu gen 1 owner's manual — Wrist Heart Rate)
   - https://forums.garmin.com/sports-fitness/healthandwellness/f/venu/316374/venu-software-update---7-80 (Venu firmware 7.80 release thread, 2022-12-01)
 Verified: 2026-04-15
-Hardware tested against: Venu gen 1, firmware 7.80, Polish locale
+Hardware tested against: Venu gen 1, firmware 7.80, Polish locale (**incompatible — see Compatibility section**)
 Local copy: none — live web articles, not PDF manuals. Re-verify against the source URLs before trusting instructions.
 
 > This doc describes a cross-model Garmin feature, not a single model.
@@ -30,6 +30,21 @@ The feature is available on most modern Garmin wrist-based HR watches. Commonly 
 - Epix, Instinct 2, Tactix 7, Enduro 2, Marq Gen 2
 
 Garmin's public support matrix at the source URL above is the authoritative list. Do not hard-code family-specific behaviour in app code.
+
+### Tested vs expected
+
+Omni Bike's runtime HR path (`StandardHrAdapter`, `validateHrDevice`, `isLikelyHrCandidate`) is vendor-agnostic and routes solely on the standard BLE HR service `0x180D` / characteristic `0x2A37` plus a wearable vendor Company ID allowlist. That means **any** watch that actually advertises BLE HR in broadcast mode flows through the same code with zero per-model branching. The table below records what has been physically verified versus what is expected to work on the basis of Garmin's public documentation but has not been exercised on real hardware.
+
+| Model / family | BLE HR broadcast status | Verification |
+|---|---|---|
+| **Venu gen 1, firmware 7.80** | **Incompatible (hardware).** The "Broadcast" and "Broadcast In Activity" items under Wrist Heart Rate are **ANT+ only** on this model — the watch does not emit a BLE HR advertisement in any mode (dedicated Broadcast screen, Broadcast In Activity with a running Indoor Cycling timer, or bonded via iOS Bluetooth settings). Confirmed via `[ScanDump]` diagnostic on 2026-04-15 across both menu items with Garmin Connect Mobile force-quit — Venu never appears in the scan callback. The Venu owner's manual is explicit: "Pair your Venu with a compatible ANT+ Garmin device". iPhones have no ANT+ radio, so Flow A (live BPM from watch → app) is not achievable on this specific model. | Real hardware, negative. |
+| Venu 2 / Venu 2 Plus / Venu 3 | Expected to work: Garmin's general support article lists Venu 2+ under "Broadcast Heart Rate" (BLE). | Unverified on real hardware. |
+| Fenix 6 and newer | Expected to work per Garmin support matrix. | Unverified on real hardware. |
+| Forerunner 245 and newer | Expected to work per Garmin support matrix. | Unverified on real hardware. |
+| Vivoactive 4 and newer | Expected to work per Garmin support matrix. | Unverified on real hardware. |
+| Epix, Instinct 2, Tactix 7, Enduro 2, Marq Gen 2 | Expected to work per Garmin support matrix. | Unverified on real hardware. |
+
+**If a user reports that a listed-as-expected model does not appear in the scan list**, capture `[ScanDump]` output (see diagnostic logging pathway in the next section) and compare to the "real advertisement shapes" table. The fix is almost always a small addition to `WEARABLE_VENDOR_COMPANY_IDS` in `scanFilters.ts` — not an architectural change.
 
 ## How to enable it
 
@@ -73,10 +88,10 @@ Captured during the `feat/garmin-hr-ble-source` manual testing session on 2026-0
   | Apple Watch | `null` | none | reject ✅ (was false-positive under old rule) |
   | Samsung 7 Series TV | `null` | `0x0075` (Samsung) | reject ✅ |
   | Pacific Biosciences-branded "net" device | `["0000ff90-...","0000ff80-..."]` | `0x06a8` | reject ✅ |
-  | Garmin Venu gen 1 (companion/bond mode) | observed in some passes but variable | — | varies — see below |
-  | Garmin Venu gen 1 (broadcast mode) | *not yet captured* | *not yet captured* | TODO |
+  | Garmin Venu gen 1 (companion/bond mode) | observed in some passes but variable | — | varies |
+  | **Garmin Venu gen 1 (broadcast mode, any variant)** | **NEVER OBSERVED — watch does not emit a BLE advertisement in broadcast mode at all** | — | N/A — watch is invisible to `startDeviceScan` |
 
-  The "broadcast mode" row is deliberately left TODO: at the time of writing we had not yet successfully captured advertisement data from a Venu gen 1 that was confirmed to be in the dedicated Broadcast screen (Ścieżka 1 / Path 1 above) with `0x180D` in its post-connect GATT table. Populate this row the next time a contributor has a real Venu gen 1 on the desk in confirmed broadcast mode.
+  The "broadcast mode" row was left TODO in an earlier revision of this doc in the hope that a future diagnostic pass would capture real data. That pass happened on 2026-04-15 and the result is definitive: **Venu gen 1 firmware 7.80 does not emit a BLE HR advertisement in any broadcast variant.** Both Ścieżka 1 (dedicated Broadcast screen) and Ścieżka 2 (Transmituj gdy aktywny toggle ON + Indoor Cycling activity running) produced `[ScanDump]` logs containing zero lines matching `Venu`, `Garmin`, or `companyId=0x0087` — across ~60 seconds of continuous scan with Garmin Connect Mobile force-quit and iOS Bluetooth toggled off/on between attempts. The surrounding noise floor (Sonos, Samsung TV, MacBook, Apple Watch, AirPods Pro, HwZ) was captured normally, which rules out a scan pipeline or permission problem. The conclusion is consistent with the Venu owner's manual language: the watch's Broadcast Heart Rate feature is ANT+ only on Venu gen 1, and iPhones have no ANT+ radio. Do not repopulate this row with optimistic "not yet captured" wording — the data exists, and it is a negative.
 
 - **Do not trust "empty advertisement means wearable" heuristics.** The earlier revision of `isLikelyHrCandidate` accepted any device that advertised with `serviceUUIDs === null || []`. Real-hardware data proved Apple-family and Samsung devices behave exactly the same way, so the heuristic was a false-positive magnet. The filter now requires positive HR proof (standard HR service in ad, or known wearable vendor Company ID in manufacturer data). See `scanFilters.ts` doc comment for the full rationale.
 - **Diagnostic logging pathway.** `src/features/devices/hooks/useBleScanner.ts` contains a `__DEV__`-gated `[ScanDump]` console.warn that dumps every named device's full advertisement (`serviceUUIDs`, `manufacturerData`, decoded Company ID, `rssi`) along with a `REJECTED by clientFilter` marker when the filter drops a candidate. If a future Venu / Polar / COROS user reports "my watch is not visible", ask them to reproduce with `__DEV__ === true` and send the `[ScanDump]` lines. Do not remove this diagnostic until the broadcast mode table above has a populated "Venu broadcast mode" row on real hardware.
@@ -103,39 +118,18 @@ HR Broadcast is deliberately one-way: the watch publishes its HR and has no know
 
 For this feature's scope the app is therefore the authoritative session owner and the watch is a sensor peer, the same role a chest strap plays.
 
-## Workout recording strategies
+## HR source transparency (UX invariant)
 
-Users who care about their Garmin ecosystem metrics (Training Load, Body Battery, VO2 Max, Training Status) need to understand a real trade-off here: a natively-recorded watch activity contributes far more to those metrics than a FIT file uploaded to Garmin Connect after the fact. This asymmetry is a Garmin platform decision, not something the app can work around.
+Omni Bike deliberately treats all HR sources — chest straps and broadcast-capable watches alike — as **interchangeable sensor peers** at the gear-setup layer. The user chooses "Add Bluetooth HR", the scan surfaces any device that advertises a standard HR signal (or is a known wearable vendor), the generic validator checks `0x180D` / `0x2A37` via GATT, and persistence stores a single `SavedDevice` with no `source category` field. There is no "chest strap vs watch" split in the picker, no pre-training tip that changes based on source type, and no copy that asks the user to think about which kind of device they are pairing.
 
-There are two realistic flows:
+An earlier revision of this feature shipped a pre-training "Garmin Connect Tip" info block on the HR gear-setup screen that expanded into a Flow 1 vs Flow 2 dual-recording explainer. It was removed before the feature closed because it violated the transparency invariant: it forced the gear-setup UI to know whether the sensor was a watch, and pushed Garmin-ecosystem concerns into a surface whose only job is to confirm a live BLE signal. Dual-recording guidance — if it is ever surfaced in-app again — belongs to a post-session / upload-destinations surface (closer to the Strava provider settings), not to the point of pairing an HR sensor.
 
-### Flow 1 — HR sensor only
-
-- Enable HR Broadcast on the watch (do **not** start an activity).
-- Start training in Omni Bike.
-- **Result:** one record. Full bike metrics + HR land in the app → Strava (if connected). The workout does **not** appear in Garmin Connect and does **not** contribute to Training Load / Body Battery / VO2 Max.
-
-Best for users whose Garmin ecosystem engagement is shallow, or who prefer a single authoritative record.
-
-### Flow 2 — Dual recording
-
-- Start an **Indoor Cycling** activity on the watch first.
-- Then start training in Omni Bike.
-- **Result:** two records. The app records full-fidelity bike data (speed, power, cadence, calories, HR) and uploads to Strava. The watch independently records its own Indoor Cycling activity (wrist HR, time — no power/cadence since the watch is not paired to the bike) and syncs to Garmin Connect with full Training Load / Body Battery / VO2 credit because it is a natively-recorded activity.
-
-Best for users who use Garmin's ecosystem metrics and accept the duplication as the cost of full credit.
-
-### Why there is no one-tap unified flow
-
-A single-tap "record once, land in both places with full credit" flow is **not possible within this feature's scope**. The only technical path is a Garmin Connect IQ companion app written in Monkey C, distributed via Garmin's store, that coordinates start/stop with the phone over the Connect IQ Mobile SDK. That is a separate watch-side codebase with its own toolchain, store review, and per-model testing. It is tracked in `plan.md` Phase 8 as a forward-looking item, not as part of this feature.
-
-A post-hoc alternative — uploading the app-recorded FIT file to Garmin Connect as a second provider adapter alongside Strava — is cleaner than Flow 2 from a UX standpoint (one record, lands in both clouds) but grants only the limited metric credit that Garmin extends to uploaded FIT files. It is tracked in `plan.md` Phase 6.
-
-The in-app dual-recording info block (`HR_DUAL_RECORDING_HINT` in `GearSetupScreen.tsx`) surfaces Flow 1 and Flow 2 to the user at the point they are about to pair an HR source. This doc section is the longer-form reference. Keep the two in sync.
+The only remaining watch-aware copy on `GearSetupScreen.tsx` is the **recovery hint** (`HR_BROADCAST_HINT`), which appears **only** when HR validation has already failed with `missing_hr_service`, `missing_hr_characteristic`, or `no_live_signal`. At that point the user's pairing attempt has demonstrably broken and a diagnostic ("is your watch in broadcast mode?") is warranted. The hint is a recovery aid, not proactive UI — it does not split the default experience.
 
 ## Code cross-references
 
 - `src/services/ble/StandardHrAdapter.ts` — vendor-agnostic adapter that connects to any device exposing `0x180D` / `0x2A37`. Handles Garmin watches in HR Broadcast mode with zero vendor-specific code.
 - `src/services/ble/bleDeviceValidator.ts` — `validateHrDevice(deviceId)` checks the service/characteristic presence; name-agnostic by construction.
-- `src/features/gear/screens/GearSetupScreen.tsx` — hosts `HR_BROADCAST_HINT` (recovery guidance for failed pairing) and `HR_DUAL_RECORDING_HINT` (Flow 1 vs Flow 2 info block). The Workout Recording Strategies section of this doc and those two copy constants are a single source of truth and must be updated together.
+- `src/services/ble/scanFilters.ts` — `isLikelyHrCandidate` is the client-side heuristic filter that compensates for iOS `CBCentralManager.scanForPeripherals(withServices:)` dropping watches that don't advertise `0x180D`. The wearable vendor Company ID allowlist lives here. Extend it here if a future user reports a model missing from the scan list.
+- `src/features/gear/screens/GearSetupScreen.tsx` — hosts `HR_BROADCAST_HINT` (recovery guidance for failed pairing). This is the **only** remaining SSOT pair with this doc — if the hint copy changes, update both together.
 - `src/features/gear/hooks/useGearSetup.ts` — orchestrates scan → validate → connect → signal-confirm → persist; works identically for Garmin watches and chest straps.

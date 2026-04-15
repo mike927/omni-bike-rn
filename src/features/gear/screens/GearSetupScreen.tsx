@@ -41,22 +41,6 @@ const HR_BROADCAST_HINT = {
     'Polar watches: see your model\u2019s manual for the broadcast-mode button path. Some watches stop broadcasting when the display sleeps — keep the watch awake during pairing.',
 } as const;
 
-const HR_DUAL_RECORDING_HINT = {
-  headline: 'Want this workout in Garmin Connect too?',
-  flows: [
-    {
-      title: 'Flow 1 — HR sensor only',
-      body: 'Enable HR Broadcast on your watch (don\u2019t start an activity) → start training here. One record. The workout will appear in Strava if connected, but not in Garmin Connect.',
-    },
-    {
-      title: 'Flow 2 — Dual recording (recommended if you use Garmin Training Load, Body Battery, or VO2 Max)',
-      body: 'Start Indoor Cycling on your watch first → then start training here. Two records: full bike data in this app → Strava, wrist HR activity in Garmin Connect with full ecosystem credit. Some duplication, but each side records what it is best at.',
-    },
-  ],
-  footer:
-    'Why there is no one-tap option: Garmin\u2019s iOS SDK does not allow phone apps to remote-start a watch activity. A unified single-tap flow would require a Garmin Connect IQ companion app, which is tracked as a future task.',
-} as const;
-
 const SAVE_LABEL: Record<GearType, string> = {
   bike: 'Use This Bike',
   hr: 'Use This HR Source',
@@ -107,7 +91,6 @@ export function GearSetupScreen({ target }: GearSetupScreenProps) {
     reset,
   } = useGearSetup(target);
   const [broadcastHintExpanded, setBroadcastHintExpanded] = useState(false);
-  const [dualRecordingHintExpanded, setDualRecordingHintExpanded] = useState(false);
 
   const showBroadcastHint =
     target === 'hr' && validationError !== null && HR_BROADCAST_HINT_ERRORS.has(validationError);
@@ -151,24 +134,6 @@ export function GearSetupScreen({ target }: GearSetupScreenProps) {
 
   return (
     <AppScreen title={title} subtitle={subtitle}>
-      {target === 'hr' ? (
-        <SectionCard title="Garmin Connect Tip">
-          <HintBlock
-            testID="dual-recording-hint"
-            headline={HR_DUAL_RECORDING_HINT.headline}
-            expanded={dualRecordingHintExpanded}
-            onToggle={() => setDualRecordingHintExpanded((prev) => !prev)}>
-            {HR_DUAL_RECORDING_HINT.flows.map((flow) => (
-              <View key={flow.title} style={styles.hintFlow}>
-                <Text style={styles.hintFlowTitle}>{flow.title}</Text>
-                <Text style={styles.hintFlowBody}>{flow.body}</Text>
-              </View>
-            ))}
-            <Text style={styles.hintFooter}>{HR_DUAL_RECORDING_HINT.footer}</Text>
-          </HintBlock>
-        </SectionCard>
-      ) : null}
-
       <SectionCard title="Scan Controls">
         {scanError ? <Text style={styles.errorText}>{scanError}</Text> : null}
         <ActionButton
@@ -312,20 +277,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   hintStep: {
-    color: palette.textMuted,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  hintFlow: {
-    gap: 2,
-  },
-  hintFlowTitle: {
-    color: palette.text,
-    fontSize: 13,
-    fontWeight: '700',
-    lineHeight: 18,
-  },
-  hintFlowBody: {
     color: palette.textMuted,
     fontSize: 13,
     lineHeight: 18,

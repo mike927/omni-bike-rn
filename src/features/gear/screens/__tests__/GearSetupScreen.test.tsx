@@ -97,20 +97,17 @@ describe('GearSetupScreen', () => {
     });
   });
 
-  describe('Dual-recording info block', () => {
-    it('renders the dual-recording info block on HR gear setup in collapsed state', () => {
-      const { getByText, queryByText } = render(<GearSetupScreen target="hr" />);
-
-      expect(getByText('Want this workout in Garmin Connect too?')).toBeTruthy();
-      // Flow 1 / Flow 2 body text should not be visible while collapsed.
-      expect(queryByText(/Flow 1 — HR sensor only/)).toBeNull();
-      expect(queryByText(/Flow 2 — Dual recording/)).toBeNull();
-    });
-
-    it('does not render the dual-recording info block on bike gear setup', () => {
-      const { queryByText } = render(<GearSetupScreen target="bike" />);
+  describe('HR sensor transparency', () => {
+    it('does not surface any watch-specific guidance on HR gear setup in the default state', () => {
+      // Regression guard: the HR gear-setup screen must treat chest straps
+      // and broadcast-capable watches identically. Previously a "Garmin
+      // Connect Tip" SectionCard with a dual-recording hint was rendered
+      // unconditionally on target="hr"; it was removed because the HR source
+      // type should be transparent to the user at gear-setup time.
+      const { queryByText } = render(<GearSetupScreen target="hr" />);
 
       expect(queryByText('Want this workout in Garmin Connect too?')).toBeNull();
+      expect(queryByText('Garmin Connect Tip')).toBeNull();
     });
   });
 });
