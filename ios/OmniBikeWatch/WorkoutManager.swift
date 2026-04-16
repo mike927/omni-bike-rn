@@ -2,6 +2,13 @@ import Foundation
 import HealthKit
 import WatchConnectivity
 
+/// Command tokens exchanged with the iPhone app via WatchConnectivity.
+/// Must stay in sync with the TypeScript constants in `WatchHrAdapter.ts`.
+enum WatchCommand {
+    static let startHr = "startHr"
+    static let stopHr = "stopHr"
+}
+
 final class WorkoutManager: NSObject, ObservableObject {
     // ── Published state ────────────────────────────────────────────────────────
     @Published var heartRate: Int = 0
@@ -11,8 +18,10 @@ final class WorkoutManager: NSObject, ObservableObject {
     private let healthStore = HKHealthStore()
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
+    private var lastHrSendAt: TimeInterval = 0
 
     private let hrType = HKQuantityType(.heartRate)
+    private let hrSendIntervalSeconds: TimeInterval = 1.0
 
     // ── HealthKit authorization ────────────────────────────────────────────────
 
@@ -53,9 +62,13 @@ final class WorkoutManager: NSObject, ObservableObject {
 
     func stopWorkout() {
         session?.end()
-        builder?.endCollection(withEnd: Date()) { _, _ in
-            self.builder?.finishWorkout { _, _ in }
+        builder?.endCollection(withEnd: Date()) { [weak self] _, _ in
+            self?.builder?.finishWorkout { [weak self] _, _ in
+                self?.session = nil
+                self?.builder = nil
+            }
         }
+        lastHrSendAt = 0
         DispatchQueue.main.async {
             self.isStreaming = false
             self.heartRate = 0
@@ -93,7 +106,13 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
               let quantity = stats.mostRecentQuantity() else { return }
         let bpm = Int(quantity.doubleValue(for: HKUnit(from: "count/min")))
         DispatchQueue.main.async { self.heartRate = bpm }
-        sendHrToPhone(bpm)
+
+        // Throttle to 1 Hz — MetronomeEngine on the iPhone only consumes at 1 Hz.
+        let now = Date().timeIntervalSinceReferenceDate
+        if now - lastHrSendAt >= hrSendIntervalSeconds {
+            lastHrSendAt = now
+            sendHrToPhone(bpm)
+        }
     }
 }
 
@@ -105,10 +124,13 @@ extension WorkoutManager: WCSessionDelegate {
 
     func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
         guard let cmd = message["cmd"] as? String else { return }
-        if cmd == "startHr" {
+        switch cmd {
+        case WatchCommand.startHr:
             startWorkout()
-        } else if cmd == "stopHr" {
+        case WatchCommand.stopHr:
             stopWorkout()
+        default:
+            break
         }
     }
 }
