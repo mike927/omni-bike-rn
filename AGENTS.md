@@ -86,7 +86,7 @@ The local review file may include a `State:` header line. Use these values consi
 
 | State | Meaning |
 |---|---|
-| `needs-review` | A review run was explicitly requested and is in progress or must be rerun before the branch can be treated as review-complete. |
+| `needs-review` | A review run was explicitly requested and has not completed yet. |
 | `needs-changes` | The latest completed review found unresolved actionable findings. |
 | `ready` | The latest completed requested review has no unresolved actionable findings. |
 
@@ -101,7 +101,7 @@ Use this transition matrix:
 | `needs-changes` | Some findings fixed, at least one actionable `[ ]` remains | `needs-changes` |
 | `needs-changes` | All actionable findings are resolved | `ready` |
 
-`/open-pr` requires `State: ready` when a review file exists.
+`/code-review` writes `State: needs-review` when a requested review begins, then overwrites it with `ready` or `needs-changes` when the review completes. `/open-pr` requires `State: ready` when a review file exists.
 
 ## Agent Roles
 

@@ -76,8 +76,9 @@ State: <ready | needs-changes>
 <2-3 sentences: overall quality assessment and what needs attention>
 ```
 
-Set `State` as follows:
-- Treat any explicit rerun of `/code-review` as a fresh review request per `AGENTS.md` `### Review File State`. This reopens the review state conceptually as `needs-review`, even if the previous file was `ready`.
+Before writing the final findings, update or create the review file header with `State: needs-review` to reflect that the requested review is now in progress.
+
+Set the final `State` as follows:
 - `ready` — no unresolved actionable findings (bugs, regressions, conventions). Suggestions-only or empty counts as ready.
 - `needs-changes` — one or more unresolved `[ ]` findings of severity bug, regression, or convention.
 
