@@ -14,6 +14,7 @@ describe('WatchHrAdapter', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (WatchConnectivity.sendMessage as jest.Mock).mockReturnValue(true);
     adapter = new WatchHrAdapter();
   });
 
@@ -33,6 +34,13 @@ describe('WatchHrAdapter', () => {
 
       await expect(adapter.connect()).rejects.toThrow('WCSession not supported');
       expect(WatchConnectivity.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('rejects if the Watch is not reachable when sending startHr', async () => {
+      (WatchConnectivity.activate as jest.Mock).mockResolvedValue(undefined);
+      (WatchConnectivity.sendMessage as jest.Mock).mockReturnValue(false);
+
+      await expect(adapter.connect()).rejects.toThrow('Apple Watch is not reachable');
     });
   });
 

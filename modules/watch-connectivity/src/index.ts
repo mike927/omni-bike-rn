@@ -9,12 +9,14 @@ type WatchConnectivityModuleEvents = {
 };
 
 declare class WatchConnectivityNativeModule extends NativeModule<WatchConnectivityModuleEvents> {
-  /** Returns true when the device supports WatchConnectivity (i.e. iPhone paired with Watch). */
-  isSupported(): boolean;
   /** Activates the WCSession. Safe to call multiple times — no-op if already active. */
   activate(): Promise<void>;
-  /** Sends a message dictionary to the paired Watch. No-op if Watch is not currently reachable. */
-  sendMessage(message: Record<string, string | number>): void;
+  /**
+   * Sends a message dictionary to the paired Watch. Returns `true` if the message was
+   * delivered to the WC layer, `false` if the session was not activated or the Watch
+   * was not currently reachable.
+   */
+  sendMessage(message: Record<string, string | number>): boolean;
 }
 
 export const WatchConnectivity = requireNativeModule<WatchConnectivityNativeModule>('WatchConnectivity');

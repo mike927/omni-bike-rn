@@ -9,10 +9,6 @@ public class WatchConnectivityModule: Module, WCSessionDelegate {
 
     Events("onWatchHr", "onReachabilityChange")
 
-    Function("isSupported") { () -> Bool in
-      WCSession.isSupported()
-    }
-
     AsyncFunction("activate") { (promise: Promise) in
       guard WCSession.isSupported() else {
         promise.reject("ERR_NOT_SUPPORTED", "WatchConnectivity is not supported on this device")
@@ -33,10 +29,11 @@ public class WatchConnectivityModule: Module, WCSessionDelegate {
       session.activate()
     }
 
-    Function("sendMessage") { (message: [String: Any]) in
+    Function("sendMessage") { (message: [String: Any]) -> Bool in
       let session = WCSession.default
-      guard session.activationState == .activated, session.isReachable else { return }
+      guard session.activationState == .activated, session.isReachable else { return false }
       session.sendMessage(message, replyHandler: nil)
+      return true
     }
   }
 
@@ -58,7 +55,9 @@ public class WatchConnectivityModule: Module, WCSessionDelegate {
   public func sessionDidBecomeInactive(_ session: WCSession) {}
 
   public func sessionDidDeactivate(_ session: WCSession) {
-    // Re-activate to support Watch switching
+    // Re-activate to support Watch switching. Reassign the delegate defensively so the
+    // new session is wired to us even if the framework dropped the binding.
+    WCSession.default.delegate = self
     WCSession.default.activate()
   }
 

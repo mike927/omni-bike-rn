@@ -15,7 +15,10 @@ const CMD_STOP_HR = 'stopHr';
 export class WatchHrAdapter implements HrAdapter {
   async connect(): Promise<void> {
     await WatchConnectivity.activate();
-    WatchConnectivity.sendMessage({ cmd: CMD_START_HR });
+    const delivered = WatchConnectivity.sendMessage({ cmd: CMD_START_HR });
+    if (!delivered) {
+      throw new Error('Apple Watch is not reachable');
+    }
   }
 
   async disconnect(): Promise<void> {
