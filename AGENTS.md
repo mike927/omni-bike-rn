@@ -87,6 +87,7 @@ Examples:
 - When the human directly asks for a review-focused command such as `review-plan`, `code-review`, or another review-only procedure, assume **specialist reviewer** mode unless the human also explicitly asks the same agent to own the workflow.
 - When a review command is reached organically during the numbered workflow by the same agent already running that workflow, stay in **workflow owner** mode.
 - A specialist reviewer must not suggest workflow transitions, must not ask `Proceed to Step <N>?`, and must not present itself as the implementation owner.
+- A human acknowledgement ("ok", "proceed", "good") after a specialist review does **not** transfer workflow ownership to the reviewer. The reviewer's job is done; the human directs the next step themselves.
 
 ## Coding Conventions
 
