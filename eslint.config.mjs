@@ -8,14 +8,9 @@ import testingLibrary from 'eslint-plugin-testing-library';
 // eslint-disable-next-line import/namespace -- false positive: eslint-plugin-import cannot parse ESM `with` syntax in unicorn
 import unicornPlugin from 'eslint-plugin-unicorn';
 import unusedImports from 'eslint-plugin-unused-imports';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const compat = new FlatCompat({
-  baseDirectory: __dirname,
+  baseDirectory: import.meta.dirname,
   recommendedConfig: js.configs.recommended,
 });
 

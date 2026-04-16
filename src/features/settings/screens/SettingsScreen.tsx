@@ -49,11 +49,16 @@ export function SettingsScreen() {
         text: 'Disconnect',
         style: 'destructive',
         onPress: () => {
-          void disconnect().then((result) => {
-            if (!result.success) {
-              Alert.alert('Disconnect Failed', result.errorMessage ?? 'Could not disconnect from Strava.');
-            }
-          });
+          void disconnect()
+            .then((result) => {
+              if (!result.success) {
+                Alert.alert('Disconnect Failed', result.errorMessage ?? 'Could not disconnect from Strava.');
+              }
+            })
+            .catch((error: unknown) => {
+              console.error('[SettingsScreen] Disconnect failed', error);
+              Alert.alert('Disconnect Failed', 'An unexpected error occurred.');
+            });
         },
       },
     ]);
