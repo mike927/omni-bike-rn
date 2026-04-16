@@ -83,7 +83,7 @@ beforeEach(() => {
 
   const wc = getWatchConnectivityMock();
   wc.activate.mockResolvedValue(undefined);
-  wc.sendMessage.mockReturnValue(undefined);
+  wc.sendMessage.mockReturnValue(true);
   wc.addListener.mockReturnValue({ remove: jest.fn() });
 
   const prefs = getAppPreferencesMock();
@@ -231,6 +231,35 @@ describe('useWatchHr', () => {
       expect(WatchHrAdapter.mock.instances).toHaveLength(0);
     });
 
+    it('does not stop the stream when phase transitions from Active to Paused', async () => {
+      getAppPreferencesMock().loadWatchHrEnabled.mockResolvedValue(true);
+      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+
+      const { rerender } = renderHook(() => useWatchHr());
+
+      const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
+        WatchHrAdapter: jest.Mock;
+      };
+
+      await waitFor(() => {
+        const inst = WatchHrAdapter.mock.results[0]?.value as { connect: jest.Mock } | undefined;
+        expect(inst?.connect).toHaveBeenCalled();
+      });
+
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Paused } as never);
+      });
+      rerender({});
+
+      // Give any async effects a chance to run
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      const inst = WatchHrAdapter.mock.results[0]?.value as { disconnect: jest.Mock } | undefined;
+      expect(inst?.disconnect).not.toHaveBeenCalled();
+    });
+
     it('stops the stream when phase transitions to Idle', async () => {
       getAppPreferencesMock().loadWatchHrEnabled.mockResolvedValue(true);
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
@@ -310,6 +339,29 @@ describe('useWatchHr', () => {
         };
         const inst = WatchHrAdapter.mock.results[0]?.value as { connect: jest.Mock } | undefined;
         expect(inst?.connect).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('disconnects the adapter on unmount when the stream is active', async () => {
+      getAppPreferencesMock().loadWatchHrEnabled.mockResolvedValue(true);
+      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+
+      const { unmount } = renderHook(() => useWatchHr());
+
+      const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
+        WatchHrAdapter: jest.Mock;
+      };
+
+      await waitFor(() => {
+        const inst = WatchHrAdapter.mock.results[0]?.value as { connect: jest.Mock } | undefined;
+        expect(inst?.connect).toHaveBeenCalled();
+      });
+
+      unmount();
+
+      await waitFor(() => {
+        const inst = WatchHrAdapter.mock.results[0]?.value as { disconnect: jest.Mock } | undefined;
+        expect(inst?.disconnect).toHaveBeenCalled();
       });
     });
 

@@ -7,7 +7,10 @@ import { isAppleWatchAvailable } from '../../../services/watch/isAppleWatchAvail
 import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
 import { useTrainingSessionStore } from '../../../store/trainingSessionStore';
 import { TrainingPhase } from '../../../types/training';
-import { loadWatchHrEnabled, setWatchHrEnabled } from '../../../services/preferences/appPreferencesStorage';
+import {
+  loadWatchHrEnabled,
+  setWatchHrEnabled as persistWatchHrEnabled,
+} from '../../../services/preferences/appPreferencesStorage';
 
 /**
  * Manages the Apple Watch HR source lifecycle.
@@ -22,7 +25,7 @@ export function useWatchHr() {
   const watchAvailable = isAppleWatchAvailable(Platform.OS);
   const adapterRef = useRef<WatchHrAdapter | null>(null);
   const subRef = useRef<{ remove: () => void } | null>(null);
-  const [watchHrEnabled, setWatchHrEnabledState] = useState(false);
+  const [watchHrEnabled, setWatchHrEnabled] = useState(false);
 
   const updateAppleWatchHr = useDeviceConnectionStore((s) => s.updateAppleWatchHr);
   const phase = useTrainingSessionStore((s) => s.phase);
@@ -31,7 +34,7 @@ export function useWatchHr() {
   useEffect(() => {
     if (!watchAvailable) return;
     void loadWatchHrEnabled().then((enabled) => {
-      setWatchHrEnabledState(enabled);
+      setWatchHrEnabled(enabled);
     });
   }, [watchAvailable]);
 
@@ -45,6 +48,7 @@ export function useWatchHr() {
     try {
       await adapter.connect();
     } catch (err) {
+      // Reachability-based retry will re-attempt when the Watch comes back in range.
       console.error('[useWatchHr] Failed to connect Watch HR:', err);
       return;
     }
@@ -71,32 +75,36 @@ export function useWatchHr() {
     updateAppleWatchHr(null);
   }, [updateAppleWatchHr]);
 
+  // Keep a ref so the unmount-only effect below always sees the latest stopStream
+  // without re-running cleanup on every identity change.
+  const stopStreamRef = useRef(stopStream);
+  useEffect(() => {
+    stopStreamRef.current = stopStream;
+  }, [stopStream]);
+
   // ── React to training phase transitions ─────────────────────────────────
 
   useEffect(() => {
     if (!watchAvailable) return;
+    if (!watchHrEnabled) return;
 
-    let mounted = true;
-
-    void loadWatchHrEnabled().then((enabled) => {
-      if (!mounted || !enabled) return;
-
-      if (phase === TrainingPhase.Active) {
-        void startStream();
-      } else if (phase === TrainingPhase.Idle) {
-        // Session finished or discarded — stop stream
-        void stopStream();
-      }
-    });
-
-    return () => {
-      mounted = false;
-      // Cleanup on unmount
+    if (phase === TrainingPhase.Active) {
+      void startStream();
+    } else if (phase === TrainingPhase.Idle) {
+      // Session finished or discarded — stop stream
       void stopStream();
-    };
-  }, [phase, startStream, stopStream, watchAvailable]);
+    }
+  }, [phase, startStream, stopStream, watchAvailable, watchHrEnabled]);
 
-  // ── Watch reachability updates (surface to store) ───────────────────────
+  // Unmount-only cleanup — scoped away from phase transitions so Active→Paused
+  // does not tear down the Watch workout session.
+  useEffect(() => {
+    return () => {
+      void stopStreamRef.current();
+    };
+  }, []);
+
+  // ── Watch reachability updates (surface to store + retry) ───────────────
 
   useEffect(() => {
     if (!watchAvailable) return;
@@ -105,24 +113,30 @@ export function useWatchHr() {
       if (!reachable) {
         // Watch went out of range — clear HR so MetronomeEngine falls back
         updateAppleWatchHr(null);
+        return;
+      }
+      // Watch came back in range — if we're mid-session with HR enabled but no
+      // active adapter, the initial connect was dropped. Retry now.
+      if (watchHrEnabled && phase === TrainingPhase.Active && !adapterRef.current) {
+        void startStream();
       }
     });
     return () => sub.remove();
-  }, [watchAvailable, updateAppleWatchHr]);
+  }, [watchAvailable, updateAppleWatchHr, watchHrEnabled, phase, startStream]);
 
   // ── Public API ───────────────────────────────────────────────────────────
 
   const enableWatchHr = useCallback(async () => {
-    await setWatchHrEnabled(true);
-    setWatchHrEnabledState(true);
+    await persistWatchHrEnabled(true);
+    setWatchHrEnabled(true);
     if (phase === TrainingPhase.Active) {
       await startStream();
     }
   }, [phase, startStream]);
 
   const disableWatchHr = useCallback(async () => {
-    await setWatchHrEnabled(false);
-    setWatchHrEnabledState(false);
+    await persistWatchHrEnabled(false);
+    setWatchHrEnabled(false);
     await stopStream();
   }, [stopStream]);
 
