@@ -68,6 +68,7 @@ function applyPodfilePostInstallFixes(src, deploymentTarget) {
   const generatedHeader = createGeneratedHeaderComment(fixBlock, PODFILE_FIX_TAG, '#');
   const generatedBlock = `${generatedHeader}\n${fixBlock}\n# @generated end ${PODFILE_FIX_TAG}`;
 
+  // eslint-disable-next-line sonarjs/slow-regex -- build-time config plugin, not runtime; input is a single Podfile
   const postInstallPattern = /(post_install do \|installer\|[\s\S]*?react_native_post_install\([\s\S]*?\n\s*\))/m;
 
   if (!postInstallPattern.test(sanitized)) {
