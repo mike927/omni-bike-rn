@@ -80,6 +80,29 @@ Examples:
 - Reuse the same `branch-slug` across all branch-scoped AI artifacts.
 - These files are local-only and ignored by git. Do not open PRs just to add, update, or remove them.
 
+### Review File State
+
+The local review file may include a `State:` header line. Use these values consistently:
+
+| State | Meaning |
+|---|---|
+| `needs-review` | A review run was explicitly requested and is in progress or must be rerun before the branch can be treated as review-complete. |
+| `needs-changes` | The latest completed review found unresolved actionable findings. |
+| `ready` | The latest completed requested review has no unresolved actionable findings. |
+
+Use this transition matrix:
+
+| Current state | Event | Next state |
+|---|---|---|
+| `ready` | Human explicitly requests another review | `needs-review` |
+| `needs-review` | Review finishes with unresolved actionable findings | `needs-changes` |
+| `needs-review` | Review finishes with no unresolved actionable findings | `ready` |
+| `needs-changes` | Review-fix work starts | `needs-changes` |
+| `needs-changes` | Some findings fixed, at least one actionable `[ ]` remains | `needs-changes` |
+| `needs-changes` | All actionable findings are resolved | `ready` |
+
+`/open-pr` requires `State: ready` when a review file exists.
+
 ## Agent Roles
 
 - **Workflow owner**: owns the numbered workflow end-to-end. This agent may announce step completion, suggest the next workflow step, and ask whether to proceed at human-gated boundaries.

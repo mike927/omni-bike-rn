@@ -11,7 +11,7 @@ outputs:
   - name: review-file
     description: 'Findings written to ai/local/reviews/<branch-slug>.md'
   - name: state
-    description: 'Review state written to the review file and reported in chat: ready or needs-changes'
+    description: 'Review state written to the review file and reported in chat: needs-review, ready, or needs-changes'
 ---
 
 # Code Review
@@ -77,6 +77,7 @@ State: <ready | needs-changes>
 ```
 
 Set `State` as follows:
+- Treat any explicit rerun of `/code-review` as a fresh review request per `AGENTS.md` `### Review File State`. This reopens the review state conceptually as `needs-review`, even if the previous file was `ready`.
 - `ready` — no unresolved actionable findings (bugs, regressions, conventions). Suggestions-only or empty counts as ready.
 - `needs-changes` — one or more unresolved `[ ]` findings of severity bug, regression, or convention.
 
@@ -104,7 +105,7 @@ When running in **workflow owner** mode, the surrounding workflow step may add t
 
 - Every changed file has been reviewed against the checklist and conventions.
 - Findings are written to `ai/local/reviews/<branch-slug>.md` with `file:line` references.
-- Review state is set and posted in chat.
+- Review state is set and posted in chat following `AGENTS.md` `### Review File State`.
 
 ## See Also
 

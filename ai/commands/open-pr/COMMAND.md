@@ -41,6 +41,7 @@ Confirm:
 
 Check the internal review state. Read `ai/local/reviews/<branch-slug>.md` (if it exists) and look for the `State:` header line:
 - `State: ready` — proceed.
+- `State: needs-review` — stop. Report that another review was explicitly requested and must complete before opening the PR.
 - `State: needs-changes` — stop. Report the count of unresolved `[ ]` findings and ask the human to run `/address-code-review` first.
 - File missing — proceed (no review was run; this is allowed for trivial changes).
 
