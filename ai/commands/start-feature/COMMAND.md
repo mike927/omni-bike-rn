@@ -131,6 +131,8 @@ Verify the new branch is active in the correct directory.
 - Working directory: `<path>`
 
 Ready for <Step 3: Plan Drafting | Step 6: Implementation In Progress>.
+
+**Next:** Proceed to <Step 3 | Step 6>?
 ```
 
 Yield control. Do not proceed to the next step without user instruction.
@@ -140,7 +142,7 @@ Yield control. Do not proceed to the next step without user instruction.
 - The new branch exists and is active.
 - `branch-slug` is printed and available for use in `ai/local/plans/<branch-slug>.md`, `ai/local/reviews/<branch-slug>.md`, and all other artifacts.
 - No plan file has been created yet.
-- The agent has paused and is awaiting instruction for Step 3.
+- The agent has paused and is awaiting instruction for the next workflow step selected by the chosen track (`Step 3` for Standard Track, `Step 6` for Fast Track).
 
 ## See Also
 

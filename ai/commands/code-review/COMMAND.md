@@ -22,6 +22,7 @@ Run an internal code review and persist findings to the local review file.
 
 - Current branch is a feature branch, not `main`.
 - For `source: gh`: an open PR must exist for the current branch and `gh` CLI must be authenticated.
+- Invocation mode follows `AGENTS.md` `## Agent Roles`: direct review requests use specialist reviewer mode; workflow-owned reviews use workflow owner mode.
 
 ## Procedure
 
@@ -90,6 +91,10 @@ Recommendation: <approve | request changes | comment>
 
 Details: ai/local/reviews/<branch-slug>.md
 ```
+
+When running in **specialist reviewer** mode, stop after this summary and artifact path. Do not suggest the next workflow step and do not ask `Proceed to Step <N>?`.
+
+When running in **workflow owner** mode, the surrounding workflow step may add the usual handoff after this review result.
 
 ## Completion Criteria
 

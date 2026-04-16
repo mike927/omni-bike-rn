@@ -19,6 +19,7 @@ Review the active feature branch's canonical plan file and record what is alread
 
 - Current branch is a feature branch, not `main`.
 - The canonical plan file exists at `ai/local/plans/<branch-slug>.md`.
+- Invocation mode follows `AGENTS.md` `## Agent Roles`: direct review requests use specialist reviewer mode; workflow-owned reviews use workflow owner mode.
 
 ## Procedure
 
@@ -176,16 +177,21 @@ Details: ai/local/plans/<branch-slug>.review.md
 
 If the command stopped early because the branch was `main` or the canonical plan file was missing, report that blocker clearly and do not create a review file.
 
-When the recommendation is `ready`, append to the summary:
-> Plan quality gate passed. Proceed to Step 5: Plan Approving — share the plan with the human for approval.
+When running in **workflow owner** mode:
+- if the recommendation is `ready`, append:
+  > Plan quality gate passed. Proceed to Step 5: Plan Approving — share the plan with the human for approval.
+- if the recommendation is `revise`, append:
+  > Run `/address-plan-review` to resolve the blocking findings, then re-run `/review-plan`.
 
-When the recommendation is `revise`, append:
-> Run `/address-plan-review` to resolve the blocking findings, then re-run `/review-plan`.
+When running in **specialist reviewer** mode:
+- stop after the summary and review file path
+- do not suggest the next workflow step
+- do not ask `Proceed to Step <N>?`
 
 ## Output Format
 
 - Persistent artifact: `ai/local/plans/<branch-slug>.review.md`
-- Chat summary: recommendation plus item counts and the review file path
+- Chat summary: recommendation plus item counts and the review file path; append workflow handoff text only in workflow owner mode
 
 ## Completion Criteria
 
