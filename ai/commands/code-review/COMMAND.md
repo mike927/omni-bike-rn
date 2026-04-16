@@ -11,7 +11,7 @@ outputs:
   - name: review-file
     description: 'Findings written to ai/local/reviews/<branch-slug>.md'
   - name: state
-    description: 'Review state written to the review file and reported in chat: needs-review, ready, or needs-changes'
+    description: 'Review state written to the review file: ready or needs-changes (needs-review is written only as an in-progress marker during the run)'
 ---
 
 # Code Review
