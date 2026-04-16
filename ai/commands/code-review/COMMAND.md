@@ -10,8 +10,8 @@ inputs:
 outputs:
   - name: review-file
     description: 'Findings written to ai/local/reviews/<branch-slug>.md'
-  - name: recommendation
-    description: 'Merge recommendation reported in chat: approve, request changes, or comment'
+  - name: state
+    description: 'Review state written to the review file: ready or needs-changes (needs-review is written only as an in-progress marker during the run)'
 ---
 
 # Code Review
@@ -22,6 +22,7 @@ Run an internal code review and persist findings to the local review file.
 
 - Current branch is a feature branch, not `main`.
 - For `source: gh`: an open PR must exist for the current branch and `gh` CLI must be authenticated.
+- Invocation mode follows `AGENTS.md` `## Agent Roles`: direct review requests use specialist reviewer mode; workflow-owned reviews use workflow owner mode.
 
 ## Procedure
 
@@ -63,7 +64,7 @@ Use this structure:
 
 Date: <YYYY-MM-DD>
 Source: <local | gh>
-Recommendation: <approve | request changes | comment>
+State: <ready | needs-changes>
 
 ## Findings
 
@@ -75,13 +76,19 @@ Recommendation: <approve | request changes | comment>
 <2-3 sentences: overall quality assessment and what needs attention>
 ```
 
+Before writing the final findings, update or create the review file header with `State: needs-review` to reflect that the requested review is now in progress.
+
+Set the final `State` as follows:
+- `ready` — no unresolved actionable findings (bugs, regressions, conventions). Suggestions-only or empty counts as ready.
+- `needs-changes` — one or more unresolved `[ ]` findings of severity bug, regression, or convention.
+
 ### Step 5: Report In Chat
 
 Post a summary in chat:
 
 ```md
 **Review Complete** (<source>)
-Recommendation: <approve | request changes | comment>
+State: <ready | needs-changes>
 
 - 🐛 Bugs: <count>
 - ⚠️ Regressions: <count>
@@ -91,11 +98,15 @@ Recommendation: <approve | request changes | comment>
 Details: ai/local/reviews/<branch-slug>.md
 ```
 
+When running in **specialist reviewer** mode, stop after this summary and artifact path. Do not suggest the next workflow step and do not ask `Proceed to Step <N>?`.
+
+When running in **workflow owner** mode, the surrounding workflow step may add the usual handoff after this review result.
+
 ## Completion Criteria
 
 - Every changed file has been reviewed against the checklist and conventions.
 - Findings are written to `ai/local/reviews/<branch-slug>.md` with `file:line` references.
-- A merge recommendation is posted in chat.
+- Review state is set and posted in chat following `AGENTS.md` `### Review File State`.
 
 ## See Also
 

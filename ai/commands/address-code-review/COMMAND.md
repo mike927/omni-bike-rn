@@ -52,6 +52,8 @@ Read the `source` input. Default is `local`.
 | `local` | Read `ai/local/reviews/<branch-slug>.md`. If missing or empty, stop and report — nothing to address.          |
 | `gh`    | Fetch unresolved PR review threads, append them to `ai/local/reviews/<branch-slug>.md`, then load the file.  |
 
+If the review file already has `State: ready` and there are no unresolved actionable `[ ]` findings, report that the review queue is already clean and stop.
+
 For `source: gh`, fetch PR review threads with:
 
 ```bash
@@ -105,6 +107,8 @@ Do NOT delete or move items to new sections. Update the findings in `ai/local/re
 
 For each finding you process, use your text replacement tool to change `[ ]` to `[x]` and append your resolution inline using the `->` symbol.
 
+- After all actionable findings (bug, regression, convention, accepted suggestion) are marked `[x]`, update the `State:` header line to `ready` per `AGENTS.md` `### Review File State`.
+
 **Format:**
 `- [x] <file:line> [<severity>] - <description> -> FIXED: <commit-hash>`
 `- [x] <file:line> [<severity>] - <description> -> ANSWERED: <brief answer>`
@@ -155,7 +159,7 @@ Details: ai/local/reviews/<branch-slug>.md
 
 - Every actionable finding is either fixed+committed (and pushed if source=gh), answered, or explicitly declined with a reason.
 - Each fix passed the Fix Loop Decision Rules before the next finding was started.
-- `ai/local/reviews/<branch-slug>.md` is updated.
+- `ai/local/reviews/<branch-slug>.md` is updated, and its `State:` line follows `AGENTS.md` `### Review File State`.
 - For `source: gh`: reply text exists for every thread.
 
 ## See Also

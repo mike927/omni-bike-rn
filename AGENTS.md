@@ -62,7 +62,7 @@ Examples:
 
 ## Commit Rules
 
-- **No Auto-Committing:** Never run `git commit` automatically after writing code or modifying files unless the human explicitly instructed you to do so in their prompt. Always leave the working tree dirty, report the changes made, and wait for the human to review the diff in their IDE and suggest the next action. **Exceptions:** (1) The automated pipeline (Steps 6–9) is pre-approved by the human's Step 5 approval; commits within that pipeline may run without a separate prompt. (2) `/address-code-review` always commits and pushes each fix as part of its procedure — the human's decision to run the command is the explicit instruction to commit and push.
+- **No Auto-Committing:** Never run `git commit` automatically after writing code or modifying files unless the human explicitly instructed you to do so in their prompt. Always leave the working tree dirty, report the changes made, and wait for the human to review the diff in their IDE and suggest the next action. **Exceptions:** (1) The automated pipeline (Steps 6–9) is pre-approved by the human's Step 5 approval; commits within that pipeline may run without a separate prompt, including the validated implementation snapshot commit before Step 8 and any review-fix commits in Step 9. (2) `/address-code-review` always commits and pushes each fix as part of its procedure — the human's decision to run the command is the explicit instruction to commit and push.
 - Use Conventional Commits.
 - Make focused commits per meaningful sub-task, not one large commit at the end.
 
@@ -79,6 +79,35 @@ Examples:
 - `ai/local/testing/<branch-slug>.md`: local saved manual testing checklist. Create or update only when the human explicitly asks for a persistent checklist file.
 - Reuse the same `branch-slug` across all branch-scoped AI artifacts.
 - These files are local-only and ignored by git. Do not open PRs just to add, update, or remove them.
+
+### Review File State
+
+| State | Meaning |
+|---|---|
+| `needs-review` | Requested review has not finished yet. |
+| `needs-changes` | Latest review has unresolved actionable findings. |
+| `ready` | Latest review has no unresolved actionable findings. |
+
+| Current state | Event | Next state |
+|---|---|---|
+| `ready` | Human explicitly requests another review | `needs-review` |
+| `needs-review` | Review finishes with unresolved actionable findings | `needs-changes` |
+| `needs-review` | Review finishes with no unresolved actionable findings | `ready` |
+| `needs-changes` | Review-fix work starts | `needs-changes` |
+| `needs-changes` | Some findings fixed, at least one actionable `[ ]` remains | `needs-changes` |
+| `needs-changes` | All actionable findings are resolved | `ready` |
+
+- `/code-review`: write `needs-review` at start, then finish with `ready` or `needs-changes`
+- `/open-pr`: require `State: ready` when a review file exists
+
+## Agent Roles
+
+- **Workflow owner**: owns the numbered workflow end-to-end. This agent may announce step completion, suggest the next workflow step, and ask whether to proceed at human-gated boundaries.
+- **Specialist reviewer**: executes only the requested review or validation procedure, writes the required artifact, reports the result, and then stops. This agent does not take over the workflow.
+- When the human directly asks for a review-focused command such as `review-plan`, `code-review`, or another review-only procedure, assume **specialist reviewer** mode unless the human also explicitly asks the same agent to own the workflow.
+- When a review command is reached organically during the numbered workflow by the same agent already running that workflow, stay in **workflow owner** mode.
+- A specialist reviewer must not suggest workflow transitions, must not ask `Proceed to Step <N>?`, and must not present itself as the implementation owner.
+- A human acknowledgement ("ok", "proceed", "good") after a specialist review does **not** transfer workflow ownership to the reviewer. The reviewer's job is done; the human directs the next step themselves.
 
 ## Coding Conventions
 
@@ -132,6 +161,7 @@ For unplanned work (e.g., a bug the user reports during a session, a quick chore
 - You must execute the workflow strictly and sequentially. Do not spontaneously skip numbered workflow steps. In particular, (branch creation) must always precede planning — never enter planning mode while still on `main`, because the plan file path `ai/local/plans/<branch-slug>.md` is not valid without a feature branch and planning mode is read-only, so it locks you out of branch creation until you exit.
 - Do not chain multiple distinct workflow steps together in a single turn. Pause at the logical end of your current step, report your progress via a Chat Progress Update, and await explicit human instruction before executing the next numbered phase. **Exception:** the automated pipeline (Steps 6–9) — see below.
 - At every human-gated workflow stage boundary, explicitly ask the user whether to proceed to the next step. Use the most interactive confirmation mechanism your host provides; otherwise ask directly in chat. Do not treat a plain status statement like "the next step is X" as sufficient handoff. Before offering that handoff, make sure the current step's required save/validation work is actually complete so the next step begins from the expected repo state.
+- Ask a pending human-decision question once per turn. If an intermediary progress update already asked the blocking question, do not repeat the same question verbatim in the final handoff for that same turn.
 - If a step is logically irrelevant for a given task (e.g., Manual Human Testing for a pure documentation update), you must still output the `**Workflow Progress**` header for that step, formally note that it is being skipped, and provide a super concise reason why. Do not silently skip past it.
 - **Automated pipeline (Steps 6–9):** Once the human approves the plan in Step 5, proceed through Implementation → Validation → Internal Review → Internal Review Fix Loop without pausing for human confirmation. Step 10 (Manual Human Testing) is the first conditional checkpoint: pause if the change is user-visible, skip automatically if not.
 - Agents with terminal capabilities should run CLI commands natively instead of instructing the human to paste them, provided it stays within tool-call approval constraints.
@@ -155,6 +185,7 @@ For unplanned work (e.g., a bug the user reports during a session, a quick chore
 - **Make progression visible:** The human must feel the forward momentum of the workflow. At every stage boundary, explicitly announce that the current step is complete and name the next step you are moving to.
 - Use the `**Workflow Progress**` header for step transitions and meaningful progress updates (e.g., entering a fix loop, pausing for testing, or completing a step).
 - Do not send repeated progress updates for every small loop iteration, quick status check, or tightly-coupled follow-up command.
+- In **specialist reviewer** mode, use `**Review**` or the command-specific completion header instead of `**Workflow Progress**`, report the result and artifact path, and stop. Do not add a workflow handoff or `**Next:**` line.
 - *Note:* At session start (Step 1), the explicit `/check-state` snapshot command format takes precedence.
 
 Use this format for all standard stage transitions or turn pauses:
@@ -219,11 +250,14 @@ Automated pipeline steps (6–9) post the header and summary but omit the `**Nex
 
 - **Validate:** Execute `/validate`.
 - **On failure:** Fix blocking issues and re-run `/validate`. Repeat until it passes.
+- **Commit before review:** Once validation passes, commit the validated implementation snapshot before proceeding to Step 8. Internal review and any later review-fix command must start from a clean working tree that reflects the current implementation state.
 - **Proceed:** Post a `**Workflow Progress: Step 7 Complete**` message, then proceed directly to Step 8.
 
 ### 8. Internal Review
 
 Internal review has two phases: a self-pass by the main agent, then a delegated deep review by a dedicated reviewer subagent with fresh context. The main agent's context is biased toward the path it already took, so self-review alone is not sufficient for logic changes.
+
+- **Prerequisite:** Step 7 complete, the validated implementation snapshot is committed, and the working tree is clean before review begins.
 
 **Phase A — Self-pass (main agent).**
 
@@ -259,7 +293,7 @@ A fix loop is clean only when the selected validation passes, no unresolved bloc
 - After each review-driven code change, follow the Fix Loop Decision Rules for validation scope and review execution.
 - For small incremental fixes the main agent may run `/code-review` inline since it just saw the subagent's findings and has context to verify targeted fixes. For larger fixes — or whenever the rules table says "respawned reviewer subagent" — spawn a fresh reviewer subagent with a new brief rather than reusing the main agent.
 - Do not proceed to manual testing until the fix loop is clean.
-- Once the fix loop is clean, automatically commit the resulting changes. Verify `git status --short` is clean. If no review-driven changes were needed, note that explicitly instead of creating an empty commit.
+- Once the fix loop is clean, automatically commit the resulting review-driven changes. Verify `git status --short` is clean. If no review-driven changes were needed beyond the Step 7 implementation snapshot commit, note that explicitly instead of creating an empty commit.
 - **Proceed:** Post a `**Workflow Progress: Step 9 Complete**` message, then proceed directly to Step 10.
 
 ### 10. Manual Human Testing
