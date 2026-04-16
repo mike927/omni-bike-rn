@@ -84,7 +84,7 @@ Examples:
 
 - **Workflow owner**: owns the numbered workflow end-to-end. This agent may announce step completion, suggest the next workflow step, and ask whether to proceed at human-gated boundaries.
 - **Specialist reviewer**: executes only the requested review or validation procedure, writes the required artifact, reports the result, and then stops. This agent does not take over the workflow.
-- When the human directly asks for a review-focused command such as `review-plan`, `code-review`, or another review-only procedure on an existing branch or worktree, assume **specialist reviewer** mode unless the human also explicitly asks the same agent to own the workflow.
+- When the human directly asks for a review-focused command such as `review-plan`, `code-review`, or another review-only procedure, assume **specialist reviewer** mode unless the human also explicitly asks the same agent to own the workflow.
 - When a review command is reached organically during the numbered workflow by the same agent already running that workflow, stay in **workflow owner** mode.
 - A specialist reviewer must not suggest workflow transitions, must not ask `Proceed to Step <N>?`, and must not present itself as the implementation owner.
 
