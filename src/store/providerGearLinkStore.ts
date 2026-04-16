@@ -8,17 +8,17 @@ import {
   saveProviderGearLink,
 } from '../services/providerGear/providerGearLinkStorage';
 import type { GearType } from '../types/gear';
-import type { LinkedProviderGear, ProviderId } from '../types/providerGear';
+import type { LinkedProviderGear } from '../types/providerGear';
 
 export interface ProviderGearLinkStore {
   links: LinkedProviderGear[];
   hydrated: boolean;
   hydrate: () => Promise<void>;
   upsertLink: (link: LinkedProviderGear) => Promise<void>;
-  removeLink: (providerId: ProviderId, localGearId: string, localGearType: GearType) => Promise<void>;
-  markLinkStale: (providerId: ProviderId, localGearId: string, localGearType: GearType) => Promise<void>;
+  removeLink: (providerId: string, localGearId: string, localGearType: GearType) => Promise<void>;
+  markLinkStale: (providerId: string, localGearId: string, localGearType: GearType) => Promise<void>;
   /** Clears all stored gear links for a provider. Call on provider disconnect to prevent stale links being reused after account switch. */
-  clearLinksForProvider: (providerId: ProviderId) => Promise<void>;
+  clearLinksForProvider: (providerId: string) => Promise<void>;
 }
 
 function isSameLink(

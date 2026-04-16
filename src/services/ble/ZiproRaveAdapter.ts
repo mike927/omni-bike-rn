@@ -117,7 +117,7 @@ export class ZiproRaveAdapter implements BikeAdapter {
     }
 
     const base64Cmd =
-      typeof Buffer !== 'undefined' ? Buffer.from(command).toString('base64') : btoa(String.fromCharCode(...command));
+      typeof Buffer === 'undefined' ? btoa(String.fromCharCode(...command)) : Buffer.from(command).toString('base64');
 
     await this.device.writeCharacteristicWithResponseForService(FTMS_SERVICE_UUID, FTMS_CONTROL_POINT_UUID, base64Cmd);
   }

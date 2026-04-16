@@ -10,6 +10,7 @@ import { SectionCard } from '../../../ui/components/SectionCard';
 import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
 
+// eslint-disable-next-line sonarjs/cognitive-complexity -- large screen component; refactor tracked separately
 export function SettingsScreen() {
   const router = useRouter();
   const { bikeConnected, hrConnected, disconnectAll } = useDeviceConnection();
@@ -47,11 +48,17 @@ export function SettingsScreen() {
       {
         text: 'Disconnect',
         style: 'destructive',
-        onPress: async () => {
-          const result = await disconnect();
-          if (!result.success) {
-            Alert.alert('Disconnect Failed', result.errorMessage ?? 'Could not disconnect from Strava.');
-          }
+        onPress: () => {
+          void disconnect()
+            .then((result) => {
+              if (!result.success) {
+                Alert.alert('Disconnect Failed', result.errorMessage ?? 'Could not disconnect from Strava.');
+              }
+            })
+            .catch((error: unknown) => {
+              console.error('[SettingsScreen] Disconnect failed', error);
+              Alert.alert('Disconnect Failed', 'An unexpected error occurred.');
+            });
         },
       },
     ]);

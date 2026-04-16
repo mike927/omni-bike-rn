@@ -364,8 +364,8 @@ describe('useTrainingSession', () => {
     mockSetControlState.mockClear();
     mockEngineStop.mockClear();
 
-    act(() => {
-      result.current.reset();
+    await act(async () => {
+      await result.current.reset();
     });
 
     await waitFor(() => {
@@ -467,8 +467,8 @@ describe('useTrainingSession', () => {
     mockDisconnect.mockClear();
     mockHrDisconnect.mockClear();
 
-    act(() => {
-      result.current.reset();
+    await act(async () => {
+      await result.current.reset();
     });
 
     await waitFor(() => {
@@ -554,11 +554,11 @@ describe('useTrainingSession', () => {
     expect(result.current.phase).toBe(TrainingPhase.Idle);
   });
 
-  it('should avoid issuing a bike reset command when already idle', () => {
+  it('should avoid issuing a bike reset command when already idle', async () => {
     const { result } = renderHook(() => useTrainingSession());
 
-    act(() => {
-      result.current.reset();
+    await act(async () => {
+      await result.current.reset();
     });
 
     expect(result.current.phase).toBe(TrainingPhase.Idle);

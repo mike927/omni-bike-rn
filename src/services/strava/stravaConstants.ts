@@ -9,6 +9,7 @@ const extra = Constants.expoConfig?.extra as ExpoExtra | undefined;
 
 const rawClientId = extra?.stravaClientId ?? '';
 const rawClientSecret = extra?.stravaClientSecret ?? '';
+// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- empty string must fall back to default
 const rawCallbackDomain = extra?.stravaCallbackDomain?.trim() || DEFAULT_STRAVA_CALLBACK_DOMAIN;
 
 if (!rawClientId || !rawClientSecret) {

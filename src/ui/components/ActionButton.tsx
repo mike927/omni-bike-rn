@@ -57,14 +57,16 @@ export function ActionButton({
   variant = 'primary',
   disabled = false,
   fullWidth = false,
-}: ActionButtonProps) {
+}: Readonly<ActionButtonProps>) {
   const selectedVariant = variantStyles[variant];
 
   return (
     <Pressable
       accessibilityRole="button"
       disabled={disabled}
-      onPress={onPress}
+      onPress={() => {
+        void onPress();
+      }}
       style={({ pressed }) => [
         styles.button,
         selectedVariant.container,

@@ -14,7 +14,7 @@ interface ProviderGearLinkScreenProps {
   providerId: string;
 }
 
-export function ProviderGearLinkScreen({ providerId }: ProviderGearLinkScreenProps) {
+export function ProviderGearLinkScreen({ providerId }: Readonly<ProviderGearLinkScreenProps>) {
   const router = useRouter();
   const { savedBike } = useSavedGear();
   const {
@@ -167,7 +167,7 @@ export function ProviderGearLinkScreen({ providerId }: ProviderGearLinkScreenPro
         </SectionCard>
       ) : null}
 
-      {!needsReconnect ? (
+      {needsReconnect ? null : (
         <View style={styles.actionRow}>
           <ActionButton
             label={isLoading || isSaving ? 'Working...' : 'Link Bike'}
@@ -187,7 +187,7 @@ export function ProviderGearLinkScreen({ providerId }: ProviderGearLinkScreenPro
             />
           ) : null}
         </View>
-      ) : null}
+      )}
     </AppScreen>
   );
 }

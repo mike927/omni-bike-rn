@@ -10,7 +10,7 @@ interface WorkoutHistoryListItemProps {
   onDelete: () => void;
 }
 
-export function WorkoutHistoryListItem({ session, onPress, onDelete }: WorkoutHistoryListItemProps) {
+export function WorkoutHistoryListItem({ session, onPress, onDelete }: Readonly<WorkoutHistoryListItemProps>) {
   const handleDeletePress = (event?: GestureResponderEvent) => {
     event?.stopPropagation?.();
     onDelete();

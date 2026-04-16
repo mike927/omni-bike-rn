@@ -49,10 +49,7 @@ export function useTrainingSession(): UseTrainingSessionReturn {
   const lastBikeSignalAtMs = useDeviceConnectionStore((s) => s.lastBikeSignalAtMs);
 
   const ensureEngineRunning = useCallback(() => {
-    if (!engineRef.current) {
-      engineRef.current = new MetronomeEngine();
-    }
-
+    engineRef.current ??= new MetronomeEngine();
     engineRef.current.start();
   }, []);
 
@@ -219,12 +216,13 @@ export function useTrainingSession(): UseTrainingSessionReturn {
           useTrainingSessionStore.getState().resume();
           ensureEngineRunning();
         }
-      } else if (status === BikeStatus.Paused || status === BikeStatus.Stopped) {
+      } else if (
+        (status === BikeStatus.Paused || status === BikeStatus.Stopped) &&
+        currentPhase === TrainingPhase.Active
+      ) {
         // Ignore when already Paused — a Stopped echo can come from our own setControlState(Stopped) call.
         // When Active, both Paused and Stopped should freeze the session until the user resumes or finishes.
-        if (currentPhase === TrainingPhase.Active) {
-          freezeActiveSession();
-        }
+        freezeActiveSession();
       }
     },
     [ensureEngineRunning, freezeActiveSession],

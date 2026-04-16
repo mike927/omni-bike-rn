@@ -1,7 +1,7 @@
 import Storage from 'expo-sqlite/kv-store';
 
 import type { GearType } from '../../types/gear';
-import type { LinkedProviderGear, ProviderId } from '../../types/providerGear';
+import type { LinkedProviderGear } from '../../types/providerGear';
 
 const STORAGE_KEY = 'omni:providerGearLinks';
 
@@ -29,7 +29,7 @@ async function persistProviderGearLinks(links: LinkedProviderGear[]): Promise<vo
 
 function isSameLink(
   link: LinkedProviderGear,
-  providerId: ProviderId,
+  providerId: string,
   localGearId: string,
   localGearType: GearType,
 ): boolean {
@@ -44,7 +44,7 @@ export async function saveProviderGearLink(link: LinkedProviderGear): Promise<vo
 }
 
 export async function removeProviderGearLink(
-  providerId: ProviderId,
+  providerId: string,
   localGearId: string,
   localGearType: GearType,
 ): Promise<void> {
@@ -54,7 +54,7 @@ export async function removeProviderGearLink(
 }
 
 export async function markProviderGearLinkStale(
-  providerId: ProviderId,
+  providerId: string,
   localGearId: string,
   localGearType: GearType,
 ): Promise<void> {
@@ -66,7 +66,7 @@ export async function markProviderGearLinkStale(
 }
 
 export async function getProviderGearLink(
-  providerId: ProviderId,
+  providerId: string,
   localGearId: string,
   localGearType: GearType,
 ): Promise<LinkedProviderGear | null> {

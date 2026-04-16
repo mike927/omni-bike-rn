@@ -8,7 +8,7 @@ interface MetricTileProps {
   style?: ViewStyle;
 }
 
-export function MetricTile({ label, value, style }: MetricTileProps) {
+export function MetricTile({ label, value, style }: Readonly<MetricTileProps>) {
   return (
     <View style={[styles.tile, style]}>
       <Text style={styles.label}>{label}</Text>

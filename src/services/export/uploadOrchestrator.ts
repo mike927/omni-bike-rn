@@ -39,6 +39,7 @@ function logProviderGearAttach(message: string, payload: Record<string, unknown>
   console.warn(`[uploadOrchestrator] ${message}`, payload);
 }
 
+// eslint-disable-next-line sonarjs/cognitive-complexity -- orchestrator with multi-step error handling; refactor tracked separately
 export async function uploadSessionToProvider(sessionId: string, providerId: string): Promise<UploadSessionResult> {
   const provider = getExportProvider(providerId);
   if (!provider) {

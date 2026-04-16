@@ -142,7 +142,7 @@ export async function waitForProcessing(accessToken: string, uploadId: number): 
       error: status.error,
     });
 
-    if (status.activity_id !== null && status.activity_id !== undefined) {
+    if (status.activity_id !== null) {
       return { activityId: status.activity_id, error: null };
     }
 

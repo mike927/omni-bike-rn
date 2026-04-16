@@ -68,7 +68,7 @@ function getUploadStatusMessage(upload: PersistedProviderUpload | null): string 
     : `${STRAVA_PROVIDER_LABEL} upload failed.`;
 }
 
-export function TrainingSummaryScreen({ sessionId, source, returnTo }: TrainingSummaryScreenProps) {
+export function TrainingSummaryScreen({ sessionId, source, returnTo }: Readonly<TrainingSummaryScreenProps>) {
   const router = useRouter();
   const [session, setSession] = useState<PersistedTrainingSession | null>(null);
   const [providerUpload, setProviderUpload] = useState<PersistedProviderUpload | null>(null);

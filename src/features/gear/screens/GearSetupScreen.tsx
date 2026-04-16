@@ -58,7 +58,7 @@ interface HintBlockProps {
   children: React.ReactNode;
 }
 
-function HintBlock({ headline, expanded, onToggle, testID, children }: HintBlockProps) {
+function HintBlock({ headline, expanded, onToggle, testID, children }: Readonly<HintBlockProps>) {
   return (
     <View style={styles.hintContainer} testID={testID}>
       <Pressable
@@ -74,7 +74,7 @@ function HintBlock({ headline, expanded, onToggle, testID, children }: HintBlock
   );
 }
 
-export function GearSetupScreen({ target }: GearSetupScreenProps) {
+export function GearSetupScreen({ target }: Readonly<GearSetupScreenProps>) {
   const router = useRouter();
   const {
     step,
