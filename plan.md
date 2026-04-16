@@ -127,16 +127,16 @@ Lightweight, modern onboarding shown only on first launch. 2-3 swipeable intro s
 Standard Bluetooth HR sensors are expected to work via the BLE HR flow before this phase. Broadcast-capable watches such as Garmin or Polar stay on that same Bluetooth HR path when they expose the standard BLE HR service. Apple Watch is a separate native integration and must only be surfaced on iPhone, never on Android. During this phase the app remains the owner of the workout session; watches act as HR sensors unless a later native watch integration explicitly says otherwise.
 
 - [x] HR priority scaffold + Bluetooth HR UX cleanup
-- [ ] Extend gear setup and Settings to support native watch-based HR sources
-- [ ] Support Apple Watch as an iPhone-only native selectable HR source
+- [~] Extend gear setup and Settings to support native watch-based HR sources
+- [~] Support Apple Watch as an iPhone-only native selectable HR source
 - [x] Support compatible broadcast-capable watches (for example Garmin or Polar) as Bluetooth HR sources when the watch can transmit HR without owning the workout — runtime HR path (`StandardHrAdapter`, `validateHrDevice`, `isLikelyHrCandidate`) is vendor-agnostic and routes solely on `0x180D` / `0x2A37` + wearable vendor Company ID allowlist (Garmin 0x0087, Polar 0x006B, Suunto, COROS, Amazfit, Wahoo); hardware-verified negative on Venu gen 1 fw 7.80 (Broadcast feature is ANT+ only on this model, watch never emits a BLE advertisement in any broadcast variant — see `docs/vendor/garmin/hr-broadcast/README.md` Compatibility section); expected to work unmodified on Venu 2+ / Fenix 6+ / Forerunner 245+ / Vivoactive 4+ per Garmin's public support matrix
 - [ ] Garmin Connect IQ companion app for one-tap start/stop sync between the iOS app and a Garmin watch (Monkey C; store-distributed; mirror of the Apple Watch companion task above)
-- [ ] Native WatchOS companion app (SwiftUI + HealthKit workout session)
-- [ ] Real-time HR streaming via WatchConnectivity
-- [ ] HR source priority logic (Watch > BLE HR monitor > Bike pulse)
+- [~] Native WatchOS companion app (SwiftUI + HealthKit workout session)
+- [~] Real-time HR streaming via WatchConnectivity
+- [~] HR source priority logic (Watch > BLE HR monitor > Bike pulse)
 - [ ] Background recording with BLE + Watch
-- [ ] Just-in-time permission UX for watch / health integrations
-- [ ] Minimal UI elements needed for watch status and source visibility
+- [~] Just-in-time permission UX for watch / health integrations
+- [~] Minimal UI elements needed for watch status and source visibility
 - [ ] Add comprehensive unit tests covering various test cases
 
 ## Phase 9: User Profile & Personalized Metrics

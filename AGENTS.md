@@ -47,6 +47,14 @@ Use these task states consistently:
 
 When using `[?]` or `[-]`, include a short reason in the same task line.
 
+## Native iOS Constraints
+
+⚠️ **Do not run `expo prebuild --clean`** after the watchOS companion app target has been added to `ios/`. The `--clean` flag wipes the entire `ios/` directory and destroys the Watch target. Use `expo prebuild` (without `--clean`) for incremental config changes. If `--clean` was accidentally run, restore `ios/OmniBikeWatch/` and the Watch target from git.
+
+- The `ios/` directory is intentionally committed to git (partial eject — watchOS companion app target).
+- The Watch target (`OmniBikeWatch`) and its three Swift files live in `ios/OmniBikeWatch/` and are managed manually in Xcode.
+- The config plugin `plugins/with-watch-extension.js` only adds entitlements and Info.plist keys — it is safe to re-apply at every prebuild run.
+
 ## Branching And Workspace Rules
 
 - Never commit changes directly to `main`.

@@ -53,6 +53,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
     'expo-web-browser',
     'expo-secure-store',
+    './plugins/with-watch-extension',
   ],
   extra: {
     // Register a Strava API application at https://www.strava.com/settings/api

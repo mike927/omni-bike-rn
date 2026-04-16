@@ -5,15 +5,48 @@ import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { useProviderBikeLinking } from '../../integrations/hooks/useProviderBikeLinking';
 import { useDeviceConnection } from '../../training/hooks/useDeviceConnection';
 import { useStravaConnection } from '../../integrations/hooks/useStravaConnection';
+import { useWatchHr } from '../../gear/hooks/useWatchHr';
 import { ActionButton } from '../../../ui/components/ActionButton';
 import { SectionCard } from '../../../ui/components/SectionCard';
 import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
 
+interface WatchHrRowProps {
+  readonly watchHrEnabled: boolean;
+  readonly latestAppleWatchHr: number | null;
+  readonly onEnable: () => void;
+  readonly onDisable: () => void;
+}
+
+function getWatchHrStatusLabel(watchHrEnabled: boolean, latestAppleWatchHr: number | null): string {
+  if (!watchHrEnabled) return 'Disabled';
+  if (latestAppleWatchHr === null) return 'Idle';
+  return `Streaming · ${latestAppleWatchHr} bpm`;
+}
+
+function WatchHrRow({ watchHrEnabled, latestAppleWatchHr, onEnable, onDisable }: WatchHrRowProps) {
+  return (
+    <View style={styles.gearRow}>
+      <View style={styles.gearInfo}>
+        <Text style={styles.gearLabel}>Apple Watch HR</Text>
+        <Text style={styles.gearName}>{getWatchHrStatusLabel(watchHrEnabled, latestAppleWatchHr)}</Text>
+      </View>
+      <View style={styles.gearActions}>
+        {watchHrEnabled ? (
+          <ActionButton label="Disable" onPress={onDisable} variant="danger" />
+        ) : (
+          <ActionButton label="Enable" onPress={onEnable} variant="secondary" />
+        )}
+      </View>
+    </View>
+  );
+}
+
 // eslint-disable-next-line sonarjs/cognitive-complexity -- large screen component; refactor tracked separately
 export function SettingsScreen() {
   const router = useRouter();
-  const { bikeConnected, hrConnected, disconnectAll } = useDeviceConnection();
+  const { bikeConnected, hrConnected, latestAppleWatchHr, disconnectAll } = useDeviceConnection();
+  const { watchAvailable, watchHrEnabled, enableWatchHr, disableWatchHr } = useWatchHr();
   const { savedBike, savedHrSource, forgetBike, forgetHr } = useSavedGear();
   const {
     isConnected: stravaConnected,
@@ -108,6 +141,18 @@ export function SettingsScreen() {
             {savedHrSource ? <ActionButton label="Forget" onPress={() => void forgetHr()} variant="danger" /> : null}
           </View>
         </View>
+
+        {watchAvailable ? (
+          <>
+            <View style={styles.divider} />
+            <WatchHrRow
+              watchHrEnabled={watchHrEnabled}
+              latestAppleWatchHr={latestAppleWatchHr}
+              onEnable={() => void enableWatchHr()}
+              onDisable={() => void disableWatchHr()}
+            />
+          </>
+        ) : null}
 
         <ActionButton
           label="Disconnect Active Gear"

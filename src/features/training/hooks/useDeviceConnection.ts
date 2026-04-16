@@ -129,6 +129,7 @@ interface UseDeviceConnectionReturn {
   hrConnected: boolean;
   latestBikeMetrics: BikeMetrics | null;
   latestBluetoothHr: number | null;
+  latestAppleWatchHr: number | null;
 
   // ── Actions ────────────────────────────────────────────
   connectBike: (deviceId: string, options?: BleConnectionOptions) => Promise<void>;
@@ -149,6 +150,7 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
   const hrAdapter = useDeviceConnectionStore((s) => s.hrAdapter);
   const latestBikeMetrics = useDeviceConnectionStore((s) => s.latestBikeMetrics);
   const latestBluetoothHr = useDeviceConnectionStore((s) => s.latestBluetoothHr);
+  const latestAppleWatchHr = useDeviceConnectionStore((s) => s.latestAppleWatchHr);
 
   const disconnectBike = useCallback(async () => {
     await disconnectBikeConnectionInternal();
@@ -222,6 +224,7 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
     hrConnected: hrAdapter !== null,
     latestBikeMetrics,
     latestBluetoothHr,
+    latestAppleWatchHr,
     connectBike,
     connectHr,
     disconnectBike,

@@ -1,0 +1,109 @@
+require File.join(File.dirname(`node --print "require.resolve('expo/package.json')"`), "scripts/autolinking")
+require File.join(File.dirname(`node --print "require.resolve('react-native/package.json')"`), "scripts/react_native_pods")
+
+require 'json'
+podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties.json'))) rescue {}
+
+def ccache_enabled?(podfile_properties)
+  # Environment variable takes precedence
+  return ENV['USE_CCACHE'] == '1' if ENV['USE_CCACHE']
+  
+  # Fall back to Podfile properties
+  podfile_properties['apple.ccacheEnabled'] == 'true'
+end
+
+ENV['RCT_NEW_ARCH_ENABLED'] ||= '0' if podfile_properties['newArchEnabled'] == 'false'
+ENV['EX_DEV_CLIENT_NETWORK_INSPECTOR'] ||= podfile_properties['EX_DEV_CLIENT_NETWORK_INSPECTOR']
+ENV['RCT_USE_RN_DEP'] ||= '1' if podfile_properties['ios.buildReactNativeFromSource'] != 'true' && podfile_properties['newArchEnabled'] != 'false'
+ENV['RCT_USE_PREBUILT_RNCORE'] ||= '1' if podfile_properties['ios.buildReactNativeFromSource'] != 'true' && podfile_properties['newArchEnabled'] != 'false'
+platform :ios, podfile_properties['ios.deploymentTarget'] || '18.0'
+
+prepare_react_native_project!
+
+target 'omnibikern' do
+  use_expo_modules!
+
+  if ENV['EXPO_USE_COMMUNITY_AUTOLINKING'] == '1'
+    config_command = ['node', '-e', "process.argv=['', '', 'config'];require('@react-native-community/cli').run()"];
+  else
+    config_command = [
+      'node',
+      '--no-warnings',
+      '--eval',
+      'require(\'expo/bin/autolinking\')',
+      'expo-modules-autolinking',
+      'react-native-config',
+      '--json',
+      '--platform',
+      'ios'
+    ]
+  end
+
+  config = use_native_modules!(config_command)
+
+  use_frameworks! :linkage => podfile_properties['ios.useFrameworks'].to_sym if podfile_properties['ios.useFrameworks']
+  use_frameworks! :linkage => ENV['USE_FRAMEWORKS'].to_sym if ENV['USE_FRAMEWORKS']
+
+  use_react_native!(
+    :path => config[:reactNativePath],
+    :hermes_enabled => podfile_properties['expo.jsEngine'] == nil || podfile_properties['expo.jsEngine'] == 'hermes',
+    # An absolute path to your application root.
+    :app_path => "#{Pod::Config.instance.installation_root}/..",
+    :privacy_file_aggregation_enabled => podfile_properties['apple.privacyManifestAggregationEnabled'] != 'false',
+  )
+
+  post_install do |installer|
+    react_native_post_install(
+      installer,
+      config[:reactNativePath],
+      :mac_catalyst_enabled => false,
+      :ccache_enabled => ccache_enabled?(podfile_properties),
+    )
+
+# @generated begin omni-bike-ios-warning-fixes - expo prebuild (DO NOT MODIFY) sync-f3ec9be4ef93598e7c5dc0817c3f1add2a1a4b8e
+    warning_suppression_flags = %w[-Wno-nullability-completeness -Wno-nonportable-include-path]
+    ensure_warning_flags = lambda do |build_configuration, build_setting_key|
+      current_value = build_configuration.build_settings[build_setting_key]
+      flags = case current_value
+      when Array then current_value.dup
+      when String then current_value.split(' ')
+      when nil then ['$(inherited)']
+      else Array(current_value)
+      end
+
+      warning_suppression_flags.each do |flag|
+        flags << flag unless flags.include?(flag)
+      end
+
+      build_configuration.build_settings[build_setting_key] = flags
+    end
+
+    min_ios_deployment_target = podfile_properties['ios.deploymentTarget'] || '18.0'
+    installer.pods_project.targets.each do |pod_target|
+      pod_target.build_configurations.each do |build_configuration|
+        build_configuration.build_settings['CLANG_WARN_NULLABILITY_COMPLETENESS'] = 'NO'
+        build_configuration.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
+        build_configuration.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
+        build_configuration.build_settings['SWIFT_SUPPRESS_WARNINGS'] = 'YES'
+        ensure_warning_flags.call(build_configuration, 'OTHER_CFLAGS')
+        ensure_warning_flags.call(build_configuration, 'OTHER_CPLUSPLUSFLAGS')
+      end
+    end
+
+    installer.target_installation_results.pod_target_installation_results.each_value do |pod_installation_result|
+      pod_installation_result.resource_bundle_targets.each do |resource_bundle_target|
+        resource_bundle_target.build_configurations.each do |build_configuration|
+          build_configuration.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = min_ios_deployment_target
+          build_configuration.build_settings['CLANG_WARN_NULLABILITY_COMPLETENESS'] = 'NO'
+          build_configuration.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
+          build_configuration.build_settings['GCC_WARN_INHIBIT_ALL_WARNINGS'] = 'YES'
+          build_configuration.build_settings['SWIFT_SUPPRESS_WARNINGS'] = 'YES'
+          ensure_warning_flags.call(build_configuration, 'OTHER_CFLAGS')
+          ensure_warning_flags.call(build_configuration, 'OTHER_CPLUSPLUSFLAGS')
+        end
+      end
+    end
+# @generated end omni-bike-ios-warning-fixes
+
+  end
+end
