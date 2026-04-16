@@ -105,6 +105,8 @@ Do NOT delete or move items to new sections. Update the findings in `ai/local/re
 
 For each finding you process, use your text replacement tool to change `[ ]` to `[x]` and append your resolution inline using the `->` symbol.
 
+Once all actionable findings (bug, regression, convention, accepted suggestion) are marked `[x]`, update the `State:` header line from `needs-changes` to `ready`.
+
 **Format:**
 `- [x] <file:line> [<severity>] - <description> -> FIXED: <commit-hash>`
 `- [x] <file:line> [<severity>] - <description> -> ANSWERED: <brief answer>`
