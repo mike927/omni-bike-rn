@@ -1,9 +1,7 @@
 import type { GearType } from './gear';
 
-export type ProviderId = string;
-
 export interface ProviderGearSummary {
-  providerId: ProviderId;
+  providerId: string;
   gearType: GearType;
   id: string;
   name: string;
@@ -11,7 +9,7 @@ export interface ProviderGearSummary {
 }
 
 export interface LinkedProviderGear {
-  providerId: ProviderId;
+  providerId: string;
   localGearId: string;
   localGearType: GearType;
   providerGearId: string;

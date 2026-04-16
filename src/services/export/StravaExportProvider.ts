@@ -67,7 +67,7 @@ export class StravaExportProvider implements ExportProvider {
 
     return {
       success: true,
-      externalId: result.activityId !== null ? String(result.activityId) : undefined,
+      externalId: result.activityId === null ? undefined : String(result.activityId),
     };
   }
 

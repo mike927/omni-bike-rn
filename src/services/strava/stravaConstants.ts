@@ -9,7 +9,7 @@ const extra = Constants.expoConfig?.extra as ExpoExtra | undefined;
 
 const rawClientId = extra?.stravaClientId ?? '';
 const rawClientSecret = extra?.stravaClientSecret ?? '';
-const rawCallbackDomain = extra?.stravaCallbackDomain?.trim() || DEFAULT_STRAVA_CALLBACK_DOMAIN;
+const rawCallbackDomain = extra?.stravaCallbackDomain?.trim() ?? DEFAULT_STRAVA_CALLBACK_DOMAIN;
 
 if (!rawClientId || !rawClientSecret) {
   console.warn(

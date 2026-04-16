@@ -142,7 +142,11 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
     let newInitialDistance = initialDistance;
     let nextLastBikeDistance = lastBikeDistance;
 
-    if (metrics.distance !== null && metrics.distance !== undefined) {
+    if (metrics.distance === null) {
+      // Fallback: Distance delta (speed is km/h → m/s = speed / 3.6 for 1s)
+      const distanceDelta = (metrics.speed / 3.6) * 1;
+      newTotalDistance += distanceDelta;
+    } else {
       // Distance Rebase Logic: Detect if the bike counter reset (e.g. power cycle)
       // or if this is the first data point for the session.
       const shouldRebaseDistance =
@@ -156,10 +160,6 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
 
       newTotalDistance = metrics.distance - (newInitialDistance ?? metrics.distance);
       nextLastBikeDistance = metrics.distance;
-    } else {
-      // Fallback: Distance delta (speed is km/h → m/s = speed / 3.6 for 1s)
-      const distanceDelta = (metrics.speed / 3.6) * 1;
-      newTotalDistance += distanceDelta;
     }
 
     let nextTotalCalories = totalCalories;

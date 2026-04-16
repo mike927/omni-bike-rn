@@ -9,7 +9,7 @@ interface SectionCardProps {
   children: ReactNode;
 }
 
-export function SectionCard({ title, description, children }: SectionCardProps) {
+export function SectionCard({ title, description, children }: Readonly<SectionCardProps>) {
   return (
     <View style={styles.card}>
       <View style={styles.header}>

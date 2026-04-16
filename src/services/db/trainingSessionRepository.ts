@@ -258,13 +258,17 @@ export function finalizeSession(input: FinalizeSessionInput): void {
   );
 }
 
-export function discardDraftSession(sessionId: string): void {
+function deleteSessionById(sessionId: string): void {
   const database = getSQLiteDatabase();
   database.withTransactionSync(() => {
     database.runSync('DELETE FROM session_provider_uploads WHERE session_id = ?', sessionId);
     database.runSync('DELETE FROM training_session_samples WHERE session_id = ?', sessionId);
     database.runSync('DELETE FROM training_sessions WHERE id = ?', sessionId);
   });
+}
+
+export function discardDraftSession(sessionId: string): void {
+  deleteSessionById(sessionId);
 }
 
 const SESSION_SELECT_COLUMNS = `
@@ -321,7 +325,7 @@ export function finalizeStaleOpenSessions(nowMs: number, maxAgeMs: number): Pers
   );
 
   database.withTransactionSync(() => {
-    rows.forEach((row) => {
+    for (const row of rows) {
       finalizeSession({
         sessionId: row.id,
         endedAtMs: row.updatedAtMs,
@@ -338,7 +342,7 @@ export function finalizeStaleOpenSessions(nowMs: number, maxAgeMs: number): Pers
           distance: row.currentDistanceMeters,
         },
       });
-    });
+    }
   });
 
   return rows
@@ -443,12 +447,7 @@ export function getLastSampleSequence(sessionId: string): number {
 }
 
 export function deleteSession(sessionId: string): void {
-  const database = getSQLiteDatabase();
-  database.withTransactionSync(() => {
-    database.runSync('DELETE FROM session_provider_uploads WHERE session_id = ?', sessionId);
-    database.runSync('DELETE FROM training_session_samples WHERE session_id = ?', sessionId);
-    database.runSync('DELETE FROM training_sessions WHERE id = ?', sessionId);
-  });
+  deleteSessionById(sessionId);
 }
 
 export function updateUploadState(sessionId: string, uploadState: SessionUploadState): void {

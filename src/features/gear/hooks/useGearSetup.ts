@@ -104,8 +104,9 @@ export function useGearSetup(target: GearType): UseGearSetupReturn {
 
   const startScan = useCallback(async () => {
     const permission = await requestBlePermission();
-    if (permission === 'denied') return permission;
-    await scanForDevices();
+    if (permission !== 'denied') {
+      await scanForDevices();
+    }
     return permission;
   }, [requestBlePermission, scanForDevices]);
 

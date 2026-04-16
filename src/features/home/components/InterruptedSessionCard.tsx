@@ -6,7 +6,7 @@ import { formatDistanceKm, formatDuration, formatSessionDate } from '../../../ui
 import { palette } from '../../../ui/theme';
 import type { InterruptedSessionCardProps } from './InterruptedSessionCard.types';
 
-export function InterruptedSessionCard({ session, onResume, onDiscard }: InterruptedSessionCardProps) {
+export function InterruptedSessionCard({ session, onResume, onDiscard }: Readonly<InterruptedSessionCardProps>) {
   return (
     <SectionCard
       title="Interrupted Session"

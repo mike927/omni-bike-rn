@@ -21,8 +21,8 @@ describe('useBleScanner', () => {
 
       const { result } = renderHook(() => useBleScanner());
 
-      act(() => {
-        result.current.scanForDevices();
+      await act(async () => {
+        await result.current.scanForDevices();
       });
 
       await waitFor(() => {
@@ -38,8 +38,8 @@ describe('useBleScanner', () => {
 
       const { result } = renderHook(() => useBleScanner());
 
-      act(() => {
-        result.current.scanForDevices();
+      await act(async () => {
+        await result.current.scanForDevices();
       });
 
       await waitFor(() => {
@@ -60,8 +60,8 @@ describe('useBleScanner', () => {
 
       const { result } = renderHook(() => useBleScanner());
 
-      act(() => {
-        result.current.scanForDevices();
+      await act(async () => {
+        await result.current.scanForDevices();
       });
 
       await waitFor(() => {
@@ -82,8 +82,8 @@ describe('useBleScanner', () => {
 
       const { result } = renderHook(() => useBleScanner());
 
-      act(() => {
-        result.current.scanForDevices();
+      await act(async () => {
+        await result.current.scanForDevices();
       });
 
       await waitFor(() => {
@@ -108,8 +108,8 @@ describe('useBleScanner', () => {
 
       const { result } = renderHook(() => useBleScanner(null, clientFilter));
 
-      act(() => {
-        result.current.scanForDevices();
+      await act(async () => {
+        await result.current.scanForDevices();
       });
 
       await waitFor(() => {
@@ -128,8 +128,8 @@ describe('useBleScanner', () => {
 
       const { result } = renderHook(() => useBleScanner(null, clientFilter));
 
-      act(() => {
-        result.current.scanForDevices();
+      await act(async () => {
+        await result.current.scanForDevices();
       });
 
       // Give the filter a tick to run.
@@ -150,8 +150,8 @@ describe('useBleScanner', () => {
 
       const { result } = renderHook(() => useBleScanner());
 
-      act(() => {
-        result.current.scanForDevices();
+      await act(async () => {
+        await result.current.scanForDevices();
       });
 
       await waitFor(() => {

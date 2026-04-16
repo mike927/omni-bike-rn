@@ -9,7 +9,7 @@ function joinUri(parts: (string | { uri: string })[]): string {
   return parts
     .map((part) => (typeof part === 'string' ? part : part.uri))
     .join('/')
-    .replace(/\/+/g, '/')
+    .replaceAll(/\/+/g, '/')
     .replace('file:/', 'file://');
 }
 

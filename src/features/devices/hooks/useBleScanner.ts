@@ -21,7 +21,7 @@ export function useBleScanner(serviceUUIDs: string[] | null = null, clientFilter
       setIsScanning(true);
       setDevices([]);
 
-      bleManager.startDeviceScan(serviceUUIDs, null, (scanError, device) => {
+      void bleManager.startDeviceScan(serviceUUIDs, null, (scanError, device) => {
         if (scanError) {
           console.error('Scan error:', scanError);
           setError(scanError.message);
@@ -70,7 +70,7 @@ export function useBleScanner(serviceUUIDs: string[] | null = null, clientFilter
   }, [serviceUUIDs, clientFilter]);
 
   const stopScanning = useCallback(() => {
-    bleManager.stopDeviceScan();
+    void bleManager.stopDeviceScan();
     setIsScanning(false);
   }, []);
 
@@ -78,7 +78,7 @@ export function useBleScanner(serviceUUIDs: string[] | null = null, clientFilter
   useEffect(() => {
     return () => {
       if (isScanning) {
-        bleManager.stopDeviceScan();
+        void bleManager.stopDeviceScan();
       }
     };
   }, [isScanning]);

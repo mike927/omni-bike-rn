@@ -3,7 +3,7 @@ import type { ProviderGearSummary } from '../../types/providerGear';
 function normalizeName(value: string): string {
   return value
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
+    .replaceAll(/[^a-z0-9]+/g, ' ')
     .trim();
 }
 
@@ -24,8 +24,8 @@ function scoreNameMatch(localName: string, providerName: string): number {
   }
 
   const localTokens = normalizedLocal.split(' ');
-  const providerTokens = normalizedProvider.split(' ');
-  const sharedTokens = localTokens.filter((token) => token.length > 2 && providerTokens.includes(token));
+  const providerTokens = new Set(normalizedProvider.split(' '));
+  const sharedTokens = localTokens.filter((token) => token.length > 2 && providerTokens.has(token));
 
   return sharedTokens.length >= 2 ? 1 : 0;
 }
