@@ -62,14 +62,7 @@ If they were not provided:
 
 Construct the proposed branch name: `<type>/<description>`.
 
-If the inputs were inferred rather than provided, surface the proposed name to the user for confirmation before creating anything:
-
-```
-Proposed branch: feat/ble-metronome-engine
-Confirm, or reply with an alternative.
-```
-
-Do not proceed until the user confirms or provides a corrected name.
+If the inputs were inferred rather than provided, display the proposed name and proceed automatically. The user can interrupt or correct on the next turn if needed.
 
 ### Step 3: Ask Workspace Strategy
 

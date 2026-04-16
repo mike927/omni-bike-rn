@@ -74,7 +74,7 @@ Examples:
 
 ## Workflow Artifacts
 
-- `ai/local/plans/<branch-slug>.md`: the local implementation plan for the active branch. Treat as a read-only blueprint once approved; do not update it continuously to track progress unless the fundamental scope changes.
+- `ai/local/plans/<branch-slug>.md`: the local implementation plan for the active branch. Treat as a read-only blueprint once approved; do not update it continuously to track progress unless the fundamental scope changes. If the host provides a native plan tool that writes to its own location, mirror plan content to this canonical path so other providers can access it.
 - `ai/local/reviews/<branch-slug>.md`: local internal review findings and follow-up notes for the active branch.
 - `ai/local/testing/<branch-slug>.md`: local saved manual testing checklist. Create or update only when the human explicitly asks for a persistent checklist file.
 - Reuse the same `branch-slug` across all branch-scoped AI artifacts.
