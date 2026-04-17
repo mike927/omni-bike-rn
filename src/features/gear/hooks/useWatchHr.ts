@@ -39,6 +39,7 @@ export function useWatchHr(): void {
   const adapterRef = useRef<WatchHrAdapter | null>(null);
   const subRef = useRef<{ remove: () => void } | null>(null);
   const latestStartRequestAtRef = useRef(0);
+  const streamGenerationRef = useRef(0);
   const startTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Synchronous guard against re-entrant startStream invocations. `adapterRef`
   // is only assigned after `await adapter.connect()` resolves, so without this
@@ -87,6 +88,8 @@ export function useWatchHr(): void {
     if (!watchAvailable) return;
     if (adapterRef.current || startingRef.current) return;
 
+    const streamGeneration = streamGenerationRef.current + 1;
+    streamGenerationRef.current = streamGeneration;
     startingRef.current = true;
     latestStartRequestAtRef.current = Date.now();
     setWatchSessionState('starting');
@@ -96,6 +99,13 @@ export function useWatchHr(): void {
       await adapter.connect();
     } catch (err) {
       startingRef.current = false;
+      const startWasSuperseded =
+        streamGeneration !== streamGenerationRef.current ||
+        phaseRef.current !== TrainingPhase.Active ||
+        !watchHrEnabledRef.current;
+      if (startWasSuperseded) {
+        return;
+      }
       // The Watch app often becomes reachable a moment after the ride starts.
       // That case is recovered by the reachability listener below, so avoid
       // surfacing a spurious error banner for the expected warm-up race.
@@ -103,6 +113,20 @@ export function useWatchHr(): void {
         clearStartTimeout();
         setWatchSessionState('failed');
         console.error('[useWatchHr] Failed to connect Watch HR:', err);
+      }
+      return;
+    }
+
+    const startWasSuperseded =
+      streamGeneration !== streamGenerationRef.current ||
+      phaseRef.current !== TrainingPhase.Active ||
+      !watchHrEnabledRef.current;
+    if (startWasSuperseded) {
+      startingRef.current = false;
+      try {
+        await adapter.disconnect();
+      } catch (err) {
+        console.error('[useWatchHr] Failed to cancel Watch HR start:', err);
       }
       return;
     }
@@ -115,7 +139,8 @@ export function useWatchHr(): void {
   }, [watchAvailable, updateAppleWatchHr, setWatchSessionState, scheduleStartTimeout, clearStartTimeout]);
 
   const stopStream = useCallback(async () => {
-    const hadStream = adapterRef.current !== null || subRef.current !== null;
+    const hadStream = adapterRef.current !== null || subRef.current !== null || startingRef.current;
+    streamGenerationRef.current += 1;
     clearStartTimeout();
     if (!hadStream) return;
 

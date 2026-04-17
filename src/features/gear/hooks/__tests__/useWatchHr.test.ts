@@ -352,6 +352,98 @@ describe('useWatchHr', () => {
         expect(inst?.disconnect).toHaveBeenCalled();
       });
     });
+
+    it('cancels a pending start when Watch HR is disabled before connect resolves', async () => {
+      useWatchHrStore.setState({ enabled: true, hydrated: true });
+
+      let resolveConnect: (() => void) | null = null;
+      const connectPromise = new Promise<void>((resolve) => {
+        resolveConnect = resolve;
+      });
+
+      const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
+        WatchHrAdapter: jest.Mock;
+      };
+      const disconnect = jest.fn().mockResolvedValue(undefined);
+      const subscribeToHeartRate = jest.fn().mockReturnValue({ remove: jest.fn() });
+      WatchHrAdapter.mockImplementationOnce(() => ({
+        connect: jest.fn().mockImplementation(() => connectPromise),
+        disconnect,
+        subscribeToHeartRate,
+      }));
+
+      const { rerender } = renderHook(() => useWatchHr());
+
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+      });
+      rerender({});
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      act(() => {
+        useWatchHrStore.setState({ enabled: false });
+      });
+      rerender({});
+
+      await act(async () => {
+        resolveConnect?.();
+        await connectPromise;
+      });
+
+      await waitFor(() => {
+        expect(disconnect).toHaveBeenCalledTimes(1);
+        expect(subscribeToHeartRate).not.toHaveBeenCalled();
+      });
+    });
+
+    it('cancels a pending start when the session finishes before connect resolves', async () => {
+      useWatchHrStore.setState({ enabled: true, hydrated: true });
+
+      let resolveConnect: (() => void) | null = null;
+      const connectPromise = new Promise<void>((resolve) => {
+        resolveConnect = resolve;
+      });
+
+      const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
+        WatchHrAdapter: jest.Mock;
+      };
+      const disconnect = jest.fn().mockResolvedValue(undefined);
+      const subscribeToHeartRate = jest.fn().mockReturnValue({ remove: jest.fn() });
+      WatchHrAdapter.mockImplementationOnce(() => ({
+        connect: jest.fn().mockImplementation(() => connectPromise),
+        disconnect,
+        subscribeToHeartRate,
+      }));
+
+      const { rerender } = renderHook(() => useWatchHr());
+
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+      });
+      rerender({});
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Finished } as never);
+      });
+      rerender({});
+
+      await act(async () => {
+        resolveConnect?.();
+        await connectPromise;
+      });
+
+      await waitFor(() => {
+        expect(disconnect).toHaveBeenCalledTimes(1);
+        expect(subscribeToHeartRate).not.toHaveBeenCalled();
+      });
+    });
   });
 
   describe('Watch reachability', () => {

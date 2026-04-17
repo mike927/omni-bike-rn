@@ -21,6 +21,9 @@ interface WatchHrRowProps {
   readonly onDisable: () => void;
 }
 
+const WATCH_HR_INSTALL_HINT =
+  'Open the Omni Bike app on your Apple Watch. If it is not installed yet, add it from the iPhone Watch app.';
+
 function getWatchHrStatusLabel(
   watchHrEnabled: boolean,
   watchReachable: boolean,
@@ -38,6 +41,14 @@ function getWatchHrStatusLabel(
   return `Streaming · ${latestAppleWatchHr} bpm`;
 }
 
+function getWatchHrHint(watchHrEnabled: boolean, watchReachable: boolean): string | null {
+  if (!watchHrEnabled || watchReachable) {
+    return null;
+  }
+
+  return WATCH_HR_INSTALL_HINT;
+}
+
 function WatchHrRow({
   watchHrEnabled,
   watchReachable,
@@ -46,6 +57,8 @@ function WatchHrRow({
   onEnable,
   onDisable,
 }: WatchHrRowProps) {
+  const watchHrHint = getWatchHrHint(watchHrEnabled, watchReachable);
+
   return (
     <View style={styles.gearRow}>
       <View style={styles.gearInfo}>
@@ -53,6 +66,7 @@ function WatchHrRow({
         <Text style={styles.gearName}>
           {getWatchHrStatusLabel(watchHrEnabled, watchReachable, watchSessionState, latestAppleWatchHr)}
         </Text>
+        {watchHrHint ? <Text style={styles.gearHint}>{watchHrHint}</Text> : null}
       </View>
       <View style={styles.gearActions}>
         {watchHrEnabled ? (
@@ -299,6 +313,12 @@ const styles = StyleSheet.create({
     color: palette.text,
     fontSize: 15,
     fontWeight: '600',
+  },
+  gearHint: {
+    marginTop: 4,
+    color: palette.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
   },
   gearActions: {
     flexDirection: 'row',

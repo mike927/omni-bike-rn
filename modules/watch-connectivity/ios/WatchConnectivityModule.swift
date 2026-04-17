@@ -48,7 +48,7 @@ fileprivate enum WatchCommand {
 
 public class WatchConnectivityModule: Module {
   private let stateQueue = DispatchQueue(label: "com.omnibike.watchconnectivity.state")
-  fileprivate var activationPromise: Promise?
+  fileprivate var activationPromises: [Promise] = []
   private let healthStore = HKHealthStore()
   private lazy var sessionDelegate: SessionDelegateProxy = SessionDelegateProxy(module: self)
   fileprivate var pendingStart: Bool = false
@@ -83,16 +83,13 @@ public class WatchConnectivityModule: Module {
         promise.resolve()
         return
       }
-      var alreadyInProgress = false
+      var shouldActivate = false
       self.stateQueue.sync {
-        if self.activationPromise != nil {
-          alreadyInProgress = true
-        } else {
-          self.activationPromise = promise
-        }
+        shouldActivate = self.activationPromises.isEmpty
+        self.activationPromises.append(promise)
       }
-      if alreadyInProgress {
-        promise.reject("ERR_ACTIVATION_IN_PROGRESS", "WCSession activation is already in progress")
+      if !shouldActivate {
+        wcLog("[WC-iPhone] activate: joining in-flight activation")
         return
       }
       session.delegate = self.sessionDelegate
@@ -175,16 +172,16 @@ public class WatchConnectivityModule: Module {
 
   fileprivate func resolveActivation(with error: Error?) {
     wcLog("[WC-iPhone] resolveActivation: error=\(error?.localizedDescription ?? "nil") state=\(WCSession.default.activationState.rawValue) reachable=\(WCSession.default.isReachable)")
-    var promise: Promise?
+    var promises: [Promise] = []
     stateQueue.sync {
-      promise = activationPromise
-      activationPromise = nil
+      promises = activationPromises
+      activationPromises = []
     }
     if let err = error {
-      promise?.reject("ERR_ACTIVATION_FAILED", err.localizedDescription)
+      promises.forEach { $0.reject("ERR_ACTIVATION_FAILED", err.localizedDescription) }
     } else {
       emitReachability(WCSession.default.isReachable)
-      promise?.resolve()
+      promises.forEach { $0.resolve() }
     }
   }
 

@@ -245,5 +245,27 @@ describe('SettingsScreen', () => {
       const { getByText } = render(<SettingsScreen />);
       expect(getByText('Disabled')).toBeTruthy();
     });
+
+    it('shows the watch install hint when Watch HR is enabled but unreachable', () => {
+      Object.assign(mockWatchHr, { watchAvailable: true, watchHrEnabled: true });
+      Object.assign(mockConnection, { watchReachable: false, watchSessionState: 'idle' });
+      const { getByText } = render(<SettingsScreen />);
+      expect(
+        getByText(
+          'Open the Omni Bike app on your Apple Watch. If it is not installed yet, add it from the iPhone Watch app.',
+        ),
+      ).toBeTruthy();
+    });
+
+    it('hides the watch install hint when the Watch is reachable', () => {
+      Object.assign(mockWatchHr, { watchAvailable: true, watchHrEnabled: true });
+      Object.assign(mockConnection, { watchReachable: true, watchSessionState: 'idle' });
+      const { queryByText } = render(<SettingsScreen />);
+      expect(
+        queryByText(
+          'Open the Omni Bike app on your Apple Watch. If it is not installed yet, add it from the iPhone Watch app.',
+        ),
+      ).toBeNull();
+    });
   });
 });
