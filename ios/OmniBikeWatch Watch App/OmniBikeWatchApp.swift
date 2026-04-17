@@ -1,8 +1,10 @@
+import WatchKit
 import SwiftUI
 
 @main
 struct OmniBikeWatchApp: App {
-    @StateObject private var workoutManager = WorkoutManager()
+    @WKApplicationDelegateAdaptor(WatchAppDelegate.self) private var appDelegate
+    @StateObject private var workoutManager = WorkoutManager.shared
 
     var body: some Scene {
         WindowGroup {

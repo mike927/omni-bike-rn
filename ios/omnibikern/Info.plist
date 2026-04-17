@@ -56,9 +56,9 @@
     <key>NSFaceIDUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your Face ID biometric data.</string>
     <key>NSHealthShareUsageDescription</key>
-    <string>Omni Bike reads your heart rate from Apple Watch to display live HR during training sessions.</string>
+    <string>Omni Bike launches your Apple Watch companion app to stream heart rate during training sessions.</string>
     <key>NSHealthUpdateUsageDescription</key>
-    <string>Omni Bike reads your heart rate from Apple Watch to display live HR during training sessions.</string>
+    <string>Omni Bike launches your Apple Watch companion app to stream heart rate during training sessions.</string>
     <key>NSUserActivityTypes</key>
     <array>
       <string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>

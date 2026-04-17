@@ -1,8 +1,11 @@
 import ExpoModulesCore
+import HealthKit
 import WatchConnectivity
 
-public class WatchConnectivityModule: Module, WCSessionDelegate {
-  private var activationPromise: Promise?
+public class WatchConnectivityModule: Module {
+  fileprivate var activationPromise: Promise?
+  private let healthStore = HKHealthStore()
+  private lazy var sessionDelegate: SessionDelegateProxy = SessionDelegateProxy(module: self)
 
   public func definition() -> ModuleDefinition {
     Name("WatchConnectivity")
@@ -20,13 +23,37 @@ public class WatchConnectivityModule: Module, WCSessionDelegate {
         return
       }
       if self.activationPromise != nil {
-        // Activation already in flight — reject the new caller immediately
         promise.reject("ERR_ACTIVATION_IN_PROGRESS", "WCSession activation is already in progress")
         return
       }
       self.activationPromise = promise
-      session.delegate = self
+      session.delegate = self.sessionDelegate
       session.activate()
+    }
+
+    AsyncFunction("startWatchApp") { (promise: Promise) in
+      guard HKHealthStore.isHealthDataAvailable() else {
+        promise.reject("ERR_HEALTH_UNAVAILABLE", "Health data is not available on this device")
+        return
+      }
+
+      let configuration = HKWorkoutConfiguration()
+      configuration.activityType = .cycling
+      configuration.locationType = .indoor
+
+      self.healthStore.startWatchApp(with: configuration) { success, error in
+        if let error {
+          promise.reject("ERR_START_WATCH_APP_FAILED", error.localizedDescription)
+          return
+        }
+
+        guard success else {
+          promise.reject("ERR_START_WATCH_APP_FAILED", "Apple Watch app could not be launched")
+          return
+        }
+
+        promise.resolve()
+      }
     }
 
     Function("sendMessage") { (message: [String: Any]) -> Bool in
@@ -37,37 +64,50 @@ public class WatchConnectivityModule: Module, WCSessionDelegate {
     }
   }
 
-  // MARK: - WCSessionDelegate
+  fileprivate func emitHr(_ hr: Int) {
+    sendEvent("onWatchHr", ["hr": hr])
+  }
 
-  public func session(
+  fileprivate func emitReachability(_ reachable: Bool) {
+    sendEvent("onReachabilityChange", ["reachable": reachable])
+  }
+}
+
+private class SessionDelegateProxy: NSObject, WCSessionDelegate {
+  weak var module: WatchConnectivityModule?
+
+  init(module: WatchConnectivityModule) {
+    self.module = module
+    super.init()
+  }
+
+  func session(
     _ session: WCSession,
     activationDidCompleteWith activationState: WCSessionActivationState,
     error: Error?
   ) {
     if let err = error {
-      activationPromise?.reject("ERR_ACTIVATION_FAILED", err.localizedDescription)
+      module?.activationPromise?.reject("ERR_ACTIVATION_FAILED", err.localizedDescription)
     } else {
-      activationPromise?.resolve()
+      module?.activationPromise?.resolve()
     }
-    activationPromise = nil
+    module?.activationPromise = nil
   }
 
-  public func sessionDidBecomeInactive(_ session: WCSession) {}
+  func sessionDidBecomeInactive(_ session: WCSession) {}
 
-  public func sessionDidDeactivate(_ session: WCSession) {
-    // Re-activate to support Watch switching. Reassign the delegate defensively so the
-    // new session is wired to us even if the framework dropped the binding.
+  func sessionDidDeactivate(_ session: WCSession) {
     WCSession.default.delegate = self
     WCSession.default.activate()
   }
 
-  public func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
+  func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
     if let hr = message["hr"] as? NSNumber {
-      sendEvent("onWatchHr", ["hr": hr.intValue])
+      module?.emitHr(hr.intValue)
     }
   }
 
-  public func sessionReachabilityDidChange(_ session: WCSession) {
-    sendEvent("onReachabilityChange", ["reachable": session.isReachable])
+  func sessionReachabilityDidChange(_ session: WCSession) {
+    module?.emitReachability(session.isReachable)
   }
 }

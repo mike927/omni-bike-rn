@@ -12,6 +12,10 @@ import {
   setWatchHrEnabled as persistWatchHrEnabled,
 } from '../../../services/preferences/appPreferencesStorage';
 
+function isExpectedReachabilityDelay(error: unknown): boolean {
+  return error instanceof Error && error.message === 'Apple Watch is not reachable';
+}
+
 /**
  * Manages the Apple Watch HR source lifecycle.
  *
@@ -48,8 +52,12 @@ export function useWatchHr() {
     try {
       await adapter.connect();
     } catch (err) {
-      // Reachability-based retry will re-attempt when the Watch comes back in range.
-      console.error('[useWatchHr] Failed to connect Watch HR:', err);
+      // The Watch app often becomes reachable a moment after the ride starts.
+      // That case is recovered by the reachability listener below, so avoid
+      // surfacing a spurious error banner for the expected warm-up race.
+      if (!isExpectedReachabilityDelay(err)) {
+        console.error('[useWatchHr] Failed to connect Watch HR:', err);
+      }
       return;
     }
 

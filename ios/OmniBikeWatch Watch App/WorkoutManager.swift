@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import HealthKit
 import WatchConnectivity
@@ -10,6 +11,8 @@ enum WatchCommand {
 }
 
 final class WorkoutManager: NSObject, ObservableObject {
+    static let shared = WorkoutManager()
+
     // ── Published state ────────────────────────────────────────────────────────
     @Published var heartRate: Int = 0
     @Published var isStreaming: Bool = false
@@ -23,11 +26,30 @@ final class WorkoutManager: NSObject, ObservableObject {
     private let hrType = HKQuantityType(.heartRate)
     private let hrSendIntervalSeconds: TimeInterval = 1.0
 
+    override private init() {
+        super.init()
+        activateWCSession()
+    }
+
     // ── HealthKit authorization ────────────────────────────────────────────────
 
-    func requestAuthorization() {
+    func requestAuthorization(starting configuration: HKWorkoutConfiguration? = nil) {
         guard HKHealthStore.isHealthDataAvailable() else { return }
-        healthStore.requestAuthorization(toShare: [HKObjectType.workoutType()], read: [hrType]) { _, _ in }
+        healthStore.requestAuthorization(toShare: [HKObjectType.workoutType()], read: [hrType]) { [weak self] success, error in
+            if let error {
+                print("[WorkoutManager] Authorization failed: \(error)")
+                return
+            }
+
+            guard success else {
+                print("[WorkoutManager] Authorization denied")
+                return
+            }
+
+            if let configuration {
+                self?.startWorkout(configuration: configuration)
+            }
+        }
         activateWCSession()
     }
 
@@ -41,10 +63,13 @@ final class WorkoutManager: NSObject, ObservableObject {
 
     // ── Workout lifecycle ──────────────────────────────────────────────────────
 
-    func startWorkout() {
-        let config = HKWorkoutConfiguration()
-        config.activityType = .cycling
-        config.locationType = .indoor
+    func startWorkout(configuration: HKWorkoutConfiguration? = nil) {
+        if session != nil {
+            DispatchQueue.main.async { self.isStreaming = true }
+            return
+        }
+
+        let config = configuration ?? defaultWorkoutConfiguration()
 
         do {
             session = try HKWorkoutSession(healthStore: healthStore, configuration: config)
@@ -81,6 +106,13 @@ final class WorkoutManager: NSObject, ObservableObject {
         guard WCSession.default.activationState == .activated,
               WCSession.default.isReachable else { return }
         WCSession.default.sendMessage(["hr": bpm], replyHandler: nil)
+    }
+
+    private func defaultWorkoutConfiguration() -> HKWorkoutConfiguration {
+        let configuration = HKWorkoutConfiguration()
+        configuration.activityType = .cycling
+        configuration.locationType = .indoor
+        return configuration
     }
 }
 

@@ -231,6 +231,58 @@ describe('useWatchHr', () => {
       expect(WatchHrAdapter.mock.instances).toHaveLength(0);
     });
 
+    it('does not log an error when the initial Active transition races Watch reachability', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(jest.fn());
+      getAppPreferencesMock().loadWatchHrEnabled.mockResolvedValue(true);
+
+      const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
+        WatchHrAdapter: jest.Mock;
+      };
+      WatchHrAdapter.mockImplementationOnce(() => ({
+        connect: jest.fn().mockRejectedValue(new Error('Apple Watch is not reachable')),
+        disconnect: jest.fn().mockResolvedValue(undefined),
+        subscribeToHeartRate: jest.fn().mockReturnValue({ remove: jest.fn() }),
+      }));
+
+      const { rerender } = renderHook(() => useWatchHr());
+
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+      });
+      rerender({});
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+    });
+
+    it('logs unexpected connect failures when phase transitions to Active', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(jest.fn());
+      getAppPreferencesMock().loadWatchHrEnabled.mockResolvedValue(true);
+
+      const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
+        WatchHrAdapter: jest.Mock;
+      };
+      WatchHrAdapter.mockImplementationOnce(() => ({
+        connect: jest.fn().mockRejectedValue(new Error('WCSession activation failed')),
+        disconnect: jest.fn().mockResolvedValue(undefined),
+        subscribeToHeartRate: jest.fn().mockReturnValue({ remove: jest.fn() }),
+      }));
+
+      const { rerender } = renderHook(() => useWatchHr());
+
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+      });
+      rerender({});
+
+      await waitFor(() => {
+        expect(consoleErrorSpy).toHaveBeenCalledWith('[useWatchHr] Failed to connect Watch HR:', expect.any(Error));
+      });
+    });
+
     it('does not stop the stream when phase transitions from Active to Paused', async () => {
       getAppPreferencesMock().loadWatchHrEnabled.mockResolvedValue(true);
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);

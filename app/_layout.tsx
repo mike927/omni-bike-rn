@@ -14,6 +14,7 @@ import { useSavedGearStore } from '../src/store/savedGearStore';
 import { useAppPreferencesStore } from '../src/store/appPreferencesStore';
 import { useProviderGearLinkStore } from '../src/store/providerGearLinkStore';
 import { useStravaConnectionStore } from '../src/store/stravaConnectionStore';
+import { useWatchHr } from '../src/features/gear/hooks/useWatchHr';
 import { useInterruptedSessionRecovery } from '../src/features/training/hooks/useInterruptedSessionRecovery';
 import { useTrainingSessionPersistence } from '../src/features/training/hooks/useTrainingSessionPersistence';
 
@@ -52,6 +53,7 @@ export default function RootLayout() {
   const [isDatabaseError, setIsDatabaseError] = useState(false);
   const [databaseInitAttempt, setDatabaseInitAttempt] = useState(0);
 
+  useWatchHr();
   useTrainingSessionPersistence(isDatabaseReady);
   useInterruptedSessionRecovery(isDatabaseReady && onboardingCompleted);
 

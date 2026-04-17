@@ -4,6 +4,7 @@ import { WatchConnectivity } from 'watch-connectivity';
 jest.mock('watch-connectivity', () => ({
   WatchConnectivity: {
     activate: jest.fn(),
+    startWatchApp: jest.fn(),
     sendMessage: jest.fn(),
     addListener: jest.fn(),
   },
@@ -19,13 +20,14 @@ describe('WatchHrAdapter', () => {
   });
 
   describe('connect', () => {
-    it('activates the WCSession and sends startHr command', async () => {
+    it('activates the WCSession and launches the Watch app', async () => {
       (WatchConnectivity.activate as jest.Mock).mockResolvedValue(undefined);
+      (WatchConnectivity.startWatchApp as jest.Mock).mockResolvedValue(undefined);
 
       await adapter.connect();
 
       expect(WatchConnectivity.activate).toHaveBeenCalledTimes(1);
-      expect(WatchConnectivity.sendMessage).toHaveBeenCalledWith({ cmd: 'startHr' });
+      expect(WatchConnectivity.startWatchApp).toHaveBeenCalledTimes(1);
     });
 
     it('rejects if WCSession activation fails', async () => {
@@ -33,14 +35,17 @@ describe('WatchHrAdapter', () => {
       (WatchConnectivity.activate as jest.Mock).mockRejectedValue(error);
 
       await expect(adapter.connect()).rejects.toThrow('WCSession not supported');
+      expect(WatchConnectivity.startWatchApp).not.toHaveBeenCalled();
       expect(WatchConnectivity.sendMessage).not.toHaveBeenCalled();
     });
 
-    it('rejects if the Watch is not reachable when sending startHr', async () => {
+    it('rejects if launching the Watch app fails', async () => {
       (WatchConnectivity.activate as jest.Mock).mockResolvedValue(undefined);
-      (WatchConnectivity.sendMessage as jest.Mock).mockReturnValue(false);
+      (WatchConnectivity.startWatchApp as jest.Mock).mockRejectedValue(
+        new Error('Apple Watch app could not be launched'),
+      );
 
-      await expect(adapter.connect()).rejects.toThrow('Apple Watch is not reachable');
+      await expect(adapter.connect()).rejects.toThrow('Apple Watch app could not be launched');
     });
   });
 
