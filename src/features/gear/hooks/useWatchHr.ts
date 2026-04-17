@@ -15,6 +15,7 @@ import type { WatchSessionStateEvent } from '../../../types/watch';
 // Recovery is the reachability listener below, so suppress the log for this
 // specific code to avoid a spurious error banner on the expected warm-up race.
 const CODE_START_WATCH_APP_FAILED = 'ERR_START_WATCH_APP_FAILED';
+const WATCH_START_TIMEOUT_MS = 10_000;
 
 function isExpectedReachabilityDelay(error: unknown): boolean {
   if (typeof error !== 'object' || error === null) return false;
@@ -38,6 +39,7 @@ export function useWatchHr(): void {
   const adapterRef = useRef<WatchHrAdapter | null>(null);
   const subRef = useRef<{ remove: () => void } | null>(null);
   const latestStartRequestAtRef = useRef(0);
+  const startTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const updateAppleWatchHr = useDeviceConnectionStore((s) => s.updateAppleWatchHr);
   const setWatchReachable = useDeviceConnectionStore((s) => s.setWatchReachable);
@@ -54,12 +56,34 @@ export function useWatchHr(): void {
 
   // ── Connection helpers ───────────────────────────────────────────────────
 
+  const clearStartTimeout = useCallback(() => {
+    if (startTimeoutRef.current === null) return;
+    clearTimeout(startTimeoutRef.current);
+    startTimeoutRef.current = null;
+  }, []);
+
+  const scheduleStartTimeout = useCallback(() => {
+    clearStartTimeout();
+    startTimeoutRef.current = setTimeout(() => {
+      const { watchSessionState } = useDeviceConnectionStore.getState();
+      const { phase: currentPhase } = useTrainingSessionStore.getState();
+      const { enabled } = useWatchHrStore.getState();
+
+      if (watchSessionState !== 'starting') return;
+      if (currentPhase !== TrainingPhase.Active || !enabled) return;
+
+      setWatchSessionState('failed');
+      updateAppleWatchHr(null);
+    }, WATCH_START_TIMEOUT_MS);
+  }, [clearStartTimeout, setWatchSessionState, updateAppleWatchHr]);
+
   const startStream = useCallback(async () => {
     if (!watchAvailable) return;
     if (adapterRef.current) return; // already connected
 
     latestStartRequestAtRef.current = Date.now();
     setWatchSessionState('starting');
+    scheduleStartTimeout();
     const adapter = new WatchHrAdapter();
     try {
       await adapter.connect();
@@ -68,6 +92,7 @@ export function useWatchHr(): void {
       // That case is recovered by the reachability listener below, so avoid
       // surfacing a spurious error banner for the expected warm-up race.
       if (!isExpectedReachabilityDelay(err)) {
+        clearStartTimeout();
         setWatchSessionState('failed');
         console.error('[useWatchHr] Failed to connect Watch HR:', err);
       }
@@ -78,10 +103,11 @@ export function useWatchHr(): void {
     subRef.current = adapter.subscribeToHeartRate((hr) => {
       updateAppleWatchHr(hr);
     });
-  }, [watchAvailable, updateAppleWatchHr, setWatchSessionState]);
+  }, [watchAvailable, updateAppleWatchHr, setWatchSessionState, scheduleStartTimeout, clearStartTimeout]);
 
   const stopStream = useCallback(async () => {
     const hadStream = adapterRef.current !== null || subRef.current !== null;
+    clearStartTimeout();
     if (!hadStream) return;
 
     subRef.current?.remove();
@@ -97,7 +123,7 @@ export function useWatchHr(): void {
     }
 
     updateAppleWatchHr(null);
-  }, [updateAppleWatchHr]);
+  }, [updateAppleWatchHr, clearStartTimeout]);
 
   // Keep a ref so the unmount-only effect below always sees the latest stopStream
   // without re-running cleanup on every identity change.
@@ -114,13 +140,15 @@ export function useWatchHr(): void {
     if (phase === TrainingPhase.Active && watchHrEnabled) {
       void startStream();
     } else if (phase === TrainingPhase.Finished && watchHrEnabled) {
+      clearStartTimeout();
       setWatchSessionState('stopping');
       void stopStream();
     } else if (phase === TrainingPhase.Idle || !watchHrEnabled) {
+      clearStartTimeout();
       setWatchSessionState('idle');
       void stopStream();
     }
-  }, [phase, watchHrEnabled, startStream, stopStream, watchAvailable, setWatchSessionState]);
+  }, [phase, watchHrEnabled, startStream, stopStream, watchAvailable, setWatchSessionState, clearStartTimeout]);
 
   // Unmount-only cleanup — scoped away from phase transitions so Active→Paused
   // does not tear down the Watch workout session.
@@ -158,12 +186,15 @@ export function useWatchHr(): void {
 
         if (state === 'started') {
           if (phase !== TrainingPhase.Active || !watchHrEnabled) return;
+          clearStartTimeout();
           setWatchSessionState('active');
         } else if (state === 'ended') {
           if (phase !== TrainingPhase.Finished) return;
+          clearStartTimeout();
           setWatchSessionState('ended');
         } else if (state === 'failed') {
           if (phase !== TrainingPhase.Active || !watchHrEnabled) return;
+          clearStartTimeout();
           setWatchSessionState('failed');
         }
       },
@@ -176,8 +207,18 @@ export function useWatchHr(): void {
     });
 
     return () => {
+      clearStartTimeout();
       reachabilitySub.remove();
       sessionStateSub.remove();
     };
-  }, [watchAvailable, updateAppleWatchHr, watchHrEnabled, phase, startStream, setWatchReachable, setWatchSessionState]);
+  }, [
+    watchAvailable,
+    updateAppleWatchHr,
+    watchHrEnabled,
+    phase,
+    startStream,
+    setWatchReachable,
+    setWatchSessionState,
+    clearStartTimeout,
+  ]);
 }

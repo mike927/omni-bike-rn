@@ -224,6 +224,29 @@ describe('useWatchHr', () => {
       });
     });
 
+    it('marks the watch session as failed when no started event arrives in time', async () => {
+      jest.useFakeTimers();
+      useWatchHrStore.setState({ enabled: true, hydrated: true });
+
+      const { rerender } = renderHook(() => useWatchHr());
+
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+      });
+      rerender({});
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      act(() => {
+        jest.advanceTimersByTime(10_000);
+      });
+
+      expect(useDeviceConnectionStore.getState().watchSessionState).toBe('failed');
+      jest.useRealTimers();
+    });
+
     it('does not stop the stream when phase transitions from Active to Paused', async () => {
       useWatchHrStore.setState({ enabled: true, hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
