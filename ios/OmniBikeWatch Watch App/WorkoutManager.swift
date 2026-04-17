@@ -77,6 +77,34 @@ final class WorkoutManager: NSObject, ObservableObject {
     override private init() {
         super.init()
         activateWCSession()
+        recoverOrphanedSession()
+    }
+
+    // watchOS persists HKWorkoutSession state across app termination. If a prior
+    // ride ended while the Watch was unreachable, the iPhone's stop command was
+    // dropped and the session is still running in HealthKit — so relaunching the
+    // Watch app would auto-restore it and the UI would show "Workout In Progress"
+    // even though nothing is active. Recover and end any such orphan on launch.
+    private func recoverOrphanedSession() {
+        wcLog("[WC-Watch] recoverOrphanedSession: querying HealthKit")
+        healthStore.recoverActiveWorkoutSession { [weak self] session, error in
+            guard let self else { return }
+            if let error {
+                wcLog("[WC-Watch] recoverOrphanedSession FAILED: \(error.localizedDescription)")
+                return
+            }
+            guard let session else {
+                wcLog("[WC-Watch] recoverOrphanedSession: none found")
+                return
+            }
+            wcLog("[WC-Watch] recoverOrphanedSession: found session state=\(session.state.rawValue) — ending")
+            session.delegate = self
+            self.session = session
+            self.builder = session.associatedWorkoutBuilder()
+            self.builder?.delegate = self
+            self.transition(to: .ending)
+            session.end()
+        }
     }
 
     // ── HealthKit authorization ────────────────────────────────────────────────
@@ -137,6 +165,19 @@ final class WorkoutManager: NSObject, ObservableObject {
                     return
                 }
                 wcLog("[WC-Watch] beginCollection succeeded")
+            }
+
+            // Per WWDC23 session 10023: mirror the primary session back to the
+            // iPhone companion so its `workoutSessionMirroringStartHandler` fires.
+            // The iPhone already initiated the whole flow via `startWatchApp`, so
+            // this closes the canonical loop.
+            wcLog("[WC-Watch] startWorkout: calling startMirroringToCompanionDevice")
+            session.startMirroringToCompanionDevice { success, error in
+                if let error {
+                    wcLog("[WC-Watch] startMirroringToCompanionDevice FAILED: \(error.localizedDescription)")
+                    return
+                }
+                wcLog("[WC-Watch] startMirroringToCompanionDevice success=\(success)")
             }
         } catch {
             wcLog("[WC-Watch] startWorkout THREW: \(error.localizedDescription)")
@@ -309,8 +350,20 @@ extension WorkoutManager: WCSessionDelegate {
 
     func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
         wcLog("[WC-Watch] didReceiveMessage keys=\(Array(message.keys))")
-        guard let cmd = message["cmd"] as? String else { return }
-        wcLog("[WC-Watch] didReceiveMessage cmd=\(cmd)")
+        handleCommand(in: message, source: "message")
+    }
+
+    // iPhone queues `stop` via transferUserInfo when the Watch is unreachable at
+    // end-of-ride, so an orphaned HKWorkoutSession is ended the next time the
+    // Watch wakes. Delivered in the background without foregrounding the app.
+    func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+        wcLog("[WC-Watch] didReceiveUserInfo keys=\(Array(userInfo.keys))")
+        handleCommand(in: userInfo, source: "userInfo")
+    }
+
+    private func handleCommand(in payload: [String: Any], source: String) {
+        guard let cmd = payload["cmd"] as? String else { return }
+        wcLog("[WC-Watch] handleCommand cmd=\(cmd) source=\(source)")
         switch cmd {
         case WatchCommand.start:
             let configuration = HKWorkoutConfiguration()

@@ -7,6 +7,10 @@ Repository-owned reference documents that agents and humans can consult when imp
 - [ZIPRO Rave manual](./vendor/zipro/rave/README.md)
 - [Garmin HR Broadcast](./vendor/garmin/hr-broadcast/README.md)
 
+## Platform Findings
+
+- [Apple Watch wake-on-start from iPhone](./apple-watch/wake-on-start.md) — investigation notes for programmatically foregrounding the Watch app when a ride starts on iPhone
+
 ## Usage
 
 - Keep vendor manuals and compliance documents under `docs/vendor/<brand>/<model>/`.

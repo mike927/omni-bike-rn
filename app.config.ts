@@ -20,6 +20,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: true,
     bundleIdentifier: 'com.anonymous.omnibikern',
+    infoPlist: {
+      // Required for HKHealthStore.startWatchApp(toHandle:) to reliably wake
+      // the paired Watch companion app when starting a workout.
+      LSApplicationCategoryType: 'public.app-category.healthcare-fitness',
+    },
   },
   android: {
     adaptiveIcon: {

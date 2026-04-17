@@ -58,6 +58,17 @@ public class WatchConnectivityModule: Module {
 
     Events("onWatchHr", "onReachabilityChange", "onWatchSessionState")
 
+    // Per WWDC23 session 10023: register the mirroring handler on every app
+    // launch (foreground or background) so HealthKit can hand us the primary
+    // session that the Watch created. Without this, `startMirroringToCompanionDevice`
+    // on the Watch has nothing to mirror to.
+    OnCreate {
+      wcLog("[WC-iPhone] OnCreate: registering workoutSessionMirroringStartHandler")
+      self.healthStore.workoutSessionMirroringStartHandler = { mirroredSession in
+        wcLog("[WC-iPhone] workoutSessionMirroringStartHandler fired state=\(mirroredSession.state.rawValue)")
+      }
+    }
+
     AsyncFunction("activate") { (promise: Promise) in
       wcLog("[WC-iPhone] activate() called")
       guard WCSession.isSupported() else {
@@ -132,13 +143,22 @@ public class WatchConnectivityModule: Module {
     AsyncFunction("endMirroredWorkout") { (promise: Promise) in
       wcLog("[WC-iPhone] endMirroredWorkout() called")
       let session = WCSession.default
-      guard session.activationState == .activated, session.isReachable else {
-        wcLog("[WC-iPhone] endMirroredWorkout: dropping — activated=\(session.activationState == .activated) reachable=\(session.isReachable)")
+      guard session.activationState == .activated else {
+        wcLog("[WC-iPhone] endMirroredWorkout: dropping — WC not activated")
         promise.resolve()
         return
       }
-      wcLog("[WC-iPhone] endMirroredWorkout: sending stop command to Watch")
-      session.sendMessage([PayloadKey.command: WatchCommand.stop], replyHandler: nil)
+      let stopPayload = [PayloadKey.command: WatchCommand.stop]
+      if session.isReachable {
+        wcLog("[WC-iPhone] endMirroredWorkout: sending stop via sendMessage")
+        session.sendMessage(stopPayload, replyHandler: nil)
+      } else {
+        // Watch unreachable — queue via transferUserInfo so FIFO delivery ends
+        // any orphaned HKWorkoutSession the next time the Watch wakes. Without
+        // this, the Watch session runs indefinitely until the user kills the app.
+        wcLog("[WC-iPhone] endMirroredWorkout: unreachable — queuing stop via transferUserInfo")
+        session.transferUserInfo(stopPayload)
+      }
       promise.resolve()
     }
 

@@ -134,6 +134,7 @@ Standard Bluetooth HR sensors are expected to work via the BLE HR flow before th
 - [~] Native WatchOS companion app (SwiftUI + HealthKit workout session)
 - [~] Real-time HR streaming via WatchConnectivity
 - [~] HR source priority logic (Watch > BLE HR monitor > Bike pulse)
+- [?] Programmatic Watch app wake-on-start from iPhone (`HKHealthStore.startWatchApp` + `workoutSessionMirroringStartHandler`) — canonical WWDC23 flow implemented but Watch never wakes on our sideload install; leading suspect is the free-account `devicectl` install path bypassing HealthKit's wake broker. Current UX requires the user to open the Watch app manually before training. Full findings and next experiments: `docs/apple-watch/wake-on-start.md`
 - [ ] Background recording with BLE + Watch
 - [~] Just-in-time permission UX for watch / health integrations
 - [~] Minimal UI elements needed for watch status and source visibility
