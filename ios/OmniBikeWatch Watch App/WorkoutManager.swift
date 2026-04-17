@@ -2,6 +2,7 @@ import Combine
 import Foundation
 import HealthKit
 import WatchConnectivity
+import WatchKit
 
 /// Command tokens exchanged with the iPhone app via WatchConnectivity.
 /// Must stay in sync with the TypeScript constants in `WatchHrAdapter.ts`.
@@ -16,12 +17,22 @@ enum WatchSessionStatePayload {
     static let failed = "failed"
 }
 
+enum WatchDisplayState: Equatable {
+    case idle
+    case starting
+    case active
+    case ending
+    case ended
+    case failed
+}
+
 final class WorkoutManager: NSObject, ObservableObject {
     static let shared = WorkoutManager()
 
     // ── Published state ────────────────────────────────────────────────────────
     @Published var heartRate: Int = 0
     @Published var isStreaming: Bool = false
+    @Published var displayState: WatchDisplayState = .idle
 
     // ── Private state ──────────────────────────────────────────────────────────
     private let healthStore = HKHealthStore()
@@ -29,6 +40,7 @@ final class WorkoutManager: NSObject, ObservableObject {
     private var builder: HKLiveWorkoutBuilder?
     private var lastHrSendAt: TimeInterval = 0
     private var pendingSessionStatePayload: [String: Any]?
+    private var pendingStartRequest = false
 
     private let hrType = HKQuantityType(.heartRate)
     private let hrSendIntervalSeconds: TimeInterval = 1.0
@@ -42,18 +54,28 @@ final class WorkoutManager: NSObject, ObservableObject {
 
     func requestAuthorization(starting configuration: HKWorkoutConfiguration? = nil) {
         guard HKHealthStore.isHealthDataAvailable() else { return }
+        if configuration != nil {
+            pendingStartRequest = true
+            transition(to: .starting)
+        }
         healthStore.requestAuthorization(toShare: [HKObjectType.workoutType()], read: [hrType]) { [weak self] success, error in
             if let error {
+                self?.pendingStartRequest = false
+                self?.transition(to: .failed)
                 print("[WorkoutManager] Authorization failed: \(error)")
                 return
             }
 
             guard success else {
+                self?.pendingStartRequest = false
+                self?.transition(to: .failed)
                 print("[WorkoutManager] Authorization denied")
                 return
             }
 
             if let configuration {
+                guard self?.pendingStartRequest == true else { return }
+                self?.pendingStartRequest = false
                 self?.startWorkout(configuration: configuration)
             }
         }
@@ -70,11 +92,13 @@ final class WorkoutManager: NSObject, ObservableObject {
     // ── Workout lifecycle ──────────────────────────────────────────────────────
 
     func startWorkout(configuration: HKWorkoutConfiguration? = nil) {
+        pendingStartRequest = false
         if session != nil {
-            DispatchQueue.main.async { self.isStreaming = true }
+            transition(to: .active)
             return
         }
 
+        transition(to: .starting)
         let config = configuration ?? defaultWorkoutConfiguration()
 
         do {
@@ -85,13 +109,22 @@ final class WorkoutManager: NSObject, ObservableObject {
             builder?.delegate = self
             session?.startActivity(with: Date())
             builder?.beginCollection(withStart: Date()) { _, _ in }
-            DispatchQueue.main.async { self.isStreaming = true }
         } catch {
+            transition(to: .failed)
             NSLog("[WorkoutManager] startWorkout failed: \(error.localizedDescription)")
         }
     }
 
     func stopWorkout() {
+        pendingStartRequest = false
+        transition(to: .ending)
+
+        guard session != nil || builder != nil else {
+            transition(to: .ended)
+            publishSessionState(WatchSessionStatePayload.ended)
+            return
+        }
+
         session?.end()
         builder?.endCollection(withEnd: Date()) { [weak self] _, _ in
             self?.builder?.finishWorkout { [weak self] _, _ in
@@ -100,10 +133,6 @@ final class WorkoutManager: NSObject, ObservableObject {
             }
         }
         lastHrSendAt = 0
-        DispatchQueue.main.async {
-            self.isStreaming = false
-            self.heartRate = 0
-        }
     }
 
     // ── HR dispatch ───────────────────────────────────────────────────────────
@@ -143,6 +172,33 @@ final class WorkoutManager: NSObject, ObservableObject {
             NSLog("[WorkoutManager] Failed to publish watch session state: \(error.localizedDescription)")
         }
     }
+
+    private func transition(to state: WatchDisplayState) {
+        DispatchQueue.main.async {
+            let previous = self.displayState
+            guard previous != state else { return }
+            self.displayState = state
+            self.isStreaming = state == .active
+            if state == .idle || state == .ended || state == .failed {
+                self.heartRate = 0
+            }
+            self.playHaptic(for: state, from: previous)
+        }
+    }
+
+    private func playHaptic(for state: WatchDisplayState, from previous: WatchDisplayState) {
+        let device = WKInterfaceDevice.current()
+        switch state {
+        case .active where previous == .starting:
+            device.play(.start)
+        case .ended:
+            device.play(.success)
+        case .failed:
+            device.play(.failure)
+        default:
+            break
+        }
+    }
 }
 
 // MARK: - HKWorkoutSessionDelegate
@@ -151,13 +207,16 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
     func workoutSession(_ workoutSession: HKWorkoutSession, didChangeTo toState: HKWorkoutSessionState,
                         from fromState: HKWorkoutSessionState, date: Date) {
         if toState == .running {
+            transition(to: .active)
             publishSessionState(WatchSessionStatePayload.started)
         } else if toState == .ended {
+            transition(to: .ended)
             publishSessionState(WatchSessionStatePayload.ended)
         }
     }
 
     func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
+        transition(to: .failed)
         publishSessionState(WatchSessionStatePayload.failed)
         NSLog("[WorkoutManager] Session failed: \(error.localizedDescription)")
     }
