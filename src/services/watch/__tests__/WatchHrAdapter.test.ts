@@ -20,7 +20,7 @@ describe('WatchHrAdapter', () => {
   });
 
   describe('connect', () => {
-    it('activates the WCSession and launches the Watch app', async () => {
+    it('activates the WCSession, launches the Watch app, and sends startHr fallback', async () => {
       (WatchConnectivity.activate as jest.Mock).mockResolvedValue(undefined);
       (WatchConnectivity.startWatchApp as jest.Mock).mockResolvedValue(undefined);
 
@@ -28,6 +28,7 @@ describe('WatchHrAdapter', () => {
 
       expect(WatchConnectivity.activate).toHaveBeenCalledTimes(1);
       expect(WatchConnectivity.startWatchApp).toHaveBeenCalledTimes(1);
+      expect(WatchConnectivity.sendMessage).toHaveBeenCalledWith({ cmd: 'startHr' });
     });
 
     it('rejects if WCSession activation fails', async () => {
@@ -46,6 +47,7 @@ describe('WatchHrAdapter', () => {
       );
 
       await expect(adapter.connect()).rejects.toThrow('Apple Watch app could not be launched');
+      expect(WatchConnectivity.sendMessage).not.toHaveBeenCalled();
     });
   });
 

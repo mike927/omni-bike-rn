@@ -107,7 +107,6 @@ export function useWatchHr(): void {
     if (phase === TrainingPhase.Active && watchHrEnabled) {
       void startStream();
     } else if (phase === TrainingPhase.Idle || !watchHrEnabled) {
-      // Session finished, discarded, or user disabled Watch HR — stop stream
       void stopStream();
     }
   }, [phase, watchHrEnabled, startStream, stopStream, watchAvailable]);

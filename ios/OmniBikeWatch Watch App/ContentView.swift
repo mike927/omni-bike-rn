@@ -19,8 +19,5 @@ struct ContentView: View {
             }
         }
         .padding()
-        .onAppear {
-            workoutManager.requestAuthorization()
-        }
     }
 }

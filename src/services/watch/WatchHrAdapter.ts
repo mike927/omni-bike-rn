@@ -1,6 +1,7 @@
 import { WatchConnectivity } from 'watch-connectivity';
 import type { HrAdapter } from '../ble/HrAdapter';
 
+const CMD_START_HR = 'startHr';
 const CMD_STOP_HR = 'stopHr';
 
 /**
@@ -9,13 +10,19 @@ const CMD_STOP_HR = 'stopHr';
  * Unlike BLE adapters, this has no device ID — the Watch is always the user's
  * paired Apple Watch. connect() activates the WCSession and asks HealthKit on
  * the iPhone to launch/wake the Watch companion app for an indoor cycling
- * workout. HR samples arrive as WC messages and are forwarded to subscribers at
- * ~1 Hz.
+ * workout. After launch, it also sends an explicit `startHr` WC message as a
+ * fallback nudge for cases where the Watch app is already running or the
+ * HealthKit handoff does not surface into the app delegate reliably. HR samples
+ * arrive as WC messages and are forwarded to subscribers at ~1 Hz.
  */
 export class WatchHrAdapter implements HrAdapter {
   async connect(): Promise<void> {
     await WatchConnectivity.activate();
     await WatchConnectivity.startWatchApp();
+    const delivered = WatchConnectivity.sendMessage({ cmd: CMD_START_HR });
+    if (!delivered) {
+      console.warn('[WatchHrAdapter] startHr dropped — Watch unreachable after launch handoff');
+    }
   }
 
   async disconnect(): Promise<void> {

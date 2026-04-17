@@ -5,9 +5,8 @@ import WatchConnectivity
 
 /// Command tokens exchanged with the iPhone app via WatchConnectivity.
 /// Must stay in sync with the TypeScript constants in `WatchHrAdapter.ts`.
-/// The Watch is now launched via HKHealthStore.startWatchApp(with:), so only
-/// the stop signal travels over WC.
 enum WatchCommand {
+    static let startHr = "startHr"
     static let stopHr = "stopHr"
 }
 
@@ -81,7 +80,7 @@ final class WorkoutManager: NSObject, ObservableObject {
             builder?.beginCollection(withStart: Date()) { _, _ in }
             DispatchQueue.main.async { self.isStreaming = true }
         } catch {
-            print("[WorkoutManager] startWorkout failed: \(error)")
+            NSLog("[WorkoutManager] startWorkout failed: \(error.localizedDescription)")
         }
     }
 
@@ -123,7 +122,7 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
                         from fromState: HKWorkoutSessionState, date: Date) {}
 
     func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
-        print("[WorkoutManager] Session failed: \(error)")
+        NSLog("[WorkoutManager] Session failed: \(error.localizedDescription)")
     }
 }
 
@@ -156,6 +155,10 @@ extension WorkoutManager: WCSessionDelegate {
 
     func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
         guard let cmd = message["cmd"] as? String else { return }
+        if cmd == WatchCommand.startHr {
+            requestAuthorization(starting: defaultWorkoutConfiguration())
+            return
+        }
         if cmd == WatchCommand.stopHr {
             stopWorkout()
         }

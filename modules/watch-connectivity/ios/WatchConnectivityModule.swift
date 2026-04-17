@@ -51,41 +51,57 @@ public class WatchConnectivityModule: Module {
       configuration.activityType = .cycling
       configuration.locationType = .indoor
 
-      // Race the HealthKit launch against a timeout so a sleeping or out-of-range
-      // Watch does not leave the JS caller pending forever. Either callback
-      // settling the promise first wins; `resolved` makes the late-arriving side
-      // a no-op.
-      var resolved = false
-      let settle: (() -> Void) = { [weak self] in
-        self?.stateQueue.sync { resolved = true }
-      }
-      let isAlreadyResolved: (() -> Bool) = { [weak self] in
-        var done = false
-        self?.stateQueue.sync { done = resolved }
-        return done
-      }
-
-      self.healthStore.startWatchApp(with: configuration) { success, error in
-        if isAlreadyResolved() { return }
-        settle()
-        if let error {
-          promise.reject("ERR_START_WATCH_APP_FAILED", error.localizedDescription)
+      // `startWatchApp(with:)` requires the iOS app to be authorized to share
+      // workouts. Without that grant HealthKit silently no-ops but still calls
+      // the completion handler with success=true, so the Watch app never
+      // launches and the failure is invisible to the caller. Request auth up
+      // front; the dialog is shown once on first run, then becomes a no-op.
+      self.healthStore.requestAuthorization(toShare: [HKObjectType.workoutType()], read: []) { authSuccess, authError in
+        if let authError {
+          promise.reject("ERR_HEALTH_AUTH_FAILED", authError.localizedDescription)
           return
         }
-        guard success else {
-          promise.reject("ERR_START_WATCH_APP_FAILED", "Apple Watch app could not be launched")
+        guard authSuccess else {
+          promise.reject("ERR_HEALTH_AUTH_FAILED", "HealthKit authorization denied")
           return
         }
-        promise.resolve()
-      }
 
-      DispatchQueue.main.asyncAfter(deadline: .now() + Self.startWatchAppTimeout) {
-        if isAlreadyResolved() { return }
-        settle()
-        promise.reject(
-          "ERR_START_WATCH_APP_FAILED",
-          "Apple Watch app could not be launched within \(Int(Self.startWatchAppTimeout))s"
-        )
+        // Race the HealthKit launch against a timeout so a sleeping or out-of-range
+        // Watch does not leave the JS caller pending forever. Either callback
+        // settling the promise first wins; `resolved` makes the late-arriving side
+        // a no-op.
+        var resolved = false
+        let settle: (() -> Void) = { [weak self] in
+          self?.stateQueue.sync { resolved = true }
+        }
+        let isAlreadyResolved: (() -> Bool) = { [weak self] in
+          var done = false
+          self?.stateQueue.sync { done = resolved }
+          return done
+        }
+
+        self.healthStore.startWatchApp(with: configuration) { success, error in
+          if isAlreadyResolved() { return }
+          settle()
+          if let error {
+            promise.reject("ERR_START_WATCH_APP_FAILED", error.localizedDescription)
+            return
+          }
+          guard success else {
+            promise.reject("ERR_START_WATCH_APP_FAILED", "Apple Watch app could not be launched")
+            return
+          }
+          promise.resolve()
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.startWatchAppTimeout) {
+          if isAlreadyResolved() { return }
+          settle()
+          promise.reject(
+            "ERR_START_WATCH_APP_FAILED",
+            "Apple Watch app could not be launched within \(Int(Self.startWatchAppTimeout))s"
+          )
+        }
       }
     }
 
