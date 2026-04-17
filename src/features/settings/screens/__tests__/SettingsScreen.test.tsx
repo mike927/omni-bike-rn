@@ -77,8 +77,8 @@ jest.mock('../../../integrations/hooks/useProviderBikeLinking', () => ({
   useProviderBikeLinking: () => mockProviderBikeLinking,
 }));
 
-jest.mock('../../../gear/hooks/useWatchHr', () => ({
-  useWatchHr: () => mockWatchHr,
+jest.mock('../../../gear/hooks/useWatchHrControls', () => ({
+  useWatchHrControls: () => mockWatchHr,
 }));
 
 describe('SettingsScreen', () => {

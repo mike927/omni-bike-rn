@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 
 import { WatchConnectivity } from 'watch-connectivity';
@@ -6,11 +6,8 @@ import { WatchHrAdapter } from '../../../services/watch/WatchHrAdapter';
 import { isAppleWatchAvailable } from '../../../services/watch/isAppleWatchAvailable';
 import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
 import { useTrainingSessionStore } from '../../../store/trainingSessionStore';
+import { useWatchHrStore } from '../../../store/watchHrStore';
 import { TrainingPhase } from '../../../types/training';
-import {
-  loadWatchHrEnabled,
-  setWatchHrEnabled as persistWatchHrEnabled,
-} from '../../../services/preferences/appPreferencesStorage';
 
 // Native `startWatchApp` rejects with this code when HealthKit cannot hand the
 // configuration off to the Watch app (asleep, out of range, or still launching).
@@ -24,30 +21,32 @@ function isExpectedReachabilityDelay(error: unknown): boolean {
 }
 
 /**
- * Manages the Apple Watch HR source lifecycle.
+ * Root-only hook that owns the Apple Watch HR lifecycle.
  *
  * - Only active on iPhone (guarded by isAppleWatchAvailable).
- * - Persists the user's enable/disable preference.
+ * - Hydrates the persisted enable/disable preference on mount.
  * - Connects the WatchHrAdapter when training becomes Active and the Watch is enabled.
  * - Disconnects on session finish, discard, or when the user disables Watch HR.
  * - Feeds incoming HR samples into deviceConnectionStore.updateAppleWatchHr().
+ *
+ * Mount exactly once, at the root layout. UI consumers that only need to read
+ * or toggle the preference use `useWatchHrControls` instead.
  */
-export function useWatchHr() {
+export function useWatchHr(): void {
   const watchAvailable = isAppleWatchAvailable(Platform.OS);
   const adapterRef = useRef<WatchHrAdapter | null>(null);
   const subRef = useRef<{ remove: () => void } | null>(null);
-  const [watchHrEnabled, setWatchHrEnabled] = useState(false);
 
   const updateAppleWatchHr = useDeviceConnectionStore((s) => s.updateAppleWatchHr);
   const phase = useTrainingSessionStore((s) => s.phase);
+  const watchHrEnabled = useWatchHrStore((s) => s.enabled);
+  const hydrateWatchHrPref = useWatchHrStore((s) => s.hydrate);
 
   // Load persisted preference on mount
   useEffect(() => {
     if (!watchAvailable) return;
-    void loadWatchHrEnabled().then((enabled) => {
-      setWatchHrEnabled(enabled);
-    });
-  }, [watchAvailable]);
+    void hydrateWatchHrPref();
+  }, [watchAvailable, hydrateWatchHrPref]);
 
   // ── Connection helpers ───────────────────────────────────────────────────
 
@@ -75,6 +74,9 @@ export function useWatchHr() {
   }, [watchAvailable, updateAppleWatchHr]);
 
   const stopStream = useCallback(async () => {
+    const hadStream = adapterRef.current !== null || subRef.current !== null;
+    if (!hadStream) return;
+
     subRef.current?.remove();
     subRef.current = null;
 
@@ -97,19 +99,18 @@ export function useWatchHr() {
     stopStreamRef.current = stopStream;
   }, [stopStream]);
 
-  // ── React to training phase transitions ─────────────────────────────────
+  // ── React to training phase + preference transitions ────────────────────
 
   useEffect(() => {
     if (!watchAvailable) return;
-    if (!watchHrEnabled) return;
 
-    if (phase === TrainingPhase.Active) {
+    if (phase === TrainingPhase.Active && watchHrEnabled) {
       void startStream();
-    } else if (phase === TrainingPhase.Idle) {
-      // Session finished or discarded — stop stream
+    } else if (phase === TrainingPhase.Idle || !watchHrEnabled) {
+      // Session finished, discarded, or user disabled Watch HR — stop stream
       void stopStream();
     }
-  }, [phase, startStream, stopStream, watchAvailable, watchHrEnabled]);
+  }, [phase, watchHrEnabled, startStream, stopStream, watchAvailable]);
 
   // Unmount-only cleanup — scoped away from phase transitions so Active→Paused
   // does not tear down the Watch workout session.
@@ -138,27 +139,4 @@ export function useWatchHr() {
     });
     return () => sub.remove();
   }, [watchAvailable, updateAppleWatchHr, watchHrEnabled, phase, startStream]);
-
-  // ── Public API ───────────────────────────────────────────────────────────
-
-  const enableWatchHr = useCallback(async () => {
-    await persistWatchHrEnabled(true);
-    setWatchHrEnabled(true);
-    if (phase === TrainingPhase.Active) {
-      await startStream();
-    }
-  }, [phase, startStream]);
-
-  const disableWatchHr = useCallback(async () => {
-    await persistWatchHrEnabled(false);
-    setWatchHrEnabled(false);
-    await stopStream();
-  }, [stopStream]);
-
-  return {
-    watchAvailable,
-    watchHrEnabled,
-    enableWatchHr,
-    disableWatchHr,
-  };
 }

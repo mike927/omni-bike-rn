@@ -3,6 +3,7 @@ import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { useWatchHr } from '../useWatchHr';
 import { useDeviceConnectionStore } from '../../../../store/deviceConnectionStore';
 import { useTrainingSessionStore } from '../../../../store/trainingSessionStore';
+import { useWatchHrStore } from '../../../../store/watchHrStore';
 import { TrainingPhase } from '../../../../types/training';
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
@@ -73,6 +74,7 @@ function resetStores() {
     latestAppleWatchHr: null,
   });
   useTrainingSessionStore.setState({ phase: TrainingPhase.Idle } as never);
+  useWatchHrStore.setState({ enabled: false, hydrated: false });
 }
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
@@ -96,12 +98,7 @@ beforeEach(() => {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('useWatchHr', () => {
-  it('returns watchAvailable=true when isAppleWatchAvailable returns true', () => {
-    const { result } = renderHook(() => useWatchHr());
-    expect(result.current.watchAvailable).toBe(true);
-  });
-
-  it('does not start a stream or add any listeners when Watch is not available', () => {
+  it('does not add any listeners when Watch is not available', () => {
     getIsAppleWatchAvailableMock().mockReturnValue(false);
 
     renderHook(() => useWatchHr());
@@ -110,88 +107,20 @@ describe('useWatchHr', () => {
     expect(wc.addListener).not.toHaveBeenCalled();
   });
 
-  describe('enableWatchHr', () => {
-    it('persists the preference and updates watchHrEnabled state', async () => {
-      const { result } = renderHook(() => useWatchHr());
+  it('hydrates the persisted preference on mount', async () => {
+    getAppPreferencesMock().loadWatchHrEnabled.mockResolvedValue(true);
 
-      await act(async () => {
-        await result.current.enableWatchHr();
-      });
+    renderHook(() => useWatchHr());
 
-      expect(getAppPreferencesMock().setWatchHrEnabled).toHaveBeenCalledWith(true);
-      expect(result.current.watchHrEnabled).toBe(true);
-    });
-
-    it('does not start the stream when the session is Idle', async () => {
-      useTrainingSessionStore.setState({ phase: TrainingPhase.Idle } as never);
-      const { result } = renderHook(() => useWatchHr());
-
-      await act(async () => {
-        await result.current.enableWatchHr();
-      });
-
-      const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
-        WatchHrAdapter: jest.Mock;
-      };
-      // No adapter should be instantiated if we never enter startStream
-      expect(WatchHrAdapter.mock.instances).toHaveLength(0);
-    });
-
-    it('starts the stream immediately when the session is Active', async () => {
-      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
-      const { result } = renderHook(() => useWatchHr());
-
-      await act(async () => {
-        await result.current.enableWatchHr();
-      });
-
-      const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
-        WatchHrAdapter: jest.Mock;
-      };
-      const adapterInstance = WatchHrAdapter.mock.results[0]?.value as { connect: jest.Mock } | undefined;
-      expect(adapterInstance?.connect).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('disableWatchHr', () => {
-    it('persists the preference, updates watchHrEnabled state, and stops any active stream', async () => {
-      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
-      const { result } = renderHook(() => useWatchHr());
-
-      // Enable first so there is a stream to stop
-      await act(async () => {
-        await result.current.enableWatchHr();
-      });
-
-      await act(async () => {
-        await result.current.disableWatchHr();
-      });
-
-      expect(getAppPreferencesMock().setWatchHrEnabled).toHaveBeenLastCalledWith(false);
-      expect(result.current.watchHrEnabled).toBe(false);
-
-      const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
-        WatchHrAdapter: jest.Mock;
-      };
-      const adapterInstance = WatchHrAdapter.mock.results[0]?.value as { disconnect: jest.Mock } | undefined;
-      expect(adapterInstance?.disconnect).toHaveBeenCalledTimes(1);
-    });
-
-    it('clears latestAppleWatchHr in the store', async () => {
-      useDeviceConnectionStore.setState({ latestAppleWatchHr: 80 });
-      const { result } = renderHook(() => useWatchHr());
-
-      await act(async () => {
-        await result.current.disableWatchHr();
-      });
-
-      expect(useDeviceConnectionStore.getState().latestAppleWatchHr).toBeNull();
+    await waitFor(() => {
+      expect(useWatchHrStore.getState().enabled).toBe(true);
+      expect(useWatchHrStore.getState().hydrated).toBe(true);
     });
   });
 
   describe('training phase transitions', () => {
     it('starts the stream when phase transitions to Active and Watch HR is enabled', async () => {
-      getAppPreferencesMock().loadWatchHrEnabled.mockResolvedValue(true);
+      useWatchHrStore.setState({ enabled: true, hydrated: true });
 
       const { rerender } = renderHook(() => useWatchHr());
 
@@ -210,7 +139,7 @@ describe('useWatchHr', () => {
     });
 
     it('does not start the stream when phase transitions to Active but Watch HR is disabled', async () => {
-      getAppPreferencesMock().loadWatchHrEnabled.mockResolvedValue(false);
+      useWatchHrStore.setState({ enabled: false, hydrated: true });
 
       const { rerender } = renderHook(() => useWatchHr());
 
@@ -227,13 +156,12 @@ describe('useWatchHr', () => {
       const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
         WatchHrAdapter: jest.Mock;
       };
-      // No adapter should be instantiated when disabled
       expect(WatchHrAdapter.mock.instances).toHaveLength(0);
     });
 
     it('does not log an error when the initial Active transition races Watch reachability', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(jest.fn());
-      getAppPreferencesMock().loadWatchHrEnabled.mockResolvedValue(true);
+      useWatchHrStore.setState({ enabled: true, hydrated: true });
 
       const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
         WatchHrAdapter: jest.Mock;
@@ -263,7 +191,7 @@ describe('useWatchHr', () => {
 
     it('logs unexpected connect failures when phase transitions to Active', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(jest.fn());
-      getAppPreferencesMock().loadWatchHrEnabled.mockResolvedValue(true);
+      useWatchHrStore.setState({ enabled: true, hydrated: true });
 
       const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
         WatchHrAdapter: jest.Mock;
@@ -287,7 +215,7 @@ describe('useWatchHr', () => {
     });
 
     it('does not stop the stream when phase transitions from Active to Paused', async () => {
-      getAppPreferencesMock().loadWatchHrEnabled.mockResolvedValue(true);
+      useWatchHrStore.setState({ enabled: true, hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
       const { rerender } = renderHook(() => useWatchHr());
@@ -306,7 +234,6 @@ describe('useWatchHr', () => {
       });
       rerender({});
 
-      // Give any async effects a chance to run
       await act(async () => {
         await Promise.resolve();
       });
@@ -316,7 +243,7 @@ describe('useWatchHr', () => {
     });
 
     it('stops the stream when phase transitions to Idle', async () => {
-      getAppPreferencesMock().loadWatchHrEnabled.mockResolvedValue(true);
+      useWatchHrStore.setState({ enabled: true, hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
       const { rerender } = renderHook(() => useWatchHr());
@@ -332,6 +259,32 @@ describe('useWatchHr', () => {
 
       act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Idle } as never);
+      });
+      rerender({});
+
+      await waitFor(() => {
+        const inst = WatchHrAdapter.mock.results[0]?.value as { disconnect: jest.Mock } | undefined;
+        expect(inst?.disconnect).toHaveBeenCalled();
+      });
+    });
+
+    it('stops the stream when Watch HR is disabled mid-session', async () => {
+      useWatchHrStore.setState({ enabled: true, hydrated: true });
+      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+
+      const { rerender } = renderHook(() => useWatchHr());
+
+      const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
+        WatchHrAdapter: jest.Mock;
+      };
+
+      await waitFor(() => {
+        const inst = WatchHrAdapter.mock.results[0]?.value as { connect: jest.Mock } | undefined;
+        expect(inst?.connect).toHaveBeenCalled();
+      });
+
+      act(() => {
+        useWatchHrStore.setState({ enabled: false });
       });
       rerender({});
 
@@ -383,7 +336,7 @@ describe('useWatchHr', () => {
 
   describe('on-mount with phase already Active', () => {
     it('starts the stream immediately on mount when phase is Active and Watch HR is enabled', async () => {
-      getAppPreferencesMock().loadWatchHrEnabled.mockResolvedValue(true);
+      useWatchHrStore.setState({ enabled: true, hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
       renderHook(() => useWatchHr());
@@ -398,7 +351,7 @@ describe('useWatchHr', () => {
     });
 
     it('disconnects the adapter on unmount when the stream is active', async () => {
-      getAppPreferencesMock().loadWatchHrEnabled.mockResolvedValue(true);
+      useWatchHrStore.setState({ enabled: true, hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
       const { unmount } = renderHook(() => useWatchHr());
@@ -421,7 +374,7 @@ describe('useWatchHr', () => {
     });
 
     it('does not start the stream on mount when phase is Active but Watch HR is disabled', async () => {
-      getAppPreferencesMock().loadWatchHrEnabled.mockResolvedValue(false);
+      useWatchHrStore.setState({ enabled: false, hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
       renderHook(() => useWatchHr());

@@ -5,7 +5,7 @@ import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { useProviderBikeLinking } from '../../integrations/hooks/useProviderBikeLinking';
 import { useDeviceConnection } from '../../training/hooks/useDeviceConnection';
 import { useStravaConnection } from '../../integrations/hooks/useStravaConnection';
-import { useWatchHr } from '../../gear/hooks/useWatchHr';
+import { useWatchHrControls } from '../../gear/hooks/useWatchHrControls';
 import { ActionButton } from '../../../ui/components/ActionButton';
 import { SectionCard } from '../../../ui/components/SectionCard';
 import { AppScreen } from '../../../ui/layout/AppScreen';
@@ -46,7 +46,7 @@ function WatchHrRow({ watchHrEnabled, latestAppleWatchHr, onEnable, onDisable }:
 export function SettingsScreen() {
   const router = useRouter();
   const { bikeConnected, hrConnected, latestAppleWatchHr, disconnectAll } = useDeviceConnection();
-  const { watchAvailable, watchHrEnabled, enableWatchHr, disableWatchHr } = useWatchHr();
+  const { watchAvailable, watchHrEnabled, enableWatchHr, disableWatchHr } = useWatchHrControls();
   const { savedBike, savedHrSource, forgetBike, forgetHr } = useSavedGear();
   const {
     isConnected: stravaConnected,
