@@ -41,6 +41,8 @@ const mockConnection = {
   latestBikeMetrics: null,
   latestBluetoothHr: null,
   latestAppleWatchHr: null as number | null,
+  watchReachable: false,
+  watchSessionState: 'idle' as const,
   connectBike: jest.fn(),
   connectHr: jest.fn(),
   disconnectAll: jest.fn(),
@@ -84,7 +86,13 @@ jest.mock('../../../gear/hooks/useWatchHrControls', () => ({
 describe('SettingsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    Object.assign(mockConnection, { bikeConnected: false, hrConnected: false });
+    Object.assign(mockConnection, {
+      bikeConnected: false,
+      hrConnected: false,
+      latestAppleWatchHr: null,
+      watchReachable: false,
+      watchSessionState: 'idle',
+    });
     Object.assign(mockSavedGear, { savedBike: null, savedHrSource: null });
     Object.assign(mockStravaConnection, {
       isConnected: false,
@@ -220,14 +228,14 @@ describe('SettingsScreen', () => {
 
     it('shows Idle status when enabled but no HR data', () => {
       Object.assign(mockWatchHr, { watchAvailable: true, watchHrEnabled: true });
-      Object.assign(mockConnection, { latestAppleWatchHr: null });
+      Object.assign(mockConnection, { latestAppleWatchHr: null, watchReachable: true, watchSessionState: 'idle' });
       const { getByText } = render(<SettingsScreen />);
       expect(getByText('Idle')).toBeTruthy();
     });
 
     it('shows Streaming status with HR value when receiving data', () => {
       Object.assign(mockWatchHr, { watchAvailable: true, watchHrEnabled: true });
-      Object.assign(mockConnection, { latestAppleWatchHr: 72 });
+      Object.assign(mockConnection, { latestAppleWatchHr: 72, watchReachable: true, watchSessionState: 'active' });
       const { getByText } = render(<SettingsScreen />);
       expect(getByText('Streaming · 72 bpm')).toBeTruthy();
     });

@@ -3,6 +3,12 @@ import HealthKit
 import WatchConnectivity
 
 public class WatchConnectivityModule: Module {
+  private enum PayloadKey {
+    static let heartRate = "hr"
+    static let sessionState = "sessionState"
+    static let sentAtMs = "sentAtMs"
+  }
+
   private let stateQueue = DispatchQueue(label: "com.omnibike.watchconnectivity.state")
   fileprivate var activationPromise: Promise?
   private let healthStore = HKHealthStore()
@@ -13,7 +19,7 @@ public class WatchConnectivityModule: Module {
   public func definition() -> ModuleDefinition {
     Name("WatchConnectivity")
 
-    Events("onWatchHr", "onReachabilityChange")
+    Events("onWatchHr", "onReachabilityChange", "onWatchSessionState")
 
     AsyncFunction("activate") { (promise: Promise) in
       guard WCSession.isSupported() else {
@@ -136,6 +142,10 @@ public class WatchConnectivityModule: Module {
   fileprivate func emitReachability(_ reachable: Bool) {
     sendEvent("onReachabilityChange", ["reachable": reachable])
   }
+
+  fileprivate func emitSessionState(_ state: String, sentAtMs: Double) {
+    sendEvent("onWatchSessionState", ["state": state, "sentAtMs": sentAtMs])
+  }
 }
 
 private class SessionDelegateProxy: NSObject, WCSessionDelegate {
@@ -162,8 +172,19 @@ private class SessionDelegateProxy: NSObject, WCSessionDelegate {
   }
 
   func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
-    if let hr = message["hr"] as? NSNumber {
+    if let hr = message[PayloadKey.heartRate] as? NSNumber {
       module?.emitHr(hr.intValue)
+    }
+    if let state = message[PayloadKey.sessionState] as? String,
+       let sentAtMs = message[PayloadKey.sentAtMs] as? NSNumber {
+      module?.emitSessionState(state, sentAtMs: sentAtMs.doubleValue)
+    }
+  }
+
+  func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
+    if let state = applicationContext[PayloadKey.sessionState] as? String,
+       let sentAtMs = applicationContext[PayloadKey.sentAtMs] as? NSNumber {
+      module?.emitSessionState(state, sentAtMs: sentAtMs.doubleValue)
     }
   }
 

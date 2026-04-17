@@ -8,6 +8,7 @@ import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
 import { useTrainingSessionStore } from '../../../store/trainingSessionStore';
 import { useWatchHrStore } from '../../../store/watchHrStore';
 import { TrainingPhase } from '../../../types/training';
+import type { WatchSessionStateEvent } from '../../../types/watch';
 
 // Native `startWatchApp` rejects with this code when HealthKit cannot hand the
 // configuration off to the Watch app (asleep, out of range, or still launching).
@@ -36,8 +37,11 @@ export function useWatchHr(): void {
   const watchAvailable = isAppleWatchAvailable(Platform.OS);
   const adapterRef = useRef<WatchHrAdapter | null>(null);
   const subRef = useRef<{ remove: () => void } | null>(null);
+  const latestStartRequestAtRef = useRef(0);
 
   const updateAppleWatchHr = useDeviceConnectionStore((s) => s.updateAppleWatchHr);
+  const setWatchReachable = useDeviceConnectionStore((s) => s.setWatchReachable);
+  const setWatchSessionState = useDeviceConnectionStore((s) => s.setWatchSessionState);
   const phase = useTrainingSessionStore((s) => s.phase);
   const watchHrEnabled = useWatchHrStore((s) => s.enabled);
   const hydrateWatchHrPref = useWatchHrStore((s) => s.hydrate);
@@ -54,6 +58,8 @@ export function useWatchHr(): void {
     if (!watchAvailable) return;
     if (adapterRef.current) return; // already connected
 
+    latestStartRequestAtRef.current = Date.now();
+    setWatchSessionState('starting');
     const adapter = new WatchHrAdapter();
     try {
       await adapter.connect();
@@ -62,6 +68,7 @@ export function useWatchHr(): void {
       // That case is recovered by the reachability listener below, so avoid
       // surfacing a spurious error banner for the expected warm-up race.
       if (!isExpectedReachabilityDelay(err)) {
+        setWatchSessionState('failed');
         console.error('[useWatchHr] Failed to connect Watch HR:', err);
       }
       return;
@@ -71,7 +78,7 @@ export function useWatchHr(): void {
     subRef.current = adapter.subscribeToHeartRate((hr) => {
       updateAppleWatchHr(hr);
     });
-  }, [watchAvailable, updateAppleWatchHr]);
+  }, [watchAvailable, updateAppleWatchHr, setWatchSessionState]);
 
   const stopStream = useCallback(async () => {
     const hadStream = adapterRef.current !== null || subRef.current !== null;
@@ -106,10 +113,14 @@ export function useWatchHr(): void {
 
     if (phase === TrainingPhase.Active && watchHrEnabled) {
       void startStream();
+    } else if (phase === TrainingPhase.Finished && watchHrEnabled) {
+      setWatchSessionState('stopping');
+      void stopStream();
     } else if (phase === TrainingPhase.Idle || !watchHrEnabled) {
+      setWatchSessionState('idle');
       void stopStream();
     }
-  }, [phase, watchHrEnabled, startStream, stopStream, watchAvailable]);
+  }, [phase, watchHrEnabled, startStream, stopStream, watchAvailable, setWatchSessionState]);
 
   // Unmount-only cleanup — scoped away from phase transitions so Active→Paused
   // does not tear down the Watch workout session.
@@ -124,7 +135,8 @@ export function useWatchHr(): void {
   useEffect(() => {
     if (!watchAvailable) return;
 
-    const sub = WatchConnectivity.addListener('onReachabilityChange', ({ reachable }) => {
+    const reachabilitySub = WatchConnectivity.addListener('onReachabilityChange', ({ reachable }) => {
+      setWatchReachable(reachable);
       if (!reachable) {
         // Watch went out of range — clear HR so MetronomeEngine falls back
         updateAppleWatchHr(null);
@@ -136,6 +148,30 @@ export function useWatchHr(): void {
         void startStream();
       }
     });
-    return () => sub.remove();
-  }, [watchAvailable, updateAppleWatchHr, watchHrEnabled, phase, startStream]);
+
+    const sessionStateSub = WatchConnectivity.addListener(
+      'onWatchSessionState',
+      ({ state, sentAtMs }: { state: WatchSessionStateEvent; sentAtMs: number }) => {
+        if (sentAtMs < latestStartRequestAtRef.current) {
+          return;
+        }
+
+        if (state === 'started') {
+          if (phase !== TrainingPhase.Active || !watchHrEnabled) return;
+          setWatchSessionState('active');
+        } else if (state === 'ended') {
+          if (phase !== TrainingPhase.Finished) return;
+          setWatchSessionState('ended');
+        } else if (state === 'failed') {
+          if (phase !== TrainingPhase.Active || !watchHrEnabled) return;
+          setWatchSessionState('failed');
+        }
+      },
+    );
+
+    return () => {
+      reachabilitySub.remove();
+      sessionStateSub.remove();
+    };
+  }, [watchAvailable, updateAppleWatchHr, watchHrEnabled, phase, startStream, setWatchReachable, setWatchSessionState]);
 }

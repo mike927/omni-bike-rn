@@ -10,26 +10,49 @@ import { ActionButton } from '../../../ui/components/ActionButton';
 import { SectionCard } from '../../../ui/components/SectionCard';
 import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
+import type { WatchSessionState } from '../../../types/watch';
 
 interface WatchHrRowProps {
   readonly watchHrEnabled: boolean;
+  readonly watchReachable: boolean;
+  readonly watchSessionState: WatchSessionState;
   readonly latestAppleWatchHr: number | null;
   readonly onEnable: () => void;
   readonly onDisable: () => void;
 }
 
-function getWatchHrStatusLabel(watchHrEnabled: boolean, latestAppleWatchHr: number | null): string {
+function getWatchHrStatusLabel(
+  watchHrEnabled: boolean,
+  watchReachable: boolean,
+  watchSessionState: WatchSessionState,
+  latestAppleWatchHr: number | null,
+): string {
   if (!watchHrEnabled) return 'Disabled';
+  if (watchSessionState === 'starting') return 'Starting';
+  if (watchSessionState === 'stopping') return 'Stopping';
+  if (watchSessionState === 'ended') return 'Ended';
+  if (watchSessionState === 'failed') return 'Failed';
+  if (!watchReachable) return 'Unavailable';
+  if (watchSessionState === 'active' && latestAppleWatchHr === null) return 'Connected';
   if (latestAppleWatchHr === null) return 'Idle';
   return `Streaming · ${latestAppleWatchHr} bpm`;
 }
 
-function WatchHrRow({ watchHrEnabled, latestAppleWatchHr, onEnable, onDisable }: WatchHrRowProps) {
+function WatchHrRow({
+  watchHrEnabled,
+  watchReachable,
+  watchSessionState,
+  latestAppleWatchHr,
+  onEnable,
+  onDisable,
+}: WatchHrRowProps) {
   return (
     <View style={styles.gearRow}>
       <View style={styles.gearInfo}>
         <Text style={styles.gearLabel}>Apple Watch HR</Text>
-        <Text style={styles.gearName}>{getWatchHrStatusLabel(watchHrEnabled, latestAppleWatchHr)}</Text>
+        <Text style={styles.gearName}>
+          {getWatchHrStatusLabel(watchHrEnabled, watchReachable, watchSessionState, latestAppleWatchHr)}
+        </Text>
       </View>
       <View style={styles.gearActions}>
         {watchHrEnabled ? (
@@ -45,7 +68,8 @@ function WatchHrRow({ watchHrEnabled, latestAppleWatchHr, onEnable, onDisable }:
 // eslint-disable-next-line sonarjs/cognitive-complexity -- large screen component; refactor tracked separately
 export function SettingsScreen() {
   const router = useRouter();
-  const { bikeConnected, hrConnected, latestAppleWatchHr, disconnectAll } = useDeviceConnection();
+  const { bikeConnected, hrConnected, latestAppleWatchHr, watchReachable, watchSessionState, disconnectAll } =
+    useDeviceConnection();
   const { watchAvailable, watchHrEnabled, enableWatchHr, disableWatchHr } = useWatchHrControls();
   const { savedBike, savedHrSource, forgetBike, forgetHr } = useSavedGear();
   const {
@@ -147,6 +171,8 @@ export function SettingsScreen() {
             <View style={styles.divider} />
             <WatchHrRow
               watchHrEnabled={watchHrEnabled}
+              watchReachable={watchReachable}
+              watchSessionState={watchSessionState}
               latestAppleWatchHr={latestAppleWatchHr}
               onEnable={() => void enableWatchHr()}
               onDisable={() => void disableWatchHr()}

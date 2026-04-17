@@ -7,6 +7,7 @@ import { useTrainingSession } from '../hooks/useTrainingSession';
 import { buildTrainingSummaryRoute, POST_FINISH_TRAINING_SUMMARY_SOURCE } from '../navigation/trainingSummaryRoute';
 import { isAppleWatchAvailable } from '../../../services/watch/isAppleWatchAvailable';
 import { TrainingPhase } from '../../../types/training';
+import type { WatchSessionState } from '../../../types/watch';
 import { ActionButton } from '../../../ui/components/ActionButton';
 import { MetricTile } from '../../../ui/components/MetricTile';
 import { formatDistanceKm, formatDuration, formatMetricValue } from '../../../ui/formatters';
@@ -36,10 +37,27 @@ function getDisconnectedCalloutBody(phase: TrainingPhase): string {
   return 'Connect your saved bike or choose one in setup before you start a workout from this screen.';
 }
 
+function getWatchStatusLabel(
+  watchSessionState: WatchSessionState,
+  watchReachable: boolean,
+  latestAppleWatchHr: number | null,
+): string {
+  if (watchSessionState === 'starting') return 'Starting';
+  if (watchSessionState === 'stopping') return 'Stopping';
+  if (watchSessionState === 'ended') return 'Ended';
+  if (watchSessionState === 'failed') return 'Failed';
+  if (!watchReachable) return 'Unavailable';
+  if (watchSessionState === 'active') {
+    return latestAppleWatchHr === null ? 'Connected' : 'Streaming';
+  }
+  return watchReachable ? 'Idle' : 'Unavailable';
+}
+
 export function TrainingDashboardScreen() {
   const router = useRouter();
   const session = useTrainingSession();
-  const { bikeConnected, hrConnected, latestBluetoothHr, latestAppleWatchHr } = useDeviceConnection();
+  const { bikeConnected, hrConnected, latestBluetoothHr, latestAppleWatchHr, watchReachable, watchSessionState } =
+    useDeviceConnection();
   const [isFinishing, setIsFinishing] = useState(false);
   const watchAvailable = isAppleWatchAvailable(Platform.OS);
   // Idle-state fallback: session HR (from MetronomeEngine, which already applies full priority)
@@ -107,7 +125,9 @@ export function TrainingDashboardScreen() {
           {watchAvailable ? (
             <View style={styles.connectionPill}>
               <Text style={styles.connectionLabel}>Watch HR</Text>
-              <Text style={styles.connectionValue}>{watchIsActiveSource ? 'Streaming' : 'Idle'}</Text>
+              <Text style={styles.connectionValue}>
+                {getWatchStatusLabel(watchSessionState, watchReachable, latestAppleWatchHr)}
+              </Text>
             </View>
           ) : null}
         </View>

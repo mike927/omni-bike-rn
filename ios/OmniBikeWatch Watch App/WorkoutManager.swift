@@ -10,6 +10,12 @@ enum WatchCommand {
     static let stopHr = "stopHr"
 }
 
+enum WatchSessionStatePayload {
+    static let started = "started"
+    static let ended = "ended"
+    static let failed = "failed"
+}
+
 final class WorkoutManager: NSObject, ObservableObject {
     static let shared = WorkoutManager()
 
@@ -22,6 +28,7 @@ final class WorkoutManager: NSObject, ObservableObject {
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
     private var lastHrSendAt: TimeInterval = 0
+    private var pendingSessionStatePayload: [String: Any]?
 
     private let hrType = HKQuantityType(.heartRate)
     private let hrSendIntervalSeconds: TimeInterval = 1.0
@@ -113,15 +120,45 @@ final class WorkoutManager: NSObject, ObservableObject {
         configuration.locationType = .indoor
         return configuration
     }
+
+    private func publishSessionState(_ state: String) {
+        let payload: [String: Any] = [
+            "sessionState": state,
+            "sentAtMs": Date().timeIntervalSince1970 * 1000,
+        ]
+        let session = WCSession.default
+
+        if session.activationState == .activated, session.isReachable {
+            session.sendMessage(payload, replyHandler: nil)
+        }
+
+        guard session.activationState == .activated else {
+            pendingSessionStatePayload = payload
+            return
+        }
+
+        do {
+            try session.updateApplicationContext(payload)
+        } catch {
+            NSLog("[WorkoutManager] Failed to publish watch session state: \(error.localizedDescription)")
+        }
+    }
 }
 
 // MARK: - HKWorkoutSessionDelegate
 
 extension WorkoutManager: HKWorkoutSessionDelegate {
     func workoutSession(_ workoutSession: HKWorkoutSession, didChangeTo toState: HKWorkoutSessionState,
-                        from fromState: HKWorkoutSessionState, date: Date) {}
+                        from fromState: HKWorkoutSessionState, date: Date) {
+        if toState == .running {
+            publishSessionState(WatchSessionStatePayload.started)
+        } else if toState == .ended {
+            publishSessionState(WatchSessionStatePayload.ended)
+        }
+    }
 
     func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
+        publishSessionState(WatchSessionStatePayload.failed)
         NSLog("[WorkoutManager] Session failed: \(error.localizedDescription)")
     }
 }
@@ -151,7 +188,20 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
 
 extension WorkoutManager: WCSessionDelegate {
     func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState,
-                 error: Error?) {}
+                 error: Error?) {
+        guard activationState == .activated, error == nil, let payload = pendingSessionStatePayload else { return }
+        pendingSessionStatePayload = nil
+
+        if session.isReachable {
+            session.sendMessage(payload, replyHandler: nil)
+        }
+
+        do {
+            try session.updateApplicationContext(payload)
+        } catch {
+            NSLog("[WorkoutManager] Failed to flush pending watch session state: \(error.localizedDescription)")
+        }
+    }
 
     func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
         guard let cmd = message["cmd"] as? String else { return }

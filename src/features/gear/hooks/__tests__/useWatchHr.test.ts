@@ -8,6 +8,8 @@ import { TrainingPhase } from '../../../../types/training';
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
 
+type NativeWatchSessionStatePayload = { state: 'started' | 'ended' | 'failed'; sentAtMs: number };
+
 jest.mock('watch-connectivity', () => ({
   WatchConnectivity: {
     activate: jest.fn(),
@@ -72,6 +74,8 @@ function resetStores() {
     latestBikeMetrics: null,
     latestBluetoothHr: null,
     latestAppleWatchHr: null,
+    watchReachable: false,
+    watchSessionState: 'idle',
   });
   useTrainingSessionStore.setState({ phase: TrainingPhase.Idle } as never);
   useWatchHrStore.setState({ enabled: false, hydrated: false });
@@ -268,6 +272,32 @@ describe('useWatchHr', () => {
       });
     });
 
+    it('stops the stream when phase transitions to Finished', async () => {
+      useWatchHrStore.setState({ enabled: true, hydrated: true });
+      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+
+      const { rerender } = renderHook(() => useWatchHr());
+
+      const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
+        WatchHrAdapter: jest.Mock;
+      };
+
+      await waitFor(() => {
+        const inst = WatchHrAdapter.mock.results[0]?.value as { connect: jest.Mock } | undefined;
+        expect(inst?.connect).toHaveBeenCalled();
+      });
+
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Finished } as never);
+      });
+      rerender({});
+
+      await waitFor(() => {
+        const inst = WatchHrAdapter.mock.results[0]?.value as { disconnect: jest.Mock } | undefined;
+        expect(inst?.disconnect).toHaveBeenCalled();
+      });
+    });
+
     it('stops the stream when Watch HR is disabled mid-session', async () => {
       useWatchHrStore.setState({ enabled: true, hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
@@ -331,6 +361,65 @@ describe('useWatchHr', () => {
       });
 
       expect(useDeviceConnectionStore.getState().latestAppleWatchHr).toBe(72);
+    });
+
+    it('stores watch session state updates from the native module', () => {
+      useWatchHrStore.setState({ enabled: true, hydrated: true });
+      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+      const { rerender } = renderHook(() => useWatchHr());
+
+      const wc = getWatchConnectivityMock();
+      const sessionStateCallback = wc.addListener.mock.calls.find(
+        ([eventName]: [string]) => eventName === 'onWatchSessionState',
+      )?.[1] as ((payload: NativeWatchSessionStatePayload) => void) | undefined;
+
+      act(() => {
+        sessionStateCallback?.({ state: 'started', sentAtMs: Date.now() });
+      });
+      expect(useDeviceConnectionStore.getState().watchSessionState).toBe('active');
+
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Finished } as never);
+      });
+      rerender({});
+      const updatedSessionStateCallback = wc.addListener.mock.calls
+        .slice()
+        .reverse()
+        .find(([eventName]: [string]) => eventName === 'onWatchSessionState')?.[1] as
+        | ((payload: NativeWatchSessionStatePayload) => void)
+        | undefined;
+      act(() => {
+        updatedSessionStateCallback?.({ state: 'ended', sentAtMs: Date.now() });
+      });
+      expect(useDeviceConnectionStore.getState().watchSessionState).toBe('ended');
+    });
+
+    it('ignores stale watch session state events from before the current start request', async () => {
+      useWatchHrStore.setState({ enabled: true, hydrated: true });
+
+      const { rerender } = renderHook(() => useWatchHr());
+
+      const staleSentAtMs = Date.now() - 10_000;
+
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+      });
+      rerender({});
+
+      const wc = getWatchConnectivityMock();
+      const sessionStateCallback = wc.addListener.mock.calls.find(
+        ([eventName]: [string]) => eventName === 'onWatchSessionState',
+      )?.[1] as ((payload: NativeWatchSessionStatePayload) => void) | undefined;
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      act(() => {
+        sessionStateCallback?.({ state: 'ended', sentAtMs: staleSentAtMs });
+      });
+
+      expect(useDeviceConnectionStore.getState().watchSessionState).toBe('starting');
     });
   });
 
