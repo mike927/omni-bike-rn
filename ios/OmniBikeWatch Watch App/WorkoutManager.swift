@@ -49,11 +49,7 @@ fileprivate enum WatchCommand {
 
 enum WatchDisplayState: Equatable {
     case idle
-    case starting
-    case active
-    case ending
-    case ended
-    case failed
+    case inProgress
 }
 
 final class WorkoutManager: NSObject, ObservableObject {
@@ -102,7 +98,6 @@ final class WorkoutManager: NSObject, ObservableObject {
             self.session = session
             self.builder = session.associatedWorkoutBuilder()
             self.builder?.delegate = self
-            self.transition(to: .ending)
             session.end()
         }
     }
@@ -141,7 +136,7 @@ final class WorkoutManager: NSObject, ObservableObject {
             return
         }
 
-        transition(to: .starting)
+        transition(to: .inProgress)
 
         do {
             wcLog("[WC-Watch] startWorkout: creating HKWorkoutSession")
@@ -160,7 +155,7 @@ final class WorkoutManager: NSObject, ObservableObject {
             builder.beginCollection(withStart: Date()) { [weak self] _, error in
                 if let error {
                     wcLog("[WC-Watch] beginCollection FAILED: \(error.localizedDescription)")
-                    self?.transition(to: .failed)
+                    self?.transition(to: .idle)
                     self?.publishSessionState(WatchSessionStatePayload.failed)
                     return
                 }
@@ -181,7 +176,7 @@ final class WorkoutManager: NSObject, ObservableObject {
             }
         } catch {
             wcLog("[WC-Watch] startWorkout THREW: \(error.localizedDescription)")
-            transition(to: .failed)
+            transition(to: .idle)
             publishSessionState(WatchSessionStatePayload.failed)
         }
     }
@@ -192,7 +187,6 @@ final class WorkoutManager: NSObject, ObservableObject {
             wcLog("[WC-Watch] stopWorkout: no active session")
             return
         }
-        transition(to: .ending)
         session.end()
     }
 
@@ -260,8 +254,8 @@ final class WorkoutManager: NSObject, ObservableObject {
             let previous = self.displayState
             guard previous != state else { return }
             self.displayState = state
-            self.isStreaming = state == .active
-            if state == .idle || state == .ended || state == .failed {
+            self.isStreaming = state == .inProgress
+            if state == .idle {
                 self.heartRate = 0
             }
             self.playHaptic(for: state, from: previous)
@@ -270,13 +264,11 @@ final class WorkoutManager: NSObject, ObservableObject {
 
     private func playHaptic(for state: WatchDisplayState, from previous: WatchDisplayState) {
         let device = WKInterfaceDevice.current()
-        switch state {
-        case .active where previous == .starting:
+        switch (previous, state) {
+        case (.idle, .inProgress):
             device.play(.start)
-        case .ended:
+        case (.inProgress, .idle):
             device.play(.success)
-        case .failed:
-            device.play(.failure)
         default:
             break
         }
@@ -290,10 +282,10 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
                         from fromState: HKWorkoutSessionState, date: Date) {
         wcLog("[WC-Watch] HKWorkoutSession didChangeTo \(toState.rawValue) from \(fromState.rawValue)")
         if toState == .running {
-            transition(to: .active)
+            transition(to: .inProgress)
             publishSessionState(WatchSessionStatePayload.started)
         } else if toState == .ended {
-            transition(to: .ended)
+            transition(to: .idle)
             publishSessionState(WatchSessionStatePayload.ended)
             finalizeBuilder(at: date)
         }
@@ -301,7 +293,7 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
 
     func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
         wcLog("[WC-Watch] HKWorkoutSession didFailWithError: \(error.localizedDescription)")
-        transition(to: .failed)
+        transition(to: .idle)
         publishSessionState(WatchSessionStatePayload.failed)
     }
 }

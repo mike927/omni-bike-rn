@@ -7,16 +7,8 @@ struct ContentView: View {
         switch workoutManager.displayState {
         case .idle:
             return .secondary
-        case .starting:
-            return .yellow
-        case .active:
+        case .inProgress:
             return .green
-        case .ending:
-            return .orange
-        case .ended:
-            return .blue
-        case .failed:
-            return .red
         }
     }
 
@@ -24,16 +16,8 @@ struct ContentView: View {
         switch workoutManager.displayState {
         case .idle:
             return "Idle"
-        case .starting:
-            return "Starting"
-        case .active:
+        case .inProgress:
             return "Workout In Progress"
-        case .ending:
-            return "Ending"
-        case .ended:
-            return "Workout Finished"
-        case .failed:
-            return "Start Failed"
         }
     }
 
@@ -41,21 +25,13 @@ struct ContentView: View {
         switch workoutManager.displayState {
         case .idle:
             return "Waiting for the next ride"
-        case .starting:
-            return "Launching workout session"
-        case .active:
+        case .inProgress:
             return "Live heart rate"
-        case .ending:
-            return "Closing workout session"
-        case .ended:
-            return "Training completed"
-        case .failed:
-            return "Open Omni Bike on the watch and try again"
         }
     }
 
     private var shouldShowHeartRate: Bool {
-        workoutManager.displayState == .active
+        workoutManager.displayState == .inProgress
     }
 
     var body: some View {
