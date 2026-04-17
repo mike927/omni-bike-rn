@@ -122,6 +122,12 @@ describe('useWatchHr', () => {
     });
   });
 
+  it('activates WatchConnectivity on mount to hydrate reachability state', () => {
+    renderHook(() => useWatchHr());
+
+    expect(getWatchConnectivityMock().activate).toHaveBeenCalledTimes(1);
+  });
+
   describe('training phase transitions', () => {
     it('starts the stream when phase transitions to Active and Watch HR is enabled', async () => {
       useWatchHrStore.setState({ enabled: true, hydrated: true });
@@ -361,6 +367,21 @@ describe('useWatchHr', () => {
       });
 
       expect(useDeviceConnectionStore.getState().latestAppleWatchHr).toBe(72);
+    });
+
+    it('stores the latest reachability value from the native module', () => {
+      renderHook(() => useWatchHr());
+
+      const wc = getWatchConnectivityMock();
+      const reachabilityCallback = wc.addListener.mock.calls[0]?.[1] as
+        | ((payload: { reachable: boolean }) => void)
+        | undefined;
+
+      act(() => {
+        reachabilityCallback?.({ reachable: true });
+      });
+
+      expect(useDeviceConnectionStore.getState().watchReachable).toBe(true);
     });
 
     it('stores watch session state updates from the native module', () => {

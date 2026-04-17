@@ -169,6 +169,12 @@ export function useWatchHr(): void {
       },
     );
 
+    // Activate WCSession after listeners are registered so the initial
+    // reachability snapshot is not missed on app launch or screen revisit.
+    void WatchConnectivity.activate().catch((error: unknown) => {
+      console.error('[useWatchHr] Failed to activate WatchConnectivity:', error);
+    });
+
     return () => {
       reachabilitySub.remove();
       sessionStateSub.remove();

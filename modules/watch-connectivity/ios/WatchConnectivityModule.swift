@@ -28,6 +28,7 @@ public class WatchConnectivityModule: Module {
       }
       let session = WCSession.default
       if session.activationState == .activated {
+        self.emitReachability(session.isReachable)
         promise.resolve()
         return
       }
@@ -131,6 +132,7 @@ public class WatchConnectivityModule: Module {
     if let err = error {
       promise?.reject("ERR_ACTIVATION_FAILED", err.localizedDescription)
     } else {
+      emitReachability(WCSession.default.isReachable)
       promise?.resolve()
     }
   }
