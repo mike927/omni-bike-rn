@@ -10,6 +10,7 @@ import type { DisconnectDeviceConnectionsOptions } from './DisconnectDeviceConne
 import type { Subscription } from 'react-native-ble-plx';
 import { isExpectedBleConnectTimeoutError } from '../../../services/ble/isExpectedBleConnectTimeoutError';
 import { isExpectedBleDisconnectError } from '../../../services/ble/isExpectedBleDisconnectError';
+import type { WatchAvailability } from '../../../types/watch';
 
 /** Active BLE subscriptions, managed outside React state to avoid teardown races. */
 let bikeMetricsSub: Subscription | null = null;
@@ -129,6 +130,8 @@ interface UseDeviceConnectionReturn {
   hrConnected: boolean;
   latestBikeMetrics: BikeMetrics | null;
   latestBluetoothHr: number | null;
+  latestAppleWatchHr: number | null;
+  watchAvailability: WatchAvailability;
 
   // ── Actions ────────────────────────────────────────────
   connectBike: (deviceId: string, options?: BleConnectionOptions) => Promise<void>;
@@ -149,6 +152,8 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
   const hrAdapter = useDeviceConnectionStore((s) => s.hrAdapter);
   const latestBikeMetrics = useDeviceConnectionStore((s) => s.latestBikeMetrics);
   const latestBluetoothHr = useDeviceConnectionStore((s) => s.latestBluetoothHr);
+  const latestAppleWatchHr = useDeviceConnectionStore((s) => s.latestAppleWatchHr);
+  const watchAvailability = useDeviceConnectionStore((s) => s.watchAvailability);
 
   const disconnectBike = useCallback(async () => {
     await disconnectBikeConnectionInternal();
@@ -222,6 +227,8 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
     hrConnected: hrAdapter !== null,
     latestBikeMetrics,
     latestBluetoothHr,
+    latestAppleWatchHr,
+    watchAvailability,
     connectBike,
     connectHr,
     disconnectBike,

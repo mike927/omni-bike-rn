@@ -1,11 +1,13 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 
 import { useDeviceConnection } from '../hooks/useDeviceConnection';
 import { useTrainingSession } from '../hooks/useTrainingSession';
 import { buildTrainingSummaryRoute, POST_FINISH_TRAINING_SUMMARY_SOURCE } from '../navigation/trainingSummaryRoute';
+import { isAppleWatchAvailable } from '../../../services/watch/isAppleWatchAvailable';
 import { TrainingPhase } from '../../../types/training';
+import type { WatchAvailability } from '../../../types/watch';
 import { ActionButton } from '../../../ui/components/ActionButton';
 import { MetricTile } from '../../../ui/components/MetricTile';
 import { formatDistanceKm, formatDuration, formatMetricValue } from '../../../ui/formatters';
@@ -35,15 +37,24 @@ function getDisconnectedCalloutBody(phase: TrainingPhase): string {
   return 'Connect your saved bike or choose one in setup before you start a workout from this screen.';
 }
 
+function getWatchStatusLabel(watchAvailability: WatchAvailability): string {
+  if (watchAvailability === 'unavailable') return 'Unavailable';
+  if (watchAvailability === 'idle') return 'Idle';
+  return 'In Progress';
+}
+
 export function TrainingDashboardScreen() {
   const router = useRouter();
   const session = useTrainingSession();
-  const { bikeConnected, hrConnected, latestBluetoothHr } = useDeviceConnection();
+  const { bikeConnected, hrConnected, latestBluetoothHr, latestAppleWatchHr, watchAvailability } =
+    useDeviceConnection();
   const [isFinishing, setIsFinishing] = useState(false);
+  const watchAvailable = isAppleWatchAvailable(Platform.OS);
   // Idle-state fallback: session HR (from MetronomeEngine, which already applies full priority)
-  // takes precedence; Bluetooth HR is a pre-start preview. Apple Watch fallback will be added
-  // when the native Watch data flow is wired up.
-  const resolvedHeartRate = session.currentMetrics.heartRate ?? latestBluetoothHr;
+  // takes precedence; Watch HR and Bluetooth HR are pre-start previews in priority order.
+  const resolvedHeartRate = session.currentMetrics.heartRate ?? latestAppleWatchHr ?? latestBluetoothHr;
+  // Watch HR has highest priority in MetronomeEngine; if it's non-null, it is the active source.
+  const watchIsActiveSource = latestAppleWatchHr !== null;
   const showDisconnectedState =
     !bikeConnected && (session.phase === TrainingPhase.Idle || session.phase === TrainingPhase.Paused);
 
@@ -86,7 +97,7 @@ export function TrainingDashboardScreen() {
           />
           <MetricTile label="Power" value={`${session.currentMetrics.power} W`} style={styles.primaryMetricTile} />
           <MetricTile
-            label="Heart Rate"
+            label={watchIsActiveSource ? 'Heart Rate ⌚' : 'Heart Rate'}
             value={formatMetricValue(resolvedHeartRate, ' bpm')}
             style={styles.primaryMetricTile}
           />
@@ -101,6 +112,12 @@ export function TrainingDashboardScreen() {
             <Text style={styles.connectionLabel}>Bluetooth HR</Text>
             <Text style={styles.connectionValue}>{hrConnected ? 'Connected' : 'Disconnected'}</Text>
           </View>
+          {watchAvailable ? (
+            <View style={styles.connectionPill}>
+              <Text style={styles.connectionLabel}>Watch HR</Text>
+              <Text style={styles.connectionValue}>{getWatchStatusLabel(watchAvailability)}</Text>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.controlsCard}>

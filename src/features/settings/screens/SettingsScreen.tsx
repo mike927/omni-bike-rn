@@ -5,15 +5,71 @@ import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { useProviderBikeLinking } from '../../integrations/hooks/useProviderBikeLinking';
 import { useDeviceConnection } from '../../training/hooks/useDeviceConnection';
 import { useStravaConnection } from '../../integrations/hooks/useStravaConnection';
+import { useWatchHrControls } from '../../gear/hooks/useWatchHrControls';
 import { ActionButton } from '../../../ui/components/ActionButton';
 import { SectionCard } from '../../../ui/components/SectionCard';
 import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
+import type { WatchAvailability } from '../../../types/watch';
+
+interface WatchHrRowProps {
+  readonly watchHrEnabled: boolean;
+  readonly watchAvailability: WatchAvailability;
+  readonly latestAppleWatchHr: number | null;
+  readonly onEnable: () => void;
+  readonly onDisable: () => void;
+}
+
+const WATCH_HR_INSTALL_HINT =
+  'Open the Omni Bike app on your Apple Watch. If it is not installed yet, add it from the iPhone Watch app.';
+
+function getWatchHrStatusLabel(
+  watchHrEnabled: boolean,
+  watchAvailability: WatchAvailability,
+  latestAppleWatchHr: number | null,
+): string {
+  if (!watchHrEnabled) return 'Disabled';
+  if (watchAvailability === 'unavailable') return 'Unavailable';
+  if (watchAvailability === 'idle') return 'Idle';
+  return latestAppleWatchHr === null ? 'In Progress' : `In Progress · ${latestAppleWatchHr} bpm`;
+}
+
+function getWatchHrHint(watchHrEnabled: boolean, watchAvailability: WatchAvailability): string | null {
+  if (!watchHrEnabled || watchAvailability !== 'unavailable') {
+    return null;
+  }
+
+  return WATCH_HR_INSTALL_HINT;
+}
+
+function WatchHrRow({ watchHrEnabled, watchAvailability, latestAppleWatchHr, onEnable, onDisable }: WatchHrRowProps) {
+  const watchHrHint = getWatchHrHint(watchHrEnabled, watchAvailability);
+
+  return (
+    <View style={styles.gearRow}>
+      <View style={styles.gearInfo}>
+        <Text style={styles.gearLabel}>Apple Watch HR</Text>
+        <Text style={styles.gearName}>
+          {getWatchHrStatusLabel(watchHrEnabled, watchAvailability, latestAppleWatchHr)}
+        </Text>
+        {watchHrHint ? <Text style={styles.gearHint}>{watchHrHint}</Text> : null}
+      </View>
+      <View style={styles.gearActions}>
+        {watchHrEnabled ? (
+          <ActionButton label="Disable" onPress={onDisable} variant="danger" />
+        ) : (
+          <ActionButton label="Enable" onPress={onEnable} variant="secondary" />
+        )}
+      </View>
+    </View>
+  );
+}
 
 // eslint-disable-next-line sonarjs/cognitive-complexity -- large screen component; refactor tracked separately
 export function SettingsScreen() {
   const router = useRouter();
-  const { bikeConnected, hrConnected, disconnectAll } = useDeviceConnection();
+  const { bikeConnected, hrConnected, latestAppleWatchHr, watchAvailability, disconnectAll } = useDeviceConnection();
+  const { watchAvailable, watchHrEnabled, enableWatchHr, disableWatchHr } = useWatchHrControls();
   const { savedBike, savedHrSource, forgetBike, forgetHr } = useSavedGear();
   const {
     isConnected: stravaConnected,
@@ -108,6 +164,19 @@ export function SettingsScreen() {
             {savedHrSource ? <ActionButton label="Forget" onPress={() => void forgetHr()} variant="danger" /> : null}
           </View>
         </View>
+
+        {watchAvailable ? (
+          <>
+            <View style={styles.divider} />
+            <WatchHrRow
+              watchHrEnabled={watchHrEnabled}
+              watchAvailability={watchAvailability}
+              latestAppleWatchHr={latestAppleWatchHr}
+              onEnable={() => void enableWatchHr()}
+              onDisable={() => void disableWatchHr()}
+            />
+          </>
+        ) : null}
 
         <ActionButton
           label="Disconnect Active Gear"
@@ -228,6 +297,12 @@ const styles = StyleSheet.create({
     color: palette.text,
     fontSize: 15,
     fontWeight: '600',
+  },
+  gearHint: {
+    marginTop: 4,
+    color: palette.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
   },
   gearActions: {
     flexDirection: 'row',

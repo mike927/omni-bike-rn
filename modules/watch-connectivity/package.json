@@ -1,0 +1,11 @@
+{
+  "name": "watch-connectivity",
+  "version": "1.0.0",
+  "description": "Local Expo module bridging WatchConnectivity for real-time Apple Watch HR streaming.",
+  "main": "src/index",
+  "files": [
+    "src",
+    "ios",
+    "expo-module.config.json"
+  ]
+}

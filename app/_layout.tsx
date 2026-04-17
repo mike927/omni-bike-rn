@@ -14,7 +14,9 @@ import { useSavedGearStore } from '../src/store/savedGearStore';
 import { useAppPreferencesStore } from '../src/store/appPreferencesStore';
 import { useProviderGearLinkStore } from '../src/store/providerGearLinkStore';
 import { useStravaConnectionStore } from '../src/store/stravaConnectionStore';
+import { useWatchHr } from '../src/features/gear/hooks/useWatchHr';
 import { useInterruptedSessionRecovery } from '../src/features/training/hooks/useInterruptedSessionRecovery';
+import { useKeepAwakeDuringTraining } from '../src/features/training/hooks/useKeepAwakeDuringTraining';
 import { useTrainingSessionPersistence } from '../src/features/training/hooks/useTrainingSessionPersistence';
 
 export function getOnboardingGateRedirect(segments: readonly string[], onboardingCompleted: boolean): string | null {
@@ -52,6 +54,8 @@ export default function RootLayout() {
   const [isDatabaseError, setIsDatabaseError] = useState(false);
   const [databaseInitAttempt, setDatabaseInitAttempt] = useState(0);
 
+  useWatchHr();
+  useKeepAwakeDuringTraining();
   useTrainingSessionPersistence(isDatabaseReady);
   useInterruptedSessionRecovery(isDatabaseReady && onboardingCompleted);
 
