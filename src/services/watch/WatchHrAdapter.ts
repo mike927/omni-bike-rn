@@ -19,7 +19,13 @@ export class WatchHrAdapter implements HrAdapter {
   }
 
   async disconnect(): Promise<void> {
-    WatchConnectivity.sendMessage({ cmd: CMD_STOP_HR });
+    const delivered = WatchConnectivity.sendMessage({ cmd: CMD_STOP_HR });
+    if (!delivered) {
+      // Watch is unreachable at disconnect time — the Watch-side HKWorkoutSession
+      // will remain active until the Watch app backgrounds itself. Surface this
+      // so a dropped stop is visible in logs rather than silently ignored.
+      console.warn('[WatchHrAdapter] stopHr dropped — Watch unreachable; Watch session may linger until backgrounded');
+    }
   }
 
   subscribeToHeartRate(callback: (hr: number) => void): { remove: () => void } {

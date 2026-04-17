@@ -5,8 +5,9 @@ import WatchConnectivity
 
 /// Command tokens exchanged with the iPhone app via WatchConnectivity.
 /// Must stay in sync with the TypeScript constants in `WatchHrAdapter.ts`.
+/// The Watch is now launched via HKHealthStore.startWatchApp(with:), so only
+/// the stop signal travels over WC.
 enum WatchCommand {
-    static let startHr = "startHr"
     static let stopHr = "stopHr"
 }
 
@@ -50,7 +51,6 @@ final class WorkoutManager: NSObject, ObservableObject {
                 self?.startWorkout(configuration: configuration)
             }
         }
-        activateWCSession()
     }
 
     // ── WatchConnectivity ──────────────────────────────────────────────────────
@@ -156,13 +156,8 @@ extension WorkoutManager: WCSessionDelegate {
 
     func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
         guard let cmd = message["cmd"] as? String else { return }
-        switch cmd {
-        case WatchCommand.startHr:
-            startWorkout()
-        case WatchCommand.stopHr:
+        if cmd == WatchCommand.stopHr {
             stopWorkout()
-        default:
-            break
         }
     }
 }
