@@ -128,12 +128,12 @@ Standard Bluetooth HR sensors are expected to work via the BLE HR flow before th
 
 - [x] HR priority scaffold + Bluetooth HR UX cleanup
 - [~] Extend gear setup and Settings to support native watch-based HR sources
-- [~] Support Apple Watch as an iPhone-only native selectable HR source
+- [x] Support Apple Watch as an iPhone-only native selectable HR source
 - [x] Support compatible broadcast-capable watches (for example Garmin or Polar) as Bluetooth HR sources when the watch can transmit HR without owning the workout — runtime HR path (`StandardHrAdapter`, `validateHrDevice`, `isLikelyHrCandidate`) is vendor-agnostic and routes solely on `0x180D` / `0x2A37` + wearable vendor Company ID allowlist (Garmin 0x0087, Polar 0x006B, Suunto, COROS, Amazfit, Wahoo); hardware-verified negative on Venu gen 1 fw 7.80 (Broadcast feature is ANT+ only on this model, watch never emits a BLE advertisement in any broadcast variant — see `docs/vendor/garmin/hr-broadcast/README.md` Compatibility section); expected to work unmodified on Venu 2+ / Fenix 6+ / Forerunner 245+ / Vivoactive 4+ per Garmin's public support matrix
 - [ ] Garmin Connect IQ companion app for one-tap start/stop sync between the iOS app and a Garmin watch (Monkey C; store-distributed; mirror of the Apple Watch companion task above)
-- [~] Native WatchOS companion app (SwiftUI + HealthKit workout session)
-- [~] Real-time HR streaming via WatchConnectivity
-- [~] HR source priority logic (Watch > BLE HR monitor > Bike pulse)
+- [x] Native WatchOS companion app (SwiftUI + HealthKit workout session)
+- [x] Real-time HR streaming via WatchConnectivity
+- [x] HR source priority logic (Watch > BLE HR monitor > Bike pulse)
 - [?] Programmatic Watch app wake-on-start from iPhone (`HKHealthStore.startWatchApp` + `workoutSessionMirroringStartHandler`) — canonical WWDC23 flow implemented but Watch never wakes on our sideload install; leading suspect is the free-account `devicectl` install path bypassing HealthKit's wake broker. Current UX requires the user to open the Watch app manually before training. Full findings and next experiments: `docs/apple-watch/wake-on-start.md`
 - [ ] Background recording with BLE + Watch
 - [~] Just-in-time permission UX for watch / health integrations
