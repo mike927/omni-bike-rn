@@ -40,6 +40,12 @@ export function useWatchHr(): void {
   const subRef = useRef<{ remove: () => void } | null>(null);
   const latestStartRequestAtRef = useRef(0);
   const startTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Synchronous guard against re-entrant startStream invocations. `adapterRef`
+  // is only assigned after `await adapter.connect()` resolves, so without this
+  // ref a second caller (e.g. the reachability listener firing during the
+  // connect's await window) would pass the adapter-null check and race in a
+  // parallel connect — causing an activate/startWatchApp feedback loop.
+  const startingRef = useRef(false);
 
   const updateAppleWatchHr = useDeviceConnectionStore((s) => s.updateAppleWatchHr);
   const setWatchReachable = useDeviceConnectionStore((s) => s.setWatchReachable);
@@ -79,8 +85,9 @@ export function useWatchHr(): void {
 
   const startStream = useCallback(async () => {
     if (!watchAvailable) return;
-    if (adapterRef.current) return; // already connected
+    if (adapterRef.current || startingRef.current) return;
 
+    startingRef.current = true;
     latestStartRequestAtRef.current = Date.now();
     setWatchSessionState('starting');
     scheduleStartTimeout();
@@ -88,6 +95,7 @@ export function useWatchHr(): void {
     try {
       await adapter.connect();
     } catch (err) {
+      startingRef.current = false;
       // The Watch app often becomes reachable a moment after the ride starts.
       // That case is recovered by the reachability listener below, so avoid
       // surfacing a spurious error banner for the expected warm-up race.
@@ -100,6 +108,7 @@ export function useWatchHr(): void {
     }
 
     adapterRef.current = adapter;
+    startingRef.current = false;
     subRef.current = adapter.subscribeToHeartRate((hr) => {
       updateAppleWatchHr(hr);
     });
@@ -125,9 +134,23 @@ export function useWatchHr(): void {
     updateAppleWatchHr(null);
   }, [updateAppleWatchHr, clearStartTimeout]);
 
-  // Keep a ref so the unmount-only effect below always sees the latest stopStream
-  // without re-running cleanup on every identity change.
+  // Refs shadow the current values so the mount-only listener effect below can
+  // read them without re-registering the native listeners on every phase or
+  // preference change. Re-registering that effect is what used to trigger
+  // thousands of redundant `WatchConnectivity.activate()` calls per second.
+  const phaseRef = useRef(phase);
+  const watchHrEnabledRef = useRef(watchHrEnabled);
+  const startStreamRef = useRef(startStream);
   const stopStreamRef = useRef(stopStream);
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
+  useEffect(() => {
+    watchHrEnabledRef.current = watchHrEnabled;
+  }, [watchHrEnabled]);
+  useEffect(() => {
+    startStreamRef.current = startStream;
+  }, [startStream]);
   useEffect(() => {
     stopStreamRef.current = stopStream;
   }, [stopStream]);
@@ -158,7 +181,12 @@ export function useWatchHr(): void {
     };
   }, []);
 
-  // ── Watch reachability updates (surface to store + retry) ───────────────
+  // ── Watch reachability + session state listeners (mount-only) ───────────
+  //
+  // This effect registers native listeners and activates the WC session
+  // exactly once per mount. Callbacks read the latest phase/enabled via refs
+  // so the effect does not tear down and re-subscribe on every state change,
+  // which would otherwise trigger an activate() loop.
 
   useEffect(() => {
     if (!watchAvailable) return;
@@ -172,8 +200,13 @@ export function useWatchHr(): void {
       }
       // Watch came back in range — if we're mid-session with HR enabled but no
       // active adapter, the initial connect was dropped. Retry now.
-      if (watchHrEnabled && phase === TrainingPhase.Active && !adapterRef.current) {
-        void startStream();
+      if (
+        watchHrEnabledRef.current &&
+        phaseRef.current === TrainingPhase.Active &&
+        !adapterRef.current &&
+        !startingRef.current
+      ) {
+        void startStreamRef.current();
       }
     });
 
@@ -185,15 +218,15 @@ export function useWatchHr(): void {
         }
 
         if (state === 'started') {
-          if (phase !== TrainingPhase.Active || !watchHrEnabled) return;
+          if (phaseRef.current !== TrainingPhase.Active || !watchHrEnabledRef.current) return;
           clearStartTimeout();
           setWatchSessionState('active');
         } else if (state === 'ended') {
-          if (phase !== TrainingPhase.Finished) return;
+          if (phaseRef.current !== TrainingPhase.Finished) return;
           clearStartTimeout();
           setWatchSessionState('ended');
         } else if (state === 'failed') {
-          if (phase !== TrainingPhase.Active || !watchHrEnabled) return;
+          if (phaseRef.current !== TrainingPhase.Active || !watchHrEnabledRef.current) return;
           clearStartTimeout();
           setWatchSessionState('failed');
         }
@@ -211,14 +244,5 @@ export function useWatchHr(): void {
       reachabilitySub.remove();
       sessionStateSub.remove();
     };
-  }, [
-    watchAvailable,
-    updateAppleWatchHr,
-    watchHrEnabled,
-    phase,
-    startStream,
-    setWatchReachable,
-    setWatchSessionState,
-    clearStartTimeout,
-  ]);
+  }, [watchAvailable, updateAppleWatchHr, setWatchReachable, setWatchSessionState, clearStartTimeout]);
 }

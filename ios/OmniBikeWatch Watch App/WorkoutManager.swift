@@ -4,17 +4,47 @@ import HealthKit
 import WatchConnectivity
 import WatchKit
 
-/// Command tokens exchanged with the iPhone app via WatchConnectivity.
-/// Must stay in sync with the TypeScript constants in `WatchHrAdapter.ts`.
-enum WatchCommand {
-    static let startHr = "startHr"
-    static let stopHr = "stopHr"
+enum WCFileLog {
+    static let url: URL = {
+        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let u = dir.appendingPathComponent("wc.log")
+        try? "=== Watch WC log started \(Date()) ===\n".write(to: u, atomically: false, encoding: .utf8)
+        return u
+    }()
+    private static let formatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm:ss.SSS"
+        return f
+    }()
+    static func write(_ line: String) {
+        let ts = formatter.string(from: Date())
+        let entry = "[\(ts)] \(line)\n"
+        if let data = entry.data(using: .utf8) {
+            if let handle = try? FileHandle(forWritingTo: url) {
+                handle.seekToEndOfFile()
+                handle.write(data)
+                try? handle.close()
+            } else {
+                try? entry.write(to: url, atomically: false, encoding: .utf8)
+            }
+        }
+    }
+}
+
+func wcLog(_ message: String) {
+    NSLog("%@", message)
+    WCFileLog.write(message)
 }
 
 enum WatchSessionStatePayload {
     static let started = "started"
     static let ended = "ended"
     static let failed = "failed"
+}
+
+fileprivate enum WatchCommand {
+    static let start = "start"
+    static let stop = "stop"
 }
 
 enum WatchDisplayState: Equatable {
@@ -40,7 +70,6 @@ final class WorkoutManager: NSObject, ObservableObject {
     private var builder: HKLiveWorkoutBuilder?
     private var lastHrSendAt: TimeInterval = 0
     private var pendingSessionStatePayload: [String: Any]?
-    private var pendingStartRequest = false
 
     private let hrType = HKQuantityType(.heartRate)
     private let hrSendIntervalSeconds: TimeInterval = 1.0
@@ -53,80 +82,82 @@ final class WorkoutManager: NSObject, ObservableObject {
     // ── HealthKit authorization ────────────────────────────────────────────────
 
     func requestAuthorization(starting configuration: HKWorkoutConfiguration? = nil) {
-        guard HKHealthStore.isHealthDataAvailable() else { return }
-        if configuration != nil {
-            pendingStartRequest = true
-            transition(to: .starting)
+        wcLog("[WC-Watch] requestAuthorization called starting=\(configuration != nil)")
+        guard HKHealthStore.isHealthDataAvailable() else {
+            wcLog("[WC-Watch] requestAuthorization: Health data not available")
+            return
         }
         healthStore.requestAuthorization(toShare: [HKObjectType.workoutType()], read: [hrType]) { [weak self] success, error in
             if let error {
-                self?.pendingStartRequest = false
-                self?.transition(to: .failed)
-                print("[WorkoutManager] Authorization failed: \(error)")
+                wcLog("[WC-Watch] Authorization FAILED: \(error.localizedDescription)")
                 return
             }
-
             guard success else {
-                self?.pendingStartRequest = false
-                self?.transition(to: .failed)
-                print("[WorkoutManager] Authorization denied")
+                wcLog("[WC-Watch] Authorization DENIED")
                 return
             }
-
+            wcLog("[WC-Watch] Authorization granted")
             if let configuration {
-                guard self?.pendingStartRequest == true else { return }
-                self?.pendingStartRequest = false
+                wcLog("[WC-Watch] Authorization: proceeding to startWorkout")
                 self?.startWorkout(configuration: configuration)
             }
         }
     }
 
-    // ── WatchConnectivity ──────────────────────────────────────────────────────
-
-    private func activateWCSession() {
-        guard WCSession.isSupported() else { return }
-        WCSession.default.delegate = self
-        WCSession.default.activate()
-    }
-
     // ── Workout lifecycle ──────────────────────────────────────────────────────
 
-    func startWorkout(configuration: HKWorkoutConfiguration? = nil) {
-        pendingStartRequest = false
+    func startWorkout(configuration: HKWorkoutConfiguration) {
+        wcLog("[WC-Watch] startWorkout called activityType=\(configuration.activityType.rawValue) locationType=\(configuration.locationType.rawValue)")
         if session != nil {
-            transition(to: .active)
+            wcLog("[WC-Watch] startWorkout: session already exists — no-op")
             return
         }
 
         transition(to: .starting)
-        let config = configuration ?? defaultWorkoutConfiguration()
 
         do {
-            session = try HKWorkoutSession(healthStore: healthStore, configuration: config)
-            builder = session?.associatedWorkoutBuilder()
-            builder?.dataSource = HKLiveWorkoutDataSource(healthStore: healthStore, workoutConfiguration: config)
-            session?.delegate = self
-            builder?.delegate = self
-            session?.startActivity(with: Date())
-            builder?.beginCollection(withStart: Date()) { _, _ in }
+            wcLog("[WC-Watch] startWorkout: creating HKWorkoutSession")
+            let session = try HKWorkoutSession(healthStore: healthStore, configuration: configuration)
+            wcLog("[WC-Watch] startWorkout: HKWorkoutSession created")
+            let builder = session.associatedWorkoutBuilder()
+            builder.dataSource = HKLiveWorkoutDataSource(healthStore: healthStore, workoutConfiguration: configuration)
+            session.delegate = self
+            builder.delegate = self
+            self.session = session
+            self.builder = builder
+
+            wcLog("[WC-Watch] startWorkout: calling startActivity")
+            session.startActivity(with: Date())
+            wcLog("[WC-Watch] startWorkout: calling beginCollection")
+            builder.beginCollection(withStart: Date()) { [weak self] _, error in
+                if let error {
+                    wcLog("[WC-Watch] beginCollection FAILED: \(error.localizedDescription)")
+                    self?.transition(to: .failed)
+                    self?.publishSessionState(WatchSessionStatePayload.failed)
+                    return
+                }
+                wcLog("[WC-Watch] beginCollection succeeded")
+            }
         } catch {
+            wcLog("[WC-Watch] startWorkout THREW: \(error.localizedDescription)")
             transition(to: .failed)
-            NSLog("[WorkoutManager] startWorkout failed: \(error.localizedDescription)")
+            publishSessionState(WatchSessionStatePayload.failed)
         }
     }
 
     func stopWorkout() {
-        pendingStartRequest = false
-        transition(to: .ending)
-
-        guard session != nil || builder != nil else {
-            transition(to: .ended)
-            publishSessionState(WatchSessionStatePayload.ended)
+        wcLog("[WC-Watch] stopWorkout called")
+        guard let session else {
+            wcLog("[WC-Watch] stopWorkout: no active session")
             return
         }
+        transition(to: .ending)
+        session.end()
+    }
 
-        session?.end()
-        builder?.endCollection(withEnd: Date()) { [weak self] _, _ in
+    private func finalizeBuilder(at endDate: Date) {
+        guard let builder else { return }
+        builder.endCollection(withEnd: endDate) { [weak self] _, _ in
             self?.builder?.finishWorkout { [weak self] _, _ in
                 self?.session = nil
                 self?.builder = nil
@@ -135,7 +166,17 @@ final class WorkoutManager: NSObject, ObservableObject {
         lastHrSendAt = 0
     }
 
-    // ── HR dispatch ───────────────────────────────────────────────────────────
+    // ── WatchConnectivity ──────────────────────────────────────────────────────
+
+    private func activateWCSession() {
+        wcLog("[WC-Watch] activateWCSession called")
+        guard WCSession.isSupported() else {
+            wcLog("[WC-Watch] WCSession not supported")
+            return
+        }
+        WCSession.default.delegate = self
+        WCSession.default.activate()
+    }
 
     private func sendHrToPhone(_ bpm: Int) {
         guard WCSession.default.activationState == .activated,
@@ -143,35 +184,35 @@ final class WorkoutManager: NSObject, ObservableObject {
         WCSession.default.sendMessage(["hr": bpm], replyHandler: nil)
     }
 
-    private func defaultWorkoutConfiguration() -> HKWorkoutConfiguration {
-        let configuration = HKWorkoutConfiguration()
-        configuration.activityType = .cycling
-        configuration.locationType = .indoor
-        return configuration
-    }
-
     private func publishSessionState(_ state: String) {
+        wcLog("[WC-Watch] publishSessionState state=\(state)")
         let payload: [String: Any] = [
             "sessionState": state,
             "sentAtMs": Date().timeIntervalSince1970 * 1000,
         ]
         let session = WCSession.default
+        wcLog("[WC-Watch] publishSessionState WC state=\(session.activationState.rawValue) reachable=\(session.isReachable)")
 
         if session.activationState == .activated, session.isReachable {
+            wcLog("[WC-Watch] publishSessionState: sendMessage state=\(state)")
             session.sendMessage(payload, replyHandler: nil)
         }
 
         guard session.activationState == .activated else {
+            wcLog("[WC-Watch] publishSessionState: WC not activated, queueing")
             pendingSessionStatePayload = payload
             return
         }
 
         do {
             try session.updateApplicationContext(payload)
+            wcLog("[WC-Watch] publishSessionState: updateApplicationContext ok state=\(state)")
         } catch {
-            NSLog("[WorkoutManager] Failed to publish watch session state: \(error.localizedDescription)")
+            wcLog("[WC-Watch] publishSessionState: updateApplicationContext FAILED: \(error.localizedDescription)")
         }
     }
+
+    // ── Display state + haptics ────────────────────────────────────────────────
 
     private func transition(to state: WatchDisplayState) {
         DispatchQueue.main.async {
@@ -206,19 +247,21 @@ final class WorkoutManager: NSObject, ObservableObject {
 extension WorkoutManager: HKWorkoutSessionDelegate {
     func workoutSession(_ workoutSession: HKWorkoutSession, didChangeTo toState: HKWorkoutSessionState,
                         from fromState: HKWorkoutSessionState, date: Date) {
+        wcLog("[WC-Watch] HKWorkoutSession didChangeTo \(toState.rawValue) from \(fromState.rawValue)")
         if toState == .running {
             transition(to: .active)
             publishSessionState(WatchSessionStatePayload.started)
         } else if toState == .ended {
             transition(to: .ended)
             publishSessionState(WatchSessionStatePayload.ended)
+            finalizeBuilder(at: date)
         }
     }
 
     func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
+        wcLog("[WC-Watch] HKWorkoutSession didFailWithError: \(error.localizedDescription)")
         transition(to: .failed)
         publishSessionState(WatchSessionStatePayload.failed)
-        NSLog("[WorkoutManager] Session failed: \(error.localizedDescription)")
     }
 }
 
@@ -248,9 +291,11 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
 extension WorkoutManager: WCSessionDelegate {
     func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState,
                  error: Error?) {
+        wcLog("[WC-Watch] activationDidCompleteWith state=\(activationState.rawValue) error=\(error?.localizedDescription ?? "nil") reachable=\(session.isReachable)")
         guard activationState == .activated, error == nil, let payload = pendingSessionStatePayload else { return }
         pendingSessionStatePayload = nil
 
+        wcLog("[WC-Watch] flushing pending session state payload")
         if session.isReachable {
             session.sendMessage(payload, replyHandler: nil)
         }
@@ -258,18 +303,24 @@ extension WorkoutManager: WCSessionDelegate {
         do {
             try session.updateApplicationContext(payload)
         } catch {
-            NSLog("[WorkoutManager] Failed to flush pending watch session state: \(error.localizedDescription)")
+            wcLog("[WC-Watch] flush pending FAILED: \(error.localizedDescription)")
         }
     }
 
     func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
+        wcLog("[WC-Watch] didReceiveMessage keys=\(Array(message.keys))")
         guard let cmd = message["cmd"] as? String else { return }
-        if cmd == WatchCommand.startHr {
-            requestAuthorization(starting: defaultWorkoutConfiguration())
-            return
-        }
-        if cmd == WatchCommand.stopHr {
+        wcLog("[WC-Watch] didReceiveMessage cmd=\(cmd)")
+        switch cmd {
+        case WatchCommand.start:
+            let configuration = HKWorkoutConfiguration()
+            configuration.activityType = .cycling
+            configuration.locationType = .indoor
+            requestAuthorization(starting: configuration)
+        case WatchCommand.stop:
             stopWorkout()
+        default:
+            break
         }
     }
 }

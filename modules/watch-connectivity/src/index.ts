@@ -13,8 +13,17 @@ type WatchConnectivityModuleEvents = {
 declare class WatchConnectivityNativeModule extends NativeModule<WatchConnectivityModuleEvents> {
   /** Activates the WCSession. Safe to call multiple times — no-op if already active. */
   activate(): Promise<void>;
-  /** Launches or wakes the companion Watch app for an indoor cycling workout. */
+  /**
+   * Starts an iPhone-primary HKWorkoutSession and mirrors it to the paired Watch,
+   * foregrounding the companion app on-wrist. Resolves once the Watch has accepted
+   * the mirrored session.
+   */
   startWatchApp(): Promise<void>;
+  /**
+   * Ends the iPhone-primary HKWorkoutSession if one is active. The mirrored Watch
+   * session transitions to `.ended` automatically in response.
+   */
+  endMirroredWorkout(): Promise<void>;
   /**
    * Sends a message dictionary to the paired Watch. Returns `true` if the message was
    * delivered to the WC layer, `false` if the session was not activated or the Watch

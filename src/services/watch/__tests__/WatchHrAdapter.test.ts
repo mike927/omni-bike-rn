@@ -5,7 +5,7 @@ jest.mock('watch-connectivity', () => ({
   WatchConnectivity: {
     activate: jest.fn(),
     startWatchApp: jest.fn(),
-    sendMessage: jest.fn(),
+    endMirroredWorkout: jest.fn(),
     addListener: jest.fn(),
   },
 }));
@@ -15,20 +15,18 @@ describe('WatchHrAdapter', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (WatchConnectivity.sendMessage as jest.Mock).mockReturnValue(true);
+    (WatchConnectivity.activate as jest.Mock).mockResolvedValue(undefined);
+    (WatchConnectivity.startWatchApp as jest.Mock).mockResolvedValue(undefined);
+    (WatchConnectivity.endMirroredWorkout as jest.Mock).mockResolvedValue(undefined);
     adapter = new WatchHrAdapter();
   });
 
   describe('connect', () => {
-    it('activates the WCSession, launches the Watch app, and sends startHr fallback', async () => {
-      (WatchConnectivity.activate as jest.Mock).mockResolvedValue(undefined);
-      (WatchConnectivity.startWatchApp as jest.Mock).mockResolvedValue(undefined);
-
+    it('activates the WCSession and mirrors an HKWorkoutSession to the Watch', async () => {
       await adapter.connect();
 
       expect(WatchConnectivity.activate).toHaveBeenCalledTimes(1);
       expect(WatchConnectivity.startWatchApp).toHaveBeenCalledTimes(1);
-      expect(WatchConnectivity.sendMessage).toHaveBeenCalledWith({ cmd: 'startHr' });
     });
 
     it('rejects if WCSession activation fails', async () => {
@@ -37,25 +35,22 @@ describe('WatchHrAdapter', () => {
 
       await expect(adapter.connect()).rejects.toThrow('WCSession not supported');
       expect(WatchConnectivity.startWatchApp).not.toHaveBeenCalled();
-      expect(WatchConnectivity.sendMessage).not.toHaveBeenCalled();
     });
 
-    it('rejects if launching the Watch app fails', async () => {
-      (WatchConnectivity.activate as jest.Mock).mockResolvedValue(undefined);
+    it('rejects if mirroring the workout session fails', async () => {
       (WatchConnectivity.startWatchApp as jest.Mock).mockRejectedValue(
-        new Error('Apple Watch app could not be launched'),
+        new Error('Apple Watch app could not be mirrored'),
       );
 
-      await expect(adapter.connect()).rejects.toThrow('Apple Watch app could not be launched');
-      expect(WatchConnectivity.sendMessage).not.toHaveBeenCalled();
+      await expect(adapter.connect()).rejects.toThrow('Apple Watch app could not be mirrored');
     });
   });
 
   describe('disconnect', () => {
-    it('sends stopHr command to the Watch', async () => {
+    it('ends the iPhone-primary workout session', async () => {
       await adapter.disconnect();
 
-      expect(WatchConnectivity.sendMessage).toHaveBeenCalledWith({ cmd: 'stopHr' });
+      expect(WatchConnectivity.endMirroredWorkout).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -69,7 +64,6 @@ describe('WatchHrAdapter', () => {
 
       expect(WatchConnectivity.addListener).toHaveBeenCalledWith('onWatchHr', expect.any(Function));
 
-      // Simulate the native module calling back with an HR value
       const listenerCallback = (WatchConnectivity.addListener as jest.Mock).mock.calls[0][1] as (payload: {
         hr: number;
       }) => void;

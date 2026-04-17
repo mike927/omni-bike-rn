@@ -42,11 +42,15 @@ function getWatchStatusLabel(
   watchReachable: boolean,
   latestAppleWatchHr: number | null,
 ): string {
+  // WCSession.isReachable flaps every few seconds once the Watch enters
+  // duty-cycled radio mode (screen dim, wrist down). HR samples continue to
+  // arrive throughout those flaps, so during an active workout we trust the
+  // session state and ignore transient reachability bounces. Reachability
+  // only drives the label while idle, where no session is proving the link.
   if (watchSessionState === 'starting') return 'Starting';
   if (watchSessionState === 'stopping') return 'Stopping';
   if (watchSessionState === 'ended') return 'Ended';
   if (watchSessionState === 'failed') return 'Failed';
-  if (!watchReachable) return 'Unavailable';
   if (watchSessionState === 'active') {
     return latestAppleWatchHr === null ? 'Connected' : 'Streaming';
   }
