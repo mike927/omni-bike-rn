@@ -1,3 +1,3 @@
-export type WatchSessionState = 'idle' | 'starting' | 'active' | 'stopping' | 'ended' | 'failed';
+export type WatchAvailability = 'unavailable' | 'idle' | 'in_progress';
 
 export type WatchSessionStateEvent = 'started' | 'ended' | 'failed';

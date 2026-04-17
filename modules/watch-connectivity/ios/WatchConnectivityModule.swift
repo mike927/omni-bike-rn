@@ -139,6 +139,14 @@ public class WatchConnectivityModule: Module {
     // it can call `session.end()`.
     AsyncFunction("endMirroredWorkout") { (promise: Promise) in
       wcLog("[WC-iPhone] endMirroredWorkout() called")
+      // Clear any queued start. Without this, a user flow of "tap Start on
+      // iPhone while Watch is unreachable → cancel before Watch wakes" leaks a
+      // stale start cmd the next time reachability flips true, auto-launching a
+      // workout the user never asked for.
+      if self.pendingStart {
+        wcLog("[WC-iPhone] endMirroredWorkout: clearing pendingStart")
+        self.pendingStart = false
+      }
       let session = WCSession.default
       guard session.activationState == .activated else {
         wcLog("[WC-iPhone] endMirroredWorkout: dropping — WC not activated")

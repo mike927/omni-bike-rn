@@ -10,12 +10,11 @@ import { ActionButton } from '../../../ui/components/ActionButton';
 import { SectionCard } from '../../../ui/components/SectionCard';
 import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
-import type { WatchSessionState } from '../../../types/watch';
+import type { WatchAvailability } from '../../../types/watch';
 
 interface WatchHrRowProps {
   readonly watchHrEnabled: boolean;
-  readonly watchReachable: boolean;
-  readonly watchSessionState: WatchSessionState;
+  readonly watchAvailability: WatchAvailability;
   readonly latestAppleWatchHr: number | null;
   readonly onEnable: () => void;
   readonly onDisable: () => void;
@@ -26,45 +25,32 @@ const WATCH_HR_INSTALL_HINT =
 
 function getWatchHrStatusLabel(
   watchHrEnabled: boolean,
-  watchReachable: boolean,
-  watchSessionState: WatchSessionState,
+  watchAvailability: WatchAvailability,
   latestAppleWatchHr: number | null,
 ): string {
   if (!watchHrEnabled) return 'Disabled';
-  if (watchSessionState === 'starting') return 'Starting';
-  if (watchSessionState === 'stopping') return 'Stopping';
-  if (watchSessionState === 'ended') return 'Ended';
-  if (watchSessionState === 'failed') return 'Failed';
-  if (!watchReachable) return 'Unavailable';
-  if (watchSessionState === 'active' && latestAppleWatchHr === null) return 'Connected';
-  if (latestAppleWatchHr === null) return 'Idle';
-  return `Streaming · ${latestAppleWatchHr} bpm`;
+  if (watchAvailability === 'unavailable') return 'Unavailable';
+  if (watchAvailability === 'idle') return 'Idle';
+  return latestAppleWatchHr === null ? 'In Progress' : `In Progress · ${latestAppleWatchHr} bpm`;
 }
 
-function getWatchHrHint(watchHrEnabled: boolean, watchReachable: boolean): string | null {
-  if (!watchHrEnabled || watchReachable) {
+function getWatchHrHint(watchHrEnabled: boolean, watchAvailability: WatchAvailability): string | null {
+  if (!watchHrEnabled || watchAvailability !== 'unavailable') {
     return null;
   }
 
   return WATCH_HR_INSTALL_HINT;
 }
 
-function WatchHrRow({
-  watchHrEnabled,
-  watchReachable,
-  watchSessionState,
-  latestAppleWatchHr,
-  onEnable,
-  onDisable,
-}: WatchHrRowProps) {
-  const watchHrHint = getWatchHrHint(watchHrEnabled, watchReachable);
+function WatchHrRow({ watchHrEnabled, watchAvailability, latestAppleWatchHr, onEnable, onDisable }: WatchHrRowProps) {
+  const watchHrHint = getWatchHrHint(watchHrEnabled, watchAvailability);
 
   return (
     <View style={styles.gearRow}>
       <View style={styles.gearInfo}>
         <Text style={styles.gearLabel}>Apple Watch HR</Text>
         <Text style={styles.gearName}>
-          {getWatchHrStatusLabel(watchHrEnabled, watchReachable, watchSessionState, latestAppleWatchHr)}
+          {getWatchHrStatusLabel(watchHrEnabled, watchAvailability, latestAppleWatchHr)}
         </Text>
         {watchHrHint ? <Text style={styles.gearHint}>{watchHrHint}</Text> : null}
       </View>
@@ -82,8 +68,7 @@ function WatchHrRow({
 // eslint-disable-next-line sonarjs/cognitive-complexity -- large screen component; refactor tracked separately
 export function SettingsScreen() {
   const router = useRouter();
-  const { bikeConnected, hrConnected, latestAppleWatchHr, watchReachable, watchSessionState, disconnectAll } =
-    useDeviceConnection();
+  const { bikeConnected, hrConnected, latestAppleWatchHr, watchAvailability, disconnectAll } = useDeviceConnection();
   const { watchAvailable, watchHrEnabled, enableWatchHr, disableWatchHr } = useWatchHrControls();
   const { savedBike, savedHrSource, forgetBike, forgetHr } = useSavedGear();
   const {
@@ -185,8 +170,7 @@ export function SettingsScreen() {
             <View style={styles.divider} />
             <WatchHrRow
               watchHrEnabled={watchHrEnabled}
-              watchReachable={watchReachable}
-              watchSessionState={watchSessionState}
+              watchAvailability={watchAvailability}
               latestAppleWatchHr={latestAppleWatchHr}
               onEnable={() => void enableWatchHr()}
               onDisable={() => void disableWatchHr()}

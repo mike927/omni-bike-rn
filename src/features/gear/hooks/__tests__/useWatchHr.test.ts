@@ -74,8 +74,7 @@ function resetStores() {
     latestBikeMetrics: null,
     latestBluetoothHr: null,
     latestAppleWatchHr: null,
-    watchReachable: false,
-    watchSessionState: 'idle',
+    watchAvailability: 'unavailable',
   });
   useTrainingSessionStore.setState({ phase: TrainingPhase.Idle } as never);
   useWatchHrStore.setState({ enabled: false, hydrated: false });
@@ -169,36 +168,6 @@ describe('useWatchHr', () => {
       expect(WatchHrAdapter.mock.instances).toHaveLength(0);
     });
 
-    it('does not log an error when the initial Active transition races Watch reachability', async () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(jest.fn());
-      useWatchHrStore.setState({ enabled: true, hydrated: true });
-
-      const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
-        WatchHrAdapter: jest.Mock;
-      };
-      const startWatchAppFailure = Object.assign(new Error('Apple Watch app could not be launched'), {
-        code: 'ERR_START_WATCH_APP_FAILED',
-      });
-      WatchHrAdapter.mockImplementationOnce(() => ({
-        connect: jest.fn().mockRejectedValue(startWatchAppFailure),
-        disconnect: jest.fn().mockResolvedValue(undefined),
-        subscribeToHeartRate: jest.fn().mockReturnValue({ remove: jest.fn() }),
-      }));
-
-      const { rerender } = renderHook(() => useWatchHr());
-
-      act(() => {
-        useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
-      });
-      rerender({});
-
-      await act(async () => {
-        await Promise.resolve();
-      });
-
-      expect(consoleErrorSpy).not.toHaveBeenCalled();
-    });
-
     it('logs unexpected connect failures when phase transitions to Active', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(jest.fn());
       useWatchHrStore.setState({ enabled: true, hydrated: true });
@@ -222,29 +191,6 @@ describe('useWatchHr', () => {
       await waitFor(() => {
         expect(consoleErrorSpy).toHaveBeenCalledWith('[useWatchHr] Failed to connect Watch HR:', expect.any(Error));
       });
-    });
-
-    it('marks the watch session as failed when no started event arrives in time', async () => {
-      jest.useFakeTimers();
-      useWatchHrStore.setState({ enabled: true, hydrated: true });
-
-      const { rerender } = renderHook(() => useWatchHr());
-
-      act(() => {
-        useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
-      });
-      rerender({});
-
-      await act(async () => {
-        await Promise.resolve();
-      });
-
-      act(() => {
-        jest.advanceTimersByTime(10_000);
-      });
-
-      expect(useDeviceConnectionStore.getState().watchSessionState).toBe('failed');
-      jest.useRealTimers();
     });
 
     it('does not stop the stream when phase transitions from Active to Paused', async () => {
@@ -484,25 +430,25 @@ describe('useWatchHr', () => {
       expect(useDeviceConnectionStore.getState().latestAppleWatchHr).toBe(72);
     });
 
-    it('stores the latest reachability value from the native module', () => {
+    it('flips availability to idle when the Watch becomes reachable from unavailable', () => {
       renderHook(() => useWatchHr());
 
       const wc = getWatchConnectivityMock();
-      const reachabilityCallback = wc.addListener.mock.calls[0]?.[1] as
-        | ((payload: { reachable: boolean }) => void)
-        | undefined;
+      const reachabilityCallback = wc.addListener.mock.calls.find(
+        ([eventName]: [string]) => eventName === 'onReachabilityChange',
+      )?.[1] as ((payload: { reachable: boolean }) => void) | undefined;
 
       act(() => {
         reachabilityCallback?.({ reachable: true });
       });
 
-      expect(useDeviceConnectionStore.getState().watchReachable).toBe(true);
+      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('idle');
     });
 
-    it('stores watch session state updates from the native module', () => {
+    it('maps started session events to in_progress and ended to idle', () => {
       useWatchHrStore.setState({ enabled: true, hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
-      const { rerender } = renderHook(() => useWatchHr());
+      renderHook(() => useWatchHr());
 
       const wc = getWatchConnectivityMock();
       const sessionStateCallback = wc.addListener.mock.calls.find(
@@ -512,22 +458,12 @@ describe('useWatchHr', () => {
       act(() => {
         sessionStateCallback?.({ state: 'started', sentAtMs: Date.now() });
       });
-      expect(useDeviceConnectionStore.getState().watchSessionState).toBe('active');
+      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('in_progress');
 
       act(() => {
-        useTrainingSessionStore.setState({ phase: TrainingPhase.Finished } as never);
+        sessionStateCallback?.({ state: 'ended', sentAtMs: Date.now() });
       });
-      rerender({});
-      const updatedSessionStateCallback = wc.addListener.mock.calls
-        .slice()
-        .reverse()
-        .find(([eventName]: [string]) => eventName === 'onWatchSessionState')?.[1] as
-        | ((payload: NativeWatchSessionStatePayload) => void)
-        | undefined;
-      act(() => {
-        updatedSessionStateCallback?.({ state: 'ended', sentAtMs: Date.now() });
-      });
-      expect(useDeviceConnectionStore.getState().watchSessionState).toBe('ended');
+      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('idle');
     });
 
     it('ignores stale watch session state events from before the current start request', async () => {
@@ -552,10 +488,10 @@ describe('useWatchHr', () => {
       });
 
       act(() => {
-        sessionStateCallback?.({ state: 'ended', sentAtMs: staleSentAtMs });
+        sessionStateCallback?.({ state: 'started', sentAtMs: staleSentAtMs });
       });
 
-      expect(useDeviceConnectionStore.getState().watchSessionState).toBe('starting');
+      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('unavailable');
     });
   });
 

@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 
 import { SettingsScreen } from '../SettingsScreen';
 import { useSavedGearStore } from '../../../../store/savedGearStore';
+import type { WatchAvailability } from '../../../../types/watch';
 
 jest.mock('react-native-safe-area-context', () => {
   const { View } = jest.requireActual('react-native');
@@ -41,8 +42,7 @@ const mockConnection = {
   latestBikeMetrics: null,
   latestBluetoothHr: null,
   latestAppleWatchHr: null as number | null,
-  watchReachable: false,
-  watchSessionState: 'idle' as const,
+  watchAvailability: 'unavailable' as WatchAvailability,
   connectBike: jest.fn(),
   connectHr: jest.fn(),
   disconnectAll: jest.fn(),
@@ -90,8 +90,7 @@ describe('SettingsScreen', () => {
       bikeConnected: false,
       hrConnected: false,
       latestAppleWatchHr: null,
-      watchReachable: false,
-      watchSessionState: 'idle',
+      watchAvailability: 'unavailable',
     });
     Object.assign(mockSavedGear, { savedBike: null, savedHrSource: null });
     Object.assign(mockStravaConnection, {
@@ -226,18 +225,18 @@ describe('SettingsScreen', () => {
       expect(mockWatchHr.disableWatchHr).toHaveBeenCalled();
     });
 
-    it('shows Idle status when enabled but no HR data', () => {
+    it('shows Idle status when Watch is reachable but no workout is in progress', () => {
       Object.assign(mockWatchHr, { watchAvailable: true, watchHrEnabled: true });
-      Object.assign(mockConnection, { latestAppleWatchHr: null, watchReachable: true, watchSessionState: 'idle' });
+      Object.assign(mockConnection, { latestAppleWatchHr: null, watchAvailability: 'idle' });
       const { getByText } = render(<SettingsScreen />);
       expect(getByText('Idle')).toBeTruthy();
     });
 
-    it('shows Streaming status with HR value when receiving data', () => {
+    it('shows In Progress status with HR value when receiving data', () => {
       Object.assign(mockWatchHr, { watchAvailable: true, watchHrEnabled: true });
-      Object.assign(mockConnection, { latestAppleWatchHr: 72, watchReachable: true, watchSessionState: 'active' });
+      Object.assign(mockConnection, { latestAppleWatchHr: 72, watchAvailability: 'in_progress' });
       const { getByText } = render(<SettingsScreen />);
-      expect(getByText('Streaming · 72 bpm')).toBeTruthy();
+      expect(getByText('In Progress · 72 bpm')).toBeTruthy();
     });
 
     it('shows Disabled status when Watch HR is disabled', () => {
@@ -246,9 +245,9 @@ describe('SettingsScreen', () => {
       expect(getByText('Disabled')).toBeTruthy();
     });
 
-    it('shows the watch install hint when Watch HR is enabled but unreachable', () => {
+    it('shows the watch install hint when Watch HR is enabled but unavailable', () => {
       Object.assign(mockWatchHr, { watchAvailable: true, watchHrEnabled: true });
-      Object.assign(mockConnection, { watchReachable: false, watchSessionState: 'idle' });
+      Object.assign(mockConnection, { watchAvailability: 'unavailable' });
       const { getByText } = render(<SettingsScreen />);
       expect(
         getByText(
@@ -259,7 +258,7 @@ describe('SettingsScreen', () => {
 
     it('hides the watch install hint when the Watch is reachable', () => {
       Object.assign(mockWatchHr, { watchAvailable: true, watchHrEnabled: true });
-      Object.assign(mockConnection, { watchReachable: true, watchSessionState: 'idle' });
+      Object.assign(mockConnection, { watchAvailability: 'idle' });
       const { queryByText } = render(<SettingsScreen />);
       expect(
         queryByText(

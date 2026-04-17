@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 import type { BikeAdapter, BikeMetrics } from '../services/ble/BikeAdapter';
 import type { HrAdapter } from '../services/ble/HrAdapter';
-import type { WatchSessionState } from '../types/watch';
+import type { WatchAvailability } from '../types/watch';
 
 /**
  * Holds connected device adapters and their latest raw readings.
@@ -24,8 +24,7 @@ export interface DeviceConnectionStore {
   lastBikeSignalAtMs: number | null;
   latestBluetoothHr: number | null;
   latestAppleWatchHr: number | null;
-  watchReachable: boolean;
-  watchSessionState: WatchSessionState;
+  watchAvailability: WatchAvailability;
 
   // ── Actions ────────────────────────────────────────────
   setBikeAdapter: (adapter: BikeAdapter | null) => void;
@@ -35,8 +34,7 @@ export interface DeviceConnectionStore {
   updateBikeMetrics: (metrics: BikeMetrics) => void;
   updateBluetoothHr: (hr: number) => void;
   updateAppleWatchHr: (hr: number | null) => void;
-  setWatchReachable: (reachable: boolean) => void;
-  setWatchSessionState: (state: WatchSessionState) => void;
+  setWatchAvailability: (availability: WatchAvailability) => void;
   clearBikeConnection: () => void;
   clearHrConnection: () => void;
   clearAll: () => void;
@@ -51,8 +49,7 @@ export const useDeviceConnectionStore = create<DeviceConnectionStore>((set) => (
   lastBikeSignalAtMs: null,
   latestBluetoothHr: null,
   latestAppleWatchHr: null,
-  watchReachable: false,
-  watchSessionState: 'idle',
+  watchAvailability: 'unavailable',
 
   setBikeAdapter: (adapter) =>
     set({
@@ -69,8 +66,8 @@ export const useDeviceConnectionStore = create<DeviceConnectionStore>((set) => (
     }),
   updateBluetoothHr: (hr) => set({ latestBluetoothHr: hr }),
   updateAppleWatchHr: (hr) => set({ latestAppleWatchHr: hr }),
-  setWatchReachable: (reachable) => set({ watchReachable: reachable }),
-  setWatchSessionState: (watchSessionState) => set({ watchSessionState }),
+  setWatchAvailability: (watchAvailability) =>
+    set((state) => (state.watchAvailability === watchAvailability ? state : { watchAvailability })),
   clearBikeConnection: () =>
     set({
       bikeAdapter: null,
@@ -93,7 +90,6 @@ export const useDeviceConnectionStore = create<DeviceConnectionStore>((set) => (
       lastBikeSignalAtMs: null,
       latestBluetoothHr: null,
       latestAppleWatchHr: null,
-      watchReachable: false,
-      watchSessionState: 'idle',
+      watchAvailability: 'unavailable',
     }),
 }));

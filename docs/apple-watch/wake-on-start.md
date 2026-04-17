@@ -2,7 +2,7 @@
 
 Goal: when the user starts a ride on iPhone, the Omni Bike Watch companion app should auto-foreground and begin streaming HR, even when the Watch app is suspended or the wrist is down. This is how AllTrails, Strava, and Apple Fitness behave.
 
-Status: **not working end-to-end as of 2026-04-17.** Canonical WWDC23 flow is implemented and deployed on hardware, but the Watch never wakes. Best current hypothesis is that free-developer-account sideload installs bypass the HealthKit wake broker. Workaround in place: the user opens the Watch app manually before training.
+Status: **not working end-to-end as of 2026-04-17.** Canonical WWDC23 flow is implemented and deployed on hardware. Two failure modes identified: (A) cold-wake never reaches the Watch app (leading hypothesis: free-developer sideload install bypasses the HealthKit wake broker); (B) warm-start fails with `didFailWithError: "Client application cannot start a workout session while in the background"` because `HKWorkoutSession.startActivity` is not allowed from a backgrounded Watch app, and `startWatchApp` is a no-op once the Watch app is already resident. Workaround in place: the user opens the Watch app manually before each ride.
 
 Sources:
   - https://developer.apple.com/videos/play/wwdc2023/10023 (WWDC23 "Build a multi-device workout app")
@@ -49,7 +49,11 @@ Code lives on branch `feat/apple-watch-hr`.
 
 ## What Fails
 
-Observed on a real iPhone + Apple Watch pair via sideload install:
+Two distinct failure modes observed on a real iPhone + Apple Watch pair via sideload install.
+
+### Failure A — Cold Wake Never Reaches The Watch
+
+Cold case: Watch app has never been launched in this session.
 
 1. iPhone log shows `HKHealthStore.startWatchApp(with:)` returns `success=true`.
 2. `WCSession.isReachable` stays `false`.
@@ -65,6 +69,33 @@ Representative log (`/tmp/omni-bike-logs/iphone.wc.log`):
 [19:18:36.409] [WC-iPhone] flushPendingStart: not reachable yet (reachable=false) — will retry on reachability change
 [19:18:48.520] [WC-iPhone] endMirroredWorkout: dropping — activated=true reachable=false
 ```
+
+### Failure B — Warm Start Fails Because Watch App Is In Background
+
+Warm case: Watch app is already launched (first ride worked), prior workout ended, and a few seconds later the user starts a second ride. The Watch app has auto-backgrounded by then (`isFrontmostTimeoutExtended` only buys ~8 min, and screen lock / wrist-down shortens it further).
+
+`HKWorkoutSession.startActivity` is not allowed from a backgrounded Watch app. HealthKit creates the session object, then immediately transitions it to `.ended` and fires `didFailWithError: "Client application cannot start a workout session while in the background"`.
+
+Representative log (`/tmp/omni-bike-logs/watch.wc.log`, second-start attempt after a prior ride ended):
+
+```
+20:21:51.358  handleCommand cmd=start source=message
+20:21:51.364  HKWorkoutSession created
+20:21:51.371  calling startActivity
+20:21:51.393  startMirroringToCompanionDevice FAILED: Cannot start mirroring for a workout session that is ended or ending.
+20:21:51.397  HKWorkoutSession didChangeTo 3 (.ended) from 1 (.notStarted)
+20:21:51.410  didFailWithError: Client application cannot start a workout session while in the background
+```
+
+Root cause: the iPhone path sends the start via two legs — `HKHealthStore.startWatchApp(with:)` *and* a follow-up WC `cmd=start` message. `startWatchApp` only foregrounds the Watch app on cold launch; when the app is already resident but backgrounded, `startWatchApp` is effectively a no-op and the subsequent WC message delivers `cmd=start` to a still-backgrounded app, which HealthKit rejects. There is no public API on watchOS to foreground a Watch app programmatically from the paired iPhone after the initial launch.
+
+Expected vs. actual:
+
+| Expected | Actual |
+|---|---|
+| Watch app is foreground when start command arrives, so `startActivity` is allowed | Watch app is background; nothing kept it frontmost after the prior session ended |
+| `HKHealthStore.startWatchApp(with:)` foregrounds the Watch app every time | Only foregrounds on cold launch; warm case is a no-op |
+| `WKApplicationDelegate.handle(_:)` is the foreground entry path for the `HKWorkoutConfiguration` | Never fires on warm path; we fall back to WC `cmd=start`, which does not foreground the app |
 
 ## Ruled Out
 
@@ -84,11 +115,14 @@ Representative log (`/tmp/omni-bike-logs/iphone.wc.log`):
 
 When this work is picked up again:
 
-- [ ] **Distribute via TestFlight** (requires paid Apple developer account). If TestFlight install fixes wake behavior, hypothesis #1 is confirmed.
+- [ ] **Distribute via TestFlight** (requires paid Apple developer account). If TestFlight install fixes Failure A (cold wake), hypothesis #1 is confirmed. Also re-test Failure B afterwards — it is unclear whether TestFlight-installed apps get preferential foregrounding from `startWatchApp` on the warm path.
 - [ ] **Pre-grant HK authorization on Watch.** Automate a one-time Watch app foreground + auth grant during onboarding. Measure whether `startWatchApp` begins to wake the Watch afterwards.
 - [ ] **Compare entitlements with a known-working reference app.** Download AllTrails IPA (via TestFlight redemption on the test device), extract entitlements + Info.plist for the Watch extension, diff against ours.
 - [ ] **Check `workoutSessionMirroringStartHandler` under a different session lifecycle.** Current handler is registered in `OnCreate`. Try registering it inside `application(_:didFinishLaunchingWithOptions:)` on the iPhone AppDelegate instead, in case HealthKit keys off UIKit lifecycle.
 - [ ] **Confirm Watch-side `WKApplicationDelegate.handle(_:)` wiring.** Add a log that fires on `application(_:didFinishLaunchingWithOptions:)` of the Watch app to prove whether the process is being launched at all during `startWatchApp`.
+- [ ] **Failure B mitigation — drop the WC `cmd=start` leg entirely.** Rely exclusively on `startWatchApp` + `WKApplicationDelegate.handle(_:)` so the workout is only started from the foreground path. Currently the WC start message is a workaround for Failure A; once A is fixed, removing it should eliminate B.
+- [ ] **Failure B mitigation — background HK session entitlement.** Investigate whether a specific entitlement or Info.plist key allows `startActivity` from the background. Not documented; may require a workout entitlement request to Apple.
+- [ ] **Failure B mitigation — keep Watch app frontmost between rides.** Currently we set `WKExtension.isFrontmostTimeoutExtended = true` (~8 min). Investigate whether `WKExtendedRuntimeSession` (e.g., type `.workout` or `.selfCare`) can hold the app frontmost indefinitely between workouts, which would make the warm-start path always succeed. Note the runtime-session limits may make this impractical.
 
 ## Relevant Files
 

@@ -57,7 +57,6 @@ final class WorkoutManager: NSObject, ObservableObject {
 
     // ── Published state ────────────────────────────────────────────────────────
     @Published var heartRate: Int = 0
-    @Published var isStreaming: Bool = false
     @Published var displayState: WatchDisplayState = .idle
 
     // ── Private state ──────────────────────────────────────────────────────────
@@ -254,7 +253,6 @@ final class WorkoutManager: NSObject, ObservableObject {
             let previous = self.displayState
             guard previous != state else { return }
             self.displayState = state
-            self.isStreaming = state == .inProgress
             if state == .idle {
                 self.heartRate = 0
             }

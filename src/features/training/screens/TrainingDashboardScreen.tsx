@@ -7,7 +7,7 @@ import { useTrainingSession } from '../hooks/useTrainingSession';
 import { buildTrainingSummaryRoute, POST_FINISH_TRAINING_SUMMARY_SOURCE } from '../navigation/trainingSummaryRoute';
 import { isAppleWatchAvailable } from '../../../services/watch/isAppleWatchAvailable';
 import { TrainingPhase } from '../../../types/training';
-import type { WatchSessionState } from '../../../types/watch';
+import type { WatchAvailability } from '../../../types/watch';
 import { ActionButton } from '../../../ui/components/ActionButton';
 import { MetricTile } from '../../../ui/components/MetricTile';
 import { formatDistanceKm, formatDuration, formatMetricValue } from '../../../ui/formatters';
@@ -37,30 +37,16 @@ function getDisconnectedCalloutBody(phase: TrainingPhase): string {
   return 'Connect your saved bike or choose one in setup before you start a workout from this screen.';
 }
 
-function getWatchStatusLabel(
-  watchSessionState: WatchSessionState,
-  watchReachable: boolean,
-  latestAppleWatchHr: number | null,
-): string {
-  // WCSession.isReachable flaps every few seconds once the Watch enters
-  // duty-cycled radio mode (screen dim, wrist down). HR samples continue to
-  // arrive throughout those flaps, so during an active workout we trust the
-  // session state and ignore transient reachability bounces. Reachability
-  // only drives the label while idle, where no session is proving the link.
-  if (watchSessionState === 'starting') return 'Starting';
-  if (watchSessionState === 'stopping') return 'Stopping';
-  if (watchSessionState === 'ended') return 'Ended';
-  if (watchSessionState === 'failed') return 'Failed';
-  if (watchSessionState === 'active') {
-    return latestAppleWatchHr === null ? 'Connected' : 'Streaming';
-  }
-  return watchReachable ? 'Idle' : 'Unavailable';
+function getWatchStatusLabel(watchAvailability: WatchAvailability): string {
+  if (watchAvailability === 'unavailable') return 'Unavailable';
+  if (watchAvailability === 'idle') return 'Idle';
+  return 'In Progress';
 }
 
 export function TrainingDashboardScreen() {
   const router = useRouter();
   const session = useTrainingSession();
-  const { bikeConnected, hrConnected, latestBluetoothHr, latestAppleWatchHr, watchReachable, watchSessionState } =
+  const { bikeConnected, hrConnected, latestBluetoothHr, latestAppleWatchHr, watchAvailability } =
     useDeviceConnection();
   const [isFinishing, setIsFinishing] = useState(false);
   const watchAvailable = isAppleWatchAvailable(Platform.OS);
@@ -129,9 +115,7 @@ export function TrainingDashboardScreen() {
           {watchAvailable ? (
             <View style={styles.connectionPill}>
               <Text style={styles.connectionLabel}>Watch HR</Text>
-              <Text style={styles.connectionValue}>
-                {getWatchStatusLabel(watchSessionState, watchReachable, latestAppleWatchHr)}
-              </Text>
+              <Text style={styles.connectionValue}>{getWatchStatusLabel(watchAvailability)}</Text>
             </View>
           ) : null}
         </View>
