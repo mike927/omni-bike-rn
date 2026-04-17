@@ -12,8 +12,15 @@ import {
   setWatchHrEnabled as persistWatchHrEnabled,
 } from '../../../services/preferences/appPreferencesStorage';
 
+// Native `startWatchApp` rejects with this code when HealthKit cannot hand the
+// configuration off to the Watch app (asleep, out of range, or still launching).
+// Recovery is the reachability listener below, so suppress the log for this
+// specific code to avoid a spurious error banner on the expected warm-up race.
+const CODE_START_WATCH_APP_FAILED = 'ERR_START_WATCH_APP_FAILED';
+
 function isExpectedReachabilityDelay(error: unknown): boolean {
-  return error instanceof Error && error.message === 'Apple Watch is not reachable';
+  if (typeof error !== 'object' || error === null) return false;
+  return (error as { code?: unknown }).code === CODE_START_WATCH_APP_FAILED;
 }
 
 /**

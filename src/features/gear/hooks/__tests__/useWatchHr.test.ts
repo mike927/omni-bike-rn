@@ -238,8 +238,11 @@ describe('useWatchHr', () => {
       const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
         WatchHrAdapter: jest.Mock;
       };
+      const startWatchAppFailure = Object.assign(new Error('Apple Watch app could not be launched'), {
+        code: 'ERR_START_WATCH_APP_FAILED',
+      });
       WatchHrAdapter.mockImplementationOnce(() => ({
-        connect: jest.fn().mockRejectedValue(new Error('Apple Watch is not reachable')),
+        connect: jest.fn().mockRejectedValue(startWatchAppFailure),
         disconnect: jest.fn().mockResolvedValue(undefined),
         subscribeToHeartRate: jest.fn().mockReturnValue({ remove: jest.fn() }),
       }));
