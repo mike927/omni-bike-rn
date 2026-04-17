@@ -14,14 +14,15 @@ declare class WatchConnectivityNativeModule extends NativeModule<WatchConnectivi
   /** Activates the WCSession. Safe to call multiple times — no-op if already active. */
   activate(): Promise<void>;
   /**
-   * Starts an iPhone-primary HKWorkoutSession and mirrors it to the paired Watch,
-   * foregrounding the companion app on-wrist. Resolves once the Watch has accepted
-   * the mirrored session.
+   * Wakes the paired Watch companion app and delivers an HKWorkoutConfiguration.
+   * The Watch owns and starts the primary HKWorkoutSession; the iPhone receives
+   * it via `workoutSessionMirroringStartHandler`.
    */
   startWatchApp(): Promise<void>;
   /**
-   * Ends the iPhone-primary HKWorkoutSession if one is active. The mirrored Watch
-   * session transitions to `.ended` automatically in response.
+   * Signals the paired Watch companion app to end its active workout session.
+   * The Watch owns the HKWorkoutSession lifecycle; when unreachable the stop
+   * command is queued for later delivery.
    */
   endMirroredWorkout(): Promise<void>;
   /**
