@@ -2,13 +2,13 @@ import ExpoModulesCore
 import HealthKit
 import WatchConnectivity
 
-public class WatchConnectivityModule: Module {
-  private enum PayloadKey {
-    static let heartRate = "hr"
-    static let sessionState = "sessionState"
-    static let sentAtMs = "sentAtMs"
-  }
+fileprivate enum PayloadKey {
+  static let heartRate = "hr"
+  static let sessionState = "sessionState"
+  static let sentAtMs = "sentAtMs"
+}
 
+public class WatchConnectivityModule: Module {
   private let stateQueue = DispatchQueue(label: "com.omnibike.watchconnectivity.state")
   fileprivate var activationPromise: Promise?
   private let healthStore = HKHealthStore()
