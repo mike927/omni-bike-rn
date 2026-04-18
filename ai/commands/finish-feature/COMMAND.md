@@ -15,11 +15,11 @@ outputs:
 
 # Finish Feature
 
-Close out a completed feature: ensure `plan.md` is marked `[x]`, merge the PR using a 3-way merge commit, safety-check the local workspace, remove the branch or worktree, and return to `main`.
+Close out a completed feature: ensure `plan.md` is marked `[x]` when applicable, merge the PR using a 3-way merge commit, safety-check the local workspace, remove the branch or worktree, and return to `main`.
 
 ## Prerequisites
 
-- Step 15 (Merge And Cleanup) of `AGENTS.md` has been reached: PR is approved and the human has confirmed merging should proceed.
+- The `Merge And Cleanup` stage of `AGENTS.md` has been reached: PR is approved and the human has confirmed merging should proceed.
 - Current branch is the feature branch (not `main`).
 - `gh` CLI is authenticated (`gh auth status`).
 
@@ -29,6 +29,7 @@ Close out a completed feature: ensure `plan.md` is marked `[x]`, merge the PR us
 
 Read `plan.md` and find the task item(s) for this branch.
 
+- If the branch is intentional branch-local work with no matching `plan.md` item: note that no `plan.md` update is required and skip this sub-step.
 - If already marked `[x]`: note the existing state and skip this sub-step.
 - If not yet `[x]`: update the task to `[x]`, then commit and push:
 
@@ -118,7 +119,7 @@ Use `-d` (safe delete) not `-D`. If the safe delete fails, investigate before fo
 
 ```
 **Feature Complete**
-- Plan: marked [x] (commit `<hash>` | already done)
+- Plan: marked [x] (commit `<hash>` | already done | not applicable for branch-local work)
 - PR: merged at `<pr-url>` (merge commit `<short-oid>`)
 - Branch `<branch-name>`: removed
 - Worktree: removed | N/A (in-place)
@@ -127,7 +128,7 @@ Use `-d` (safe delete) not `-D`. If the safe delete fails, investigate before fo
 
 ## Completion Criteria
 
-- `plan.md` has the task marked `[x]` and that commit is merged into `main`.
+- `plan.md` has the task marked `[x]` and that commit is merged into `main`, or the branch was explicitly branch-local work with no `plan.md` item.
 - PR state is `MERGED` on GitHub.
 - No unpushed local-only commits remain on the feature branch.
 - Local branch and worktree (if applicable) are removed.

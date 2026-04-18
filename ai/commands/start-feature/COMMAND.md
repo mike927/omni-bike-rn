@@ -1,9 +1,9 @@
 ---
 name: start-feature
 description: >-
-  Set up the workspace for a new feature: confirm branch name, ask workspace
-  strategy interactively, create the branch or worktree, and print the branch slug
-  for use in all downstream ai/local/ artifacts.
+  Set up the workspace for a new feature: confirm branch name, create an
+  in-place branch by default (or a worktree when explicitly requested), and
+  print the branch slug for use in all downstream ai/local/ artifacts.
 inputs:
   - name: description
     description: 'Short kebab-case description (e.g., "ble-metronome-engine"). Prompted if omitted.'
@@ -12,8 +12,8 @@ inputs:
     description: 'Conventional Commits type prefix: feat, fix, docs, refactor, etc. Inferred from plan.md if omitted.'
     default: (inferred)
   - name: workspace
-    description: 'Workspace strategy: "in-place" or "worktree". Prompted interactively if omitted.'
-    default: (prompted)
+    description: 'Workspace strategy: "in-place" (default) or "worktree". Use "worktree" only when the human explicitly asks for parallel isolation.'
+    default: in-place
 outputs:
   - name: branch-name
     description: 'The created branch name (e.g., feat/ble-metronome-engine).'
@@ -25,13 +25,13 @@ outputs:
 
 # Start Feature
 
-Set up the workspace for a new feature task: confirm starting state, propose a branch name, ask the user for their workspace strategy, create the branch or worktree, and report the canonical `branch-slug` that all downstream artifacts must use.
+Set up the workspace for a new feature task: confirm starting state, propose a branch name, create an in-place branch by default (or a worktree when the human explicitly requested one), and report the canonical `branch-slug` that all downstream artifacts must use.
 
 ## Prerequisites
 
 - Current branch is `main`.
 - Working tree is clean.
-- `plan.md` contains an unstarted task (`[ ]`) for the intended feature.
+- The task either maps to an existing `plan.md` item or is explicit ad-hoc branch-local work approved by the human.
 
 ## Procedure
 
@@ -52,33 +52,35 @@ Confirm: on `main`, working tree is clean. If either check fails, stop, report t
 If `type` and `description` were provided as inputs (e.g., passed from `/next-task`), skip to constructing the branch name and do not prompt the user for confirmation unless they explicitly requested it.
 
 If they were not provided:
-1. Read `plan.md` and identify the relevant unstarted task.
-2. Infer the Conventional Commits `type` from the task scope:
+1. Read `plan.md` and identify the relevant unstarted task when one exists.
+2. If no `plan.md` item applies, derive the branch name from the human-approved ad-hoc task.
+3. Infer the Conventional Commits `type` from the task scope:
    - New capability → `feat`
    - Bug fix → `fix`
    - Documentation or workflow only → `docs`
    - Structural refactor, no behaviour change → `refactor`
-3. Derive a short kebab-case `description` from the task title.
+4. Derive a short kebab-case `description` from the task title.
 
 Construct the proposed branch name: `<type>/<description>`.
 
 If the inputs were inferred rather than provided, display the proposed name and proceed automatically. The user can interrupt or correct on the next turn if needed.
 
-### Step 3: Ask Workspace Strategy
+### Step 3: Select Workspace Strategy
 
-Present the workspace strategy options using the most interactive mechanism your platform provides (e.g., a multiple-choice UI tool like `ask_user` if available, or a numbered list in chat):
+Default to an in-place branch (repo root, `git checkout -b`) — this matches the branching policy in `AGENTS.md` and is the right choice for normal feature work.
 
-- **Option 1:** `In-Place Branch` — stay in the repo root, run `git checkout -b`. Standard, lightweight.
-- **Option 2:** `Dedicated Worktree` — create a parallel directory at `../omni-bike-rn-worktrees/<branch-slug>`. Use for parallel isolation.
+Only switch to a dedicated worktree at `../omni-bike-rn-worktrees/<branch-slug>` when one of these is true:
+- the human passed `workspace: worktree` as an input, or
+- the human explicitly asked for parallel isolation in chat.
 
-If your platform does not support interactive UI tools, print the options as a numbered list and explicitly wait for the user's choice. Do not default silently — this question must be answered explicitly.
+Do not prompt the human for a strategy on every run. Announce the chosen mode in the Step 7 summary so they can redirect if needed.
 
 ### Step 4: Ask Workflow Track
 
 Present the workflow track options using the most interactive mechanism your platform provides (e.g., a multiple-choice UI tool like `ask_user` if available, or a numbered list in chat):
 
-- **Option 1:** `Standard Track` — proceed to Step 3 (Plan Drafting).
-- **Option 2:** `Fast Track` — skip planning/review; proceed directly to Step 6 (Implementation In Progress). Only for ad-hoc bug fixes or minor chores.
+- **Option 1:** `Standard Track` — proceed to `Plan Drafting`.
+- **Option 2:** `Fast Track` — skip planning/review; proceed directly to `Implementation In Progress`. Only for ad-hoc bug fixes or minor chores.
 
 If your platform does not support interactive UI tools, print the options as a numbered list and explicitly wait for the user's choice. Do not default silently.
 
@@ -130,9 +132,9 @@ Verify the new branch is active in the correct directory.
 - Track: `<Standard | Fast Track>`
 - Working directory: `<path>`
 
-Ready for <Step 3: Plan Drafting | Step 6: Implementation In Progress>.
+Ready for <Plan Drafting | Implementation In Progress>.
 
-**Next:** Proceed to <Step 3 | Step 6>?
+**Next:** Proceed to <Plan Drafting | Implementation In Progress>?
 ```
 
 Yield control. Do not proceed to the next step without user instruction.
@@ -142,7 +144,7 @@ Yield control. Do not proceed to the next step without user instruction.
 - The new branch exists and is active.
 - `branch-slug` is printed and available for use in `ai/local/plans/<branch-slug>.md`, `ai/local/reviews/<branch-slug>.md`, and all other artifacts.
 - No plan file has been created yet.
-- The agent has paused and is awaiting instruction for the next workflow step selected by the chosen track (`Step 3` for Standard Track, `Step 6` for Fast Track).
+- The agent has paused and is awaiting instruction for the next workflow step selected by the chosen track (`Plan Drafting` for Standard Track, `Implementation In Progress` for Fast Track).
 
 ## See Also
 

@@ -13,7 +13,7 @@ outputs:
 
 # Review Plan
 
-Review the active feature branch's canonical plan file and record what is already strong, what must change, and what decisions are still missing before implementation continues. This command is the plan-quality gate described in `AGENTS.md` § 4 (Plan Reviewing).
+Review the active feature branch's canonical plan file and record what is already strong, what must change, and what decisions are still missing before implementation continues. This command is the plan-quality gate for the `Plan Reviewing` stage in `AGENTS.md`.
 
 ## Prerequisites
 
@@ -64,29 +64,28 @@ Use this priority order:
 3. The current priority section if it unambiguously names the same work
 
 If no relevant `plan.md` item can be identified:
-
-- record that as a blocking issue under `## Must Change`
-- add the missing linkage under `## Missing Decisions`
-- set the recommendation to `revise`
+- first check whether the branch plan explicitly records that this is ad-hoc or branch-local work that does not map to an existing `plan.md` item
+- if it does, record that as valid scope context rather than a blocker
+- if it does not, record the missing scope linkage under `## Must Change` and `## Missing Decisions`, then set the recommendation to `revise`
 
 ### Step 4: Evaluate The Plan
 
-Review the plan against the requirements in `AGENTS.md` § 4 (Plan Reviewing) and the artifact conventions in `AGENTS.md` § Workflow Artifacts. Do not apply generic prose quality standards — only check alignment with repo rules.
+Review the plan against the requirements in `AGENTS.md` `Plan Reviewing` stage and the artifact conventions in `AGENTS.md` § Workflow Artifacts. Do not apply generic prose quality standards — only check alignment with repo rules.
 
 Check each area against the relevant `AGENTS.md` requirement:
 
 1. **Branch alignment** — the plan matches the active branch purpose and does not describe unrelated work.
-2. **Scope alignment** — covers the intended `plan.md` task; no drift, omissions, or scope creep.
-3. **Decision completeness** — the implementer would not need to make product, workflow, or architecture decisions during implementation (per `AGENTS.md` § 3 requirement that the plan "must be specific enough to execute without further design decisions").
+2. **Scope alignment** — covers the intended `plan.md` task, or explicitly records approved branch-local scope when there is no `plan.md` match; no drift, omissions, or scope creep.
+3. **Decision completeness** — the implementer would not need to make product, workflow, or architecture decisions during implementation (per the `AGENTS.md` `Plan Drafting` stage requirement that the plan "must be specific enough to execute without further design decisions").
 4. **Implementation sequencing** — steps and dependencies are ordered clearly enough to execute without re-planning.
-5. **Validation and testing** — validation commands, manual checks, and acceptance scenarios are present and proportional to the change (per `AGENTS.md` §§ 6–10 expectations).
+5. **Validation and testing** — validation commands, manual checks, and acceptance scenarios are present and proportional to the change (per the `AGENTS.md` implementation-through-manual-testing stages).
 6. **Assumptions and tradeoffs** — important defaults, constraints, and out-of-scope choices are stated explicitly.
 7. **Plan-file conventions** — `## What Will Be Available After Completion` exists and is the final section; plan is at the canonical path; no conflict with `AGENTS.md` workflow or artifact rules.
 
 Classify findings into these buckets:
 
 - `## What Is Good` — strengths worth preserving
-- `## Must Change` — blocking gaps, workflow conflicts, missing validation, missing scope linkage, or unclear handoff details
+- `## Must Change` — blocking gaps, workflow conflicts, missing validation, missing scope linkage when branch-local scope is not explicitly recorded, or unclear handoff details
 - `## Suggested Improvements` — non-blocking polish or clarity improvements
 - `## Missing Decisions` — unresolved questions or assumptions the current plan leaves to the implementer
 
@@ -126,7 +125,7 @@ Use this exact structure:
 Date: <YYYY-MM-DD>
 Source Plan: ai/local/plans/<branch-slug>.md
 Recommendation: <ready | revise>
-Relevant plan.md item: <quoted task line or "none identified">
+Relevant plan.md item: <quoted task line | "branch-local work; no plan.md item required" | "none identified">
 
 ## What Is Good
 
@@ -179,7 +178,7 @@ If the command stopped early because the branch was `main` or the canonical plan
 
 When running in **workflow owner** mode:
 - if the recommendation is `ready`, append:
-  > Plan quality gate passed. Proceed to Step 5: Plan Approving — share the plan with the human for approval.
+  > Plan quality gate passed. Proceed to `Plan Approving` — share the plan with the human for approval.
 - if the recommendation is `revise`, append:
   > Run `/address-plan-review` to resolve the blocking findings, then re-run `/review-plan`.
 

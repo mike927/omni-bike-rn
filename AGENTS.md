@@ -31,7 +31,7 @@ Read these in this order before feature work:
 6. When the user asks for a specific procedure (next-task, code-review, address-code-review, validate, check-state, start-feature, open-pr, finish-feature), load the matching `ai/commands/*/COMMAND.md`
 7. When the task involves vendor-specific behavior or hardware, check `docs/` for trusted reference material
 
-`plan.md` is the single source of truth for project scope and progress.
+`plan.md` is the single source of truth for tracked project scope and progress. Some approved ad-hoc branch-local work may proceed without being added there.
 `branch-slug` means the branch name with `/` replaced by `-`.
 
 ## Task States In `plan.md`
@@ -58,7 +58,7 @@ When using `[?]` or `[-]`, include a short reason in the same task line.
 ## Branching And Workspace Rules
 
 - Never commit changes directly to `main`.
-- **In-Place Branching**: Standard branches (`git checkout -b <branch>`) directly in the repository root. Preferred for linear development.
+- **In-Place Branching**: Standard branches (`git checkout -b <branch>`) directly in the repository root. Default for normal feature work.
 - **Worktree Branching**: Dedicated worktree (`../omni-bike-rn-worktrees/<branch-slug>`) when explicitly requested for parallel isolation.
 - Name branches as `<type>/<kebab-case-description>` using Conventional Commits prefixes (e.g., `feat/`, `fix/`, `docs/`, `refactor/`). Determine the prefix automatically based on task scope.
 
@@ -163,6 +163,7 @@ For unplanned work (e.g., a bug the user reports during a session, a quick chore
 - **The moment a code change is agreed upon**, the workflow activates.
 - **Fast Track (Optional):** For minor tasks, skip formal planning and review (Steps 3, 4, 5, 8, 9) and proceed from Step 2 directly to Step 6. *Requires explicit human approval; never auto-select.*
 - **plan.md updates are optional.** Mark an existing item if the fix addresses one; otherwise skip `plan.md` references in the workflow steps.
+- **Rule of thumb:** If the ad-hoc task clearly matches an existing `plan.md` item, align the branch and workflow to that item. Otherwise, proceed as explicit branch-local work without forcing artificial `plan.md` linkage.
 
 ### Workflow Pacing and Discipline
 
@@ -219,14 +220,14 @@ Automated pipeline steps (6–9) post the header and summary but omit the `**Nex
 ### 2. Workspace Preparing
 
 - **Resuming:** Branch already exists — skip to the active step.
-- **New task:** Run `/start-feature` to create the branch. Do not plan on `main`.
+- **New task:** Run `/start-feature` to create the branch or worktree. Do not plan on `main`.
 
 ### 3. Plan Drafting
 
 - **Prerequisite:** Feature branch exists (Step 2 complete).
 - **Plan mode:** Activate plan mode now. Use your host's dedicated tool if one is available; otherwise ask the human to enable it and select a reasoning model before continuing. Until approved (Step 5), you may ONLY search/read files and write to `ai/local/plans/<branch-slug>.md`. Do not modify source code or commit changes.
 - **Questions:** Derive technical decisions from the codebase. For product or business decisions, ask interactively (offer 2–4 concrete options plus a free-text escape hatch) or mark the `plan.md` item `[?]` with a reason.
-- **Draft:** Write a detailed, actionable plan to `ai/local/plans/<branch-slug>.md`. The final section must always be `## What Will Be Available After Completion`, focused on user-facing outcomes.
+- **Draft:** Write a detailed, actionable plan to `ai/local/plans/<branch-slug>.md`. If no `plan.md` item applies, record explicit branch-local scope in the plan. The final section must always be `## What Will Be Available After Completion`, focused on user-facing outcomes.
 - **Yield:** Post a `**Workflow Progress: Step 3 Complete**` message and ask whether to proceed to Step 4.
 
 ### 4. Plan Reviewing
@@ -239,6 +240,11 @@ Automated pipeline steps (6–9) post the header and summary but omit the `**Nex
 - **Exit:** `/review-plan` returns `ready` with no unresolved blocking findings.
 - **Yield:** Post a `**Workflow Progress: Step 4 Complete**` message including the plan path, review path, and state line `reviewed | addressed | ready for human approval`. Ask whether to proceed to Step 5.
 
+When reviewing an ad-hoc branch:
+- prefer a real `plan.md` match when one exists
+- if none exists, treat explicit branch-local scope as valid when the human has approved that framing
+- do not block solely because no `plan.md` item matches
+
 ### 5. Plan Approving
 
 - **Prerequisite:** Step 4 complete; plan state is `reviewed | addressed | ready for human approval`.
@@ -249,7 +255,7 @@ Automated pipeline steps (6–9) post the header and summary but omit the `**Nex
 
 - **Prerequisite:** Step 5 complete; Read-Only Mandate lifted.
 - **Branch check:** Confirm the working directory is on the correct feature branch (`git branch --show-current`). If not, switch before writing any code.
-- **Track progress:** Mark the relevant `plan.md` item `[~]` when implementation starts.
+- **Track progress:** Mark the relevant `plan.md` item `[~]` when implementation starts if this branch maps to one. For explicit branch-local work with no matching `plan.md` item, skip this update.
 - **Implement:** Work in small, focused sub-tasks. Implement fully — no partial stubs. Keep commits scoped to one meaningful change each.
 - **Re-sync:** Do not update `ai/local/plans/<branch-slug>.md` to track progress — use `git log` and `git status`. Run `/check-state` if context is lost.
 - **Proceed:** Post a `**Workflow Progress: Step 6 Complete**` summary of what was implemented, then proceed directly to Step 7.
@@ -310,19 +316,19 @@ A fix loop is clean only when the selected validation passes, no unresolved bloc
 - **User-visible change:** Pause and present the testing checklist. Include a concise summary of what changed and how it affects user experience or behavior. Explicitly state whether the human needs to restart Metro, rebuild the app, both, or neither.
 - **Checklist:** Provide inline. For follow-up fixes, provide only incremental retest steps unless the full flow needs re-running. Do not create `ai/local/testing/<branch-slug>.md` unless the human explicitly asks.
 - **Issues reported:** Proceed to Step 11.
-- **Approved:** Mark the `plan.md` item `[R]` and proceed to Step 12.
+- **Approved:** Mark the `plan.md` item `[R]` and proceed to Step 12 when this branch maps to `plan.md`. For explicit branch-local work, skip the `plan.md` update and proceed to Step 12.
 
 ### 11. Manual Testing Fix Loop
 
 - **Entry:** Human reported issues in Step 10.
 - **Fix loop:** After each fix, follow the Fix Loop Decision Rules for validation scope and review execution. Request targeted retesting only for the affected behavior.
 - **Exit:** Human explicitly approves the latest changes.
-- **Proceed:** Mark the `plan.md` item `[R]` and proceed to Step 12.
+- **Proceed:** Mark the `plan.md` item `[R]` and proceed to Step 12 when this branch maps to `plan.md`. For explicit branch-local work, skip the `plan.md` update and proceed to Step 12.
 
 ### 12. PR Open
 
-- **Prerequisite:** Step 10 or 11 complete; `plan.md` item marked `[R]`.
-- **Open:** Execute `/open-pr`. The command owns the `plan.md [x]` commit and push.
+- **Prerequisite:** Step 10 or 11 complete; the matching `plan.md` item is marked `[R]` when this branch maps to one.
+- **Open:** Execute `/open-pr`. The command owns the `plan.md [x]` commit and push when a matching `plan.md` item exists.
 - **Yield:** Post a `**Workflow Progress: Step 12 Complete**` message with the PR URL, then ask whether to proceed to Step 13.
 
 ### 13. PR Review Comments
@@ -400,7 +406,7 @@ Available commands:
 ### Adding A New Command
 
 1. Create a folder at `ai/commands/<command-name>/`.
-2. Add a `COMMAND.md` file with YAML frontmatter (`name`, `description`, `triggers`, `inputs`, `outputs`).
+2. Add a `COMMAND.md` file with YAML frontmatter (`name`, `description`, `inputs`, `outputs`).
 3. Write the procedure as numbered steps with clear completion criteria.
 4. Reference it from this section.
 

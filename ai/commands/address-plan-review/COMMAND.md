@@ -15,12 +15,12 @@ outputs:
 
 # Address Plan Review
 
-Consume the active branch's plan-review findings, decide which items are worth applying, decline weak or incorrect suggestions with explicit reasons, and update the canonical plan without turning it into a review scrapbook. This command is the resolution pass of the plan-quality gate described in `AGENTS.md` § 4 (Plan Reviewing).
+Consume the active branch's plan-review findings, decide which items are worth applying, decline weak or incorrect suggestions with explicit reasons, and update the canonical plan without turning it into a review scrapbook. This command is the resolution pass of the plan-quality gate for the `Plan Reviewing` stage in `AGENTS.md`.
 
 ## Prerequisites
 
 - Current branch is a feature branch, not `main`.
-- The feature workflow is in Step 3 (Plan Drafting), Step 4 (Plan Reviewing), or Step 5 (Plan Approving) of `AGENTS.md` — i.e., the plan has not yet been approved for implementation.
+- The feature workflow is in the `Plan Drafting`, `Plan Reviewing`, or `Plan Approving` stage of `AGENTS.md` — i.e., the plan has not yet been approved for implementation.
 - The canonical plan file exists at `ai/local/plans/<branch-slug>.md`.
 - The canonical review file exists at `ai/local/plans/<branch-slug>.review.md`.
 - The working tree is clean apart from the current branch's plan and plan-review artifacts. If unrelated tracked files are dirty, stop and report the blocker.
@@ -70,7 +70,11 @@ Classify each item into exactly one outcome:
 | `already-resolved` | The current plan already addresses the point | Do not edit the plan; record where it is already handled |
 | `needs-user-input` | The item depends on a true product or workflow choice that cannot be derived from repo context | Do not invent the answer; record the exact question |
 
-Evaluation criteria — apply the same plan quality standards used in `ai/commands/review-plan/COMMAND.md` § Step 4: branch alignment, scope alignment, decision completeness, implementation sequencing, validation coverage, assumptions, and plan-file conventions. Accept only changes that improve alignment with `plan.md` or `AGENTS.md`; reject changes that introduce scope creep or swap one unsupported assumption for another.
+Evaluation criteria — apply the same plan quality standards used in the plan-evaluation step of `ai/commands/review-plan/COMMAND.md`: branch alignment, scope alignment, decision completeness, implementation sequencing, validation coverage, assumptions, and plan-file conventions. Accept only changes that improve alignment with `plan.md` or `AGENTS.md`; reject changes that introduce scope creep or swap one unsupported assumption for another.
+
+When the only review issue is missing `plan.md` linkage:
+- if the work clearly matches an existing `plan.md` item, update the plan to point to that item
+- otherwise, the item may be resolved by recording explicit branch-local scope when that matches human intent and `AGENTS.md`
 
 Never apply a suggestion just because it appears in the review file.
 
@@ -112,6 +116,7 @@ Recommendation: <ready | revise | blocked>
 Rules:
 - Declines must use a concrete rationale such as out of scope, conflicts with `plan.md`, conflicts with `AGENTS.md`, already handled elsewhere, unnecessary complexity, or unsupported guessing.
 - `NEEDS USER INPUT` entries must record the exact unresolved question, not a vague placeholder.
+- Missing `plan.md` linkage does not stay blocking once the plan explicitly records approved branch-local scope for work that does not match an existing `plan.md` item.
 
 ### Step 6: Re-Evaluate Readiness
 
@@ -148,7 +153,7 @@ If the command stopped early because of `main`, missing files, or unrelated dirt
 
 Also append one of these next-step lines based on the recommendation:
 
-- `ready` → "All findings resolved. Re-run `/review-plan` to refresh the review file and confirm the quality gate before proceeding to Step 5."
+- `ready` → "All findings resolved. Re-run `/review-plan` to refresh the review file and confirm the quality gate before proceeding to `Plan Approving`."
 - `revise` → "Re-run `/review-plan` to generate updated findings, then `/address-plan-review` again."
 - `blocked` → "Surface the `Needs User Input` questions to the human. After answers are received, re-run `/review-plan` to re-enter the loop."
 

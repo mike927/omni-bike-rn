@@ -17,7 +17,7 @@ Run the project validation suite and record results.
 
 ## Prerequisites
 
-- Working directory is inside a project worktree (not the repo root on `main`).
+- Working directory is on a feature branch (not `main`).
 - Dependencies are installed (`node_modules/` exists).
 
 ## Procedure

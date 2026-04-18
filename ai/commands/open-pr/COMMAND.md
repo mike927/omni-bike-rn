@@ -1,7 +1,7 @@
 ---
 name: open-pr
 description: >-
-  Open a GitHub PR with a standardized summary built from the branch diff and plan context.
+  Open a GitHub PR with a standardized summary built from the branch diff and task context.
 inputs:
   - name: base
     description: 'Base branch for the PR'
@@ -20,7 +20,7 @@ Open a GitHub pull request with a standardized body.
 - Current branch is **not** `main`.
 - All intended commits are pushed to the remote.
 - `gh` CLI is authenticated.
-- Validation has been run (step 7) — ideally all checks pass.
+- Validation has been run — ideally all checks pass.
 
 ## Procedure
 
@@ -87,8 +87,8 @@ git merge origin/main
 
 1. **Diff summary**: `git diff main...HEAD --stat` for changed files, `git diff main...HEAD` for full diff.
 2. **Commit log**: `git log --oneline main..HEAD` for commit messages.
-3. **Plan context**: Read `plan.md` to identify which task item(s) this branch addresses.
-3. **Validation state**: Run a quick validation or note if it is unknown.
+3. **Task context**: Read `plan.md` to identify which task item(s) this branch addresses when a match exists. Otherwise record that this is branch-local work not tracked in `plan.md`.
+4. **Validation state**: Run a quick validation or note if it is unknown.
 
 ### Step 4: Build PR Title
 
@@ -112,9 +112,9 @@ Use this template:
 - <Bullet point explaining why this was changed or why a specific approach was chosen>
 - <Add more bullet points as needed...>
 
-## Plan Item
+## Scope
 
-<Quote or reference the relevant plan.md task line>
+<Quote or reference the relevant plan.md task line, or state "Branch-local work not tracked in plan.md">
 
 ## Testing Notes
 
@@ -132,7 +132,7 @@ Use a HEREDOC for the body to preserve formatting.
 ### Step 7: Record PR State
 
 1. Report the PR URL in chat.
-2. Update the relevant `plan.md` item to `[x]` (since opening the PR essentially completes the development phase for this branch) and commit separately:
+2. If the branch maps to a `plan.md` item, update it to `[x]` (since opening the PR essentially completes the development phase for this branch) and commit separately:
 
 ```bash
 git add plan.md
@@ -140,8 +140,15 @@ git commit -m "docs: mark <task> as completed in plan"
 git push
 ```
 
+If the branch is branch-local work with no matching `plan.md` item, note that no `plan.md` update is required and skip this sub-step.
+
 ## Completion Criteria
 
 - PR is created on GitHub with a well-formatted body.
 - PR URL is reported in chat.
-- Workflow file and plan.md are updated.
+- The `plan.md [x]` commit and push are completed when applicable.
+
+## See Also
+
+- `ai/commands/code-review/COMMAND.md` — verify the review file is clean before opening the PR
+- `ai/commands/finish-feature/COMMAND.md` — merge and clean up after the PR is approved
