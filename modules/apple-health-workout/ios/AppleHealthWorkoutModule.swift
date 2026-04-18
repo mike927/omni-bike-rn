@@ -120,13 +120,16 @@ public class AppleHealthWorkoutModule: Module {
           ))
         }
 
-        // Heart rate uses `bpm` key for readability; the three cycling-metric
-        // arrays use a generic `value` key (units documented on the JS side).
+        // Heart rate uses `bpm` key and requires strictly positive values
+        // (bpm == 0 is nonsensical and treated as "no reading"). The three
+        // cycling-metric arrays use a generic `value` key and accept 0 as a
+        // meaningful "not pedaling" sample. Units are documented on the JS side.
         samplesToAdd.append(contentsOf: self.buildQuantitySamples(
           from: rawHrSamples,
           valueKey: "bpm",
           type: HKQuantityType(.heartRate),
           unit: HKUnit(from: "count/min"),
+          requirePositive: true,
           rangeStart: startDate,
           rangeEnd: endDate
         ))
@@ -135,6 +138,7 @@ public class AppleHealthWorkoutModule: Module {
           valueKey: "value",
           type: HKQuantityType(.cyclingPower),
           unit: .watt(),
+          requirePositive: false,
           rangeStart: startDate,
           rangeEnd: endDate
         ))
@@ -143,6 +147,7 @@ public class AppleHealthWorkoutModule: Module {
           valueKey: "value",
           type: HKQuantityType(.cyclingCadence),
           unit: HKUnit.count().unitDivided(by: .minute()),
+          requirePositive: false,
           rangeStart: startDate,
           rangeEnd: endDate
         ))
@@ -151,6 +156,7 @@ public class AppleHealthWorkoutModule: Module {
           valueKey: "value",
           type: HKQuantityType(.cyclingSpeed),
           unit: HKUnit.meter().unitDivided(by: .second()),
+          requirePositive: false,
           rangeStart: startDate,
           rangeEnd: endDate
         ))
@@ -204,13 +210,15 @@ public class AppleHealthWorkoutModule: Module {
     valueKey: String,
     type: HKQuantityType,
     unit: HKUnit,
+    requirePositive: Bool,
     rangeStart: Date,
     rangeEnd: Date
   ) -> [HKQuantitySample] {
     return rawSamples.compactMap { sample in
       guard
         let value = (sample[valueKey] as? NSNumber)?.doubleValue,
-        value.isFinite, value >= 0,
+        value.isFinite,
+        (requirePositive ? value > 0 : value >= 0),
         let timestampMs = (sample["timestampMs"] as? NSNumber)?.doubleValue
       else { return nil }
       let date = Date(timeIntervalSince1970: timestampMs / 1000)
