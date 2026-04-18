@@ -191,11 +191,12 @@ final class WorkoutManager: NSObject, ObservableObject {
 
     private func finalizeBuilder(at endDate: Date) {
         guard let builder else { return }
+        // The companion only streams HR to the phone — it must not persist an
+        // HKWorkout of its own. The phone is the sole author of the workout via
+        // the post-session Apple Health export on TrainingSummaryScreen.
         builder.endCollection(withEnd: endDate) { [weak self] _, _ in
-            self?.builder?.finishWorkout { [weak self] _, _ in
-                self?.session = nil
-                self?.builder = nil
-            }
+            self?.session = nil
+            self?.builder = nil
         }
         lastHrSendAt = 0
     }

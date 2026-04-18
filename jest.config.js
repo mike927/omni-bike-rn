@@ -7,6 +7,7 @@ module.exports = {
   ],
   moduleNameMapper: {
     '^react-native-ble-plx$': '<rootDir>/src/__mocks__/react-native-ble-plx.ts',
+    '^react-native-health$': '<rootDir>/src/__mocks__/react-native-health.ts',
     '^@react-native-async-storage/async-storage$':
       '<rootDir>/src/__mocks__/@react-native-async-storage/async-storage.ts',
     '^expo-sqlite$': '<rootDir>/src/__mocks__/expo-sqlite.ts',

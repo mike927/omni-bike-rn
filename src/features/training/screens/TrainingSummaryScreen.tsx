@@ -6,6 +6,7 @@ import { POST_FINISH_TRAINING_SUMMARY_SOURCE, type TrainingSummarySource } from 
 import { deleteSession, getSessionById } from '../../../services/db/trainingSessionRepository';
 import { getProviderUpload } from '../../../services/db/providerUploadRepository';
 import { uploadSessionToProvider } from '../../../services/export/uploadOrchestrator';
+import { useAppleHealthConnectionStore } from '../../../store/appleHealthConnectionStore';
 import { useStravaConnectionStore } from '../../../store/stravaConnectionStore';
 import type { PersistedProviderUpload, PersistedTrainingSession } from '../../../types/sessionPersistence';
 import { ActionButton } from '../../../ui/components/ActionButton';
@@ -19,6 +20,8 @@ const HOME_ROUTE = '/';
 const SETTINGS_ROUTE = '/(tabs)/settings';
 const STRAVA_PROVIDER_ID = 'strava';
 const STRAVA_PROVIDER_LABEL = 'Strava';
+const APPLE_HEALTH_PROVIDER_ID = 'apple_health';
+const APPLE_HEALTH_PROVIDER_LABEL = 'Apple Health';
 
 interface TrainingSummaryScreenProps {
   sessionId: string;
@@ -26,54 +29,60 @@ interface TrainingSummaryScreenProps {
   returnTo: string | null;
 }
 
-function getUploadButtonLabel(upload: PersistedProviderUpload | null, isUploading: boolean): string {
+function getUploadButtonLabel(
+  upload: PersistedProviderUpload | null,
+  isUploading: boolean,
+  providerLabel: string,
+): string {
   if (isUploading || upload?.uploadState === 'uploading') {
     return 'Uploading...';
   }
 
   if (upload?.uploadState === 'failed') {
-    return `Retry ${STRAVA_PROVIDER_LABEL}`;
+    return `Retry ${providerLabel}`;
   }
 
   if (upload?.uploadState === 'uploaded') {
-    return `${STRAVA_PROVIDER_LABEL} Uploaded`;
+    return `${providerLabel} Uploaded`;
   }
 
-  return `Upload to ${STRAVA_PROVIDER_LABEL}`;
+  return `Upload to ${providerLabel}`;
 }
 
-function getUploadStatusMessage(upload: PersistedProviderUpload | null): string {
+function getUploadStatusMessage(upload: PersistedProviderUpload | null, providerLabel: string): string {
   if (!upload || upload.uploadState === 'ready') {
-    return `Manually upload this workout to ${STRAVA_PROVIDER_LABEL} when you're ready.`;
+    return `Manually upload this workout to ${providerLabel} when you're ready.`;
   }
 
   if (upload.uploadState === 'uploading') {
-    return `${STRAVA_PROVIDER_LABEL} upload is currently in progress.`;
+    return `${providerLabel} upload is currently in progress.`;
   }
 
   if (upload.uploadState === 'uploaded') {
     if (upload.errorMessage) {
       return upload.externalId
-        ? `Uploaded to ${STRAVA_PROVIDER_LABEL}. Reference: ${upload.externalId}. ${upload.errorMessage}`
-        : `Uploaded to ${STRAVA_PROVIDER_LABEL}. ${upload.errorMessage}`;
+        ? `Uploaded to ${providerLabel}. Reference: ${upload.externalId}. ${upload.errorMessage}`
+        : `Uploaded to ${providerLabel}. ${upload.errorMessage}`;
     }
 
     return upload.externalId
-      ? `Uploaded to ${STRAVA_PROVIDER_LABEL}. Reference: ${upload.externalId}`
-      : `Uploaded to ${STRAVA_PROVIDER_LABEL}.`;
+      ? `Uploaded to ${providerLabel}. Reference: ${upload.externalId}`
+      : `Uploaded to ${providerLabel}.`;
   }
 
   return upload.errorMessage
-    ? `${STRAVA_PROVIDER_LABEL} upload failed: ${upload.errorMessage}`
-    : `${STRAVA_PROVIDER_LABEL} upload failed.`;
+    ? `${providerLabel} upload failed: ${upload.errorMessage}`
+    : `${providerLabel} upload failed.`;
 }
 
 export function TrainingSummaryScreen({ sessionId, source, returnTo }: Readonly<TrainingSummaryScreenProps>) {
   const router = useRouter();
   const [session, setSession] = useState<PersistedTrainingSession | null>(null);
   const [providerUpload, setProviderUpload] = useState<PersistedProviderUpload | null>(null);
+  const [appleHealthUpload, setAppleHealthUpload] = useState<PersistedProviderUpload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [isUploadingAppleHealth, setIsUploadingAppleHealth] = useState(false);
   const isPostFinishSource = source === POST_FINISH_TRAINING_SUMMARY_SOURCE;
   const primaryActionLabel = isPostFinishSource ? 'Save' : 'Done';
   const exitRoute = returnTo ?? HOME_ROUTE;
@@ -87,6 +96,7 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: Readonly<
     const loaded = getSessionById(sessionId);
     setSession(loaded);
     setProviderUpload(getProviderUpload(sessionId, STRAVA_PROVIDER_ID));
+    setAppleHealthUpload(getProviderUpload(sessionId, APPLE_HEALTH_PROVIDER_ID));
     setIsLoading(false);
   }, [sessionId]);
 
@@ -153,6 +163,42 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: Readonly<
     }
   };
 
+  const handleUploadToAppleHealth = async () => {
+    if (!useAppleHealthConnectionStore.getState().connected) {
+      Alert.alert('Apple Health Not Connected', 'Connect Apple Health in Settings to save workouts there.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Go to Settings', onPress: () => router.push(SETTINGS_ROUTE) },
+      ]);
+      return;
+    }
+
+    setIsUploadingAppleHealth(true);
+
+    try {
+      const result = await uploadSessionToProvider(sessionId, APPLE_HEALTH_PROVIDER_ID);
+      const latestUpload = getProviderUpload(sessionId, APPLE_HEALTH_PROVIDER_ID);
+      setAppleHealthUpload(latestUpload);
+
+      if (!result.success) {
+        Alert.alert(
+          'Upload Failed',
+          result.errorMessage ?? `This workout could not be saved to ${APPLE_HEALTH_PROVIDER_LABEL}.`,
+        );
+        return;
+      }
+
+      Alert.alert('Saved to Apple Health', `This workout was saved to ${APPLE_HEALTH_PROVIDER_LABEL}.`);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : `This workout could not be saved to ${APPLE_HEALTH_PROVIDER_LABEL}.`;
+      console.error('[TrainingSummaryScreen] Failed to save workout to Apple Health:', err);
+      setAppleHealthUpload(getProviderUpload(sessionId, APPLE_HEALTH_PROVIDER_ID));
+      Alert.alert('Upload Failed', message);
+    } finally {
+      setIsUploadingAppleHealth(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <AppScreen title="Summary" subtitle="Loading workout data...">
@@ -213,15 +259,29 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: Readonly<
         </SectionCard>
 
         <SectionCard title={`${STRAVA_PROVIDER_LABEL} Upload`}>
-          <Text style={styles.bodyText}>{getUploadStatusMessage(providerUpload)}</Text>
+          <Text style={styles.bodyText}>{getUploadStatusMessage(providerUpload, STRAVA_PROVIDER_LABEL)}</Text>
           <View style={styles.uploadActionRow}>
             <ActionButton
-              label={getUploadButtonLabel(providerUpload, isUploading)}
+              label={getUploadButtonLabel(providerUpload, isUploading, STRAVA_PROVIDER_LABEL)}
               onPress={() => {
                 void handleUploadToStrava();
               }}
               variant="secondary"
               disabled={isUploading || providerUpload?.uploadState === 'uploaded'}
+            />
+          </View>
+        </SectionCard>
+
+        <SectionCard title={`${APPLE_HEALTH_PROVIDER_LABEL} Export`}>
+          <Text style={styles.bodyText}>{getUploadStatusMessage(appleHealthUpload, APPLE_HEALTH_PROVIDER_LABEL)}</Text>
+          <View style={styles.uploadActionRow}>
+            <ActionButton
+              label={getUploadButtonLabel(appleHealthUpload, isUploadingAppleHealth, APPLE_HEALTH_PROVIDER_LABEL)}
+              onPress={() => {
+                void handleUploadToAppleHealth();
+              }}
+              variant="secondary"
+              disabled={isUploadingAppleHealth || appleHealthUpload?.uploadState === 'uploaded'}
             />
           </View>
         </SectionCard>

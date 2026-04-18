@@ -59,6 +59,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-web-browser',
     'expo-secure-store',
     './plugins/with-watch-extension',
+    [
+      'react-native-health',
+      {
+        healthSharePermission:
+          'Omni Bike reads your heart rate from Apple Watch to display live HR during training sessions.',
+        healthUpdatePermission:
+          'Omni Bike saves your completed indoor cycling workouts (duration, distance, calories, and heart rate) to Apple Health.',
+      },
+    ],
   ],
   extra: {
     // Register a Strava API application at https://www.strava.com/settings/api

@@ -45,6 +45,13 @@ jest.mock('../../../../store/stravaConnectionStore', () => ({
   },
 }));
 
+const mockAppleHealthGetState = jest.fn();
+jest.mock('../../../../store/appleHealthConnectionStore', () => ({
+  useAppleHealthConnectionStore: {
+    getState: (...args: unknown[]) => mockAppleHealthGetState(...args),
+  },
+}));
+
 describe('TrainingSummaryScreen', () => {
   const session = {
     id: 'session-1',
@@ -67,8 +74,9 @@ describe('TrainingSummaryScreen', () => {
     mockGetSessionById.mockReturnValue(session);
     mockGetProviderUpload.mockReturnValue(null);
     mockUploadSessionToProvider.mockResolvedValue({ providerId: 'strava', success: true, externalId: 'upload-1' });
-    // Default: Strava connected so upload guard passes in most tests.
+    // Default: providers connected so upload guards pass in most tests.
     mockStravaGetState.mockReturnValue({ connected: true });
+    mockAppleHealthGetState.mockReturnValue({ connected: true });
   });
 
   it('shows a missing-session state when no persisted session exists', () => {
@@ -179,15 +187,21 @@ describe('TrainingSummaryScreen', () => {
   });
 
   it('uploads a workout to Strava from the summary screen', async () => {
-    mockGetProviderUpload.mockReturnValueOnce(null).mockReturnValueOnce({
+    const uploadedUpload = {
       id: 'upload-1',
       sessionId: 'session-1',
       providerId: 'strava',
-      uploadState: 'uploaded',
+      uploadState: 'uploaded' as const,
       externalId: 'strava-activity-1',
       errorMessage: null,
       createdAtMs: 100,
       updatedAtMs: 200,
+    };
+    const stravaCalls: number[] = [];
+    mockGetProviderUpload.mockImplementation((_sessionId: string, providerId: string) => {
+      if (providerId !== 'strava') return null;
+      stravaCalls.push(1);
+      return stravaCalls.length === 1 ? null : uploadedUpload;
     });
 
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
@@ -226,6 +240,71 @@ describe('TrainingSummaryScreen', () => {
 
     await waitFor(() => {
       expect(alertSpy).toHaveBeenCalledWith('Strava Not Connected', expect.any(String), expect.any(Array));
+    });
+    expect(mockUploadSessionToProvider).not.toHaveBeenCalled();
+
+    alertSpy.mockRestore();
+  });
+
+  it('uploads a workout to Apple Health from the summary screen', async () => {
+    const uploadedUpload = {
+      id: 'upload-2',
+      sessionId: 'session-1',
+      providerId: 'apple_health',
+      uploadState: 'uploaded' as const,
+      externalId: 'workout-uuid',
+      errorMessage: null,
+      createdAtMs: 100,
+      updatedAtMs: 200,
+    };
+    const appleCalls: number[] = [];
+    mockGetProviderUpload.mockImplementation((_sessionId: string, providerId: string) => {
+      if (providerId !== 'apple_health') return null;
+      appleCalls.push(1);
+      return appleCalls.length === 1 ? null : uploadedUpload;
+    });
+    mockUploadSessionToProvider.mockResolvedValue({
+      providerId: 'apple_health',
+      success: true,
+      externalId: 'workout-uuid',
+    });
+
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+    const { getByText } = render(
+      <TrainingSummaryScreen
+        sessionId="session-1"
+        source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE}
+        returnTo="/history"
+      />,
+    );
+
+    fireEvent.press(getByText('Upload to Apple Health'));
+
+    await waitFor(() => {
+      expect(mockUploadSessionToProvider).toHaveBeenCalledWith('session-1', 'apple_health');
+    });
+    expect(getByText('Apple Health Uploaded')).toBeTruthy();
+    expect(alertSpy).toHaveBeenCalledWith('Saved to Apple Health', 'This workout was saved to Apple Health.');
+
+    alertSpy.mockRestore();
+  });
+
+  it('shows a not-connected alert when Apple Health upload is tapped without connection', async () => {
+    mockAppleHealthGetState.mockReturnValue({ connected: false });
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+
+    const { getByText } = render(
+      <TrainingSummaryScreen
+        sessionId="session-1"
+        source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE}
+        returnTo="/history"
+      />,
+    );
+
+    fireEvent.press(getByText('Upload to Apple Health'));
+
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalledWith('Apple Health Not Connected', expect.any(String), expect.any(Array));
     });
     expect(mockUploadSessionToProvider).not.toHaveBeenCalled();
 
