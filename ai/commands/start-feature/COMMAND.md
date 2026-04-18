@@ -1,9 +1,9 @@
 ---
 name: start-feature
 description: >-
-  Set up the workspace for a new feature: confirm branch name, ask workspace
-  strategy interactively, create the branch or worktree, and print the branch
-  slug for use in all downstream ai/local/ artifacts.
+  Set up the workspace for a new feature: confirm branch name, create an
+  in-place branch by default (or a worktree when explicitly requested), and
+  print the branch slug for use in all downstream ai/local/ artifacts.
 inputs:
   - name: description
     description: 'Short kebab-case description (e.g., "ble-metronome-engine"). Prompted if omitted.'
@@ -12,8 +12,8 @@ inputs:
     description: 'Conventional Commits type prefix: feat, fix, docs, refactor, etc. Inferred from plan.md if omitted.'
     default: (inferred)
   - name: workspace
-    description: 'Workspace strategy: "in-place" or "worktree". Prompted interactively if omitted.'
-    default: (prompted)
+    description: 'Workspace strategy: "in-place" (default) or "worktree". Only ask the human when they have not signalled a preference and the task hints at parallel work.'
+    default: in-place
 outputs:
   - name: branch-name
     description: 'The created branch name (e.g., feat/ble-metronome-engine).'
@@ -25,7 +25,7 @@ outputs:
 
 # Start Feature
 
-Set up the workspace for a new feature task: confirm starting state, propose a branch name, ask the user for their workspace strategy, create the branch or worktree, and report the canonical `branch-slug` that all downstream artifacts must use.
+Set up the workspace for a new feature task: confirm starting state, propose a branch name, create an in-place branch by default (or a worktree when the human explicitly requested one), and report the canonical `branch-slug` that all downstream artifacts must use.
 
 ## Prerequisites
 
@@ -65,14 +65,15 @@ Construct the proposed branch name: `<type>/<description>`.
 
 If the inputs were inferred rather than provided, display the proposed name and proceed automatically. The user can interrupt or correct on the next turn if needed.
 
-### Step 3: Ask Workspace Strategy
+### Step 3: Select Workspace Strategy
 
-Present the workspace strategy options using the most interactive mechanism your platform provides (e.g., a multiple-choice UI tool like `ask_user` if available, or a numbered list in chat):
+Default to an in-place branch (repo root, `git checkout -b`) — this matches the branching policy in `AGENTS.md` and is the right choice for normal feature work.
 
-- **Option 1:** `In-Place Branch` — stay in the repo root, run `git checkout -b`. Default for normal feature work.
-- **Option 2:** `Dedicated Worktree` — create a parallel directory at `../omni-bike-rn-worktrees/<branch-slug>`. Use when the human explicitly wants parallel isolation.
+Only switch to a dedicated worktree at `../omni-bike-rn-worktrees/<branch-slug>` when one of these is true:
+- the human passed `workspace: worktree` as an input, or
+- the human explicitly asked for parallel isolation in chat.
 
-If your platform does not support interactive UI tools, print the options as a numbered list and explicitly wait for the user's choice. Do not default silently in the command text.
+Do not prompt the human for a strategy on every run. Announce the chosen mode in the Step 7 summary so they can redirect if needed.
 
 ### Step 4: Ask Workflow Track
 
