@@ -6,7 +6,7 @@ This folder keeps AI-related guidance separate from app code. Treat `AGENTS.md` 
 ai/
   README.md            ← you are here
   screens.md           ← screen inventory, navigation diagrams, phase gates
-  local/               ← ignored per-worktree runtime state (plans, reviews, testing)
+  local/               ← ignored per-branch runtime state (plans, reviews, testing)
   commands/            ← active procedures invoked by name (see AGENTS.md § Commands)
     check-state/       ← bootstrap/resume session context
     next-task/         ← read plan.md and propose the next logical task to start
