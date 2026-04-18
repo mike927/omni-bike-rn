@@ -227,7 +227,7 @@ Automated pipeline steps (6–9) post the header and summary but omit the `**Nex
 - **Prerequisite:** Feature branch exists (Step 2 complete).
 - **Plan mode:** Activate plan mode now. Use your host's dedicated tool if one is available; otherwise ask the human to enable it and select a reasoning model before continuing. Until approved (Step 5), you may ONLY search/read files and write to `ai/local/plans/<branch-slug>.md`. Do not modify source code or commit changes.
 - **Questions:** Derive technical decisions from the codebase. For product or business decisions, ask interactively (offer 2–4 concrete options plus a free-text escape hatch) or mark the `plan.md` item `[?]` with a reason.
-- **Draft:** Write a detailed, actionable plan to `ai/local/plans/<branch-slug>.md`. The final section must always be `## What Will Be Available After Completion`, focused on user-facing outcomes.
+- **Draft:** Write a detailed, actionable plan to `ai/local/plans/<branch-slug>.md`. If no `plan.md` item applies, record explicit branch-local scope in the plan. The final section must always be `## What Will Be Available After Completion`, focused on user-facing outcomes.
 - **Yield:** Post a `**Workflow Progress: Step 3 Complete**` message and ask whether to proceed to Step 4.
 
 ### 4. Plan Reviewing

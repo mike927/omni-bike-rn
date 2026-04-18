@@ -83,6 +83,7 @@ Use these rules in order:
    - Use branch-scoped plan and review artifacts to distinguish planning (Steps 3-5) from implementation/review/testing (Steps 6-11).
    - If evidence is mixed, report a bounded range such as `between Step 6 and Step 9` instead of a false precise claim.
 5. If `plan.md` does not mention the branch task, describe that as `branch-local work` or `plan drift`, not automatically as a fresh start.
+
 The goal is to identify the most likely current workflow position, not to force certainty when evidence is incomplete.
 
 ### Step 5: Analyze Discrepancies

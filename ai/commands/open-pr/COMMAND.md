@@ -112,7 +112,7 @@ Use this template:
 - <Bullet point explaining why this was changed or why a specific approach was chosen>
 - <Add more bullet points as needed...>
 
-## Plan Item
+## Scope
 
 <Quote or reference the relevant plan.md task line, or state "Branch-local work not tracked in plan.md">
 
@@ -146,7 +146,7 @@ If the branch is branch-local work with no matching `plan.md` item, note that no
 
 - PR is created on GitHub with a well-formatted body.
 - PR URL is reported in chat.
-- Workflow state and `plan.md` are updated when applicable.
+- The `plan.md [x]` commit and push are completed when applicable.
 
 ## See Also
 
