@@ -31,13 +31,13 @@ function buildLogLine(event: string, payload: unknown): string {
 export function appendAppleHealthDiagnostic(event: string, payload: unknown): void {
   try {
     const nextLine = buildLogLine(event, payload);
-    const existing = APPLE_HEALTH_LOG_FILE.exists ? APPLE_HEALTH_LOG_FILE.textSync() : '';
-
-    if (!APPLE_HEALTH_LOG_FILE.exists) {
+    if (APPLE_HEALTH_LOG_FILE.exists) {
+      const existing = APPLE_HEALTH_LOG_FILE.textSync();
+      APPLE_HEALTH_LOG_FILE.write(trimLogIfNeeded(`${existing}${nextLine}`));
+    } else {
       APPLE_HEALTH_LOG_FILE.create({ intermediates: true, overwrite: true });
+      APPLE_HEALTH_LOG_FILE.write(nextLine);
     }
-
-    APPLE_HEALTH_LOG_FILE.write(trimLogIfNeeded(`${existing}${nextLine}`));
   } catch (error: unknown) {
     console.error('[appleHealthDiagnostics] Failed to append diagnostic entry:', error);
   }

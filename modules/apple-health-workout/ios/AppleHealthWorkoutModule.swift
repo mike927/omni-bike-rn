@@ -35,35 +35,115 @@ public class AppleHealthWorkoutModule: Module {
 
       let totalEnergyKcal = (options["totalEnergyKcal"] as? NSNumber)?.doubleValue ?? 0
       let totalDistanceMeters = (options["totalDistanceMeters"] as? NSNumber)?.doubleValue ?? 0
+      let rawHrSamples = options["heartRateSamples"] as? [[String: Any]] ?? []
 
-      let energyQuantity = HKQuantity(unit: .kilocalorie(), doubleValue: totalEnergyKcal)
-      let distanceQuantity = HKQuantity(unit: .meter(), doubleValue: totalDistanceMeters)
+      let configuration = HKWorkoutConfiguration()
+      configuration.activityType = .cycling
+      configuration.locationType = .indoor
 
-      let metadata: [String: Any] = [
-        HKMetadataKeyIndoorWorkout: true
-      ]
-
-      let workout = HKWorkout(
-        activityType: .cycling,
-        start: startDate,
-        end: endDate,
-        workoutEvents: nil,
-        totalEnergyBurned: energyQuantity,
-        totalDistance: distanceQuantity,
-        metadata: metadata
+      let builder = HKWorkoutBuilder(
+        healthStore: self.healthStore,
+        configuration: configuration,
+        device: .local()
       )
+      builder.addMetadata([HKMetadataKeyIndoorWorkout: true]) { _, _ in }
 
-      self.healthStore.save(workout) { success, error in
+      builder.beginCollection(withStart: startDate) { success, error in
         if let error {
-          promise.reject("ERR_SAVE_FAILED", error.localizedDescription)
+          promise.reject("ERR_BEGIN_FAILED", error.localizedDescription)
           return
         }
         guard success else {
-          promise.reject("ERR_SAVE_FAILED", "HealthKit reported save failure without error")
+          promise.reject("ERR_BEGIN_FAILED", "HealthKit reported beginCollection failure without error")
           return
         }
-        promise.resolve(workout.uuid.uuidString)
+
+        var samplesToAdd: [HKSample] = []
+
+        if totalEnergyKcal > 0 {
+          let energyQuantity = HKQuantity(unit: .kilocalorie(), doubleValue: totalEnergyKcal)
+          samplesToAdd.append(HKCumulativeQuantitySample(
+            type: HKQuantityType(.activeEnergyBurned),
+            quantity: energyQuantity,
+            start: startDate,
+            end: endDate
+          ))
+        }
+
+        if totalDistanceMeters > 0 {
+          let distanceQuantity = HKQuantity(unit: .meter(), doubleValue: totalDistanceMeters)
+          samplesToAdd.append(HKCumulativeQuantitySample(
+            type: HKQuantityType(.distanceCycling),
+            quantity: distanceQuantity,
+            start: startDate,
+            end: endDate
+          ))
+        }
+
+        samplesToAdd.append(contentsOf: self.buildHeartRateSamples(
+          from: rawHrSamples, rangeStart: startDate, rangeEnd: endDate
+        ))
+
+        let finalize: () -> Void = {
+          builder.endCollection(withEnd: endDate) { success, error in
+            if let error {
+              promise.reject("ERR_END_FAILED", error.localizedDescription)
+              return
+            }
+            guard success else {
+              promise.reject("ERR_END_FAILED", "HealthKit reported endCollection failure without error")
+              return
+            }
+            builder.finishWorkout { workout, error in
+              if let error {
+                promise.reject("ERR_SAVE_FAILED", error.localizedDescription)
+                return
+              }
+              guard let workout else {
+                promise.reject("ERR_SAVE_FAILED", "HealthKit returned no workout")
+                return
+              }
+              promise.resolve(workout.uuid.uuidString)
+            }
+          }
+        }
+
+        if samplesToAdd.isEmpty {
+          finalize()
+          return
+        }
+
+        builder.add(samplesToAdd) { success, error in
+          if let error {
+            promise.reject("ERR_ADD_SAMPLES_FAILED", error.localizedDescription)
+            return
+          }
+          guard success else {
+            promise.reject("ERR_ADD_SAMPLES_FAILED", "HealthKit reported add samples failure without error")
+            return
+          }
+          finalize()
+        }
       }
+    }
+  }
+
+  private func buildHeartRateSamples(
+    from rawSamples: [[String: Any]],
+    rangeStart: Date,
+    rangeEnd: Date
+  ) -> [HKQuantitySample] {
+    let hrType = HKQuantityType(.heartRate)
+    let unit = HKUnit(from: "count/min")
+    return rawSamples.compactMap { sample in
+      guard
+        let bpm = (sample["bpm"] as? NSNumber)?.doubleValue, bpm > 0,
+        let timestampMs = (sample["timestampMs"] as? NSNumber)?.doubleValue
+      else { return nil }
+      let date = Date(timeIntervalSince1970: timestampMs / 1000)
+      guard date >= rangeStart && date <= rangeEnd else { return nil }
+      let quantity = HKQuantity(unit: unit, doubleValue: bpm)
+      return HKQuantitySample(type: hrType, quantity: quantity, start: date, end: date)
     }
   }
 

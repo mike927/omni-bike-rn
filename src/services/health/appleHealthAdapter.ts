@@ -1,7 +1,7 @@
 import { NativeModules } from 'react-native';
 import type { HealthKitPermissions, HealthStatusResult } from 'react-native-health';
 
-import { AppleHealthWorkout } from 'apple-health-workout';
+import { AppleHealthWorkout, type HeartRateSampleInput } from 'apple-health-workout';
 import {
   appendAppleHealthDiagnostic,
   getAppleHealthDiagnosticsRelativePath,
@@ -29,11 +29,13 @@ type HealthKitErrorLike = HealthKitErrorObject | string | null | undefined;
 const HEALTH_PERMISSION_WORKOUT = 'Workout';
 const HEALTH_PERMISSION_ACTIVE_ENERGY_BURNED = 'ActiveEnergyBurned';
 const HEALTH_PERMISSION_DISTANCE_CYCLING = 'DistanceCycling';
+const HEALTH_PERMISSION_HEART_RATE = 'HeartRate';
 const HEALTHKIT_STATUS_LABELS = ['NotDetermined', 'SharingDenied', 'SharingAuthorized'] as const;
 const HEALTHKIT_WRITE_PERMISSIONS = [
   HEALTH_PERMISSION_WORKOUT,
   HEALTH_PERMISSION_ACTIVE_ENERGY_BURNED,
   HEALTH_PERMISSION_DISTANCE_CYCLING,
+  HEALTH_PERMISSION_HEART_RATE,
 ] as const;
 
 function getHealthKit(): HealthKitNativeModule {
@@ -134,6 +136,7 @@ const PERMISSIONS: HealthKitPermissions = {
       HEALTH_PERMISSION_WORKOUT,
       HEALTH_PERMISSION_ACTIVE_ENERGY_BURNED,
       HEALTH_PERMISSION_DISTANCE_CYCLING,
+      HEALTH_PERMISSION_HEART_RATE,
       // react-native-health typings model write[] as HealthPermission[] (an enum),
       // but the real values are plain string literals on the native module API.
     ] as unknown as HealthKitPermissions['permissions']['write'],
@@ -173,13 +176,25 @@ export interface SaveWorkoutResult {
   workoutId: string;
 }
 
+function mapHeartRateSamples(samples: PersistedTrainingSample[]): HeartRateSampleInput[] {
+  const mapped: HeartRateSampleInput[] = [];
+  for (const sample of samples) {
+    const bpm = sample.metrics.heartRate;
+    if (typeof bpm === 'number' && bpm > 0) {
+      mapped.push({ bpm, timestampMs: sample.recordedAtMs });
+    }
+  }
+  return mapped;
+}
+
 export async function saveWorkout(
   session: PersistedTrainingSession,
-  _samples: PersistedTrainingSample[],
+  samples: PersistedTrainingSample[],
 ): Promise<SaveWorkoutResult> {
   const startDate = new Date(session.startedAtMs).toISOString();
   const endDateMs = session.endedAtMs ?? session.startedAtMs + session.elapsedSeconds * 1000;
   const endDate = new Date(endDateMs).toISOString();
+  const heartRateSamples = mapHeartRateSamples(samples);
 
   try {
     const workoutId = await AppleHealthWorkout.saveCyclingWorkout({
@@ -187,6 +202,7 @@ export async function saveWorkout(
       endDate,
       totalEnergyKcal: session.totalCaloriesKcal,
       totalDistanceMeters: session.totalDistanceMeters,
+      heartRateSamples,
     });
     appendAppleHealthDiagnostic('saveWorkout-success', {
       workoutId,
@@ -194,6 +210,7 @@ export async function saveWorkout(
       endDate,
       calories: session.totalCaloriesKcal,
       distanceMeters: session.totalDistanceMeters,
+      hrSampleCount: heartRateSamples.length,
     });
     return { workoutId };
   } catch (error: unknown) {
@@ -203,6 +220,7 @@ export async function saveWorkout(
       endDate,
       calories: session.totalCaloriesKcal,
       distanceMeters: session.totalDistanceMeters,
+      hrSampleCount: heartRateSamples.length,
     });
     throw normalizeHealthKitError(error, 'Failed to save Apple Health workout.');
   }

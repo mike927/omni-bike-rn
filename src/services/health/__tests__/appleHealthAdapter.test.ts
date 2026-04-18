@@ -51,7 +51,7 @@ beforeEach(() => {
     callback(null, {
       permissions: {
         read: [],
-        write: [2, 2, 2],
+        write: [2, 2, 2, 2],
       },
     }),
   );
@@ -62,7 +62,7 @@ describe('initWithWritePermissions', () => {
     mockInit.mockImplementation((_permissions, callback) => callback(null));
     await expect(initWithWritePermissions()).resolves.toBeUndefined();
     const permissionsArg = mockInit.mock.calls[0][0];
-    expect(permissionsArg.permissions.write).toEqual(['Workout', 'ActiveEnergyBurned', 'DistanceCycling']);
+    expect(permissionsArg.permissions.write).toEqual(['Workout', 'ActiveEnergyBurned', 'DistanceCycling', 'HeartRate']);
     expect(permissionsArg.permissions.read).toEqual([]);
   });
 
@@ -86,7 +86,7 @@ describe('initWithWritePermissions', () => {
 });
 
 describe('saveWorkout', () => {
-  it('maps session fields to a saveCyclingWorkout payload', async () => {
+  it('maps session fields and HR samples to a saveCyclingWorkout payload, dropping non-positive HR', async () => {
     mockSaveCyclingWorkout.mockResolvedValue('workout-uuid-1');
 
     const samples = [buildSample(0, 120), buildSample(1, null), buildSample(2, 0), buildSample(3, 145)];
@@ -99,6 +99,10 @@ describe('saveWorkout', () => {
       endDate: '2023-11-14T23:13:20.000Z',
       totalEnergyKcal: 450,
       totalDistanceMeters: 18000,
+      heartRateSamples: [
+        { bpm: 120, timestampMs: SESSION.startedAtMs },
+        { bpm: 145, timestampMs: SESSION.startedAtMs + 3000 },
+      ],
     });
   });
 
@@ -106,7 +110,7 @@ describe('saveWorkout', () => {
     mockSaveCyclingWorkout.mockResolvedValue('workout-uuid-2');
     await saveWorkout({ ...SESSION, endedAtMs: null }, []);
     expect(mockSaveCyclingWorkout).toHaveBeenCalledWith(
-      expect.objectContaining({ endDate: '2023-11-14T23:13:20.000Z' }),
+      expect.objectContaining({ endDate: '2023-11-14T23:13:20.000Z', heartRateSamples: [] }),
     );
   });
 
