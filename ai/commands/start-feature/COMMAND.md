@@ -78,8 +78,8 @@ If your platform does not support interactive UI tools, print the options as a n
 
 Present the workflow track options using the most interactive mechanism your platform provides (e.g., a multiple-choice UI tool like `ask_user` if available, or a numbered list in chat):
 
-- **Option 1:** `Standard Track` — proceed to Step 3 (Plan Drafting).
-- **Option 2:** `Fast Track` — skip planning/review; proceed directly to Step 6 (Implementation In Progress). Only for ad-hoc bug fixes or minor chores.
+- **Option 1:** `Standard Track` — proceed to `Plan Drafting`.
+- **Option 2:** `Fast Track` — skip planning/review; proceed directly to `Implementation In Progress`. Only for ad-hoc bug fixes or minor chores.
 
 If your platform does not support interactive UI tools, print the options as a numbered list and explicitly wait for the user's choice. Do not default silently.
 
@@ -131,9 +131,9 @@ Verify the new branch is active in the correct directory.
 - Track: `<Standard | Fast Track>`
 - Working directory: `<path>`
 
-Ready for <Step 3: Plan Drafting | Step 6: Implementation In Progress>.
+Ready for <Plan Drafting | Implementation In Progress>.
 
-**Next:** Proceed to <Step 3 | Step 6>?
+**Next:** Proceed to <Plan Drafting | Implementation In Progress>?
 ```
 
 Yield control. Do not proceed to the next step without user instruction.
@@ -143,7 +143,7 @@ Yield control. Do not proceed to the next step without user instruction.
 - The new branch exists and is active.
 - `branch-slug` is printed and available for use in `ai/local/plans/<branch-slug>.md`, `ai/local/reviews/<branch-slug>.md`, and all other artifacts.
 - No plan file has been created yet.
-- The agent has paused and is awaiting instruction for the next workflow step selected by the chosen track (`Step 3` for Standard Track, `Step 6` for Fast Track).
+- The agent has paused and is awaiting instruction for the next workflow step selected by the chosen track (`Plan Drafting` for Standard Track, `Implementation In Progress` for Fast Track).
 
 ## See Also
 

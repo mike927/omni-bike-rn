@@ -64,8 +64,8 @@ If `gh` is not authenticated or no PR exists, report that PR state is `unknown` 
 
 If a PR exists:
 - Record the PR number, URL, open/closed state, draft state, and review decision when available.
-- Treat an open PR as evidence that the branch is at least Step 12 (`PR Open`) of `AGENTS.md`, even if local plan artifacts are missing.
-- If the PR is open and review feedback is requested or actionable review comments are already known from local context, infer Step 13 or Step 14 instead of Step 12.
+- Treat an open PR as evidence that the branch is at least at the `PR Open` stage of `AGENTS.md`, even if local plan artifacts are missing.
+- If the PR is open and review feedback is requested or actionable review comments are already known from local context, infer `PR Review Comments` or `PR Review Fix Loop` instead of `PR Open`.
 
 ### Step 4: Infer The Most Likely Workflow Step
 
@@ -73,15 +73,15 @@ Cross-reference local state, local artifacts, and PR state. Infer the most likel
 
 Use these rules in order:
 
-1. If the current branch is `main` and dirty, report Step 1 (`Bootstrapping`) blocked.
-2. If the current branch is `main` and clean, report Step 1 complete and ready for Step 2 (`Workspace Preparing`).
+1. If the current branch is `main` and dirty, report `Bootstrapping` blocked.
+2. If the current branch is `main` and clean, report `Bootstrapping` complete and ready for `Workspace Preparing`.
 3. If the current branch is not `main` and there is an open PR:
-   - Default to Step 12 (`PR Open`) when no review activity is visible.
-   - Report Step 13 (`PR Review Comments`) when review feedback is present and not yet addressed.
-   - Report Step 14 (`PR Review Fix Loop`) when review feedback exists and the branch has follow-up edits or commits that appear to be addressing it.
+   - Default to `PR Open` when no review activity is visible.
+   - Report `PR Review Comments` when review feedback is present and not yet addressed.
+   - Report `PR Review Fix Loop` when review feedback exists and the branch has follow-up edits or commits that appear to be addressing it.
 4. If the current branch is not `main` and there is no PR:
-   - Use branch-scoped plan and review artifacts to distinguish planning (Steps 3-5) from implementation/review/testing (Steps 6-11).
-   - If evidence is mixed, report a bounded range such as `between Step 6 and Step 9` instead of a false precise claim.
+   - Use branch-scoped plan and review artifacts to distinguish the planning stages (`Plan Drafting` / `Plan Reviewing` / `Plan Approving`) from the implementation-through-testing stages (`Implementation In Progress` through `Manual Testing Fix Loop`).
+   - If evidence is mixed, report a bounded range such as `between Implementation In Progress and Internal Review Fix Loop` instead of a false precise claim.
 5. If `plan.md` does not mention the branch task, describe that as `branch-local work` or `plan drift`, not automatically as a fresh start.
 
 The goal is to identify the most likely current workflow position, not to force certainty when evidence is incomplete.
@@ -121,7 +121,7 @@ Post a highly comprehensive snapshot message in chat using this general format:
 - Review Decision: `<approved | changes requested | review required | unknown>`
 
 **Likely Active Step**:
-- `<Step number and title>`
+- `<Step name from AGENTS.md>`
 - Confidence: `<high | medium | low>`
 - Why:
   - `<strongest signal>`

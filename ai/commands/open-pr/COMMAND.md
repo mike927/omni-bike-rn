@@ -20,7 +20,7 @@ Open a GitHub pull request with a standardized body.
 - Current branch is **not** `main`.
 - All intended commits are pushed to the remote.
 - `gh` CLI is authenticated.
-- Validation has been run (step 7) — ideally all checks pass.
+- Validation has been run — ideally all checks pass.
 
 ## Procedure
 

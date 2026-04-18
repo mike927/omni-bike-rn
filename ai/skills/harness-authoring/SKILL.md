@@ -42,7 +42,9 @@ Apply these to every harness file before writing or accepting a change.
 - **Reference, don't restate.** Cite `AGENTS.md` sections rather than copying rule text.
 - **Commit ownership, not commit style.** State when and what to commit; rely on `AGENTS.md` for message conventions.
 - **Artifact syntax may be restated.** A command building a branch name or PR title may include the required format — but not the policy behind it.
-- **No inline workflow-state definitions.** Prerequisites must reference the `AGENTS.md` step number, not define the state themselves.
+- **No inline workflow-state definitions.** Prerequisites must reference the `AGENTS.md` step by name (e.g., `Plan Approving`, `Merge And Cleanup`), not by number. Numbers shift when steps are inserted or reordered; names are stable.
+- **Consistent section structure.** Every command uses the same top-level order: `## Prerequisites` → `## Procedure` → `## Completion Criteria` → `## See Also`. Additional sections (e.g., output templates) go between `## Procedure` and `## Completion Criteria`.
+- **Internal step numbering is local.** `### Step 1:`, `### Step 2:` within a single command are structural, not a reference to `AGENTS.md`. Do not use `AGENTS.md` workflow-step numbers anywhere in command prose; use step names.
 - **Explicit loop endpoints.** Report which recommendation continues the loop, which exits it, and what happens after each outcome.
 - **Evaluation criteria belong to one place.** If two commands share a checklist, the second cross-references the first.
 - **`See Also` is mandatory.** Every command ends with a `## See Also` section.
@@ -74,7 +76,9 @@ If any condition fails, fix ownership first.
 | Command defines quality criteria inline | Cross-reference the authoritative source |
 | Same rule in Workflow Pacing and a numbered step | Keep in Workflow Pacing; replace step copy with a cross-reference |
 | Command repeats global commit or naming conventions | Keep only the step-specific instruction |
-| Prerequisite defines workflow phase without citing a step number | Replace with "Step N of `AGENTS.md` must be complete" |
+| Prerequisite cites `AGENTS.md` by step number (`Step 4`, `§ 4`) | Reference by step name (`Plan Reviewing`) — names survive renumbering |
+| Command ends without a `## See Also` section | Add it; every command ends with `See Also` |
+| Command invents a top-level section order | Use `Prerequisites` → `Procedure` → `Completion Criteria` → `See Also` |
 | Provider-specific name in a shared file | Replace with "your host"; repo paths are not violations |
 | `ai/README.md` not updated after adding a file | Always update the directory index |
 | Speculative rule added "for future flexibility" | Remove it; add complexity only when a real problem demands it |
