@@ -88,7 +88,7 @@ export async function uploadSessionToProvider(sessionId: string, providerId: str
     const result = await provider.exportSession(session, samples);
 
     if (result.success) {
-      let warningMessage: string | undefined;
+      let warningMessage: string | undefined = result.warningMessage;
 
       if (result.externalId && session.savedBikeSnapshot) {
         const linkedGear = await getProviderGearLink(providerId, session.savedBikeSnapshot.id, 'bike');

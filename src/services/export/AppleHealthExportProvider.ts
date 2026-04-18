@@ -20,8 +20,12 @@ export class AppleHealthExportProvider implements ExportProvider {
     }
 
     try {
-      const workoutId = await saveWorkout(session, samples);
-      return { success: true, externalId: workoutId };
+      const { workoutId, attemptedHrSampleCount, failedHrSampleCount } = await saveWorkout(session, samples);
+      const warningMessage =
+        failedHrSampleCount > 0
+          ? `Workout saved to Apple Health, but ${failedHrSampleCount} of ${attemptedHrSampleCount} heart rate samples could not be written.`
+          : undefined;
+      return { success: true, externalId: workoutId, warningMessage };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to save workout to Apple Health.';
       console.error('[AppleHealthExportProvider] Failed to save workout:', err);

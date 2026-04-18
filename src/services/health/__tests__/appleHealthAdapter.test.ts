@@ -79,9 +79,9 @@ describe('saveWorkout', () => {
 
     const samples = [buildSample(0, 120), buildSample(1, null), buildSample(2, 0), buildSample(3, 145)];
 
-    const id = await saveWorkout(SESSION, samples);
+    const result = await saveWorkout(SESSION, samples);
 
-    expect(id).toBe('workout-uuid-1');
+    expect(result).toEqual({ workoutId: 'workout-uuid-1', attemptedHrSampleCount: 2, failedHrSampleCount: 0 });
 
     const workoutOptions = mockSaveWorkout.mock.calls[0][0];
     expect(workoutOptions).toMatchObject({
@@ -119,9 +119,19 @@ describe('saveWorkout', () => {
     await expect(saveWorkout(SESSION, [])).rejects.toThrow('not authorized');
   });
 
-  it('rejects when saveHeartRateSample fails for any sample', async () => {
+  it('reports failed HR samples without rejecting the whole save', async () => {
     mockSaveWorkout.mockImplementation((_options, callback) => callback(null, 'workout-uuid-3'));
-    mockSaveHr.mockImplementation((_options, callback) => callback('hr save failed'));
-    await expect(saveWorkout(SESSION, [buildSample(0, 100)])).rejects.toThrow('hr save failed');
+    mockSaveHr
+      .mockImplementationOnce((_options, callback) => callback(null))
+      .mockImplementationOnce((_options, callback) => callback('hr save failed'))
+      .mockImplementationOnce((_options, callback) => callback(null));
+
+    const result = await saveWorkout(SESSION, [buildSample(0, 100), buildSample(1, 110), buildSample(2, 120)]);
+
+    expect(result).toEqual({
+      workoutId: 'workout-uuid-3',
+      attemptedHrSampleCount: 3,
+      failedHrSampleCount: 1,
+    });
   });
 });
