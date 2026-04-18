@@ -10,15 +10,17 @@ jest.mock('react-native-health', () => {
       initHealthKit: jest.fn(),
       saveWorkout: jest.fn(),
       saveHeartRateSample: jest.fn(),
+      Constants: {
+        Activities: { Cycling: 'Cycling' },
+        Permissions: {
+          Workout: 'Workout',
+          HeartRate: 'HeartRate',
+          ActiveEnergyBurned: 'ActiveEnergyBurned',
+          DistanceCycling: 'DistanceCycling',
+        },
+        Units: { bpm: 'bpm', kilocalorie: 'kilocalorie', meter: 'meter' },
+      },
     },
-    HealthActivity: { Cycling: 'Cycling' },
-    HealthPermission: {
-      Workout: 'Workout',
-      HeartRate: 'HeartRate',
-      ActiveEnergyBurned: 'ActiveEnergyBurned',
-      DistanceCycling: 'DistanceCycling',
-    },
-    HealthUnit: { bpm: 'bpm', kilocalorie: 'kilocalorie', meter: 'meter' },
   };
 });
 

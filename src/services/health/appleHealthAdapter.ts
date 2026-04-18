@@ -1,50 +1,66 @@
-import AppleHealthKit, {
-  type HealthKitPermissions,
-  HealthActivity,
-  HealthPermission,
-  HealthUnit,
-} from 'react-native-health';
+import AppleHealthKit, { type HealthKitPermissions } from 'react-native-health';
 
 import type { PersistedTrainingSample, PersistedTrainingSession } from '../../types/sessionPersistence';
 
-const PERMISSIONS: HealthKitPermissions = {
-  permissions: {
-    read: [],
-    write: [
-      HealthPermission.Workout,
-      HealthPermission.HeartRate,
-      HealthPermission.ActiveEnergyBurned,
-      HealthPermission.DistanceCycling,
-    ],
-  },
-};
+// react-native-health's runtime JS only exports the `HealthKit` object (with
+// `Constants` attached). Its .d.ts additionally declares `HealthPermission` /
+// `HealthActivity` / `HealthUnit` as enums, but they do not exist at runtime —
+// importing them directly yields `undefined`. We read the real values off
+// `AppleHealthKit.Constants.*` and keep typings strictly local.
+interface HealthKitConstants {
+  Activities: { Cycling: string };
+  Permissions: {
+    Workout: string;
+    HeartRate: string;
+    ActiveEnergyBurned: string;
+    DistanceCycling: string;
+  };
+  Units: {
+    bpm: string;
+    kilocalorie: string;
+    meter: string;
+  };
+}
 
-// react-native-health's TS types for saveWorkout omit energyBurned/distance (the
-// native bridge accepts them), and saveHeartRateSample uses `date` not
-// startDate/endDate. Local extensions keep us off `as any`.
 interface SaveWorkoutOptions {
-  type: HealthActivity;
+  type: string;
   startDate: string;
   endDate: string;
   energyBurned?: number;
-  energyBurnedUnit?: HealthUnit;
+  energyBurnedUnit?: string;
   distance?: number;
-  distanceUnit?: HealthUnit;
+  distanceUnit?: string;
 }
 
 interface SaveHeartRateSampleOptions {
   value: number;
   date: string;
-  unit?: HealthUnit;
+  unit?: string;
 }
 
 interface HealthKitNativeModule {
+  Constants: HealthKitConstants;
   initHealthKit: (permissions: HealthKitPermissions, callback: (error: string) => void) => void;
   saveWorkout: (options: SaveWorkoutOptions, callback: (error: string, result: string) => void) => void;
   saveHeartRateSample: (options: SaveHeartRateSampleOptions, callback: (error: string) => void) => void;
 }
 
 const healthKit = AppleHealthKit as unknown as HealthKitNativeModule;
+const { Activities, Permissions, Units } = healthKit.Constants;
+
+const PERMISSIONS: HealthKitPermissions = {
+  permissions: {
+    read: [],
+    write: [
+      Permissions.Workout,
+      Permissions.HeartRate,
+      Permissions.ActiveEnergyBurned,
+      Permissions.DistanceCycling,
+      // react-native-health typings model write[] as HealthPermission[] (an enum),
+      // but the real values are plain strings from Constants.Permissions.
+    ] as unknown as HealthKitPermissions['permissions']['write'],
+  },
+};
 
 export async function initWithWritePermissions(): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -75,13 +91,13 @@ export async function saveWorkout(
   const workoutId = await new Promise<string>((resolve, reject) => {
     healthKit.saveWorkout(
       {
-        type: HealthActivity.Cycling,
+        type: Activities.Cycling,
         startDate,
         endDate,
         energyBurned: session.totalCaloriesKcal,
-        energyBurnedUnit: HealthUnit.kilocalorie,
+        energyBurnedUnit: Units.kilocalorie,
         distance: session.totalDistanceMeters,
-        distanceUnit: HealthUnit.meter,
+        distanceUnit: Units.meter,
       },
       (error: string, result: string) => {
         if (error) {
@@ -112,7 +128,7 @@ export async function saveWorkout(
           {
             value: bpm,
             date: new Date(sample.recordedAtMs).toISOString(),
-            unit: HealthUnit.bpm,
+            unit: Units.bpm,
           },
           (error: string) => {
             if (error) {
