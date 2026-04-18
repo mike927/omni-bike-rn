@@ -58,7 +58,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
     'expo-web-browser',
     'expo-secure-store',
-    './plugins/with-watch-extension',
     [
       'react-native-health',
       {
@@ -68,6 +67,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           'Omni Bike saves your completed indoor cycling workouts (duration, distance, calories, and heart rate) to Apple Health.',
       },
     ],
+    // Must run after `react-native-health` so it can strip the Clinical Records
+    // entitlement that plugin writes unconditionally.
+    './plugins/with-watch-extension',
   ],
   extra: {
     // Register a Strava API application at https://www.strava.com/settings/api
