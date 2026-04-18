@@ -2,7 +2,7 @@
 name: finish-feature
 description: >-
   Mark plan.md complete, merge the PR via GitHub CLI (merge commit), verify
-  the local workspace is clean, remove the branch or worktree, and return to main.
+  the local workspace is clean, remove the worktree and branch, and return to main.
 inputs: []
 outputs:
   - name: plan-commit
@@ -10,12 +10,12 @@ outputs:
   - name: pr-url
     description: 'URL of the merged PR.'
   - name: cleanup-status
-    description: 'Confirmation in chat that the branch/worktree was removed and main is active, or a blocker report.'
+    description: 'Confirmation in chat that the worktree and branch were removed and main is active, or a blocker report.'
 ---
 
 # Finish Feature
 
-Close out a completed feature: ensure `plan.md` is marked `[x]`, merge the PR using a 3-way merge commit, safety-check the local workspace, remove the branch or worktree, and return to `main`.
+Close out a completed feature: ensure `plan.md` is marked `[x]` when applicable, merge the PR using a 3-way merge commit, safety-check the local workspace, remove the worktree and branch, and return to `main`.
 
 ## Prerequisites
 
@@ -29,6 +29,7 @@ Close out a completed feature: ensure `plan.md` is marked `[x]`, merge the PR us
 
 Read `plan.md` and find the task item(s) for this branch.
 
+- If the branch is intentional branch-local work with no matching `plan.md` item: note that no `plan.md` update is required and skip this sub-step.
 - If already marked `[x]`: note the existing state and skip this sub-step.
 - If not yet `[x]`: update the task to `[x]`, then commit and push:
 
@@ -97,20 +98,16 @@ git pull origin main
 
 Confirm the current branch is `main` and local `main` is up to date with the merge commit.
 
-### Step 7: Remove Local Branch Or Worktree
+### Step 7: Remove Local Worktree And Branch
 
-**In-place branch:**
-
-```bash
-git branch -d <branch-name>
-```
-
-**Dedicated worktree:**
+Default cleanup path:
 
 ```bash
 git worktree remove ../omni-bike-rn-worktrees/<branch-slug>
 git branch -d <branch-name>
 ```
+
+If the branch is an older legacy in-place branch with no dedicated worktree, skip the `git worktree remove ...` command and remove only the local branch after switching to `main`.
 
 Use `-d` (safe delete) not `-D`. If the safe delete fails, investigate before forcing — it means git believes the branch has unmerged work.
 
@@ -118,19 +115,19 @@ Use `-d` (safe delete) not `-D`. If the safe delete fails, investigate before fo
 
 ```
 **Feature Complete**
-- Plan: marked [x] (commit `<hash>` | already done)
+- Plan: marked [x] (commit `<hash>` | already done | not applicable for branch-local work)
 - PR: merged at `<pr-url>` (merge commit `<short-oid>`)
 - Branch `<branch-name>`: removed
-- Worktree: removed | N/A (in-place)
+- Worktree: removed | legacy in-place branch
 - Active branch: `main`
 ```
 
 ## Completion Criteria
 
-- `plan.md` has the task marked `[x]` and that commit is merged into `main`.
+- `plan.md` has the task marked `[x]` and that commit is merged into `main`, or the branch was explicitly branch-local work with no `plan.md` item.
 - PR state is `MERGED` on GitHub.
 - No unpushed local-only commits remain on the feature branch.
-- Local branch and worktree (if applicable) are removed.
+- Local worktree and branch are removed, or a legacy in-place branch was handled safely.
 - Active branch is `main`.
 
 ## See Also

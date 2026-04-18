@@ -72,6 +72,10 @@ Classify each item into exactly one outcome:
 
 Evaluation criteria — apply the same plan quality standards used in `ai/commands/review-plan/COMMAND.md` § Step 4: branch alignment, scope alignment, decision completeness, implementation sequencing, validation coverage, assumptions, and plan-file conventions. Accept only changes that improve alignment with `plan.md` or `AGENTS.md`; reject changes that introduce scope creep or swap one unsupported assumption for another.
 
+When the only review issue is missing `plan.md` linkage:
+- if the work clearly matches an existing `plan.md` item, update the plan to point to that item
+- otherwise, the item may be resolved by recording explicit branch-local scope when that matches human intent and `AGENTS.md`
+
 Never apply a suggestion just because it appears in the review file.
 
 ### Step 4: Update The Canonical Plan For Accepted Items
@@ -112,6 +116,7 @@ Recommendation: <ready | revise | blocked>
 Rules:
 - Declines must use a concrete rationale such as out of scope, conflicts with `plan.md`, conflicts with `AGENTS.md`, already handled elsewhere, unnecessary complexity, or unsupported guessing.
 - `NEEDS USER INPUT` entries must record the exact unresolved question, not a vague placeholder.
+- Missing `plan.md` linkage does not stay blocking once the plan explicitly records approved branch-local scope for work that does not match an existing `plan.md` item.
 
 ### Step 6: Re-Evaluate Readiness
 

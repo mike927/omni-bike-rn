@@ -1,9 +1,9 @@
 ---
 name: start-feature
 description: >-
-  Set up the workspace for a new feature: confirm branch name, ask workspace
-  strategy interactively, create the branch or worktree, and print the branch slug
-  for use in all downstream ai/local/ artifacts.
+  Set up the workspace for a new feature: confirm branch name, create a
+  dedicated worktree, and print the branch slug for use in all downstream
+  ai/local/ artifacts.
 inputs:
   - name: description
     description: 'Short kebab-case description (e.g., "ble-metronome-engine"). Prompted if omitted.'
@@ -11,9 +11,6 @@ inputs:
   - name: type
     description: 'Conventional Commits type prefix: feat, fix, docs, refactor, etc. Inferred from plan.md if omitted.'
     default: (inferred)
-  - name: workspace
-    description: 'Workspace strategy: "in-place" or "worktree". Prompted interactively if omitted.'
-    default: (prompted)
 outputs:
   - name: branch-name
     description: 'The created branch name (e.g., feat/ble-metronome-engine).'
@@ -25,13 +22,13 @@ outputs:
 
 # Start Feature
 
-Set up the workspace for a new feature task: confirm starting state, propose a branch name, ask the user for their workspace strategy, create the branch or worktree, and report the canonical `branch-slug` that all downstream artifacts must use.
+Set up the workspace for a new feature task: confirm starting state, propose a branch name, create the dedicated worktree, and report the canonical `branch-slug` that all downstream artifacts must use.
 
 ## Prerequisites
 
 - Current branch is `main`.
 - Working tree is clean.
-- `plan.md` contains an unstarted task (`[ ]`) for the intended feature.
+- The task either maps to an existing `plan.md` item or is explicit ad-hoc branch-local work approved by the human.
 
 ## Procedure
 
@@ -52,26 +49,22 @@ Confirm: on `main`, working tree is clean. If either check fails, stop, report t
 If `type` and `description` were provided as inputs (e.g., passed from `/next-task`), skip to constructing the branch name and do not prompt the user for confirmation unless they explicitly requested it.
 
 If they were not provided:
-1. Read `plan.md` and identify the relevant unstarted task.
-2. Infer the Conventional Commits `type` from the task scope:
+1. Read `plan.md` and identify the relevant unstarted task when one exists.
+2. If no `plan.md` item applies, derive the branch name from the human-approved ad-hoc task.
+3. Infer the Conventional Commits `type` from the task scope:
    - New capability → `feat`
    - Bug fix → `fix`
    - Documentation or workflow only → `docs`
    - Structural refactor, no behaviour change → `refactor`
-3. Derive a short kebab-case `description` from the task title.
+4. Derive a short kebab-case `description` from the task title.
 
 Construct the proposed branch name: `<type>/<description>`.
 
 If the inputs were inferred rather than provided, display the proposed name and proceed automatically. The user can interrupt or correct on the next turn if needed.
 
-### Step 3: Ask Workspace Strategy
+### Step 3: Use The Standard Workspace Mode
 
-Present the workspace strategy options using the most interactive mechanism your platform provides (e.g., a multiple-choice UI tool like `ask_user` if available, or a numbered list in chat):
-
-- **Option 1:** `In-Place Branch` — stay in the repo root, run `git checkout -b`. Standard, lightweight.
-- **Option 2:** `Dedicated Worktree` — create a parallel directory at `../omni-bike-rn-worktrees/<branch-slug>`. Use for parallel isolation.
-
-If your platform does not support interactive UI tools, print the options as a numbered list and explicitly wait for the user's choice. Do not default silently — this question must be answered explicitly.
+There is no workspace-mode choice. New feature work always uses a dedicated worktree at `../omni-bike-rn-worktrees/<branch-slug>`.
 
 ### Step 4: Ask Workflow Track
 
@@ -95,14 +88,6 @@ git ls-remote --heads origin <branch-name> | grep -q . && echo "EXISTS on remote
 
 If the branch already exists locally or remotely, stop and report — ask the user whether to resume the existing branch (use `/check-state`) or choose a different name.
 
-**In-place branch:**
-
-```bash
-git checkout -b <branch-name>
-```
-
-**Dedicated worktree:**
-
 Ensure the parent directory exists before adding the worktree:
 
 ```bash
@@ -113,12 +98,10 @@ git worktree add ../omni-bike-rn-worktrees/<branch-slug> -b <branch-name>
 ### Step 6: Confirm The Workspace
 
 ```bash
-git branch --show-current     # for in-place
-# or
-git worktree list             # for worktree
+git worktree list
 ```
 
-Verify the new branch is active in the correct directory.
+Verify the new worktree exists at the expected path and that all subsequent work will happen there.
 
 ### Step 7: Report And Pause
 
@@ -126,9 +109,9 @@ Verify the new branch is active in the correct directory.
 **Workspace Preparing**
 - Branch: `<branch-name>`
 - Slug: `<branch-slug>`
-- Mode: in-place | worktree at `../omni-bike-rn-worktrees/<branch-slug>`
+- Mode: worktree at `../omni-bike-rn-worktrees/<branch-slug>`
 - Track: `<Standard | Fast Track>`
-- Working directory: `<path>`
+- Working directory: `../omni-bike-rn-worktrees/<branch-slug>`
 
 Ready for <Step 3: Plan Drafting | Step 6: Implementation In Progress>.
 

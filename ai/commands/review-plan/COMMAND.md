@@ -64,10 +64,9 @@ Use this priority order:
 3. The current priority section if it unambiguously names the same work
 
 If no relevant `plan.md` item can be identified:
-
-- record that as a blocking issue under `## Must Change`
-- add the missing linkage under `## Missing Decisions`
-- set the recommendation to `revise`
+- first check whether the branch plan explicitly records that this is ad-hoc or branch-local work that does not map to an existing `plan.md` item
+- if it does, record that as valid scope context rather than a blocker
+- if it does not, record the missing scope linkage under `## Must Change` and `## Missing Decisions`, then set the recommendation to `revise`
 
 ### Step 4: Evaluate The Plan
 
@@ -76,7 +75,7 @@ Review the plan against the requirements in `AGENTS.md` § 4 (Plan Reviewing) an
 Check each area against the relevant `AGENTS.md` requirement:
 
 1. **Branch alignment** — the plan matches the active branch purpose and does not describe unrelated work.
-2. **Scope alignment** — covers the intended `plan.md` task; no drift, omissions, or scope creep.
+2. **Scope alignment** — covers the intended `plan.md` task, or explicitly records approved branch-local scope when there is no `plan.md` match; no drift, omissions, or scope creep.
 3. **Decision completeness** — the implementer would not need to make product, workflow, or architecture decisions during implementation (per `AGENTS.md` § 3 requirement that the plan "must be specific enough to execute without further design decisions").
 4. **Implementation sequencing** — steps and dependencies are ordered clearly enough to execute without re-planning.
 5. **Validation and testing** — validation commands, manual checks, and acceptance scenarios are present and proportional to the change (per `AGENTS.md` §§ 6–10 expectations).
@@ -86,7 +85,7 @@ Check each area against the relevant `AGENTS.md` requirement:
 Classify findings into these buckets:
 
 - `## What Is Good` — strengths worth preserving
-- `## Must Change` — blocking gaps, workflow conflicts, missing validation, missing scope linkage, or unclear handoff details
+- `## Must Change` — blocking gaps, workflow conflicts, missing validation, missing scope linkage when branch-local scope is not explicitly recorded, or unclear handoff details
 - `## Suggested Improvements` — non-blocking polish or clarity improvements
 - `## Missing Decisions` — unresolved questions or assumptions the current plan leaves to the implementer
 
@@ -126,7 +125,7 @@ Use this exact structure:
 Date: <YYYY-MM-DD>
 Source Plan: ai/local/plans/<branch-slug>.md
 Recommendation: <ready | revise>
-Relevant plan.md item: <quoted task line or "none identified">
+Relevant plan.md item: <quoted task line | "branch-local work; no plan.md item required" | "none identified">
 
 ## What Is Good
 
