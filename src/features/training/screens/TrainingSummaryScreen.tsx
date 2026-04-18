@@ -187,7 +187,12 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: Readonly<
         return;
       }
 
-      Alert.alert('Saved to Apple Health', `This workout was saved to ${APPLE_HEALTH_PROVIDER_LABEL}.`);
+      Alert.alert(
+        'Saved to Apple Health',
+        result.warningMessage
+          ? `This workout was saved to ${APPLE_HEALTH_PROVIDER_LABEL}. ${result.warningMessage}`
+          : `This workout was saved to ${APPLE_HEALTH_PROVIDER_LABEL}.`,
+      );
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : `This workout could not be saved to ${APPLE_HEALTH_PROVIDER_LABEL}.`;

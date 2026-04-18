@@ -52,6 +52,7 @@ public class WatchConnectivityModule: Module {
   private let healthStore = HKHealthStore()
   private lazy var sessionDelegate: SessionDelegateProxy = SessionDelegateProxy(module: self)
   fileprivate var pendingStart: Bool = false
+  private var mirroredSession: HKWorkoutSession?
 
   public func definition() -> ModuleDefinition {
     Name("WatchConnectivity")
@@ -65,7 +66,8 @@ public class WatchConnectivityModule: Module {
     OnCreate {
       wcLog("[WC-iPhone] OnCreate: registering workoutSessionMirroringStartHandler")
       self.healthStore.workoutSessionMirroringStartHandler = { mirroredSession in
-        wcLog("[WC-iPhone] workoutSessionMirroringStartHandler fired state=\(mirroredSession.state.rawValue)")
+        wcLog("[WC-iPhone] workoutSessionMirroringStartHandler fired state=\(mirroredSession.state.rawValue) type=\(mirroredSession.type.rawValue)")
+        self.attachMirroredWorkoutSession(mirroredSession)
       }
     }
 
@@ -218,9 +220,37 @@ public class WatchConnectivityModule: Module {
   fileprivate func emitSessionState(_ state: String, sentAtMs: Double) {
     sendEvent("onWatchSessionState", ["state": state, "sentAtMs": sentAtMs])
   }
+
+  fileprivate func attachMirroredWorkoutSession(_ session: HKWorkoutSession) {
+    clearMirroredWorkoutSession()
+    wcLog("[WC-iPhone] attachMirroredWorkoutSession state=\(session.state.rawValue) type=\(session.type.rawValue)")
+
+    session.delegate = sessionDelegate
+
+    mirroredSession = session
+
+    if session.state == .running {
+      emitSessionState(PayloadKeySessionState.started, sentAtMs: Date().timeIntervalSince1970 * 1000)
+    }
+  }
+
+  fileprivate func clearMirroredWorkoutSession() {
+    mirroredSession?.delegate = nil
+    mirroredSession = nil
+  }
 }
 
-private class SessionDelegateProxy: NSObject, WCSessionDelegate {
+fileprivate enum PayloadKeySessionState {
+  static let started = "started"
+  static let ended = "ended"
+  static let failed = "failed"
+}
+
+fileprivate struct MirroredWorkoutPayload: Decodable {
+  let hr: Int?
+}
+
+private class SessionDelegateProxy: NSObject, WCSessionDelegate, HKWorkoutSessionDelegate {
   weak var module: WatchConnectivityModule?
 
   init(module: WatchConnectivityModule) {
@@ -257,6 +287,9 @@ private class SessionDelegateProxy: NSObject, WCSessionDelegate {
 
   func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
     wcLog("[WC-iPhone] didReceiveApplicationContext keys=\(Array(applicationContext.keys))")
+    if let hr = applicationContext[PayloadKey.heartRate] as? NSNumber {
+      module?.emitHr(hr.intValue)
+    }
     if let state = applicationContext[PayloadKey.sessionState] as? String,
        let sentAtMs = applicationContext[PayloadKey.sentAtMs] as? NSNumber {
       wcLog("[WC-iPhone] didReceiveApplicationContext sessionState=\(state)")
@@ -269,6 +302,41 @@ private class SessionDelegateProxy: NSObject, WCSessionDelegate {
     module?.emitReachability(session.isReachable)
     if session.isReachable {
       module?.flushPendingStart()
+    }
+  }
+
+  func workoutSession(
+    _ workoutSession: HKWorkoutSession,
+    didChangeTo toState: HKWorkoutSessionState,
+    from fromState: HKWorkoutSessionState,
+    date: Date
+  ) {
+    wcLog("[WC-iPhone] mirrored workoutSession didChangeTo \(toState.rawValue) from \(fromState.rawValue)")
+    switch toState {
+    case .running:
+      module?.emitSessionState(PayloadKeySessionState.started, sentAtMs: date.timeIntervalSince1970 * 1000)
+    case .ended:
+      module?.emitSessionState(PayloadKeySessionState.ended, sentAtMs: date.timeIntervalSince1970 * 1000)
+      module?.clearMirroredWorkoutSession()
+    default:
+      break
+    }
+  }
+
+  func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
+    wcLog("[WC-iPhone] mirrored workoutSession didFailWithError: \(error.localizedDescription)")
+    module?.emitSessionState(PayloadKeySessionState.failed, sentAtMs: Date().timeIntervalSince1970 * 1000)
+    module?.clearMirroredWorkoutSession()
+  }
+
+  func workoutSession(_ workoutSession: HKWorkoutSession, didReceiveDataFromRemoteWorkoutSession data: [Data]) {
+    for entry in data {
+      guard let payload = try? JSONDecoder().decode(MirroredWorkoutPayload.self, from: entry),
+            let hr = payload.hr else {
+        continue
+      }
+      wcLog("[WC-iPhone] mirrored workoutSession didReceiveDataFromRemoteWorkoutSession hr=\(hr)")
+      module?.emitHr(hr)
     }
   }
 }

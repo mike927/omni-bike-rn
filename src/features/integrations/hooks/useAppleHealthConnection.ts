@@ -16,10 +16,10 @@ export function useAppleHealthConnection(): UseAppleHealthConnectionResult {
   const connect = async () => {
     setIsLoading(true);
     try {
-      // iOS privacy rules don't let us verify that write permission was granted
-      // after the sheet closes — a "success" callback only means the user
-      // interacted with the sheet. We optimistically flip the local flag and
-      // surface any real permission error on the first saveWorkout call.
+      // iOS privacy rules don't let us verify all write grants after the sheet
+      // closes — a "success" callback only means the user interacted with the
+      // sheet. We optimistically flip the local flag and surface any real
+      // workout-save permission error on the first export attempt.
       await initWithWritePermissions();
       await setConnected();
       return { success: true };

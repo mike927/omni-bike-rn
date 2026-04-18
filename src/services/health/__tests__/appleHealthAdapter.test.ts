@@ -1,32 +1,18 @@
-import AppleHealthKit from 'react-native-health';
+import { NativeModules } from 'react-native';
 
 import { initWithWritePermissions, saveWorkout } from '../appleHealthAdapter';
+import { AppleHealthWorkout } from 'apple-health-workout';
 import type { PersistedTrainingSample, PersistedTrainingSession } from '../../../types/sessionPersistence';
 
-jest.mock('react-native-health', () => {
-  return {
-    __esModule: true,
-    default: {
-      initHealthKit: jest.fn(),
-      saveWorkout: jest.fn(),
-      saveHeartRateSample: jest.fn(),
-      Constants: {
-        Activities: { Cycling: 'Cycling' },
-        Permissions: {
-          Workout: 'Workout',
-          HeartRate: 'HeartRate',
-          ActiveEnergyBurned: 'ActiveEnergyBurned',
-          DistanceCycling: 'DistanceCycling',
-        },
-        Units: { bpm: 'bpm', kilocalorie: 'kilocalorie', meter: 'meter' },
-      },
-    },
-  };
-});
+jest.mock('apple-health-workout', () => ({
+  AppleHealthWorkout: {
+    saveCyclingWorkout: jest.fn(),
+  },
+}));
 
-const mockInit = AppleHealthKit.initHealthKit as unknown as jest.Mock;
-const mockSaveWorkout = AppleHealthKit.saveWorkout as unknown as jest.Mock;
-const mockSaveHr = AppleHealthKit.saveHeartRateSample as unknown as jest.Mock;
+const mockInit = jest.fn();
+const mockGetAuthStatus = jest.fn();
+const mockSaveCyclingWorkout = AppleHealthWorkout.saveCyclingWorkout as jest.Mock;
 
 const SESSION: PersistedTrainingSession = {
   id: 'session-1',
@@ -57,6 +43,18 @@ function buildSample(index: number, heartRate: number | null): PersistedTraining
 
 beforeEach(() => {
   jest.clearAllMocks();
+  NativeModules.AppleHealthKit = {
+    initHealthKit: mockInit,
+    getAuthStatus: mockGetAuthStatus,
+  };
+  mockGetAuthStatus.mockImplementation((_permissions, callback) =>
+    callback(null, {
+      permissions: {
+        read: [],
+        write: [2, 2, 2],
+      },
+    }),
+  );
 });
 
 describe('initWithWritePermissions', () => {
@@ -64,7 +62,7 @@ describe('initWithWritePermissions', () => {
     mockInit.mockImplementation((_permissions, callback) => callback(null));
     await expect(initWithWritePermissions()).resolves.toBeUndefined();
     const permissionsArg = mockInit.mock.calls[0][0];
-    expect(permissionsArg.permissions.write).toEqual(['Workout', 'HeartRate', 'ActiveEnergyBurned', 'DistanceCycling']);
+    expect(permissionsArg.permissions.write).toEqual(['Workout', 'ActiveEnergyBurned', 'DistanceCycling']);
     expect(permissionsArg.permissions.read).toEqual([]);
   });
 
@@ -72,68 +70,48 @@ describe('initWithWritePermissions', () => {
     mockInit.mockImplementation((_permissions, callback) => callback('auth denied'));
     await expect(initWithWritePermissions()).rejects.toThrow('auth denied');
   });
+
+  it('rejects when the native Apple Health module is unavailable', async () => {
+    const originalAppleHealthKit = NativeModules.AppleHealthKit;
+    NativeModules.AppleHealthKit = undefined;
+
+    try {
+      await expect(initWithWritePermissions()).rejects.toThrow(
+        'Apple Health native module is unavailable. Rebuild the iOS app with the native dependency installed.',
+      );
+    } finally {
+      NativeModules.AppleHealthKit = originalAppleHealthKit;
+    }
+  });
 });
 
 describe('saveWorkout', () => {
-  it('maps session fields to an HKWorkout payload and saves every non-null HR sample', async () => {
-    mockSaveWorkout.mockImplementation((_options, callback) => callback(null, 'workout-uuid-1'));
-    mockSaveHr.mockImplementation((_options, callback) => callback(null));
+  it('maps session fields to a saveCyclingWorkout payload', async () => {
+    mockSaveCyclingWorkout.mockResolvedValue('workout-uuid-1');
 
     const samples = [buildSample(0, 120), buildSample(1, null), buildSample(2, 0), buildSample(3, 145)];
 
     const result = await saveWorkout(SESSION, samples);
 
-    expect(result).toEqual({ workoutId: 'workout-uuid-1', attemptedHrSampleCount: 2, failedHrSampleCount: 0 });
-
-    const workoutOptions = mockSaveWorkout.mock.calls[0][0];
-    expect(workoutOptions).toMatchObject({
-      type: 'Cycling',
+    expect(result).toEqual({ workoutId: 'workout-uuid-1' });
+    expect(mockSaveCyclingWorkout).toHaveBeenCalledWith({
       startDate: '2023-11-14T22:13:20.000Z',
       endDate: '2023-11-14T23:13:20.000Z',
-      energyBurned: 450,
-      energyBurnedUnit: 'kilocalorie',
-      distance: 18000,
-      distanceUnit: 'meter',
-    });
-
-    expect(mockSaveHr).toHaveBeenCalledTimes(2);
-    expect(mockSaveHr.mock.calls[0][0]).toMatchObject({
-      value: 120,
-      date: new Date(SESSION.startedAtMs).toISOString(),
-      unit: 'bpm',
-    });
-    expect(mockSaveHr.mock.calls[1][0]).toMatchObject({
-      value: 145,
-      date: new Date(SESSION.startedAtMs + 3000).toISOString(),
-      unit: 'bpm',
+      totalEnergyKcal: 450,
+      totalDistanceMeters: 18000,
     });
   });
 
   it('falls back to startedAtMs + elapsedSeconds when endedAtMs is null', async () => {
-    mockSaveWorkout.mockImplementation((_options, callback) => callback(null, 'workout-uuid-2'));
+    mockSaveCyclingWorkout.mockResolvedValue('workout-uuid-2');
     await saveWorkout({ ...SESSION, endedAtMs: null }, []);
-    const workoutOptions = mockSaveWorkout.mock.calls[0][0];
-    expect(workoutOptions.endDate).toBe('2023-11-14T23:13:20.000Z');
+    expect(mockSaveCyclingWorkout).toHaveBeenCalledWith(
+      expect.objectContaining({ endDate: '2023-11-14T23:13:20.000Z' }),
+    );
   });
 
-  it('rejects when saveWorkout native callback reports an error', async () => {
-    mockSaveWorkout.mockImplementation((_options, callback) => callback('not authorized', null));
+  it('rejects when the native module rejects', async () => {
+    mockSaveCyclingWorkout.mockRejectedValue(new Error('not authorized'));
     await expect(saveWorkout(SESSION, [])).rejects.toThrow('not authorized');
-  });
-
-  it('reports failed HR samples without rejecting the whole save', async () => {
-    mockSaveWorkout.mockImplementation((_options, callback) => callback(null, 'workout-uuid-3'));
-    mockSaveHr
-      .mockImplementationOnce((_options, callback) => callback(null))
-      .mockImplementationOnce((_options, callback) => callback('hr save failed'))
-      .mockImplementationOnce((_options, callback) => callback(null));
-
-    const result = await saveWorkout(SESSION, [buildSample(0, 100), buildSample(1, 110), buildSample(2, 120)]);
-
-    expect(result).toEqual({
-      workoutId: 'workout-uuid-3',
-      attemptedHrSampleCount: 3,
-      failedHrSampleCount: 1,
-    });
   });
 });

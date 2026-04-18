@@ -414,6 +414,25 @@ describe('useWatchHr', () => {
       expect(useDeviceConnectionStore.getState().latestAppleWatchHr).toBeNull();
     });
 
+    it('preserves the active watch stream when reachability drops mid-workout', () => {
+      useWatchHrStore.setState({ enabled: true, hydrated: true });
+      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+      useDeviceConnectionStore.setState({ latestAppleWatchHr: 72, watchAvailability: 'in_progress' });
+      renderHook(() => useWatchHr());
+
+      const wc = getWatchConnectivityMock();
+      const reachabilityCallback = wc.addListener.mock.calls.find(
+        ([eventName]: [string]) => eventName === 'onReachabilityChange',
+      )?.[1] as ((payload: { reachable: boolean }) => void) | undefined;
+
+      act(() => {
+        reachabilityCallback?.({ reachable: false });
+      });
+
+      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('in_progress');
+      expect(useDeviceConnectionStore.getState().latestAppleWatchHr).toBe(72);
+    });
+
     it('does not clear latestAppleWatchHr when the Watch comes back in range', () => {
       useDeviceConnectionStore.setState({ latestAppleWatchHr: 72 });
       renderHook(() => useWatchHr());
@@ -464,6 +483,33 @@ describe('useWatchHr', () => {
         sessionStateCallback?.({ state: 'ended', sentAtMs: Date.now() });
       });
       expect(useDeviceConnectionStore.getState().watchAvailability).toBe('idle');
+    });
+
+    it('marks the stream in progress again when a heart rate sample arrives while training is active', async () => {
+      useWatchHrStore.setState({ enabled: true, hydrated: true });
+      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+      useDeviceConnectionStore.setState({ watchAvailability: 'unavailable' });
+      renderHook(() => useWatchHr());
+
+      const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
+        WatchHrAdapter: jest.Mock;
+      };
+
+      await waitFor(() => {
+        const inst = WatchHrAdapter.mock.results[0]?.value as { connect: jest.Mock } | undefined;
+        expect(inst?.connect).toHaveBeenCalled();
+      });
+
+      const subscribeToHeartRate = (WatchHrAdapter.mock.results[0]?.value as { subscribeToHeartRate: jest.Mock })
+        .subscribeToHeartRate;
+      const hrCallback = subscribeToHeartRate.mock.calls[0]?.[0] as ((hr: number) => void) | undefined;
+
+      act(() => {
+        hrCallback?.(147);
+      });
+
+      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('in_progress');
+      expect(useDeviceConnectionStore.getState().latestAppleWatchHr).toBe(147);
     });
 
     it('ignores stale watch session state events from before the current start request', async () => {

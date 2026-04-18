@@ -88,8 +88,11 @@ export function useWatchHr(): void {
     startingRef.current = false;
     subRef.current = adapter.subscribeToHeartRate((hr) => {
       updateAppleWatchHr(hr);
+      if (phaseRef.current === TrainingPhase.Active && watchHrEnabledRef.current) {
+        setWatchAvailability('in_progress');
+      }
     });
-  }, [watchAvailable, updateAppleWatchHr]);
+  }, [setWatchAvailability, watchAvailable, updateAppleWatchHr]);
 
   const stopStream = useCallback(async () => {
     const hadStream = adapterRef.current !== null || subRef.current !== null || startingRef.current;
@@ -155,6 +158,14 @@ export function useWatchHr(): void {
 
     const reachabilitySub = WatchConnectivity.addListener('onReachabilityChange', ({ reachable }) => {
       if (!reachable) {
+        const { watchAvailability } = useDeviceConnectionStore.getState();
+        const shouldPreserveActiveStream =
+          watchHrEnabledRef.current && phaseRef.current === TrainingPhase.Active && watchAvailability === 'in_progress';
+
+        if (shouldPreserveActiveStream) {
+          return;
+        }
+
         setWatchAvailability('unavailable');
         updateAppleWatchHr(null);
         return;

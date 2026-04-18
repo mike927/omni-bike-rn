@@ -1,74 +1,169 @@
-import AppleHealthKit, { type HealthKitPermissions } from 'react-native-health';
+import { NativeModules } from 'react-native';
+import type { HealthKitPermissions, HealthStatusResult } from 'react-native-health';
 
+import { AppleHealthWorkout } from 'apple-health-workout';
+import {
+  appendAppleHealthDiagnostic,
+  getAppleHealthDiagnosticsRelativePath,
+} from '../diagnostics/appleHealthDiagnostics';
 import type { PersistedTrainingSample, PersistedTrainingSession } from '../../types/sessionPersistence';
 
-// react-native-health's runtime JS only exports the `HealthKit` object (with
-// `Constants` attached). Its .d.ts additionally declares `HealthPermission` /
-// `HealthActivity` / `HealthUnit` as enums, but they do not exist at runtime —
-// importing them directly yields `undefined`. We read the real values off
-// `AppleHealthKit.Constants.*` and keep typings strictly local.
-interface HealthKitConstants {
-  Activities: { Cycling: string };
-  Permissions: {
-    Workout: string;
-    HeartRate: string;
-    ActiveEnergyBurned: string;
-    DistanceCycling: string;
-  };
-  Units: {
-    bpm: string;
-    kilocalorie: string;
-    meter: string;
-  };
-}
-
-interface SaveWorkoutOptions {
-  type: string;
-  startDate: string;
-  endDate: string;
-  energyBurned?: number;
-  energyBurnedUnit?: string;
-  distance?: number;
-  distanceUnit?: string;
-}
-
-interface SaveHeartRateSampleOptions {
-  value: number;
-  date: string;
-  unit?: string;
-}
-
 interface HealthKitNativeModule {
-  Constants: HealthKitConstants;
-  initHealthKit: (permissions: HealthKitPermissions, callback: (error: string) => void) => void;
-  saveWorkout: (options: SaveWorkoutOptions, callback: (error: string, result: string) => void) => void;
-  saveHeartRateSample: (options: SaveHeartRateSampleOptions, callback: (error: string) => void) => void;
+  initHealthKit: (permissions: HealthKitPermissions, callback: (error: HealthKitErrorLike) => void) => void;
+  getAuthStatus: (
+    permissions: HealthKitPermissions,
+    callback: (error: HealthKitErrorLike, result: HealthStatusResult) => void,
+  ) => void;
 }
 
-const healthKit = AppleHealthKit as unknown as HealthKitNativeModule;
-const { Activities, Permissions, Units } = healthKit.Constants;
+interface HealthKitErrorObject {
+  message?: string;
+  code?: number | string;
+  domain?: string;
+  userInfo?: Record<string, unknown>;
+  nativeStackIOS?: string[];
+}
+
+type HealthKitErrorLike = HealthKitErrorObject | string | null | undefined;
+
+const HEALTH_PERMISSION_WORKOUT = 'Workout';
+const HEALTH_PERMISSION_ACTIVE_ENERGY_BURNED = 'ActiveEnergyBurned';
+const HEALTH_PERMISSION_DISTANCE_CYCLING = 'DistanceCycling';
+const HEALTHKIT_STATUS_LABELS = ['NotDetermined', 'SharingDenied', 'SharingAuthorized'] as const;
+const HEALTHKIT_WRITE_PERMISSIONS = [
+  HEALTH_PERMISSION_WORKOUT,
+  HEALTH_PERMISSION_ACTIVE_ENERGY_BURNED,
+  HEALTH_PERMISSION_DISTANCE_CYCLING,
+] as const;
+
+function getHealthKit(): HealthKitNativeModule {
+  const healthKit = NativeModules.AppleHealthKit as HealthKitNativeModule | undefined;
+
+  if (!healthKit?.initHealthKit || !healthKit?.getAuthStatus) {
+    throw new Error(
+      'Apple Health native module is unavailable. Rebuild the iOS app with the native dependency installed.',
+    );
+  }
+
+  return healthKit;
+}
+
+function formatHealthKitErrorMessage(error: HealthKitErrorLike, fallbackMessage: string): string {
+  if (!error) {
+    return fallbackMessage;
+  }
+
+  if (typeof error === 'string') {
+    return error;
+  }
+
+  if (typeof error.message === 'string' && error.message.length > 0) {
+    return error.message;
+  }
+
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return fallbackMessage;
+  }
+}
+
+function normalizeHealthKitError(error: unknown, fallbackMessage: string): Error {
+  if (error instanceof Error) {
+    return error;
+  }
+
+  const normalizedError = new Error(formatHealthKitErrorMessage(error as HealthKitErrorLike, fallbackMessage));
+
+  if (error && typeof error === 'object') {
+    Object.assign(normalizedError, { details: error });
+  }
+
+  return normalizedError;
+}
+
+function logHealthKitAuthorizationStatus(healthKit: HealthKitNativeModule, context: string): void {
+  if (!__DEV__) {
+    return;
+  }
+
+  healthKit.getAuthStatus(PERMISSIONS, (error: HealthKitErrorLike, result: HealthStatusResult) => {
+    if (error) {
+      appendAppleHealthDiagnostic('auth-status-read-failed', {
+        context,
+        error,
+      });
+      console.warn('[appleHealthAdapter] Failed to read HealthKit authorization status', {
+        context,
+        error,
+      });
+      return;
+    }
+
+    const writeStatuses = Object.fromEntries(
+      HEALTHKIT_WRITE_PERMISSIONS.map((permission, index) => {
+        const statusCode = result.permissions.write[index];
+        const label =
+          typeof statusCode === 'number'
+            ? (HEALTHKIT_STATUS_LABELS[statusCode] ?? `Unknown(${statusCode})`)
+            : 'Missing';
+        return [permission, label];
+      }),
+    );
+
+    appendAppleHealthDiagnostic('auth-status', {
+      context,
+      permissions: PERMISSIONS.permissions,
+      writeStatuses,
+      raw: result,
+      diagnosticsFile: getAppleHealthDiagnosticsRelativePath(),
+    });
+    console.warn('[appleHealthAdapter] HealthKit authorization status', {
+      context,
+      permissions: PERMISSIONS.permissions,
+      writeStatuses,
+      raw: result,
+    });
+  });
+}
 
 const PERMISSIONS: HealthKitPermissions = {
   permissions: {
     read: [],
     write: [
-      Permissions.Workout,
-      Permissions.HeartRate,
-      Permissions.ActiveEnergyBurned,
-      Permissions.DistanceCycling,
+      HEALTH_PERMISSION_WORKOUT,
+      HEALTH_PERMISSION_ACTIVE_ENERGY_BURNED,
+      HEALTH_PERMISSION_DISTANCE_CYCLING,
       // react-native-health typings model write[] as HealthPermission[] (an enum),
-      // but the real values are plain strings from Constants.Permissions.
+      // but the real values are plain string literals on the native module API.
     ] as unknown as HealthKitPermissions['permissions']['write'],
   },
 };
 
 export async function initWithWritePermissions(): Promise<void> {
   return new Promise((resolve, reject) => {
-    healthKit.initHealthKit(PERMISSIONS, (error: string) => {
+    const healthKit = getHealthKit();
+    appendAppleHealthDiagnostic('initHealthKit-permissions-payload', {
+      permissions: PERMISSIONS.permissions,
+      diagnosticsFile: getAppleHealthDiagnosticsRelativePath(),
+    });
+    if (__DEV__) {
+      console.warn('[appleHealthAdapter] initHealthKit permissions payload', PERMISSIONS.permissions);
+    }
+
+    healthKit.initHealthKit(PERMISSIONS, (error: HealthKitErrorLike) => {
       if (error) {
-        reject(new Error(error));
+        appendAppleHealthDiagnostic('initHealthKit-error', {
+          error,
+          permissions: PERMISSIONS.permissions,
+        });
+        reject(normalizeHealthKitError(error, 'Failed to initialize Apple Health permissions.'));
         return;
       }
+      appendAppleHealthDiagnostic('initHealthKit-success', {
+        permissions: PERMISSIONS.permissions,
+      });
+      logHealthKitAuthorizationStatus(healthKit, 'after-init');
       resolve();
     });
   });
@@ -76,74 +171,39 @@ export async function initWithWritePermissions(): Promise<void> {
 
 export interface SaveWorkoutResult {
   workoutId: string;
-  attemptedHrSampleCount: number;
-  failedHrSampleCount: number;
 }
 
 export async function saveWorkout(
   session: PersistedTrainingSession,
-  samples: PersistedTrainingSample[],
+  _samples: PersistedTrainingSample[],
 ): Promise<SaveWorkoutResult> {
   const startDate = new Date(session.startedAtMs).toISOString();
   const endDateMs = session.endedAtMs ?? session.startedAtMs + session.elapsedSeconds * 1000;
   const endDate = new Date(endDateMs).toISOString();
 
-  const workoutId = await new Promise<string>((resolve, reject) => {
-    healthKit.saveWorkout(
-      {
-        type: Activities.Cycling,
-        startDate,
-        endDate,
-        energyBurned: session.totalCaloriesKcal,
-        energyBurnedUnit: Units.kilocalorie,
-        distance: session.totalDistanceMeters,
-        distanceUnit: Units.meter,
-      },
-      (error: string, result: string) => {
-        if (error) {
-          reject(new Error(error));
-          return;
-        }
-        resolve(result);
-      },
-    );
-  });
-
-  // HR samples are best-effort telemetry attached to an already-persisted
-  // HKWorkout. Rejecting the whole promise on HR failure would leave an orphan
-  // workout in Health and cause a duplicate on retry — instead, count failures
-  // and surface them as a warning higher up.
-  let attemptedHrSampleCount = 0;
-  let failedHrSampleCount = 0;
-
-  for (const sample of samples) {
-    const bpm = sample.metrics.heartRate;
-    if (bpm === null || bpm <= 0) {
-      continue;
-    }
-    attemptedHrSampleCount += 1;
-    try {
-      await new Promise<void>((resolve, reject) => {
-        healthKit.saveHeartRateSample(
-          {
-            value: bpm,
-            date: new Date(sample.recordedAtMs).toISOString(),
-            unit: Units.bpm,
-          },
-          (error: string) => {
-            if (error) {
-              reject(new Error(error));
-              return;
-            }
-            resolve();
-          },
-        );
-      });
-    } catch (error: unknown) {
-      failedHrSampleCount += 1;
-      console.error('[appleHealthAdapter] Failed to save heart rate sample:', error);
-    }
+  try {
+    const workoutId = await AppleHealthWorkout.saveCyclingWorkout({
+      startDate,
+      endDate,
+      totalEnergyKcal: session.totalCaloriesKcal,
+      totalDistanceMeters: session.totalDistanceMeters,
+    });
+    appendAppleHealthDiagnostic('saveWorkout-success', {
+      workoutId,
+      startDate,
+      endDate,
+      calories: session.totalCaloriesKcal,
+      distanceMeters: session.totalDistanceMeters,
+    });
+    return { workoutId };
+  } catch (error: unknown) {
+    appendAppleHealthDiagnostic('saveWorkout-error', {
+      error,
+      startDate,
+      endDate,
+      calories: session.totalCaloriesKcal,
+      distanceMeters: session.totalDistanceMeters,
+    });
+    throw normalizeHealthKitError(error, 'Failed to save Apple Health workout.');
   }
-
-  return { workoutId, attemptedHrSampleCount, failedHrSampleCount };
 }

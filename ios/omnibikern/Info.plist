@@ -60,7 +60,7 @@
     <key>NSHealthShareUsageDescription</key>
     <string>Omni Bike reads your heart rate from Apple Watch to display live HR during training sessions.</string>
     <key>NSHealthUpdateUsageDescription</key>
-    <string>Omni Bike saves your completed indoor cycling workouts (duration, distance, calories, and heart rate) to Apple Health.</string>
+    <string>Omni Bike saves your completed indoor cycling workouts (duration, distance, and calories) to Apple Health.</string>
     <key>NSUserActivityTypes</key>
     <array>
       <string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>

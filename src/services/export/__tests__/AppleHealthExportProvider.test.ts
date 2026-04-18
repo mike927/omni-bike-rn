@@ -64,8 +64,6 @@ describe('exportSession', () => {
     mockGetState.mockReturnValue({ connected: true });
     mockSaveWorkout.mockResolvedValue({
       workoutId: 'workout-uuid-xyz',
-      attemptedHrSampleCount: 0,
-      failedHrSampleCount: 0,
     });
 
     const result = await provider.exportSession(SESSION, SAMPLES);
@@ -74,21 +72,6 @@ describe('exportSession', () => {
     expect(result.externalId).toBe('workout-uuid-xyz');
     expect(result.warningMessage).toBeUndefined();
     expect(mockSaveWorkout).toHaveBeenCalledWith(SESSION, SAMPLES);
-  });
-
-  it('returns success with a warning when some HR samples could not be saved', async () => {
-    mockGetState.mockReturnValue({ connected: true });
-    mockSaveWorkout.mockResolvedValue({
-      workoutId: 'workout-uuid-partial',
-      attemptedHrSampleCount: 10,
-      failedHrSampleCount: 3,
-    });
-
-    const result = await provider.exportSession(SESSION, SAMPLES);
-
-    expect(result.success).toBe(true);
-    expect(result.externalId).toBe('workout-uuid-partial');
-    expect(result.warningMessage).toContain('3 of 10');
   });
 
   it('returns failure when saveWorkout throws', async () => {
