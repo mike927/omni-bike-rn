@@ -80,7 +80,6 @@ Bike-first product UX in this phase: support a single main bike for now, while k
 - [-] Bike stop handling: freeze the session and prompt the user to finish instead of auto-completing immediately - deferred by product decision
 - [x] Parse and use bike-reported calories from FTMS Energy field (Zipro Rave Bit 10) as an alternative calorie source
 - [x] Crash recovery / interrupted session restore
-- [ ] Add comprehensive unit tests covering various test cases
 
 ## Phase 4: Workout History & Management
 
@@ -97,7 +96,6 @@ Lightweight, modern onboarding shown only on first launch. 2-3 swipeable intro s
 - [x] Swipeable onboarding screen with 2-3 pages (connect bike → optional HR → start training) — addressed in Screen Logic Revision
 - [ ] Modern, visually polished design (animations, illustrations, smooth transitions) — deferred to Phase 9
 - [x] Skip and Done actions — addressed in Screen Logic Revision
-- [ ] Add unit tests
 
 ## Phase 6: Integrations & External Provider Sync
 
@@ -113,7 +111,6 @@ Lightweight, modern onboarding shown only on first launch. 2-3 swipeable intro s
 - [ ] Garmin Connect as additional upload provider (OAuth + .FIT upload, sitting alongside Strava via the existing provider-adapter contract; depends on Phase 7 .FIT export)
 - [ ] If a user taps `Upload` from history without a connected provider, redirect to the relevant provider connection flow
 - [x] Minimal UI elements needed for integrations, export, and provider sync flows
-- [ ] Add comprehensive unit tests covering various test cases
 - [ ] Strava webhook is not working for "localhost" once oauth is agreed - it hangs on "accounts.google.com"
 
 ## Phase 7: Extras & Platform Features
@@ -138,7 +135,6 @@ Standard Bluetooth HR sensors are expected to work via the BLE HR flow before th
 - [ ] Background recording with BLE + Watch
 - [~] Just-in-time permission UX for watch / health integrations
 - [~] Minimal UI elements needed for watch status and source visibility
-- [ ] Add comprehensive unit tests covering various test cases
 
 ## Phase 9: User Profile & Personalized Metrics
 
