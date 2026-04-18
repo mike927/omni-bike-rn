@@ -58,8 +58,8 @@ When using `[?]` or `[-]`, include a short reason in the same task line.
 ## Branching And Workspace Rules
 
 - Never commit changes directly to `main`.
-- **Worktree Branching**: Feature work uses a dedicated worktree at `../omni-bike-rn-worktrees/<branch-slug>`.
-- **Legacy In-Place Branches**: Older in-place feature branches may still exist. Treat them as legacy state when resuming or cleaning up; do not use in-place branching for new feature work.
+- **In-Place Branching**: Standard branches (`git checkout -b <branch>`) directly in the repository root. Default for normal feature work.
+- **Worktree Branching**: Dedicated worktree (`../omni-bike-rn-worktrees/<branch-slug>`) when explicitly requested for parallel isolation.
 - Name branches as `<type>/<kebab-case-description>` using Conventional Commits prefixes (e.g., `feat/`, `fix/`, `docs/`, `refactor/`). Determine the prefix automatically based on task scope.
 
 Examples:
@@ -220,7 +220,7 @@ Automated pipeline steps (6–9) post the header and summary but omit the `**Nex
 ### 2. Workspace Preparing
 
 - **Resuming:** Branch already exists — skip to the active step.
-- **New task:** Run `/start-feature` to create the branch worktree. Do not plan on `main`.
+- **New task:** Run `/start-feature` to create the branch or worktree. Do not plan on `main`.
 
 ### 3. Plan Drafting
 
@@ -349,7 +349,7 @@ A fix loop is clean only when the selected validation passes, no unresolved bloc
 ### 15. Merge And Cleanup
 
 - **Prerequisite:** Human confirms the PR is approved and merging should proceed.
-- **Merge:** Execute `/finish-feature`. The command merges via GitHub CLI, safety-checks the workspace, removes the worktree and branch (or safely handles a legacy in-place branch), and returns to `main`.
+- **Merge:** Execute `/finish-feature`. The command merges via GitHub CLI, safety-checks the workspace, removes the branch or worktree, and returns to `main`.
 - **Complete:** Post a `**Workflow Progress: Step 15 Complete**` message marking the feature done.
 
 ## Skills
@@ -394,14 +394,14 @@ Available commands:
 
 - `ai/commands/check-state/COMMAND.md` — bootstrap context and analyze branch reality to help decide next steps
 - `ai/commands/next-task/COMMAND.md` — read plan.md, find the next unstarted task, and propose it to the user
-- `ai/commands/start-feature/COMMAND.md` — set up the workspace for a new feature (branch name, dedicated worktree creation)
+- `ai/commands/start-feature/COMMAND.md` — set up the workspace for a new feature (branch name, workspace strategy, branch creation)
 - `ai/commands/review-plan/COMMAND.md` — review the active branch plan for decision-completeness, workflow alignment, and implementation readiness
 - `ai/commands/address-plan-review/COMMAND.md` — triage plan-review findings, update the plan intentionally, and record applied or declined suggestions
 - `ai/commands/validate/COMMAND.md` — run the full validation suite
 - `ai/commands/code-review/COMMAND.md` — code review of branch diff (local working tree or GitHub PR), persisted to `ai/local/reviews/<branch-slug>.md`
 - `ai/commands/open-pr/COMMAND.md` — open a GitHub PR with the project's standard format
 - `ai/commands/address-code-review/COMMAND.md` — consume code review findings (local file or GitHub PR threads) and fix each actionable item using the Fix Loop Decision Rules
-- `ai/commands/finish-feature/COMMAND.md` — mark plan complete, merge PR via GitHub CLI, clean up the worktree and branch
+- `ai/commands/finish-feature/COMMAND.md` — mark plan complete, merge PR via GitHub CLI, clean up branch or worktree
 
 ### Adding A New Command
 

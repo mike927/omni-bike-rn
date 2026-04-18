@@ -1,9 +1,9 @@
 ---
 name: start-feature
 description: >-
-  Set up the workspace for a new feature: confirm branch name, create a
-  dedicated worktree, and print the branch slug for use in all downstream
-  ai/local/ artifacts.
+  Set up the workspace for a new feature: confirm branch name, ask workspace
+  strategy interactively, create the branch or worktree, and print the branch
+  slug for use in all downstream ai/local/ artifacts.
 inputs:
   - name: description
     description: 'Short kebab-case description (e.g., "ble-metronome-engine"). Prompted if omitted.'
@@ -11,6 +11,9 @@ inputs:
   - name: type
     description: 'Conventional Commits type prefix: feat, fix, docs, refactor, etc. Inferred from plan.md if omitted.'
     default: (inferred)
+  - name: workspace
+    description: 'Workspace strategy: "in-place" or "worktree". Prompted interactively if omitted.'
+    default: (prompted)
 outputs:
   - name: branch-name
     description: 'The created branch name (e.g., feat/ble-metronome-engine).'
@@ -22,7 +25,7 @@ outputs:
 
 # Start Feature
 
-Set up the workspace for a new feature task: confirm starting state, propose a branch name, create the dedicated worktree, and report the canonical `branch-slug` that all downstream artifacts must use.
+Set up the workspace for a new feature task: confirm starting state, propose a branch name, ask the user for their workspace strategy, create the branch or worktree, and report the canonical `branch-slug` that all downstream artifacts must use.
 
 ## Prerequisites
 
@@ -62,9 +65,14 @@ Construct the proposed branch name: `<type>/<description>`.
 
 If the inputs were inferred rather than provided, display the proposed name and proceed automatically. The user can interrupt or correct on the next turn if needed.
 
-### Step 3: Use The Standard Workspace Mode
+### Step 3: Ask Workspace Strategy
 
-There is no workspace-mode choice. New feature work always uses a dedicated worktree at `../omni-bike-rn-worktrees/<branch-slug>`.
+Present the workspace strategy options using the most interactive mechanism your platform provides (e.g., a multiple-choice UI tool like `ask_user` if available, or a numbered list in chat):
+
+- **Option 1:** `In-Place Branch` — stay in the repo root, run `git checkout -b`. Default for normal feature work.
+- **Option 2:** `Dedicated Worktree` — create a parallel directory at `../omni-bike-rn-worktrees/<branch-slug>`. Use when the human explicitly wants parallel isolation.
+
+If your platform does not support interactive UI tools, print the options as a numbered list and explicitly wait for the user's choice. Do not default silently in the command text.
 
 ### Step 4: Ask Workflow Track
 
@@ -88,6 +96,14 @@ git ls-remote --heads origin <branch-name> | grep -q . && echo "EXISTS on remote
 
 If the branch already exists locally or remotely, stop and report — ask the user whether to resume the existing branch (use `/check-state`) or choose a different name.
 
+**In-place branch:**
+
+```bash
+git checkout -b <branch-name>
+```
+
+**Dedicated worktree:**
+
 Ensure the parent directory exists before adding the worktree:
 
 ```bash
@@ -98,10 +114,12 @@ git worktree add ../omni-bike-rn-worktrees/<branch-slug> -b <branch-name>
 ### Step 6: Confirm The Workspace
 
 ```bash
-git worktree list
+git branch --show-current     # for in-place
+# or
+git worktree list             # for worktree
 ```
 
-Verify the new worktree exists at the expected path and that all subsequent work will happen there.
+Verify the new branch is active in the correct directory.
 
 ### Step 7: Report And Pause
 
@@ -109,9 +127,9 @@ Verify the new worktree exists at the expected path and that all subsequent work
 **Workspace Preparing**
 - Branch: `<branch-name>`
 - Slug: `<branch-slug>`
-- Mode: worktree at `../omni-bike-rn-worktrees/<branch-slug>`
+- Mode: in-place | worktree at `../omni-bike-rn-worktrees/<branch-slug>`
 - Track: `<Standard | Fast Track>`
-- Working directory: `../omni-bike-rn-worktrees/<branch-slug>`
+- Working directory: `<path>`
 
 Ready for <Step 3: Plan Drafting | Step 6: Implementation In Progress>.
 

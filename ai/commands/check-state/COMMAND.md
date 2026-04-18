@@ -83,8 +83,6 @@ Use these rules in order:
    - Use branch-scoped plan and review artifacts to distinguish planning (Steps 3-5) from implementation/review/testing (Steps 6-11).
    - If evidence is mixed, report a bounded range such as `between Step 6 and Step 9` instead of a false precise claim.
 5. If `plan.md` does not mention the branch task, describe that as `branch-local work` or `plan drift`, not automatically as a fresh start.
-6. If the branch is active in the repo root instead of a dedicated feature worktree, describe that as legacy or nonstandard workspace state rather than assuming the branch is invalid.
-
 The goal is to identify the most likely current workflow position, not to force certainty when evidence is incomplete.
 
 ### Step 5: Analyze Discrepancies
@@ -107,7 +105,7 @@ Post a highly comprehensive snapshot message in chat using this general format:
 **Reality Check**:
 - Branch: `<name>`
 - Status: `clean` or `dirty (<x> files modified)`
-- Worktree: `<main repo (legacy/nonstandard for feature work) | worktree path>`
+- Worktree: `<main repo | worktree path>`
 - Recent Commits: 
   - `short hash` - `subject`
   - `...`

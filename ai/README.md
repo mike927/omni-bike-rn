@@ -10,14 +10,14 @@ ai/
   commands/            ← active procedures invoked by name (see AGENTS.md § Commands)
     check-state/       ← bootstrap/resume session context
     next-task/         ← read plan.md and propose the next logical task to start
-    start-feature/     ← create a feature branch in a dedicated worktree
+    start-feature/     ← workspace setup for a new feature
     review-plan/       ← review the active branch plan before implementation
     address-plan-review/ ← address plan-review findings without blindly accepting them
     validate/          ← run full validation suite
     code-review/       ← code review of branch diff (local or GitHub PR)
     open-pr/           ← open GitHub PR with standard format
     address-code-review/ ← consume review findings and fix each actionable item
-    finish-feature/    ← merge PR, clean up the worktree and branch
+    finish-feature/    ← merge PR, clean up branch/worktree
   skills/
     architecture/      ← structure, boundaries, ownership
     ble-hardware/      ← BLE scanning, FTMS parsing, device adapters
