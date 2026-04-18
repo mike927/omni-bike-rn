@@ -406,7 +406,7 @@ Available commands:
 ### Adding A New Command
 
 1. Create a folder at `ai/commands/<command-name>/`.
-2. Add a `COMMAND.md` file with YAML frontmatter (`name`, `description`, `triggers`, `inputs`, `outputs`).
+2. Add a `COMMAND.md` file with YAML frontmatter (`name`, `description`, `inputs`, `outputs`).
 3. Write the procedure as numbered steps with clear completion criteria.
 4. Reference it from this section.
 

@@ -12,7 +12,7 @@ inputs:
     description: 'Conventional Commits type prefix: feat, fix, docs, refactor, etc. Inferred from plan.md if omitted.'
     default: (inferred)
   - name: workspace
-    description: 'Workspace strategy: "in-place" (default) or "worktree". Only ask the human when they have not signalled a preference and the task hints at parallel work.'
+    description: 'Workspace strategy: "in-place" (default) or "worktree". Use "worktree" only when the human explicitly asks for parallel isolation.'
     default: in-place
 outputs:
   - name: branch-name
