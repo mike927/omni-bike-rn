@@ -1,7 +1,7 @@
 import { NativeModules } from 'react-native';
 import type { HealthKitPermissions, HealthStatusResult } from 'react-native-health';
 
-import { AppleHealthWorkout, type HeartRateSampleInput } from 'apple-health-workout';
+import { AppleHealthWorkout, type CyclingQuantitySampleInput, type HeartRateSampleInput } from 'apple-health-workout';
 import {
   appendAppleHealthDiagnostic,
   getAppleHealthDiagnosticsRelativePath,
@@ -143,9 +143,8 @@ const PERMISSIONS: HealthKitPermissions = {
   },
 };
 
-export async function initWithWritePermissions(): Promise<void> {
+function initBaseWritePermissions(healthKit: HealthKitNativeModule): Promise<void> {
   return new Promise((resolve, reject) => {
-    const healthKit = getHealthKit();
     appendAppleHealthDiagnostic('initHealthKit-permissions-payload', {
       permissions: PERMISSIONS.permissions,
       diagnosticsFile: getAppleHealthDiagnosticsRelativePath(),
@@ -172,9 +171,32 @@ export async function initWithWritePermissions(): Promise<void> {
   });
 }
 
+// iOS 17+ cycling metric types (cyclingPower / cyclingCadence / cyclingSpeed)
+// are not represented in `react-native-health`'s permission-string bridge, so
+// our own native module requests their write authorization directly.
+async function initCyclingMetricPermissions(): Promise<void> {
+  try {
+    await AppleHealthWorkout.requestCyclingMetricsAuthorization();
+    appendAppleHealthDiagnostic('cyclingMetrics-auth-success', {});
+  } catch (error: unknown) {
+    appendAppleHealthDiagnostic('cyclingMetrics-auth-error', { error });
+    throw normalizeHealthKitError(error, 'Failed to authorize Apple Health cycling metrics.');
+  }
+}
+
+export async function initWithWritePermissions(): Promise<void> {
+  const healthKit = getHealthKit();
+  await initBaseWritePermissions(healthKit);
+  await initCyclingMetricPermissions();
+}
+
 export interface SaveWorkoutResult {
   workoutId: string;
 }
+
+// km/h → m/s conversion factor for cyclingSpeed samples. HealthKit's canonical
+// unit for `cyclingSpeed` is m/s; our bike ticks report speed in km/h.
+const KMH_TO_MPS = 1 / 3.6;
 
 function mapHeartRateSamples(samples: PersistedTrainingSample[]): HeartRateSampleInput[] {
   const mapped: HeartRateSampleInput[] = [];
@@ -182,6 +204,20 @@ function mapHeartRateSamples(samples: PersistedTrainingSample[]): HeartRateSampl
     const bpm = sample.metrics.heartRate;
     if (typeof bpm === 'number' && bpm > 0) {
       mapped.push({ bpm, timestampMs: sample.recordedAtMs });
+    }
+  }
+  return mapped;
+}
+
+function mapCyclingSamples(
+  samples: PersistedTrainingSample[],
+  extract: (metrics: PersistedTrainingSample['metrics']) => number,
+): CyclingQuantitySampleInput[] {
+  const mapped: CyclingQuantitySampleInput[] = [];
+  for (const sample of samples) {
+    const value = extract(sample.metrics);
+    if (Number.isFinite(value) && value >= 0) {
+      mapped.push({ value, timestampMs: sample.recordedAtMs });
     }
   }
   return mapped;
@@ -195,6 +231,9 @@ export async function saveWorkout(
   const endDateMs = session.endedAtMs ?? session.startedAtMs + session.elapsedSeconds * 1000;
   const endDate = new Date(endDateMs).toISOString();
   const heartRateSamples = mapHeartRateSamples(samples);
+  const cyclingPowerSamples = mapCyclingSamples(samples, (m) => m.power);
+  const cyclingCadenceSamples = mapCyclingSamples(samples, (m) => m.cadence);
+  const cyclingSpeedSamples = mapCyclingSamples(samples, (m) => m.speed * KMH_TO_MPS);
 
   try {
     const workoutId = await AppleHealthWorkout.saveCyclingWorkout({
@@ -203,6 +242,9 @@ export async function saveWorkout(
       totalEnergyKcal: session.totalCaloriesKcal,
       totalDistanceMeters: session.totalDistanceMeters,
       heartRateSamples,
+      cyclingPowerSamples,
+      cyclingCadenceSamples,
+      cyclingSpeedSamples,
     });
     appendAppleHealthDiagnostic('saveWorkout-success', {
       workoutId,
@@ -211,6 +253,9 @@ export async function saveWorkout(
       calories: session.totalCaloriesKcal,
       distanceMeters: session.totalDistanceMeters,
       hrSampleCount: heartRateSamples.length,
+      powerSampleCount: cyclingPowerSamples.length,
+      cadenceSampleCount: cyclingCadenceSamples.length,
+      speedSampleCount: cyclingSpeedSamples.length,
     });
     return { workoutId };
   } catch (error: unknown) {
@@ -221,6 +266,9 @@ export async function saveWorkout(
       calories: session.totalCaloriesKcal,
       distanceMeters: session.totalDistanceMeters,
       hrSampleCount: heartRateSamples.length,
+      powerSampleCount: cyclingPowerSamples.length,
+      cadenceSampleCount: cyclingCadenceSamples.length,
+      speedSampleCount: cyclingSpeedSamples.length,
     });
     throw normalizeHealthKitError(error, 'Failed to save Apple Health workout.');
   }

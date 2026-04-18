@@ -17,6 +17,35 @@ public class AppleHealthWorkoutModule: Module {
   public func definition() -> ModuleDefinition {
     Name("AppleHealthWorkout")
 
+    // Requests write authorization for the iOS 17+ cycling metric types that
+    // `react-native-health` does not know about (cyclingPower / cyclingCadence /
+    // cyclingSpeed). The plain Workout / ActiveEnergyBurned / DistanceCycling /
+    // HeartRate types are still requested via `react-native-health.initHealthKit`.
+    AsyncFunction("requestCyclingMetricsAuthorization") { (promise: Promise) in
+      guard HKHealthStore.isHealthDataAvailable() else {
+        promise.reject("ERR_HEALTH_UNAVAILABLE", "Health data is not available on this device")
+        return
+      }
+
+      let typesToShare: Set<HKSampleType> = [
+        HKQuantityType(.cyclingPower),
+        HKQuantityType(.cyclingCadence),
+        HKQuantityType(.cyclingSpeed),
+      ]
+
+      self.healthStore.requestAuthorization(toShare: typesToShare, read: []) { success, error in
+        if let error {
+          promise.reject("ERR_AUTH_FAILED", error.localizedDescription)
+          return
+        }
+        guard success else {
+          promise.reject("ERR_AUTH_FAILED", "HealthKit reported authorization failure without error")
+          return
+        }
+        promise.resolve(nil)
+      }
+    }
+
     AsyncFunction("saveCyclingWorkout") { (options: [String: Any], promise: Promise) in
       guard HKHealthStore.isHealthDataAvailable() else {
         promise.reject("ERR_HEALTH_UNAVAILABLE", "Health data is not available on this device")
@@ -36,6 +65,9 @@ public class AppleHealthWorkoutModule: Module {
       let totalEnergyKcal = (options["totalEnergyKcal"] as? NSNumber)?.doubleValue ?? 0
       let totalDistanceMeters = (options["totalDistanceMeters"] as? NSNumber)?.doubleValue ?? 0
       let rawHrSamples = options["heartRateSamples"] as? [[String: Any]] ?? []
+      let rawPowerSamples = options["cyclingPowerSamples"] as? [[String: Any]] ?? []
+      let rawCadenceSamples = options["cyclingCadenceSamples"] as? [[String: Any]] ?? []
+      let rawSpeedSamples = options["cyclingSpeedSamples"] as? [[String: Any]] ?? []
 
       let configuration = HKWorkoutConfiguration()
       configuration.activityType = .cycling
@@ -88,8 +120,39 @@ public class AppleHealthWorkoutModule: Module {
           ))
         }
 
-        samplesToAdd.append(contentsOf: self.buildHeartRateSamples(
-          from: rawHrSamples, rangeStart: startDate, rangeEnd: endDate
+        // Heart rate uses `bpm` key for readability; the three cycling-metric
+        // arrays use a generic `value` key (units documented on the JS side).
+        samplesToAdd.append(contentsOf: self.buildQuantitySamples(
+          from: rawHrSamples,
+          valueKey: "bpm",
+          type: HKQuantityType(.heartRate),
+          unit: HKUnit(from: "count/min"),
+          rangeStart: startDate,
+          rangeEnd: endDate
+        ))
+        samplesToAdd.append(contentsOf: self.buildQuantitySamples(
+          from: rawPowerSamples,
+          valueKey: "value",
+          type: HKQuantityType(.cyclingPower),
+          unit: .watt(),
+          rangeStart: startDate,
+          rangeEnd: endDate
+        ))
+        samplesToAdd.append(contentsOf: self.buildQuantitySamples(
+          from: rawCadenceSamples,
+          valueKey: "value",
+          type: HKQuantityType(.cyclingCadence),
+          unit: HKUnit.count().unitDivided(by: .minute()),
+          rangeStart: startDate,
+          rangeEnd: endDate
+        ))
+        samplesToAdd.append(contentsOf: self.buildQuantitySamples(
+          from: rawSpeedSamples,
+          valueKey: "value",
+          type: HKQuantityType(.cyclingSpeed),
+          unit: HKUnit.meter().unitDivided(by: .second()),
+          rangeStart: startDate,
+          rangeEnd: endDate
         ))
 
         let finalize: () -> Void = {
@@ -136,22 +199,24 @@ public class AppleHealthWorkoutModule: Module {
     }
   }
 
-  private func buildHeartRateSamples(
+  private func buildQuantitySamples(
     from rawSamples: [[String: Any]],
+    valueKey: String,
+    type: HKQuantityType,
+    unit: HKUnit,
     rangeStart: Date,
     rangeEnd: Date
   ) -> [HKQuantitySample] {
-    let hrType = HKQuantityType(.heartRate)
-    let unit = HKUnit(from: "count/min")
     return rawSamples.compactMap { sample in
       guard
-        let bpm = (sample["bpm"] as? NSNumber)?.doubleValue, bpm > 0,
+        let value = (sample[valueKey] as? NSNumber)?.doubleValue,
+        value.isFinite, value >= 0,
         let timestampMs = (sample["timestampMs"] as? NSNumber)?.doubleValue
       else { return nil }
       let date = Date(timeIntervalSince1970: timestampMs / 1000)
       guard date >= rangeStart && date <= rangeEnd else { return nil }
-      let quantity = HKQuantity(unit: unit, doubleValue: bpm)
-      return HKQuantitySample(type: hrType, quantity: quantity, start: date, end: date)
+      let quantity = HKQuantity(unit: unit, doubleValue: value)
+      return HKQuantitySample(type: type, quantity: quantity, start: date, end: date)
     }
   }
 
