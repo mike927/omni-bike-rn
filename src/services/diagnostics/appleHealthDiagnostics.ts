@@ -35,7 +35,7 @@ export function appendAppleHealthDiagnostic(event: string, payload: unknown): vo
       const existing = APPLE_HEALTH_LOG_FILE.textSync();
       APPLE_HEALTH_LOG_FILE.write(trimLogIfNeeded(`${existing}${nextLine}`));
     } else {
-      APPLE_HEALTH_LOG_FILE.create({ intermediates: true, overwrite: true });
+      APPLE_HEALTH_LOG_FILE.create({ intermediates: true });
       APPLE_HEALTH_LOG_FILE.write(nextLine);
     }
   } catch (error: unknown) {

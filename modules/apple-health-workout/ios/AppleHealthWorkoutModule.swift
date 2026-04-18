@@ -46,7 +46,15 @@ public class AppleHealthWorkoutModule: Module {
         configuration: configuration,
         device: .local()
       )
-      builder.addMetadata([HKMetadataKeyIndoorWorkout: true]) { _, _ in }
+      builder.addMetadata([HKMetadataKeyIndoorWorkout: true]) { success, error in
+        if let error {
+          NSLog("[AppleHealthWorkoutModule] addMetadata failed: %@", error.localizedDescription)
+          return
+        }
+        if !success {
+          NSLog("[AppleHealthWorkoutModule] addMetadata reported failure without error")
+        }
+      }
 
       builder.beginCollection(withStart: startDate) { success, error in
         if let error {

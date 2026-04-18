@@ -26,17 +26,21 @@ interface HealthKitErrorObject {
 
 type HealthKitErrorLike = HealthKitErrorObject | string | null | undefined;
 
-const HEALTH_PERMISSION_WORKOUT = 'Workout';
-const HEALTH_PERMISSION_ACTIVE_ENERGY_BURNED = 'ActiveEnergyBurned';
-const HEALTH_PERMISSION_DISTANCE_CYCLING = 'DistanceCycling';
-const HEALTH_PERMISSION_HEART_RATE = 'HeartRate';
+// react-native-health typings model write[] as a `HealthPermission` enum, but
+// the real native API accepts plain string literals. Use a local string-union
+// type to avoid importing a mismatched enum while keeping the array typed.
+type HealthPermissionName = 'Workout' | 'ActiveEnergyBurned' | 'DistanceCycling' | 'HeartRate';
+const HEALTH_PERMISSION_WORKOUT: HealthPermissionName = 'Workout';
+const HEALTH_PERMISSION_ACTIVE_ENERGY_BURNED: HealthPermissionName = 'ActiveEnergyBurned';
+const HEALTH_PERMISSION_DISTANCE_CYCLING: HealthPermissionName = 'DistanceCycling';
+const HEALTH_PERMISSION_HEART_RATE: HealthPermissionName = 'HeartRate';
 const HEALTHKIT_STATUS_LABELS = ['NotDetermined', 'SharingDenied', 'SharingAuthorized'] as const;
-const HEALTHKIT_WRITE_PERMISSIONS = [
+const HEALTHKIT_WRITE_PERMISSIONS: readonly HealthPermissionName[] = [
   HEALTH_PERMISSION_WORKOUT,
   HEALTH_PERMISSION_ACTIVE_ENERGY_BURNED,
   HEALTH_PERMISSION_DISTANCE_CYCLING,
   HEALTH_PERMISSION_HEART_RATE,
-] as const;
+];
 
 function getHealthKit(): HealthKitNativeModule {
   const healthKit = NativeModules.AppleHealthKit as HealthKitNativeModule | undefined;
@@ -129,17 +133,13 @@ function logHealthKitAuthorizationStatus(healthKit: HealthKitNativeModule, conte
   });
 }
 
+// Single cast at the react-native-health interop boundary because upstream
+// typings model `write[]` as a `HealthPermission` enum while the native API
+// expects plain string literals — see `HealthPermissionName` above.
 const PERMISSIONS: HealthKitPermissions = {
   permissions: {
     read: [],
-    write: [
-      HEALTH_PERMISSION_WORKOUT,
-      HEALTH_PERMISSION_ACTIVE_ENERGY_BURNED,
-      HEALTH_PERMISSION_DISTANCE_CYCLING,
-      HEALTH_PERMISSION_HEART_RATE,
-      // react-native-health typings model write[] as HealthPermission[] (an enum),
-      // but the real values are plain string literals on the native module API.
-    ] as unknown as HealthKitPermissions['permissions']['write'],
+    write: HEALTHKIT_WRITE_PERMISSIONS as unknown as HealthKitPermissions['permissions']['write'],
   },
 };
 
