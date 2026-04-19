@@ -182,6 +182,13 @@ export default function RootLayout() {
             headerBackTitle: 'Settings',
           }}
         />
+        <Stack.Screen
+          name="user-profile"
+          options={{
+            title: 'User Profile',
+            headerBackTitle: 'Settings',
+          }}
+        />
       </Stack>
     </>
   );
