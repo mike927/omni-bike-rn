@@ -76,7 +76,10 @@ final class WorkoutManager: NSObject, ObservableObject {
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
     private var lastHrSendAt: TimeInterval = 0
-    private var latestActiveKcal: Double = 0
+    // nil until HealthKit produces its first activeEnergyBurned sample for the
+    // current session. Omitting the field from the payload lets the phone fall
+    // through to its power-based formula instead of pinning the dashboard to 0.
+    private var latestActiveKcal: Double?
     private var pendingSessionStatePayload: [String: Any]?
 
     private let hrType = HKQuantityType(.heartRate)
@@ -250,9 +253,9 @@ final class WorkoutManager: NSObject, ObservableObject {
         builder = nil
         session = nil
         lastHrSendAt = 0
-        // Zero before the next session's first delegate callback so a stale
+        // Clear before the next session's first delegate callback so a stale
         // cumulative value is never piggy-backed onto the first HR payload.
-        latestActiveKcal = 0
+        latestActiveKcal = nil
     }
 
     // ── WatchConnectivity ──────────────────────────────────────────────────────
@@ -268,11 +271,13 @@ final class WorkoutManager: NSObject, ObservableObject {
     }
 
     private func sendHrToPhone(_ bpm: Int) {
-        let payload: [String: Any] = [
+        var payload: [String: Any] = [
             "hr": bpm,
-            "activeKcal": latestActiveKcal,
             "sentAtMs": Date().timeIntervalSince1970 * 1000,
         ]
+        if let kcal = latestActiveKcal {
+            payload["activeKcal"] = kcal
+        }
         let session = WCSession.default
         guard session.activationState == .activated else {
             wcLog("[WC-Watch] sendHrToPhone dropped: WC not activated")

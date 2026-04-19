@@ -32,6 +32,7 @@ describe('MetronomeEngine', () => {
       initialDistance: null,
       bikeCaloriesOffset: null,
       lastBikeTotalEnergyKcal: null,
+      lastBikeDistance: null,
       watchCaloriesOffset: null,
       lastWatchActiveKcal: null,
       lastCalorieSourceMode: 'none',

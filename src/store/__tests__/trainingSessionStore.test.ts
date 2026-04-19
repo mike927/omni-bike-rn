@@ -324,6 +324,35 @@ describe('trainingSessionStore', () => {
       expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('watch');
     });
 
+    // Guards the Watch-AE-unavailable startup window: HR begins flowing from the Watch
+    // seconds before HealthKit produces its first `activeEnergyBurned` sample on
+    // `.cycling + .indoor` (and may never produce one). The Swift payload must OMIT
+    // `activeKcal` in that window so the phone falls through to the power formula
+    // rather than pinning the dashboard at 0 kcal.
+    it('should use the app-power formula while Watch active kcal has not yet arrived, then rebase seamlessly when it does', () => {
+      useTrainingSessionStore.getState().start();
+
+      useTrainingSessionStore
+        .getState()
+        .tick(makeTickInput({ power: 4186 }, { hasLiveExternalHr: true, watchActiveKcal: null }));
+      useTrainingSessionStore
+        .getState()
+        .tick(makeTickInput({ power: 4186 }, { hasLiveExternalHr: true, watchActiveKcal: null }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(8, 5);
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('app');
+
+      useTrainingSessionStore
+        .getState()
+        .tick(makeTickInput({ power: 4186 }, { hasLiveExternalHr: true, watchActiveKcal: 500 }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(8, 5);
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('watch');
+
+      useTrainingSessionStore
+        .getState()
+        .tick(makeTickInput({ power: 4186 }, { hasLiveExternalHr: true, watchActiveKcal: 501 }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(9, 5);
+    });
+
     it('should rebase bike distance if the bike counter resets mid-session', () => {
       useTrainingSessionStore.getState().start();
 
