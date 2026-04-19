@@ -353,7 +353,7 @@ describe('useTrainingSession', () => {
     expect(mockEngineStop).not.toHaveBeenCalled();
   });
 
-  it('should disconnect devices and reset session without sending bike reset command', async () => {
+  it('should send bike reset, disconnect devices, and reset the session', async () => {
     const disconnectAllSpy = jest.spyOn(deviceConnectionModule, 'disconnectAllDeviceConnections');
     const { result } = renderHook(() => useTrainingSession());
 
@@ -373,7 +373,7 @@ describe('useTrainingSession', () => {
     });
 
     expect(mockEngineStop).toHaveBeenCalledTimes(1);
-    expect(mockSetControlState).not.toHaveBeenCalledWith(BikeStatus.Reset);
+    expect(mockSetControlState).toHaveBeenCalledWith(BikeStatus.Reset);
     expect(disconnectAllSpy).toHaveBeenCalledWith({ updateReconnectState: true, suppressAutoReconnect: true });
     expect(mockDisconnect).toHaveBeenCalledTimes(1);
     expect(mockHrDisconnect).toHaveBeenCalledTimes(1);
@@ -447,7 +447,7 @@ describe('useTrainingSession', () => {
     expect(useSavedGearStore.getState().bikeAutoReconnectSuppressed).toBe(true);
   });
 
-  it('should disconnect without bike reset when done is pressed from summary', async () => {
+  it('should send bike reset and disconnect when done is pressed from summary', async () => {
     const disconnectAllSpy = jest.spyOn(deviceConnectionModule, 'disconnectAllDeviceConnections');
     const { result } = renderHook(() => useTrainingSession());
 
@@ -475,7 +475,7 @@ describe('useTrainingSession', () => {
       expect(result.current.phase).toBe(TrainingPhase.Idle);
     });
 
-    expect(mockSetControlState).not.toHaveBeenCalledWith(BikeStatus.Reset);
+    expect(mockSetControlState).toHaveBeenCalledWith(BikeStatus.Reset);
     expect(disconnectAllSpy).toHaveBeenCalledWith({ updateReconnectState: true, suppressAutoReconnect: true });
     expect(mockDisconnect).toHaveBeenCalledTimes(1);
     expect(mockHrDisconnect).toHaveBeenCalledTimes(1);

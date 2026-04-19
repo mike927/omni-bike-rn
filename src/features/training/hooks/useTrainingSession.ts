@@ -153,6 +153,18 @@ export function useTrainingSession(): UseTrainingSessionReturn {
 
     try {
       await awaitPendingFinishStop();
+
+      // Release FTMS control so the bike exits "APP" mode and clears its display metrics.
+      // Queued after any pending Stop via the adapter's command queue.
+      const adapter = useDeviceConnectionStore.getState().bikeAdapter;
+      if (adapter) {
+        try {
+          await adapter.setControlState(BikeStatus.Reset);
+        } catch (err: unknown) {
+          console.error('[useTrainingSession] Bike reset failed before disconnect:', err);
+        }
+      }
+
       await disconnectAllDeviceConnections({ updateReconnectState: true, suppressAutoReconnect: true });
       useTrainingSessionStore.getState().reset();
     } finally {
@@ -179,18 +191,10 @@ export function useTrainingSession(): UseTrainingSessionReturn {
 
     const sessionId = getActiveSessionId();
 
-    suppressDisconnectPauseRef.current = true;
-
-    try {
-      await awaitPendingFinishStop();
-      await disconnectAllDeviceConnections({ updateReconnectState: true, suppressAutoReconnect: true });
-      useTrainingSessionStore.getState().reset();
-    } finally {
-      suppressDisconnectPauseRef.current = false;
-    }
+    await resetSessionAndConnections();
 
     return sessionId;
-  }, [finishSession, awaitPendingFinishStop]);
+  }, [finishSession, resetSessionAndConnections]);
 
   const reset = useCallback(async () => {
     const currentPhase = useTrainingSessionStore.getState().phase;
