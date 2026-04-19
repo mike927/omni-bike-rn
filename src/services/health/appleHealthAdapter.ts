@@ -29,11 +29,12 @@ type HealthKitErrorLike = HealthKitErrorObject | string | null | undefined;
 // react-native-health typings model write[] as a `HealthPermission` enum, but
 // the real native API accepts plain string literals. Use a local string-union
 // type to avoid importing a mismatched enum while keeping the array typed.
-type HealthPermissionName = 'Workout' | 'ActiveEnergyBurned' | 'DistanceCycling' | 'HeartRate';
+type HealthPermissionName = 'Workout' | 'ActiveEnergyBurned' | 'DistanceCycling' | 'HeartRate' | 'BasalEnergyBurned';
 const HEALTH_PERMISSION_WORKOUT: HealthPermissionName = 'Workout';
 const HEALTH_PERMISSION_ACTIVE_ENERGY_BURNED: HealthPermissionName = 'ActiveEnergyBurned';
 const HEALTH_PERMISSION_DISTANCE_CYCLING: HealthPermissionName = 'DistanceCycling';
 const HEALTH_PERMISSION_HEART_RATE: HealthPermissionName = 'HeartRate';
+const HEALTH_PERMISSION_BASAL_ENERGY_BURNED: HealthPermissionName = 'BasalEnergyBurned';
 const HEALTHKIT_STATUS_LABELS = ['NotDetermined', 'SharingDenied', 'SharingAuthorized'] as const;
 const HEALTHKIT_WRITE_PERMISSIONS: readonly HealthPermissionName[] = [
   HEALTH_PERMISSION_WORKOUT,
@@ -41,6 +42,9 @@ const HEALTHKIT_WRITE_PERMISSIONS: readonly HealthPermissionName[] = [
   HEALTH_PERMISSION_DISTANCE_CYCLING,
   HEALTH_PERMISSION_HEART_RATE,
 ];
+// Read permissions: basal energy is queried post-session so the Apple Health
+// upload can split the workout's calorie total into Active + Total samples.
+const HEALTHKIT_READ_PERMISSIONS: readonly HealthPermissionName[] = [HEALTH_PERMISSION_BASAL_ENERGY_BURNED];
 
 function getHealthKit(): HealthKitNativeModule {
   const healthKit = NativeModules.AppleHealthKit as HealthKitNativeModule | undefined;
@@ -138,7 +142,7 @@ function logHealthKitAuthorizationStatus(healthKit: HealthKitNativeModule, conte
 // expects plain string literals — see `HealthPermissionName` above.
 const PERMISSIONS: HealthKitPermissions = {
   permissions: {
-    read: [],
+    read: HEALTHKIT_READ_PERMISSIONS as unknown as HealthKitPermissions['permissions']['read'],
     write: HEALTHKIT_WRITE_PERMISSIONS as unknown as HealthKitPermissions['permissions']['write'],
   },
 };
