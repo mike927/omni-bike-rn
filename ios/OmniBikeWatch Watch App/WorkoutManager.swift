@@ -182,9 +182,22 @@ final class WorkoutManager: NSObject, ObservableObject {
             wcLog("[WC-Watch] startWorkout: calling startActivity")
             let startDate = Date()
             session.startActivity(with: startDate)
-            builder.beginCollection(withStart: startDate) { success, error in
+            builder.beginCollection(withStart: startDate) { [weak self] success, error in
                 if let error {
                     wcLog("[WC-Watch] beginCollection FAILED: \(error.localizedDescription)")
+                    // Without teardown the UI stays `.inProgress`, subsequent
+                    // startWorkout calls no-op on `session != nil`, and the
+                    // iPhone never hears about the failure. End the HK session,
+                    // clear local state, and publish `.failed` so the companion
+                    // can recover. The `.ended` delegate will later run a
+                    // second (idempotent) teardown.
+                    DispatchQueue.main.async {
+                        guard let self else { return }
+                        self.session?.end()
+                        self.teardownSession()
+                        self.transition(to: .idle)
+                        self.publishSessionState(WatchSessionStatePayload.failed)
+                    }
                     return
                 }
                 wcLog("[WC-Watch] beginCollection success=\(success)")
