@@ -150,10 +150,10 @@ Three-part initiative to align our calorie numbers with Apple Fitness and Strava
 
 ### Part B: Active vs. Total split in Apple Health upload
 
-- [~] Post-session HealthKit query for basal energy over the workout interval
-- [~] Native module accepts separate active + basal calorie parameters
-- [~] Emit two samples (active + basal) per saved workout so Apple Fitness shows distinct Active / Total values
-- [~] Strava upload unchanged — still receives a single Total value
+- [R] Post-session HealthKit query for basal energy over the workout interval
+- [R] Native module accepts separate active + basal calorie parameters
+- [R] Emit two samples (active + basal) per saved workout so Apple Fitness shows distinct Active / Total values
+- [R] Strava upload unchanged — still receives a single Total value
 
 ### Part C: User Profile for personalized calorie calculation
 
