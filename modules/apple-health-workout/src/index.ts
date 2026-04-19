@@ -26,8 +26,15 @@ export interface SaveCyclingWorkoutOptions {
   startDate: string;
   /** ISO-8601 end date */
   endDate: string;
-  /** Total active energy in kilocalories */
-  totalEnergyKcal: number;
+  /** Active energy in kilocalories — becomes the workout's `activeEnergyBurned` sample. */
+  activeEnergyKcal: number;
+  /**
+   * Basal (resting) energy in kilocalories for the workout interval — becomes
+   * the workout's `basalEnergyBurned` sample, so Apple Fitness renders Total as
+   * Active + Basal. Pass `0` when basal data is unavailable; the native module
+   * will skip the sample and Apple Fitness will fall back to Active = Total.
+   */
+  basalEnergyKcal: number;
   /** Total distance in meters */
   totalDistanceMeters: number;
   /** Per-sample heart-rate trace attached to the workout */

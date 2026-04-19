@@ -8,11 +8,24 @@ import {
 } from '../diagnostics/appleHealthDiagnostics';
 import type { PersistedTrainingSample, PersistedTrainingSession } from '../../types/sessionPersistence';
 
+interface BasalEnergyQueryOptions {
+  startDate: string;
+  endDate: string;
+}
+
+interface BasalEnergySample {
+  value: number;
+}
+
 interface HealthKitNativeModule {
   initHealthKit: (permissions: HealthKitPermissions, callback: (error: HealthKitErrorLike) => void) => void;
   getAuthStatus: (
     permissions: HealthKitPermissions,
     callback: (error: HealthKitErrorLike, result: HealthStatusResult) => void,
+  ) => void;
+  getBasalEnergyBurned: (
+    options: BasalEnergyQueryOptions,
+    callback: (error: HealthKitErrorLike, results: BasalEnergySample[]) => void,
   ) => void;
 }
 
@@ -227,6 +240,51 @@ function mapCyclingSamples(
   return mapped;
 }
 
+/**
+ * Sums HealthKit `basalEnergyBurned` samples over the workout interval so the
+ * Apple Health upload can attach a Basal cumulative sample alongside Active.
+ * Returns 0 when the library reports an error or no samples — the native
+ * module then skips emitting the Basal sample and Apple Fitness renders
+ * Active = Total, matching pre-split behavior.
+ */
+function queryBasalEnergyKcal(startedAtMs: number, endedAtMs: number): Promise<number> {
+  return new Promise((resolve) => {
+    let healthKit: HealthKitNativeModule;
+    try {
+      healthKit = getHealthKit();
+    } catch (error: unknown) {
+      appendAppleHealthDiagnostic('basalEnergy-query-module-unavailable', { error });
+      resolve(0);
+      return;
+    }
+
+    const options: BasalEnergyQueryOptions = {
+      startDate: new Date(startedAtMs).toISOString(),
+      endDate: new Date(endedAtMs).toISOString(),
+    };
+
+    healthKit.getBasalEnergyBurned(options, (error, results) => {
+      if (error) {
+        appendAppleHealthDiagnostic('basalEnergy-query-error', { error, options });
+        resolve(0);
+        return;
+      }
+      const totalKcal = Array.isArray(results)
+        ? results.reduce((sum, sample) => {
+            const value = sample?.value;
+            return typeof value === 'number' && Number.isFinite(value) ? sum + value : sum;
+          }, 0)
+        : 0;
+      appendAppleHealthDiagnostic('basalEnergy-query-success', {
+        options,
+        sampleCount: Array.isArray(results) ? results.length : 0,
+        totalKcal,
+      });
+      resolve(totalKcal);
+    });
+  });
+}
+
 export async function saveWorkout(
   session: PersistedTrainingSession,
   samples: PersistedTrainingSample[],
@@ -238,12 +296,14 @@ export async function saveWorkout(
   const cyclingPowerSamples = mapCyclingSamples(samples, (m) => m.power);
   const cyclingCadenceSamples = mapCyclingSamples(samples, (m) => m.cadence);
   const cyclingSpeedSamples = mapCyclingSamples(samples, (m) => m.speed * KMH_TO_MPS);
+  const basalEnergyKcal = await queryBasalEnergyKcal(session.startedAtMs, endDateMs);
 
   try {
     const workoutId = await AppleHealthWorkout.saveCyclingWorkout({
       startDate,
       endDate,
-      totalEnergyKcal: session.totalCaloriesKcal,
+      activeEnergyKcal: session.totalCaloriesKcal,
+      basalEnergyKcal,
       totalDistanceMeters: session.totalDistanceMeters,
       heartRateSamples,
       cyclingPowerSamples,
@@ -254,7 +314,8 @@ export async function saveWorkout(
       workoutId,
       startDate,
       endDate,
-      calories: session.totalCaloriesKcal,
+      activeEnergyKcal: session.totalCaloriesKcal,
+      basalEnergyKcal,
       distanceMeters: session.totalDistanceMeters,
       hrSampleCount: heartRateSamples.length,
       powerSampleCount: cyclingPowerSamples.length,
@@ -267,7 +328,8 @@ export async function saveWorkout(
       error,
       startDate,
       endDate,
-      calories: session.totalCaloriesKcal,
+      activeEnergyKcal: session.totalCaloriesKcal,
+      basalEnergyKcal,
       distanceMeters: session.totalDistanceMeters,
       hrSampleCount: heartRateSamples.length,
       powerSampleCount: cyclingPowerSamples.length,

@@ -62,7 +62,8 @@ public class AppleHealthWorkoutModule: Module {
         return
       }
 
-      let totalEnergyKcal = (options["totalEnergyKcal"] as? NSNumber)?.doubleValue ?? 0
+      let activeEnergyKcal = (options["activeEnergyKcal"] as? NSNumber)?.doubleValue ?? 0
+      let basalEnergyKcal = (options["basalEnergyKcal"] as? NSNumber)?.doubleValue ?? 0
       let totalDistanceMeters = (options["totalDistanceMeters"] as? NSNumber)?.doubleValue ?? 0
       let rawHrSamples = options["heartRateSamples"] as? [[String: Any]] ?? []
       let rawPowerSamples = options["cyclingPowerSamples"] as? [[String: Any]] ?? []
@@ -100,11 +101,25 @@ public class AppleHealthWorkoutModule: Module {
 
         var samplesToAdd: [HKSample] = []
 
-        if totalEnergyKcal > 0 {
-          let energyQuantity = HKQuantity(unit: .kilocalorie(), doubleValue: totalEnergyKcal)
+        if activeEnergyKcal > 0 {
+          let activeEnergyQuantity = HKQuantity(unit: .kilocalorie(), doubleValue: activeEnergyKcal)
           samplesToAdd.append(HKCumulativeQuantitySample(
             type: HKQuantityType(.activeEnergyBurned),
-            quantity: energyQuantity,
+            quantity: activeEnergyQuantity,
+            start: startDate,
+            end: endDate
+          ))
+        }
+
+        // Basal sample is optional — the JS caller passes 0 when HealthKit
+        // basal data is unavailable. Omitting it causes Apple Fitness to
+        // render Total == Active (pre-split behavior), which is the safe
+        // graceful-degradation path.
+        if basalEnergyKcal > 0 {
+          let basalEnergyQuantity = HKQuantity(unit: .kilocalorie(), doubleValue: basalEnergyKcal)
+          samplesToAdd.append(HKCumulativeQuantitySample(
+            type: HKQuantityType(.basalEnergyBurned),
+            quantity: basalEnergyQuantity,
             start: startDate,
             end: endDate
           ))

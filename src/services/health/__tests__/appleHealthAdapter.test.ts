@@ -13,6 +13,7 @@ jest.mock('apple-health-workout', () => ({
 
 const mockInit = jest.fn();
 const mockGetAuthStatus = jest.fn();
+const mockGetBasalEnergyBurned = jest.fn();
 const mockSaveCyclingWorkout = AppleHealthWorkout.saveCyclingWorkout as jest.Mock;
 const mockRequestCyclingAuth = AppleHealthWorkout.requestCyclingMetricsAuthorization as jest.Mock;
 
@@ -62,6 +63,7 @@ beforeEach(() => {
   NativeModules.AppleHealthKit = {
     initHealthKit: mockInit,
     getAuthStatus: mockGetAuthStatus,
+    getBasalEnergyBurned: mockGetBasalEnergyBurned,
   };
   mockGetAuthStatus.mockImplementation((_permissions, callback) =>
     callback(null, {
@@ -71,6 +73,9 @@ beforeEach(() => {
       },
     }),
   );
+  // Default: basal query returns an empty sample list (Apple Fitness will
+  // render Active = Total for tests that don't override this).
+  mockGetBasalEnergyBurned.mockImplementation((_options, callback) => callback(null, []));
 });
 
 describe('initWithWritePermissions', () => {
@@ -79,7 +84,7 @@ describe('initWithWritePermissions', () => {
     await expect(initWithWritePermissions()).resolves.toBeUndefined();
     const permissionsArg = mockInit.mock.calls[0][0];
     expect(permissionsArg.permissions.write).toEqual(['Workout', 'ActiveEnergyBurned', 'DistanceCycling', 'HeartRate']);
-    expect(permissionsArg.permissions.read).toEqual([]);
+    expect(permissionsArg.permissions.read).toEqual(['BasalEnergyBurned']);
     expect(mockRequestCyclingAuth).toHaveBeenCalledTimes(1);
   });
 
@@ -126,7 +131,8 @@ describe('saveWorkout', () => {
     expect(payload).toMatchObject({
       startDate: '2023-11-14T22:13:20.000Z',
       endDate: '2023-11-14T23:13:20.000Z',
-      totalEnergyKcal: 450,
+      activeEnergyKcal: 450,
+      basalEnergyKcal: 0,
       totalDistanceMeters: 18000,
       heartRateSamples: [
         { bpm: 120, timestampMs: SESSION.startedAtMs },
@@ -168,5 +174,40 @@ describe('saveWorkout', () => {
   it('rejects when the native module rejects', async () => {
     mockSaveCyclingWorkout.mockRejectedValue(new Error('not authorized'));
     await expect(saveWorkout(SESSION, [])).rejects.toThrow('not authorized');
+  });
+
+  it('queries basal energy for the workout interval and forwards the summed value to the native module', async () => {
+    mockSaveCyclingWorkout.mockResolvedValue('workout-uuid-3');
+    mockGetBasalEnergyBurned.mockImplementation((_options, callback) => callback(null, [{ value: 5 }, { value: 7 }]));
+
+    await saveWorkout(SESSION, []);
+
+    const basalQueryOptions = mockGetBasalEnergyBurned.mock.calls[0][0];
+    expect(basalQueryOptions).toEqual({
+      startDate: '2023-11-14T22:13:20.000Z',
+      endDate: '2023-11-14T23:13:20.000Z',
+    });
+    const payload = mockSaveCyclingWorkout.mock.calls[0][0];
+    expect(payload).toMatchObject({ activeEnergyKcal: 450, basalEnergyKcal: 12 });
+  });
+
+  it('passes basalEnergyKcal=0 when the library reports a callback error (no throw)', async () => {
+    mockSaveCyclingWorkout.mockResolvedValue('workout-uuid-4');
+    mockGetBasalEnergyBurned.mockImplementation((_options, callback) => callback('HealthKit read failed', []));
+
+    await expect(saveWorkout(SESSION, [])).resolves.toEqual({ workoutId: 'workout-uuid-4' });
+
+    const payload = mockSaveCyclingWorkout.mock.calls[0][0];
+    expect(payload).toMatchObject({ activeEnergyKcal: 450, basalEnergyKcal: 0 });
+  });
+
+  it('passes basalEnergyKcal=0 when HealthKit returns zero basal samples for the interval', async () => {
+    mockSaveCyclingWorkout.mockResolvedValue('workout-uuid-5');
+    mockGetBasalEnergyBurned.mockImplementation((_options, callback) => callback(null, []));
+
+    await saveWorkout(SESSION, []);
+
+    const payload = mockSaveCyclingWorkout.mock.calls[0][0];
+    expect(payload).toMatchObject({ activeEnergyKcal: 450, basalEnergyKcal: 0 });
   });
 });
