@@ -24,6 +24,7 @@ export interface DeviceConnectionStore {
   lastBikeSignalAtMs: number | null;
   latestBluetoothHr: number | null;
   latestAppleWatchHr: number | null;
+  latestAppleWatchActiveKcal: number | null;
   watchAvailability: WatchAvailability;
 
   // ── Actions ────────────────────────────────────────────
@@ -34,6 +35,7 @@ export interface DeviceConnectionStore {
   updateBikeMetrics: (metrics: BikeMetrics) => void;
   updateBluetoothHr: (hr: number) => void;
   updateAppleWatchHr: (hr: number | null) => void;
+  updateAppleWatchActiveKcal: (kcal: number | null) => void;
   setWatchAvailability: (availability: WatchAvailability) => void;
   clearBikeConnection: () => void;
   clearHrConnection: () => void;
@@ -49,6 +51,7 @@ export const useDeviceConnectionStore = create<DeviceConnectionStore>((set) => (
   lastBikeSignalAtMs: null,
   latestBluetoothHr: null,
   latestAppleWatchHr: null,
+  latestAppleWatchActiveKcal: null,
   watchAvailability: 'unavailable',
 
   setBikeAdapter: (adapter) =>
@@ -66,6 +69,7 @@ export const useDeviceConnectionStore = create<DeviceConnectionStore>((set) => (
     }),
   updateBluetoothHr: (hr) => set({ latestBluetoothHr: hr }),
   updateAppleWatchHr: (hr) => set({ latestAppleWatchHr: hr }),
+  updateAppleWatchActiveKcal: (kcal) => set({ latestAppleWatchActiveKcal: kcal }),
   setWatchAvailability: (watchAvailability) =>
     set((state) => (state.watchAvailability === watchAvailability ? state : { watchAvailability })),
   clearBikeConnection: () =>
@@ -90,6 +94,7 @@ export const useDeviceConnectionStore = create<DeviceConnectionStore>((set) => (
       lastBikeSignalAtMs: null,
       latestBluetoothHr: null,
       latestAppleWatchHr: null,
+      latestAppleWatchActiveKcal: null,
       watchAvailability: 'unavailable',
     }),
 }));
