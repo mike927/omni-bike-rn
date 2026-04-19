@@ -83,7 +83,13 @@ describe('initWithWritePermissions', () => {
     mockInit.mockImplementation((_permissions, callback) => callback(null));
     await expect(initWithWritePermissions()).resolves.toBeUndefined();
     const permissionsArg = mockInit.mock.calls[0][0];
-    expect(permissionsArg.permissions.write).toEqual(['Workout', 'ActiveEnergyBurned', 'DistanceCycling', 'HeartRate']);
+    expect(permissionsArg.permissions.write).toEqual([
+      'Workout',
+      'ActiveEnergyBurned',
+      'DistanceCycling',
+      'HeartRate',
+      'BasalEnergyBurned',
+    ]);
     expect(permissionsArg.permissions.read).toEqual(['BasalEnergyBurned']);
     expect(mockRequestCyclingAuth).toHaveBeenCalledTimes(1);
   });

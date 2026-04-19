@@ -41,6 +41,10 @@ const HEALTHKIT_WRITE_PERMISSIONS: readonly HealthPermissionName[] = [
   HEALTH_PERMISSION_ACTIVE_ENERGY_BURNED,
   HEALTH_PERMISSION_DISTANCE_CYCLING,
   HEALTH_PERMISSION_HEART_RATE,
+  // Part B attaches a basalEnergyBurned sample to each saved workout so Apple
+  // Fitness can render the Active / Total split. Without the write permission
+  // HealthKit rejects `builder.add(samples)` with "Not authorized".
+  HEALTH_PERMISSION_BASAL_ENERGY_BURNED,
 ];
 const HEALTHKIT_READ_PERMISSIONS: readonly HealthPermissionName[] = [HEALTH_PERMISSION_BASAL_ENERGY_BURNED];
 
