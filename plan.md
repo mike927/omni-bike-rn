@@ -157,15 +157,15 @@ Three-part initiative to align our calorie numbers with Apple Fitness and Strava
 
 ### Part C: User Profile for personalized calorie calculation
 
-- [ ] User Profile screen in Settings (sex, date of birth, weight, height)
-- [ ] Auto-fill from Apple Health when connected (authoritative source)
-- [ ] Seed from Strava athlete API when Apple Health absent (weight + sex only)
-- [ ] Per-field source indicator ("Apple Health" / "Strava" / "Manual")
-- [ ] Local persistence; manual edits preserved across auto-syncs
-- [ ] HR-based formula (Keytel) when external HR + profile both available
-- [ ] Basal fallback: Mifflin–St Jeor when HealthKit returns no samples (depends on user profile)
-- [ ] Final source priority: Watch > HR + profile (Keytel) > power-based > bike-reported
-- [ ] Graceful degradation: missing profile never blocks calorie calculation
+- [~] User Profile screen in Settings (sex, date of birth, weight, height)
+- [~] Auto-fill from Apple Health when connected (authoritative source)
+- [~] Seed from Strava athlete API when Apple Health absent (weight + sex only)
+- [~] Per-field source indicator ("Apple Health" / "Strava" / "Manual")
+- [~] Local persistence; manual edits preserved across auto-syncs
+- [~] HR-based formula (Keytel) when external HR + profile both available
+- [~] Basal fallback: Mifflin–St Jeor when HealthKit returns no samples (depends on user profile)
+- [~] Final source priority: Watch > HR + profile (Keytel) > power-based > bike-reported
+- [~] Graceful degradation: missing profile never blocks calorie calculation
 
 ## Phase 10: UX & Visual Design Polish
 
