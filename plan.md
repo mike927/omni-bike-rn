@@ -136,12 +136,36 @@ Standard Bluetooth HR sensors are expected to work via the BLE HR flow before th
 - [~] Just-in-time permission UX for watch / health integrations
 - [~] Minimal UI elements needed for watch status and source visibility
 
-## Phase 9: User Profile & Personalized Metrics
+## Phase 9: Calorie Accuracy & User Profile
 
-- [ ] User profile setup (age, weight, sex) in Settings
-- [ ] HR-based calorie formula (Keytel et al.) when HR data and user profile are available
-- [ ] Hybrid calorie strategy: HR-based (preferred) → power-based with efficiency → bike-reported (fallback)
-- [ ] Persist user profile for use across sessions
+Three-part initiative to align our calorie numbers with Apple Fitness and Strava, and make the app accurate for users outside Apple's ecosystem.
+
+### Part A: Live calories on dashboard + Watch-computed source
+
+- [ ] Add live Calories tile to training dashboard
+- [ ] Enable Watch-side collection of active calories during the workout session
+- [ ] Stream Watch-computed calories alongside HR via WatchConnectivity
+- [ ] Source priority: Watch > existing power-based formula
+- [ ] Fallback when no Watch connected: keep current power-based calculation
+
+### Part B: Active vs. Total split in Apple Health upload
+
+- [ ] Post-session HealthKit query for basal energy over the workout interval
+- [ ] Native module accepts separate active + basal calorie parameters
+- [ ] Emit two samples (active + basal) per saved workout so Apple Fitness shows distinct Active / Total values
+- [ ] Basal fallback: Mifflin–St Jeor when HealthKit returns no samples
+- [ ] Strava upload unchanged — still receives a single Total value
+
+### Part C: User Profile for personalized calorie calculation
+
+- [ ] User Profile screen in Settings (sex, date of birth, weight, height)
+- [ ] Auto-fill from Apple Health when connected (authoritative source)
+- [ ] Seed from Strava athlete API when Apple Health absent (weight + sex only)
+- [ ] Per-field source indicator ("Apple Health" / "Strava" / "Manual")
+- [ ] Local persistence; manual edits preserved across auto-syncs
+- [ ] HR-based formula (Keytel) when external HR + profile both available
+- [ ] Final source priority: Watch > HR + profile (Keytel) > power-based > bike-reported
+- [ ] Graceful degradation: missing profile never blocks calorie calculation
 
 ## Phase 10: UX & Visual Design Polish
 
