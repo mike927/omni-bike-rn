@@ -111,10 +111,7 @@ public class AppleHealthWorkoutModule: Module {
           ))
         }
 
-        // Basal sample is optional — the JS caller passes 0 when HealthKit
-        // basal data is unavailable. Omitting it causes Apple Fitness to
-        // render Total == Active (pre-split behavior), which is the safe
-        // graceful-degradation path.
+        // Omit when 0 so Apple Fitness falls back to Active == Total (pre-split behavior).
         if basalEnergyKcal > 0 {
           let basalEnergyQuantity = HKQuantity(unit: .kilocalorie(), doubleValue: basalEnergyKcal)
           samplesToAdd.append(HKCumulativeQuantitySample(

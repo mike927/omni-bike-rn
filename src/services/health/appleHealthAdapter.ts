@@ -1,5 +1,5 @@
 import { NativeModules } from 'react-native';
-import type { HealthKitPermissions, HealthStatusResult } from 'react-native-health';
+import type { HealthKitPermissions, HealthStatusResult, HealthValue } from 'react-native-health';
 
 import { AppleHealthWorkout, type CyclingQuantitySampleInput, type HeartRateSampleInput } from 'apple-health-workout';
 import {
@@ -13,10 +13,6 @@ interface BasalEnergyQueryOptions {
   endDate: string;
 }
 
-interface BasalEnergySample {
-  value: number;
-}
-
 interface HealthKitNativeModule {
   initHealthKit: (permissions: HealthKitPermissions, callback: (error: HealthKitErrorLike) => void) => void;
   getAuthStatus: (
@@ -25,7 +21,7 @@ interface HealthKitNativeModule {
   ) => void;
   getBasalEnergyBurned: (
     options: BasalEnergyQueryOptions,
-    callback: (error: HealthKitErrorLike, results: BasalEnergySample[]) => void,
+    callback: (error: HealthKitErrorLike, results: HealthValue[]) => void,
   ) => void;
 }
 
@@ -55,8 +51,6 @@ const HEALTHKIT_WRITE_PERMISSIONS: readonly HealthPermissionName[] = [
   HEALTH_PERMISSION_DISTANCE_CYCLING,
   HEALTH_PERMISSION_HEART_RATE,
 ];
-// Read permissions: basal energy is queried post-session so the Apple Health
-// upload can split the workout's calorie total into Active + Total samples.
 const HEALTHKIT_READ_PERMISSIONS: readonly HealthPermissionName[] = [HEALTH_PERMISSION_BASAL_ENERGY_BURNED];
 
 function getHealthKit(): HealthKitNativeModule {
