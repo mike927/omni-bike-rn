@@ -28,6 +28,7 @@ export function useWatchHr(): void {
   const watchAvailable = isAppleWatchAvailable(Platform.OS);
   const adapterRef = useRef<WatchHrAdapter | null>(null);
   const subRef = useRef<{ remove: () => void } | null>(null);
+  const kcalSubRef = useRef<{ remove: () => void } | null>(null);
   const latestStartRequestAtRef = useRef(0);
   const streamGenerationRef = useRef(0);
   // Synchronous guard against re-entrant startStream invocations. `adapterRef`
@@ -38,6 +39,7 @@ export function useWatchHr(): void {
   const startingRef = useRef(false);
 
   const updateAppleWatchHr = useDeviceConnectionStore((s) => s.updateAppleWatchHr);
+  const updateAppleWatchActiveKcal = useDeviceConnectionStore((s) => s.updateAppleWatchActiveKcal);
   const setWatchAvailability = useDeviceConnectionStore((s) => s.setWatchAvailability);
   const phase = useTrainingSessionStore((s) => s.phase);
   const watchHrEnabled = useWatchHrStore((s) => s.enabled);
@@ -92,15 +94,21 @@ export function useWatchHr(): void {
         setWatchAvailability('in_progress');
       }
     });
-  }, [setWatchAvailability, watchAvailable, updateAppleWatchHr]);
+    kcalSubRef.current = adapter.subscribeToActiveKcal((kcal) => {
+      updateAppleWatchActiveKcal(kcal);
+    });
+  }, [setWatchAvailability, watchAvailable, updateAppleWatchHr, updateAppleWatchActiveKcal]);
 
   const stopStream = useCallback(async () => {
-    const hadStream = adapterRef.current !== null || subRef.current !== null || startingRef.current;
+    const hadStream =
+      adapterRef.current !== null || subRef.current !== null || kcalSubRef.current !== null || startingRef.current;
     streamGenerationRef.current += 1;
     if (!hadStream) return;
 
     subRef.current?.remove();
     subRef.current = null;
+    kcalSubRef.current?.remove();
+    kcalSubRef.current = null;
 
     if (adapterRef.current) {
       try {
@@ -112,7 +120,8 @@ export function useWatchHr(): void {
     }
 
     updateAppleWatchHr(null);
-  }, [updateAppleWatchHr]);
+    updateAppleWatchActiveKcal(null);
+  }, [updateAppleWatchHr, updateAppleWatchActiveKcal]);
 
   // Refs shadow current values so the listener effect below stays mount-only.
   // Re-registering would trigger thousands of redundant `activate()` calls.
@@ -168,6 +177,7 @@ export function useWatchHr(): void {
 
         setWatchAvailability('unavailable');
         updateAppleWatchHr(null);
+        updateAppleWatchActiveKcal(null);
         return;
       }
       // Step up to `idle` only when coming from `unavailable`; a concurrent
@@ -202,5 +212,5 @@ export function useWatchHr(): void {
       reachabilitySub.remove();
       sessionStateSub.remove();
     };
-  }, [watchAvailable, updateAppleWatchHr, setWatchAvailability]);
+  }, [watchAvailable, updateAppleWatchHr, updateAppleWatchActiveKcal, setWatchAvailability]);
 }
