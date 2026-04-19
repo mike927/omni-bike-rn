@@ -2,6 +2,8 @@
  * Training session types shared across store, engine, and feature hooks.
  */
 
+import type { KeytelInputs } from './userProfile';
+
 export enum TrainingPhase {
   Idle = 'idle',
   Active = 'active',
@@ -49,9 +51,16 @@ export interface TrainingTickInput {
   watchActiveKcal: number | null;
   /** Whether an external HR source is actively reporting on this tick. */
   hasLiveExternalHr: boolean;
+  /**
+   * Profile-derived inputs for the Keytel HR-based calorie formula. Non-null
+   * when the user's sex, date of birth, and weight are all set. The training
+   * store uses this to switch the no-Watch + external-HR path from the generic
+   * power formula to the personalized Keytel formula.
+   */
+  keytelInputs: KeytelInputs | null;
 }
 
-export type CalorieSourceMode = 'app' | 'bike' | 'watch' | 'none';
+export type CalorieSourceMode = 'keytel' | 'app' | 'bike' | 'watch' | 'none';
 
 /** Allowed transitions for the training state machine. */
 export const VALID_TRANSITIONS: Readonly<Record<TrainingPhase, readonly TrainingPhase[]>> = {

@@ -50,6 +50,7 @@ describe('useTrainingSessionPersistence', () => {
     bikeTotalEnergyKcal: null,
     watchActiveKcal: null,
     hasLiveExternalHr: true,
+    keytelInputs: null,
   };
 
   beforeEach(() => {

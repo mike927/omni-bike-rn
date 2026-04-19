@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { kcalPerSecond } from '../services/calories/keytel';
 import {
   TrainingPhase,
   VALID_TRANSITIONS,
@@ -133,7 +134,7 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
 
   // ── Tick (called by MetronomeEngine every 1 s) ─────────
   tick: (input) => {
-    const { metrics, bikeTotalEnergyKcal, watchActiveKcal, hasLiveExternalHr } = input;
+    const { metrics, bikeTotalEnergyKcal, watchActiveKcal, hasLiveExternalHr, keytelInputs } = input;
     const {
       phase,
       elapsedSeconds,
@@ -181,9 +182,13 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
     let nextLastWatchActiveKcal: number | null = null;
     let nextCalorieSourceMode: CalorieSourceMode = 'none';
 
-    // Priority: Watch-computed active kcal > app-power formula > bike-reported
-    // energy > none. Watch must win even when `hasLiveExternalHr` is true,
-    // because the Watch typically provides HR as well.
+    // Priority: Watch-computed active kcal > Keytel HR-based personalized
+    // formula > app-power formula > bike-reported energy > none. Watch must
+    // win even when `hasLiveExternalHr` is true, because the Watch typically
+    // provides HR as well. Keytel slots in between Watch and the generic power
+    // formula on the no-Watch + external-HR path; it requires sex / DOB /
+    // weight (passed in `keytelInputs`) and a live HR value, otherwise the
+    // chain falls through transparently to the power-based formula.
     if (watchActiveKcal !== null) {
       // Rebase on first watch tick, on any source switch into 'watch', and on
       // a cumulative drop (Watch HK session was restarted mid-ride). The offset
@@ -202,6 +207,17 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
       nextLastWatchActiveKcal = watchActiveKcal;
       nextBikeCaloriesOffset = null;
       nextCalorieSourceMode = 'watch';
+    } else if (hasLiveExternalHr && keytelInputs !== null && metrics.heartRate !== null && metrics.heartRate > 0) {
+      const calorieDelta = kcalPerSecond({
+        sex: keytelInputs.sex,
+        ageYears: keytelInputs.ageYears,
+        weightKg: keytelInputs.weightKg,
+        heartRateBpm: metrics.heartRate,
+      });
+      nextTotalCalories = totalCalories + calorieDelta;
+      nextBikeCaloriesOffset = null;
+      nextWatchCaloriesOffset = null;
+      nextCalorieSourceMode = 'keytel';
     } else if (hasLiveExternalHr) {
       // Metabolic calorie delta: mechanical work adjusted for gross efficiency
       const calorieDelta = metrics.power / JOULES_PER_KCAL / GROSS_MECHANICAL_EFFICIENCY;

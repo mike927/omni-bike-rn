@@ -39,6 +39,7 @@ describe('trainingSessionStore', () => {
     bikeTotalEnergyKcal: null,
     watchActiveKcal: null,
     hasLiveExternalHr: false,
+    keytelInputs: null,
     ...overrides,
   });
 
@@ -386,6 +387,88 @@ describe('trainingSessionStore', () => {
       useTrainingSessionStore.getState().tick(makeTickInput({ speed: 30, heartRate: 155 }));
 
       expect(useTrainingSessionStore.getState().currentMetrics).toEqual(sample);
+    });
+
+    describe('Keytel HR-based personalized calories', () => {
+      const KEYTEL = { sex: 'male' as const, ageYears: 35, weightKg: 80 };
+
+      it('uses the Keytel formula when external HR + complete profile + heart rate are present', () => {
+        useTrainingSessionStore.getState().start();
+        useTrainingSessionStore
+          .getState()
+          .tick(makeTickInput({ heartRate: 150 }, { hasLiveExternalHr: true, keytelInputs: KEYTEL }));
+        const state = useTrainingSessionStore.getState();
+        expect(state.lastCalorieSourceMode).toBe('keytel');
+        // Reference: ((-55.0969 + 0.6309*150 + 0.1988*80 + 0.2017*35) / 4.184) / 60 ≈ 0.249 kcal/s
+        expect(state.totalCalories).toBeCloseTo(0.249, 2);
+      });
+
+      it('falls through to the power-based formula when keytelInputs is null', () => {
+        useTrainingSessionStore.getState().start();
+        useTrainingSessionStore
+          .getState()
+          .tick(makeTickInput({ power: 4186, heartRate: 150 }, { hasLiveExternalHr: true, keytelInputs: null }));
+        expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('app');
+        expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(4, 5);
+      });
+
+      it('falls through to the power-based formula when heart rate is missing on this tick', () => {
+        useTrainingSessionStore.getState().start();
+        useTrainingSessionStore
+          .getState()
+          .tick(makeTickInput({ power: 4186, heartRate: null }, { hasLiveExternalHr: true, keytelInputs: KEYTEL }));
+        expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('app');
+        expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(4, 5);
+      });
+
+      it('lets Watch active kcal beat Keytel when both are present', () => {
+        useTrainingSessionStore.getState().start();
+        useTrainingSessionStore.getState().tick(
+          makeTickInput(
+            { heartRate: 150 },
+            {
+              hasLiveExternalHr: true,
+              keytelInputs: KEYTEL,
+              watchActiveKcal: 10,
+            },
+          ),
+        );
+        expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('watch');
+      });
+
+      it('switches from Keytel to Watch without a calorie jump', () => {
+        useTrainingSessionStore.getState().start();
+        useTrainingSessionStore
+          .getState()
+          .tick(makeTickInput({ heartRate: 150 }, { hasLiveExternalHr: true, keytelInputs: KEYTEL }));
+        useTrainingSessionStore
+          .getState()
+          .tick(makeTickInput({ heartRate: 150 }, { hasLiveExternalHr: true, keytelInputs: KEYTEL }));
+        const before = useTrainingSessionStore.getState().totalCalories;
+
+        useTrainingSessionStore
+          .getState()
+          .tick(
+            makeTickInput({ heartRate: 150 }, { hasLiveExternalHr: true, keytelInputs: KEYTEL, watchActiveKcal: 200 }),
+          );
+        expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(before, 5);
+        expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('watch');
+      });
+
+      it('switches from Keytel to bike calories without a jump when HR drops away', () => {
+        useTrainingSessionStore.getState().start();
+        useTrainingSessionStore
+          .getState()
+          .tick(makeTickInput({ heartRate: 150 }, { hasLiveExternalHr: true, keytelInputs: KEYTEL }));
+        const after1 = useTrainingSessionStore.getState().totalCalories;
+
+        useTrainingSessionStore.getState().tick(makeTickInput({}, { bikeTotalEnergyKcal: 500 }));
+        expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(after1, 5);
+        expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('bike');
+
+        useTrainingSessionStore.getState().tick(makeTickInput({}, { bikeTotalEnergyKcal: 502 }));
+        expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(after1 + 2, 5);
+      });
     });
   });
 
