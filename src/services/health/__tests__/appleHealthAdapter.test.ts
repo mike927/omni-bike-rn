@@ -210,4 +210,16 @@ describe('saveWorkout', () => {
     const payload = mockSaveCyclingWorkout.mock.calls[0][0];
     expect(payload).toMatchObject({ activeEnergyKcal: 450, basalEnergyKcal: 0 });
   });
+
+  it('passes basalEnergyKcal=0 when the bridge itself throws synchronously (no upload failure)', async () => {
+    mockSaveCyclingWorkout.mockResolvedValue('workout-uuid-6');
+    mockGetBasalEnergyBurned.mockImplementation(() => {
+      throw new Error('getBasalEnergyBurned is not a function');
+    });
+
+    await expect(saveWorkout(SESSION, [])).resolves.toEqual({ workoutId: 'workout-uuid-6' });
+
+    const payload = mockSaveCyclingWorkout.mock.calls[0][0];
+    expect(payload).toMatchObject({ activeEnergyKcal: 450, basalEnergyKcal: 0 });
+  });
 });

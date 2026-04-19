@@ -257,25 +257,34 @@ function queryBasalEnergyKcal(startedAtMs: number, endedAtMs: number): Promise<n
       endDate: new Date(endedAtMs).toISOString(),
     };
 
-    healthKit.getBasalEnergyBurned(options, (error, results) => {
-      if (error) {
-        appendAppleHealthDiagnostic('basalEnergy-query-error', { error, options });
-        resolve(0);
-        return;
-      }
-      const totalKcal = Array.isArray(results)
-        ? results.reduce((sum, sample) => {
-            const value = sample?.value;
-            return typeof value === 'number' && Number.isFinite(value) ? sum + value : sum;
-          }, 0)
-        : 0;
-      appendAppleHealthDiagnostic('basalEnergy-query-success', {
-        options,
-        sampleCount: Array.isArray(results) ? results.length : 0,
-        totalKcal,
+    try {
+      healthKit.getBasalEnergyBurned(options, (error, results) => {
+        if (error) {
+          appendAppleHealthDiagnostic('basalEnergy-query-error', { error, options });
+          resolve(0);
+          return;
+        }
+        const totalKcal = Array.isArray(results)
+          ? results.reduce((sum, sample) => {
+              const value = sample?.value;
+              return typeof value === 'number' && Number.isFinite(value) ? sum + value : sum;
+            }, 0)
+          : 0;
+        appendAppleHealthDiagnostic('basalEnergy-query-success', {
+          options,
+          sampleCount: Array.isArray(results) ? results.length : 0,
+          totalKcal,
+        });
+        resolve(totalKcal);
       });
-      resolve(totalKcal);
-    });
+    } catch (error: unknown) {
+      // Guard a synchronous throw from the bridge itself (e.g. a stale bundle
+      // where `getBasalEnergyBurned` is missing). Without this, the rejection
+      // propagates out of saveWorkout and a basal-read failure fails the whole
+      // upload — the opposite of the graceful-degradation invariant.
+      appendAppleHealthDiagnostic('basalEnergy-query-threw', { error, options });
+      resolve(0);
+    }
   });
 }
 
