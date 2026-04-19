@@ -58,7 +58,18 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
     'expo-web-browser',
     'expo-secure-store',
-    './plugins/with-watch-extension',
+    // Custom minimal HealthKit plugin — replaces `react-native-health`'s bundled
+    // plugin to avoid the Clinical Records (`com.apple.developer.healthkit.access`)
+    // entitlement it writes unconditionally. The rn-health pod is still autolinked.
+    [
+      './plugins/with-healthkit-minimal',
+      {
+        healthSharePermission:
+          'Omni Bike reads your heart rate from Apple Watch to display live HR during training sessions.',
+        healthUpdatePermission:
+          'Omni Bike saves your completed indoor cycling workouts (duration, distance, and calories) to Apple Health.',
+      },
+    ],
   ],
   extra: {
     // Register a Strava API application at https://www.strava.com/settings/api

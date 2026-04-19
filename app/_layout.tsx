@@ -14,6 +14,7 @@ import { useSavedGearStore } from '../src/store/savedGearStore';
 import { useAppPreferencesStore } from '../src/store/appPreferencesStore';
 import { useProviderGearLinkStore } from '../src/store/providerGearLinkStore';
 import { useStravaConnectionStore } from '../src/store/stravaConnectionStore';
+import { useAppleHealthConnectionStore } from '../src/store/appleHealthConnectionStore';
 import { useWatchHr } from '../src/features/gear/hooks/useWatchHr';
 import { useInterruptedSessionRecovery } from '../src/features/training/hooks/useInterruptedSessionRecovery';
 import { useKeepAwakeDuringTraining } from '../src/features/training/hooks/useKeepAwakeDuringTraining';
@@ -49,6 +50,8 @@ export default function RootLayout() {
   const providerGearLinksHydrated = useProviderGearLinkStore((s) => s.hydrated);
   const hydrateStrava = useStravaConnectionStore((s) => s.hydrate);
   const stravaHydrated = useStravaConnectionStore((s) => s.hydrated);
+  const hydrateAppleHealth = useAppleHealthConnectionStore((s) => s.hydrate);
+  const appleHealthHydrated = useAppleHealthConnectionStore((s) => s.hydrated);
 
   const [isDatabaseReady, setIsDatabaseReady] = useState(false);
   const [isDatabaseError, setIsDatabaseError] = useState(false);
@@ -65,7 +68,8 @@ export default function RootLayout() {
     void hydratePrefs();
     void hydrateProviderGearLinks();
     void hydrateStrava();
-  }, [hydrateGear, hydratePrefs, hydrateProviderGearLinks, hydrateStrava]);
+    void hydrateAppleHealth();
+  }, [hydrateGear, hydratePrefs, hydrateProviderGearLinks, hydrateStrava, hydrateAppleHealth]);
 
   useEffect(() => {
     let isMounted = true;
@@ -113,7 +117,7 @@ export default function RootLayout() {
     );
   }
 
-  if (!isDatabaseReady || !prefsHydrated || !providerGearLinksHydrated || !stravaHydrated) {
+  if (!isDatabaseReady || !prefsHydrated || !providerGearLinksHydrated || !stravaHydrated || !appleHealthHydrated) {
     return (
       <>
         <StatusBar style="light" />

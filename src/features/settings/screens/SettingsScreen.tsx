@@ -4,6 +4,7 @@ import { Alert, StyleSheet, Text, View } from 'react-native';
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { useProviderBikeLinking } from '../../integrations/hooks/useProviderBikeLinking';
 import { useDeviceConnection } from '../../training/hooks/useDeviceConnection';
+import { useAppleHealthConnection } from '../../integrations/hooks/useAppleHealthConnection';
 import { useStravaConnection } from '../../integrations/hooks/useStravaConnection';
 import { useWatchHrControls } from '../../gear/hooks/useWatchHrControls';
 import { ActionButton } from '../../../ui/components/ActionButton';
@@ -79,6 +80,12 @@ export function SettingsScreen() {
     disconnect,
   } = useStravaConnection();
   const {
+    isConnected: appleHealthConnected,
+    isLoading: appleHealthLoading,
+    connect: connectAppleHealth,
+    disconnect: disconnectAppleHealth,
+  } = useAppleHealthConnection();
+  const {
     currentLink,
     status: providerBikeStatus,
     needsReconnect: providerBikeNeedsReconnect,
@@ -118,6 +125,39 @@ export function SettingsScreen() {
         },
       },
     ]);
+  };
+
+  const handleAppleHealthConnect = async () => {
+    const result = await connectAppleHealth();
+    if (!result.success) {
+      Alert.alert('Connection Failed', result.errorMessage ?? 'Could not connect to Apple Health.');
+    }
+  };
+
+  const handleAppleHealthDisconnect = async () => {
+    Alert.alert(
+      'Disconnect Apple Health',
+      'Remove the Apple Health connection? Your iPhone still controls write access in Settings → Privacy & Security → Health.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Disconnect',
+          style: 'destructive',
+          onPress: () => {
+            void disconnectAppleHealth()
+              .then((result) => {
+                if (!result.success) {
+                  Alert.alert('Disconnect Failed', result.errorMessage ?? 'Could not disconnect Apple Health.');
+                }
+              })
+              .catch((error: unknown) => {
+                console.error('[SettingsScreen] Apple Health disconnect failed', error);
+                Alert.alert('Disconnect Failed', 'An unexpected error occurred.');
+              });
+          },
+        },
+      ],
+    );
   };
 
   const handleDisconnect = async () => {
@@ -270,6 +310,32 @@ export function SettingsScreen() {
             ) : null}
           </View>
         ) : null}
+
+        <View style={styles.divider} />
+
+        <View style={styles.gearRow}>
+          <View style={styles.gearInfo}>
+            <Text style={styles.gearLabel}>Apple Health</Text>
+            <Text style={styles.gearName}>{appleHealthConnected ? 'Connected' : 'Not connected'}</Text>
+          </View>
+          <View style={styles.gearActions}>
+            {appleHealthConnected ? (
+              <ActionButton
+                label="Disconnect"
+                onPress={() => void handleAppleHealthDisconnect()}
+                variant="danger"
+                disabled={appleHealthLoading}
+              />
+            ) : (
+              <ActionButton
+                label={appleHealthLoading ? 'Connecting...' : 'Connect Apple Health'}
+                onPress={() => void handleAppleHealthConnect()}
+                variant="secondary"
+                disabled={appleHealthLoading}
+              />
+            )}
+          </View>
+        </View>
       </SectionCard>
     </AppScreen>
   );

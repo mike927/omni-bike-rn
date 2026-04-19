@@ -6,6 +6,7 @@ export interface ExportResult {
   success: boolean;
   externalId?: string;
   errorMessage?: string;
+  warningMessage?: string;
 }
 
 export interface ExportProvider {

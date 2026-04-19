@@ -3,7 +3,7 @@ require 'json'
 package = JSON.parse(File.read(File.join(__dir__, '..', 'package.json')))
 
 Pod::Spec.new do |s|
-  s.name           = 'ExpoWatchConnectivity'
+  s.name           = 'ExpoAppleHealthWorkout'
   s.version        = package['version']
   s.summary        = package['description']
   s.description    = package['description']
@@ -16,7 +16,7 @@ Pod::Spec.new do |s|
   s.static_framework = true
 
   s.dependency 'ExpoModulesCore'
-  s.frameworks = ['HealthKit', 'WatchConnectivity']
+  s.frameworks = ['HealthKit']
 
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',

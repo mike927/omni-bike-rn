@@ -28,6 +28,14 @@ export class File {
     }
   }
 
+  get exists(): boolean {
+    return files.has(this.uri);
+  }
+
+  textSync(): string {
+    return files.get(this.uri)?.content ?? '';
+  }
+
   write(content: string | Uint8Array): void {
     const nextContent = typeof content === 'string' ? content : new TextDecoder().decode(content);
     const existing = files.get(this.uri);
@@ -54,11 +62,21 @@ export class Directory {
     files.set(file.uri, { content: '', mimeType });
     return file;
   }
+
+  create(): void {}
+
+  get exists(): boolean {
+    return true;
+  }
 }
 
 export class Paths {
   static get cache(): Directory {
     return new Directory('file:///mock-cache');
+  }
+
+  static get document(): Directory {
+    return new Directory('file:///mock-document');
   }
 }
 

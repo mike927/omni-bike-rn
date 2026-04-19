@@ -52,6 +52,18 @@ enum WatchDisplayState: Equatable {
     case inProgress
 }
 
+// The Watch is a pure HR source. It never authors a persisted HKWorkout:
+// `finishWorkout` is never called, and on session end we call `discardWorkout`
+// to drop any in-progress builder data.
+//
+// HKLiveWorkoutBuilder is used strictly as a sample-delivery pipe — it is the
+// only path that continues delivering HR samples while the Watch display is
+// dimmed during an active HKWorkoutSession. HKAnchoredObjectQuery was tried
+// earlier but its updateHandler is throttled in dimmed state, which froze the
+// iPhone HR widget mid-ride. The dataSource is scoped to heart-rate only so no
+// energy / distance stats can be accidentally authored even if a future code
+// change were to call `finishWorkout`. The iPhone remains the sole author of
+// HKWorkouts via the post-session Apple Health export.
 final class WorkoutManager: NSObject, ObservableObject {
     static let shared = WorkoutManager()
 
@@ -93,11 +105,19 @@ final class WorkoutManager: NSObject, ObservableObject {
                 return
             }
             wcLog("[WC-Watch] recoverOrphanedSession: found session state=\(session.state.rawValue) — ending")
-            session.delegate = self
-            self.session = session
-            self.builder = session.associatedWorkoutBuilder()
-            self.builder?.delegate = self
-            session.end()
+            // HKWorkoutSessionDelegate conformance is main-actor-isolated (inferred
+            // from @Published state). The recover completion is nonisolated, so
+            // assign the delegate on the main actor to satisfy Swift 6 concurrency.
+            // Also recover the orphan's builder and discard it — the builder would
+            // otherwise hold collected samples that HealthKit counts as in-progress.
+            DispatchQueue.main.async {
+                session.delegate = self
+                self.session = session
+                let orphanBuilder = session.associatedWorkoutBuilder()
+                orphanBuilder.delegate = self
+                self.builder = orphanBuilder
+                session.end()
+            }
         }
     }
 
@@ -109,6 +129,10 @@ final class WorkoutManager: NSObject, ObservableObject {
             wcLog("[WC-Watch] requestAuthorization: Health data not available")
             return
         }
+        // HKWorkoutSession requires write authorization for HKWorkoutType even though
+        // we never save an HKWorkout ourselves — it's a precondition of the session
+        // start API. The companion still doesn't author a workout: there's no
+        // HKLiveWorkoutBuilder, no finishWorkout, and no HKWorkout.save call.
         healthStore.requestAuthorization(toShare: [HKObjectType.workoutType()], read: [hrType]) { [weak self] success, error in
             if let error {
                 wcLog("[WC-Watch] Authorization FAILED: \(error.localizedDescription)")
@@ -141,24 +165,42 @@ final class WorkoutManager: NSObject, ObservableObject {
             wcLog("[WC-Watch] startWorkout: creating HKWorkoutSession")
             let session = try HKWorkoutSession(healthStore: healthStore, configuration: configuration)
             wcLog("[WC-Watch] startWorkout: HKWorkoutSession created")
-            let builder = session.associatedWorkoutBuilder()
-            builder.dataSource = HKLiveWorkoutDataSource(healthStore: healthStore, workoutConfiguration: configuration)
             session.delegate = self
-            builder.delegate = self
             self.session = session
+
+            // Builder acts as the sample-delivery pipe. dataSource is scoped to HR
+            // only — no energy, distance, or cycling-specific types — so the builder
+            // can never accumulate totals that would end up on a persisted workout.
+            // (We never call finishWorkout; this is defence-in-depth.)
+            let builder = session.associatedWorkoutBuilder()
+            let dataSource = HKLiveWorkoutDataSource(healthStore: healthStore, workoutConfiguration: configuration)
+            dataSource.enableCollection(for: hrType, predicate: nil)
+            builder.dataSource = dataSource
+            builder.delegate = self
             self.builder = builder
 
             wcLog("[WC-Watch] startWorkout: calling startActivity")
-            session.startActivity(with: Date())
-            wcLog("[WC-Watch] startWorkout: calling beginCollection")
-            builder.beginCollection(withStart: Date()) { [weak self] _, error in
+            let startDate = Date()
+            session.startActivity(with: startDate)
+            builder.beginCollection(withStart: startDate) { [weak self] success, error in
                 if let error {
                     wcLog("[WC-Watch] beginCollection FAILED: \(error.localizedDescription)")
-                    self?.transition(to: .idle)
-                    self?.publishSessionState(WatchSessionStatePayload.failed)
+                    // Without teardown the UI stays `.inProgress`, subsequent
+                    // startWorkout calls no-op on `session != nil`, and the
+                    // iPhone never hears about the failure. End the HK session,
+                    // clear local state, and publish `.failed` so the companion
+                    // can recover. The `.ended` delegate will later run a
+                    // second (idempotent) teardown.
+                    DispatchQueue.main.async {
+                        guard let self else { return }
+                        self.session?.end()
+                        self.teardownSession()
+                        self.transition(to: .idle)
+                        self.publishSessionState(WatchSessionStatePayload.failed)
+                    }
                     return
                 }
-                wcLog("[WC-Watch] beginCollection succeeded")
+                wcLog("[WC-Watch] beginCollection success=\(success)")
             }
 
             // Per WWDC23 session 10023: mirror the primary session back to the
@@ -189,14 +231,17 @@ final class WorkoutManager: NSObject, ObservableObject {
         session.end()
     }
 
-    private func finalizeBuilder(at endDate: Date) {
-        guard let builder else { return }
-        builder.endCollection(withEnd: endDate) { [weak self] _, _ in
-            self?.builder?.finishWorkout { [weak self] _, _ in
-                self?.session = nil
-                self?.builder = nil
-            }
+    // `discardWorkout` is the explicit "drop all collected data, do not persist"
+    // operation on HKLiveWorkoutBuilder — the opposite of `finishWorkout`. This is
+    // what guarantees the Watch never authors a ghost HKWorkout. Called on
+    // session end and on orphan recovery.
+    private func teardownSession() {
+        if let builder {
+            builder.discardWorkout()
+            wcLog("[WC-Watch] discarded in-progress workout builder")
         }
+        builder = nil
+        session = nil
         lastHrSendAt = 0
     }
 
@@ -213,9 +258,45 @@ final class WorkoutManager: NSObject, ObservableObject {
     }
 
     private func sendHrToPhone(_ bpm: Int) {
-        guard WCSession.default.activationState == .activated,
-              WCSession.default.isReachable else { return }
-        WCSession.default.sendMessage(["hr": bpm], replyHandler: nil)
+        let payload: [String: Any] = [
+            "hr": bpm,
+            "sentAtMs": Date().timeIntervalSince1970 * 1000,
+        ]
+        let session = WCSession.default
+        guard session.activationState == .activated else {
+            wcLog("[WC-Watch] sendHrToPhone dropped: WC not activated")
+            return
+        }
+
+        if session.isReachable {
+            wcLog("[WC-Watch] sendHrToPhone: sendMessage hr=\(bpm)")
+            session.sendMessage(payload, replyHandler: nil)
+        }
+
+        if #available(watchOS 10.0, *) {
+            if let workoutSession = self.session {
+                do {
+                    let data = try JSONSerialization.data(withJSONObject: payload)
+                    Task {
+                        do {
+                            try await workoutSession.sendToRemoteWorkoutSession(data: data)
+                        } catch {
+                            wcLog("[WC-Watch] sendHrToPhone: sendToRemoteWorkoutSession FAILED: \(error.localizedDescription)")
+                        }
+                    }
+                } catch {
+                    wcLog("[WC-Watch] sendHrToPhone: payload encode FAILED: \(error.localizedDescription)")
+                }
+            } else {
+                wcLog("[WC-Watch] sendHrToPhone: missing workout session for mirrored payload")
+            }
+        }
+
+        do {
+            try session.updateApplicationContext(payload)
+        } catch {
+            wcLog("[WC-Watch] sendHrToPhone: updateApplicationContext FAILED: \(error.localizedDescription)")
+        }
     }
 
     private func publishSessionState(_ state: String) {
@@ -285,7 +366,7 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
         } else if toState == .ended {
             transition(to: .idle)
             publishSessionState(WatchSessionStatePayload.ended)
-            finalizeBuilder(at: date)
+            teardownSession()
         }
     }
 
@@ -293,27 +374,7 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
         wcLog("[WC-Watch] HKWorkoutSession didFailWithError: \(error.localizedDescription)")
         transition(to: .idle)
         publishSessionState(WatchSessionStatePayload.failed)
-    }
-}
-
-// MARK: - HKLiveWorkoutBuilderDelegate
-
-extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
-    func workoutBuilderDidCollectEvent(_ workoutBuilder: HKLiveWorkoutBuilder) {}
-
-    func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder, didCollectDataOf collectedTypes: Set<HKSampleType>) {
-        guard collectedTypes.contains(hrType),
-              let stats = workoutBuilder.statistics(for: hrType),
-              let quantity = stats.mostRecentQuantity() else { return }
-        let bpm = Int(quantity.doubleValue(for: HKUnit(from: "count/min")))
-        DispatchQueue.main.async { self.heartRate = bpm }
-
-        // Throttle to 1 Hz — MetronomeEngine on the iPhone only consumes at 1 Hz.
-        let now = Date().timeIntervalSinceReferenceDate
-        if now - lastHrSendAt >= hrSendIntervalSeconds {
-            lastHrSendAt = now
-            sendHrToPhone(bpm)
-        }
+        teardownSession()
     }
 }
 
@@ -364,6 +425,31 @@ extension WorkoutManager: WCSessionDelegate {
             stopWorkout()
         default:
             break
+        }
+    }
+}
+
+// MARK: - HKLiveWorkoutBuilderDelegate
+
+// The builder is used purely as a sample-delivery pipe: during an active
+// HKWorkoutSession its delegate continues firing while the Watch display is
+// dimmed, which HKAnchoredObjectQuery's updateHandler does not. We read the
+// latest HR from `statistics(for:)` and forward it to the iPhone. We never
+// call `finishWorkout` — `teardownSession` calls `discardWorkout` instead.
+extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
+    func workoutBuilderDidCollectEvent(_ workoutBuilder: HKLiveWorkoutBuilder) {}
+
+    func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder,
+                        didCollectDataOf collectedTypes: Set<HKSampleType>) {
+        guard collectedTypes.contains(hrType),
+              let stats = workoutBuilder.statistics(for: hrType),
+              let quantity = stats.mostRecentQuantity() else { return }
+        let bpm = Int(quantity.doubleValue(for: HKUnit(from: "count/min")))
+        DispatchQueue.main.async { self.heartRate = bpm }
+        let now = Date().timeIntervalSinceReferenceDate
+        if now - lastHrSendAt >= hrSendIntervalSeconds {
+            lastHrSendAt = now
+            sendHrToPhone(bpm)
         }
     }
 }

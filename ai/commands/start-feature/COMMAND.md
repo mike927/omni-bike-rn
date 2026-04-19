@@ -122,7 +122,7 @@ git worktree list             # for worktree
 
 Verify the new branch is active in the correct directory.
 
-### Step 7: Report And Pause
+### Step 7: Report And Continue
 
 ```
 **Workspace Preparing**
@@ -131,20 +131,16 @@ Verify the new branch is active in the correct directory.
 - Mode: in-place | worktree at `../omni-bike-rn-worktrees/<branch-slug>`
 - Track: `<Standard | Fast Track>`
 - Working directory: `<path>`
-
-Ready for <Plan Drafting | Implementation In Progress>.
-
-**Next:** Proceed to <Plan Drafting | Implementation In Progress>?
 ```
 
-Yield control. Do not proceed to the next step without user instruction.
+Do not emit a `**Next:** Proceed to ...?` confirmation line. The track choice in Step 4 is the real gate; flow directly into the next workflow step (`Plan Drafting` for Standard Track, `Implementation In Progress` for Fast Track) in the same turn.
 
 ## Completion Criteria
 
 - The new branch exists and is active.
 - `branch-slug` is printed and available for use in `ai/local/plans/<branch-slug>.md`, `ai/local/reviews/<branch-slug>.md`, and all other artifacts.
 - No plan file has been created yet.
-- The agent has paused and is awaiting instruction for the next workflow step selected by the chosen track (`Plan Drafting` for Standard Track, `Implementation In Progress` for Fast Track).
+- The agent continues directly into the next workflow step selected by the chosen track (`Plan Drafting` for Standard Track, `Implementation In Progress` for Fast Track) without a separate confirmation prompt.
 
 ## See Also
 

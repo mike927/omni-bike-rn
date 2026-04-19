@@ -1,0 +1,11 @@
+{
+  "name": "apple-health-workout",
+  "version": "1.0.0",
+  "description": "Local Expo module that saves an HKWorkout with indoor-cycling metadata and kilocalorie units — bypasses react-native-health limitations.",
+  "main": "src/index",
+  "files": [
+    "src",
+    "ios",
+    "expo-module.config.json"
+  ]
+}
