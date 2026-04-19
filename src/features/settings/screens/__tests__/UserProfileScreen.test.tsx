@@ -107,4 +107,48 @@ describe('UserProfileScreen', () => {
       expect(profile.sources.weightKg).toBe('manual');
     });
   });
+
+  it('preserves the previous weight when blurring with an empty or invalid draft', async () => {
+    useUserProfileStore.setState({
+      profile: {
+        sex: null,
+        dateOfBirth: null,
+        weightKg: 75,
+        heightCm: null,
+        sources: { weightKg: 'apple-health' },
+      },
+      hydrated: true,
+    });
+    const { getByDisplayValue } = render(<UserProfileScreen />);
+    const weightInput = getByDisplayValue('75');
+    fireEvent.changeText(weightInput, '');
+    fireEvent(weightInput, 'blur');
+    fireEvent.changeText(weightInput, 'abc');
+    fireEvent(weightInput, 'blur');
+    const profile = useUserProfileStore.getState().profile;
+    expect(profile.weightKg).toBe(75);
+    expect(profile.sources.weightKg).toBe('apple-health');
+  });
+
+  it('preserves the previous DOB when blurring with an incomplete or invalid draft', async () => {
+    useUserProfileStore.setState({
+      profile: {
+        sex: null,
+        dateOfBirth: '1990-05-12',
+        weightKg: null,
+        heightCm: null,
+        sources: { dateOfBirth: 'apple-health' },
+      },
+      hydrated: true,
+    });
+    const { getByDisplayValue } = render(<UserProfileScreen />);
+    const dobInput = getByDisplayValue('1990-05-12');
+    fireEvent.changeText(dobInput, '199');
+    fireEvent(dobInput, 'blur');
+    fireEvent.changeText(dobInput, '');
+    fireEvent(dobInput, 'blur');
+    const profile = useUserProfileStore.getState().profile;
+    expect(profile.dateOfBirth).toBe('1990-05-12');
+    expect(profile.sources.dateOfBirth).toBe('apple-health');
+  });
 });

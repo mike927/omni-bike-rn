@@ -121,7 +121,14 @@ function NumericField({ value, suffix, placeholder, onCommit }: NumericFieldProp
 
   const handleBlur = () => {
     const parsed = parseFiniteNumber(draft);
-    setDraft(parsed === null ? '' : String(parsed));
+    // Blur never clears the field — only the explicit Clear button does.
+    // Empty or invalid drafts revert to the last committed value so a stray
+    // tap mid-edit can't wipe a number the user already saved.
+    if (parsed === null) {
+      setDraft(value === null ? '' : String(value));
+      return;
+    }
+    setDraft(String(parsed));
     if (parsed === value) return;
     onCommit(parsed);
   };
@@ -156,7 +163,14 @@ function DateField({ value, onCommit }: DateFieldProps) {
 
   const handleBlur = () => {
     const parsed = parseDateInput(draft);
-    setDraft(parsed ?? '');
+    // Blur never clears the field — only the explicit Clear button does.
+    // An empty or partially-typed date reverts to the last committed value so
+    // a stray tap mid-edit can't silently wipe a saved DOB.
+    if (parsed === null) {
+      setDraft(value ?? '');
+      return;
+    }
+    setDraft(parsed);
     if (parsed === value) return;
     onCommit(parsed);
   };

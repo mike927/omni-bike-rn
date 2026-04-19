@@ -168,4 +168,33 @@ describe('useProfileAutoSync', () => {
 
     expect(mockLoadAppleHealth).toHaveBeenCalledTimes(1);
   });
+
+  it('falls back to Strava when Apple Health disconnects and Strava was already connected at mount', async () => {
+    setStores({
+      appleHealth: { hydrated: true, connected: true },
+      strava: { hydrated: true, connected: true },
+      profile: { hydrated: true, applyAutoSync: mockApplyAutoSync },
+    });
+
+    const { rerender } = renderHook(() => useProfileAutoSync());
+
+    await waitFor(() => {
+      expect(mockLoadAppleHealth).toHaveBeenCalledTimes(1);
+    });
+    expect(mockLoadStrava).not.toHaveBeenCalled();
+
+    setStores({
+      appleHealth: { hydrated: true, connected: false },
+      strava: { hydrated: true, connected: true },
+      profile: { hydrated: true, applyAutoSync: mockApplyAutoSync },
+    });
+    rerender({});
+
+    await waitFor(() => {
+      expect(mockLoadStrava).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(mockApplyAutoSync).toHaveBeenCalledWith('strava', { sex: 'male', weightKg: 80 });
+    });
+  });
 });
