@@ -142,11 +142,11 @@ Three-part initiative to align our calorie numbers with Apple Fitness and Strava
 
 ### Part A: Live calories on dashboard + Watch-computed source
 
-- [~] Add live Calories tile to training dashboard
-- [~] Enable Watch-side collection of active calories during the workout session
-- [~] Stream Watch-computed calories alongside HR via WatchConnectivity
-- [~] Source priority: Watch > existing power-based formula
-- [~] Fallback when no Watch connected: keep current power-based calculation
+- [R] Add live Calories tile to training dashboard
+- [R] Enable Watch-side collection of active calories during the workout session
+- [R] Stream Watch-computed calories alongside HR via WatchConnectivity
+- [R] Source priority: Watch > existing power-based formula
+- [R] Fallback when no Watch connected: keep current power-based calculation
 
 ### Part B: Active vs. Total split in Apple Health upload
 
