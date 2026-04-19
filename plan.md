@@ -150,11 +150,10 @@ Three-part initiative to align our calorie numbers with Apple Fitness and Strava
 
 ### Part B: Active vs. Total split in Apple Health upload
 
-- [ ] Post-session HealthKit query for basal energy over the workout interval
-- [ ] Native module accepts separate active + basal calorie parameters
-- [ ] Emit two samples (active + basal) per saved workout so Apple Fitness shows distinct Active / Total values
-- [ ] Basal fallback: Mifflin–St Jeor when HealthKit returns no samples
-- [ ] Strava upload unchanged — still receives a single Total value
+- [~] Post-session HealthKit query for basal energy over the workout interval
+- [~] Native module accepts separate active + basal calorie parameters
+- [~] Emit two samples (active + basal) per saved workout so Apple Fitness shows distinct Active / Total values
+- [~] Strava upload unchanged — still receives a single Total value
 
 ### Part C: User Profile for personalized calorie calculation
 
@@ -164,6 +163,7 @@ Three-part initiative to align our calorie numbers with Apple Fitness and Strava
 - [ ] Per-field source indicator ("Apple Health" / "Strava" / "Manual")
 - [ ] Local persistence; manual edits preserved across auto-syncs
 - [ ] HR-based formula (Keytel) when external HR + profile both available
+- [ ] Basal fallback: Mifflin–St Jeor when HealthKit returns no samples (depends on user profile)
 - [ ] Final source priority: Watch > HR + profile (Keytel) > power-based > bike-reported
 - [ ] Graceful degradation: missing profile never blocks calorie calculation
 
