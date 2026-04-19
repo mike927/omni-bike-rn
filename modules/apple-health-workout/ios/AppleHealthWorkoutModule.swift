@@ -46,6 +46,70 @@ public class AppleHealthWorkoutModule: Module {
       }
     }
 
+    // Sums `basalEnergyBurned` samples over the workout interval, filtering out
+    // this app's own prior writes so a re-export of the same session doesn't
+    // read back the basal sample we attached on the previous save and compound
+    // it into the next Total.
+    AsyncFunction("queryBasalEnergyKcal") { (options: [String: Any], promise: Promise) in
+      guard HKHealthStore.isHealthDataAvailable() else {
+        promise.reject("ERR_HEALTH_UNAVAILABLE", "Health data is not available on this device")
+        return
+      }
+      guard
+        let startString = options["startDate"] as? String,
+        let endString = options["endDate"] as? String,
+        let startDate = self.parseDate(startString),
+        let endDate = self.parseDate(endString)
+      else {
+        promise.reject("ERR_INVALID_DATES", "startDate/endDate must be ISO-8601 strings")
+        return
+      }
+
+      let basalType = HKQuantityType(.basalEnergyBurned)
+      // Basal samples are interval-based (multi-minute buckets), so strict
+      // bounds would drop any sample that straddles the workout start/end
+      // and under-count to zero. Default (non-strict) predicate picks up
+      // overlapping samples; we then pro-rate each by the fraction of its
+      // interval that actually falls inside the workout window rather than
+      // summing the full value (HKStatisticsQuery .cumulativeSum would do
+      // the latter and over-count).
+      let timePredicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: [])
+      let notFromSelf = NSCompoundPredicate(
+        notPredicateWithSubpredicate: HKQuery.predicateForObjects(from: [HKSource.default()])
+      )
+      let combined = NSCompoundPredicate(andPredicateWithSubpredicates: [timePredicate, notFromSelf])
+
+      let query = HKSampleQuery(
+        sampleType: basalType,
+        predicate: combined,
+        limit: HKObjectQueryNoLimit,
+        sortDescriptors: nil
+      ) { _, samples, error in
+        if let error {
+          promise.reject("ERR_QUERY_FAILED", error.localizedDescription)
+          return
+        }
+        guard let quantitySamples = samples as? [HKQuantitySample] else {
+          promise.resolve(0.0)
+          return
+        }
+        var totalKcal: Double = 0
+        for sample in quantitySamples {
+          let sampleDuration = sample.endDate.timeIntervalSince(sample.startDate)
+          guard sampleDuration > 0 else { continue }
+          let overlapStart = max(sample.startDate, startDate)
+          let overlapEnd = min(sample.endDate, endDate)
+          let overlapDuration = overlapEnd.timeIntervalSince(overlapStart)
+          guard overlapDuration > 0 else { continue }
+          let fraction = min(overlapDuration / sampleDuration, 1.0)
+          let sampleKcal = sample.quantity.doubleValue(for: .kilocalorie())
+          totalKcal += sampleKcal * fraction
+        }
+        promise.resolve(totalKcal)
+      }
+      self.healthStore.execute(query)
+    }
+
     AsyncFunction("saveCyclingWorkout") { (options: [String: Any], promise: Promise) in
       guard HKHealthStore.isHealthDataAvailable() else {
         promise.reject("ERR_HEALTH_UNAVAILABLE", "Health data is not available on this device")
@@ -62,7 +126,8 @@ public class AppleHealthWorkoutModule: Module {
         return
       }
 
-      let totalEnergyKcal = (options["totalEnergyKcal"] as? NSNumber)?.doubleValue ?? 0
+      let activeEnergyKcal = (options["activeEnergyKcal"] as? NSNumber)?.doubleValue ?? 0
+      let basalEnergyKcal = (options["basalEnergyKcal"] as? NSNumber)?.doubleValue ?? 0
       let totalDistanceMeters = (options["totalDistanceMeters"] as? NSNumber)?.doubleValue ?? 0
       let rawHrSamples = options["heartRateSamples"] as? [[String: Any]] ?? []
       let rawPowerSamples = options["cyclingPowerSamples"] as? [[String: Any]] ?? []
@@ -100,11 +165,22 @@ public class AppleHealthWorkoutModule: Module {
 
         var samplesToAdd: [HKSample] = []
 
-        if totalEnergyKcal > 0 {
-          let energyQuantity = HKQuantity(unit: .kilocalorie(), doubleValue: totalEnergyKcal)
+        if activeEnergyKcal > 0 {
+          let activeEnergyQuantity = HKQuantity(unit: .kilocalorie(), doubleValue: activeEnergyKcal)
           samplesToAdd.append(HKCumulativeQuantitySample(
             type: HKQuantityType(.activeEnergyBurned),
-            quantity: energyQuantity,
+            quantity: activeEnergyQuantity,
+            start: startDate,
+            end: endDate
+          ))
+        }
+
+        // Omit when 0 so Apple Fitness falls back to Active == Total (pre-split behavior).
+        if basalEnergyKcal > 0 {
+          let basalEnergyQuantity = HKQuantity(unit: .kilocalorie(), doubleValue: basalEnergyKcal)
+          samplesToAdd.append(HKCumulativeQuantitySample(
+            type: HKQuantityType(.basalEnergyBurned),
+            quantity: basalEnergyQuantity,
             start: startDate,
             end: endDate
           ))

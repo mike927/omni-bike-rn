@@ -8,6 +8,7 @@ jest.mock('apple-health-workout', () => ({
   AppleHealthWorkout: {
     saveCyclingWorkout: jest.fn(),
     requestCyclingMetricsAuthorization: jest.fn(() => Promise.resolve()),
+    queryBasalEnergyKcal: jest.fn(() => Promise.resolve(0)),
   },
 }));
 
@@ -15,6 +16,7 @@ const mockInit = jest.fn();
 const mockGetAuthStatus = jest.fn();
 const mockSaveCyclingWorkout = AppleHealthWorkout.saveCyclingWorkout as jest.Mock;
 const mockRequestCyclingAuth = AppleHealthWorkout.requestCyclingMetricsAuthorization as jest.Mock;
+const mockQueryBasalEnergyKcal = AppleHealthWorkout.queryBasalEnergyKcal as jest.Mock;
 
 const SESSION: PersistedTrainingSession = {
   id: 'session-1',
@@ -71,6 +73,9 @@ beforeEach(() => {
       },
     }),
   );
+  // Default: native basal query returns 0 so Apple Fitness renders Active = Total
+  // for tests that don't care about the split.
+  mockQueryBasalEnergyKcal.mockResolvedValue(0);
 });
 
 describe('initWithWritePermissions', () => {
@@ -78,8 +83,14 @@ describe('initWithWritePermissions', () => {
     mockInit.mockImplementation((_permissions, callback) => callback(null));
     await expect(initWithWritePermissions()).resolves.toBeUndefined();
     const permissionsArg = mockInit.mock.calls[0][0];
-    expect(permissionsArg.permissions.write).toEqual(['Workout', 'ActiveEnergyBurned', 'DistanceCycling', 'HeartRate']);
-    expect(permissionsArg.permissions.read).toEqual([]);
+    expect(permissionsArg.permissions.write).toEqual([
+      'Workout',
+      'ActiveEnergyBurned',
+      'DistanceCycling',
+      'HeartRate',
+      'BasalEnergyBurned',
+    ]);
+    expect(permissionsArg.permissions.read).toEqual(['BasalEnergyBurned']);
     expect(mockRequestCyclingAuth).toHaveBeenCalledTimes(1);
   });
 
@@ -126,7 +137,8 @@ describe('saveWorkout', () => {
     expect(payload).toMatchObject({
       startDate: '2023-11-14T22:13:20.000Z',
       endDate: '2023-11-14T23:13:20.000Z',
-      totalEnergyKcal: 450,
+      activeEnergyKcal: 450,
+      basalEnergyKcal: 0,
       totalDistanceMeters: 18000,
       heartRateSamples: [
         { bpm: 120, timestampMs: SESSION.startedAtMs },
@@ -168,5 +180,57 @@ describe('saveWorkout', () => {
   it('rejects when the native module rejects', async () => {
     mockSaveCyclingWorkout.mockRejectedValue(new Error('not authorized'));
     await expect(saveWorkout(SESSION, [])).rejects.toThrow('not authorized');
+  });
+
+  it('queries basal energy via the native module (source-filtered) and forwards the value', async () => {
+    mockSaveCyclingWorkout.mockResolvedValue('workout-uuid-3');
+    mockQueryBasalEnergyKcal.mockResolvedValue(12);
+
+    await saveWorkout(SESSION, []);
+
+    expect(mockQueryBasalEnergyKcal).toHaveBeenCalledWith({
+      startDate: '2023-11-14T22:13:20.000Z',
+      endDate: '2023-11-14T23:13:20.000Z',
+    });
+    const payload = mockSaveCyclingWorkout.mock.calls[0][0];
+    expect(payload).toMatchObject({ activeEnergyKcal: 450, basalEnergyKcal: 12 });
+  });
+
+  it('passes basalEnergyKcal=0 when the native basal query rejects (no upload failure)', async () => {
+    mockSaveCyclingWorkout.mockResolvedValue('workout-uuid-4');
+    mockQueryBasalEnergyKcal.mockRejectedValue(new Error('HealthKit read failed'));
+
+    await expect(saveWorkout(SESSION, [])).resolves.toEqual({ workoutId: 'workout-uuid-4' });
+
+    const payload = mockSaveCyclingWorkout.mock.calls[0][0];
+    expect(payload).toMatchObject({ activeEnergyKcal: 450, basalEnergyKcal: 0 });
+  });
+
+  it('passes basalEnergyKcal=0 when HealthKit returns zero basal for the interval', async () => {
+    mockSaveCyclingWorkout.mockResolvedValue('workout-uuid-5');
+    mockQueryBasalEnergyKcal.mockResolvedValue(0);
+
+    await saveWorkout(SESSION, []);
+
+    const payload = mockSaveCyclingWorkout.mock.calls[0][0];
+    expect(payload).toMatchObject({ activeEnergyKcal: 450, basalEnergyKcal: 0 });
+  });
+
+  // Regression: re-exporting the same session used to compound because the
+  // previous save's basal sample was read back and summed in. The native
+  // query now excludes this app's own writes, so the second save reads the
+  // same system-basal value as the first.
+  it('does not compound basal energy when the same session is exported twice', async () => {
+    mockSaveCyclingWorkout.mockResolvedValue('workout-uuid-repeat');
+    mockQueryBasalEnergyKcal.mockResolvedValue(100);
+
+    await saveWorkout(SESSION, []);
+    await saveWorkout(SESSION, []);
+
+    expect(mockQueryBasalEnergyKcal).toHaveBeenCalledTimes(2);
+    const firstPayload = mockSaveCyclingWorkout.mock.calls[0][0];
+    const secondPayload = mockSaveCyclingWorkout.mock.calls[1][0];
+    expect(firstPayload).toMatchObject({ basalEnergyKcal: 100 });
+    expect(secondPayload).toMatchObject({ basalEnergyKcal: 100 });
   });
 });

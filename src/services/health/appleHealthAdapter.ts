@@ -29,18 +29,24 @@ type HealthKitErrorLike = HealthKitErrorObject | string | null | undefined;
 // react-native-health typings model write[] as a `HealthPermission` enum, but
 // the real native API accepts plain string literals. Use a local string-union
 // type to avoid importing a mismatched enum while keeping the array typed.
-type HealthPermissionName = 'Workout' | 'ActiveEnergyBurned' | 'DistanceCycling' | 'HeartRate';
+type HealthPermissionName = 'Workout' | 'ActiveEnergyBurned' | 'DistanceCycling' | 'HeartRate' | 'BasalEnergyBurned';
 const HEALTH_PERMISSION_WORKOUT: HealthPermissionName = 'Workout';
 const HEALTH_PERMISSION_ACTIVE_ENERGY_BURNED: HealthPermissionName = 'ActiveEnergyBurned';
 const HEALTH_PERMISSION_DISTANCE_CYCLING: HealthPermissionName = 'DistanceCycling';
 const HEALTH_PERMISSION_HEART_RATE: HealthPermissionName = 'HeartRate';
+const HEALTH_PERMISSION_BASAL_ENERGY_BURNED: HealthPermissionName = 'BasalEnergyBurned';
 const HEALTHKIT_STATUS_LABELS = ['NotDetermined', 'SharingDenied', 'SharingAuthorized'] as const;
 const HEALTHKIT_WRITE_PERMISSIONS: readonly HealthPermissionName[] = [
   HEALTH_PERMISSION_WORKOUT,
   HEALTH_PERMISSION_ACTIVE_ENERGY_BURNED,
   HEALTH_PERMISSION_DISTANCE_CYCLING,
   HEALTH_PERMISSION_HEART_RATE,
+  // Part B attaches a basalEnergyBurned sample to each saved workout so Apple
+  // Fitness can render the Active / Total split. Without the write permission
+  // HealthKit rejects `builder.add(samples)` with "Not authorized".
+  HEALTH_PERMISSION_BASAL_ENERGY_BURNED,
 ];
+const HEALTHKIT_READ_PERMISSIONS: readonly HealthPermissionName[] = [HEALTH_PERMISSION_BASAL_ENERGY_BURNED];
 
 function getHealthKit(): HealthKitNativeModule {
   const healthKit = NativeModules.AppleHealthKit as HealthKitNativeModule | undefined;
@@ -138,7 +144,7 @@ function logHealthKitAuthorizationStatus(healthKit: HealthKitNativeModule, conte
 // expects plain string literals — see `HealthPermissionName` above.
 const PERMISSIONS: HealthKitPermissions = {
   permissions: {
-    read: [],
+    read: HEALTHKIT_READ_PERMISSIONS as unknown as HealthKitPermissions['permissions']['read'],
     write: HEALTHKIT_WRITE_PERMISSIONS as unknown as HealthKitPermissions['permissions']['write'],
   },
 };
@@ -223,6 +229,28 @@ function mapCyclingSamples(
   return mapped;
 }
 
+/**
+ * Sums HealthKit `basalEnergyBurned` for the workout interval via the native
+ * module, which filters out this app's own prior basal writes so a re-export
+ * doesn't compound. Returns 0 on any failure — the native save then skips
+ * emitting the Basal sample and Apple Fitness renders Active = Total, matching
+ * pre-split behavior.
+ */
+async function queryBasalEnergyKcal(startedAtMs: number, endedAtMs: number): Promise<number> {
+  const options = {
+    startDate: new Date(startedAtMs).toISOString(),
+    endDate: new Date(endedAtMs).toISOString(),
+  };
+  try {
+    const kcal = await AppleHealthWorkout.queryBasalEnergyKcal(options);
+    appendAppleHealthDiagnostic('basalEnergy-query-success', { options, totalKcal: kcal });
+    return Number.isFinite(kcal) && kcal > 0 ? kcal : 0;
+  } catch (error: unknown) {
+    appendAppleHealthDiagnostic('basalEnergy-query-error', { error, options });
+    return 0;
+  }
+}
+
 export async function saveWorkout(
   session: PersistedTrainingSession,
   samples: PersistedTrainingSample[],
@@ -234,12 +262,14 @@ export async function saveWorkout(
   const cyclingPowerSamples = mapCyclingSamples(samples, (m) => m.power);
   const cyclingCadenceSamples = mapCyclingSamples(samples, (m) => m.cadence);
   const cyclingSpeedSamples = mapCyclingSamples(samples, (m) => m.speed * KMH_TO_MPS);
+  const basalEnergyKcal = await queryBasalEnergyKcal(session.startedAtMs, endDateMs);
 
   try {
     const workoutId = await AppleHealthWorkout.saveCyclingWorkout({
       startDate,
       endDate,
-      totalEnergyKcal: session.totalCaloriesKcal,
+      activeEnergyKcal: session.totalCaloriesKcal,
+      basalEnergyKcal,
       totalDistanceMeters: session.totalDistanceMeters,
       heartRateSamples,
       cyclingPowerSamples,
@@ -250,7 +280,8 @@ export async function saveWorkout(
       workoutId,
       startDate,
       endDate,
-      calories: session.totalCaloriesKcal,
+      activeEnergyKcal: session.totalCaloriesKcal,
+      basalEnergyKcal,
       distanceMeters: session.totalDistanceMeters,
       hrSampleCount: heartRateSamples.length,
       powerSampleCount: cyclingPowerSamples.length,
@@ -263,7 +294,8 @@ export async function saveWorkout(
       error,
       startDate,
       endDate,
-      calories: session.totalCaloriesKcal,
+      activeEnergyKcal: session.totalCaloriesKcal,
+      basalEnergyKcal,
       distanceMeters: session.totalDistanceMeters,
       hrSampleCount: heartRateSamples.length,
       powerSampleCount: cyclingPowerSamples.length,

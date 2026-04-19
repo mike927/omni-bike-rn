@@ -15,6 +15,7 @@ import { useAppPreferencesStore } from '../src/store/appPreferencesStore';
 import { useProviderGearLinkStore } from '../src/store/providerGearLinkStore';
 import { useStravaConnectionStore } from '../src/store/stravaConnectionStore';
 import { useAppleHealthConnectionStore } from '../src/store/appleHealthConnectionStore';
+import { useAppleHealthPermissionsRefresh } from '../src/features/integrations/hooks/useAppleHealthPermissionsRefresh';
 import { useWatchHr } from '../src/features/gear/hooks/useWatchHr';
 import { useInterruptedSessionRecovery } from '../src/features/training/hooks/useInterruptedSessionRecovery';
 import { useKeepAwakeDuringTraining } from '../src/features/training/hooks/useKeepAwakeDuringTraining';
@@ -58,6 +59,7 @@ export default function RootLayout() {
   const [databaseInitAttempt, setDatabaseInitAttempt] = useState(0);
 
   useWatchHr();
+  useAppleHealthPermissionsRefresh();
   useKeepAwakeDuringTraining();
   useTrainingSessionPersistence(isDatabaseReady);
   useInterruptedSessionRecovery(isDatabaseReady && onboardingCompleted);

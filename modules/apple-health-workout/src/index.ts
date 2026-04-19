@@ -26,8 +26,10 @@ export interface SaveCyclingWorkoutOptions {
   startDate: string;
   /** ISO-8601 end date */
   endDate: string;
-  /** Total active energy in kilocalories */
-  totalEnergyKcal: number;
+  /** Active energy in kilocalories — becomes the workout's `activeEnergyBurned` sample. */
+  activeEnergyKcal: number;
+  /** Basal (resting) energy in kilocalories; pass 0 when unavailable (fallback: Apple Fitness renders Active = Total). */
+  basalEnergyKcal: number;
   /** Total distance in meters */
   totalDistanceMeters: number;
   /** Per-sample heart-rate trace attached to the workout */
@@ -48,6 +50,14 @@ declare class AppleHealthWorkoutNativeModule extends NativeModule {
    * alongside `AppleHealthKit.initHealthKit`. Idempotent.
    */
   requestCyclingMetricsAuthorization(): Promise<void>;
+
+  /**
+   * Sums HealthKit `basalEnergyBurned` samples over `[startDate, endDate]`,
+   * excluding samples this app itself wrote — so a re-export of the same
+   * workout interval doesn't read back its own previous basal write and
+   * compound the Total calorie count on each retry.
+   */
+  queryBasalEnergyKcal(options: { startDate: string; endDate: string }): Promise<number>;
 
   /**
    * Saves an indoor-cycling HKWorkout via `HKWorkoutBuilder` with
