@@ -1,6 +1,14 @@
 import { NativeModules } from 'react-native';
 
-import { initWithWritePermissions, saveWorkout } from '../appleHealthAdapter';
+import {
+  getBiologicalSex,
+  getDateOfBirth,
+  getLatestHeightCm,
+  getLatestWeightKg,
+  initWithWritePermissions,
+  loadProfileFromAppleHealth,
+  saveWorkout,
+} from '../appleHealthAdapter';
 import { AppleHealthWorkout } from 'apple-health-workout';
 import type { PersistedTrainingSample, PersistedTrainingSession } from '../../../types/sessionPersistence';
 
@@ -14,6 +22,10 @@ jest.mock('apple-health-workout', () => ({
 
 const mockInit = jest.fn();
 const mockGetAuthStatus = jest.fn();
+const mockGetBiologicalSex = jest.fn();
+const mockGetDateOfBirth = jest.fn();
+const mockGetLatestWeight = jest.fn();
+const mockGetLatestHeight = jest.fn();
 const mockSaveCyclingWorkout = AppleHealthWorkout.saveCyclingWorkout as jest.Mock;
 const mockRequestCyclingAuth = AppleHealthWorkout.requestCyclingMetricsAuthorization as jest.Mock;
 const mockQueryBasalEnergyKcal = AppleHealthWorkout.queryBasalEnergyKcal as jest.Mock;
@@ -64,6 +76,10 @@ beforeEach(() => {
   NativeModules.AppleHealthKit = {
     initHealthKit: mockInit,
     getAuthStatus: mockGetAuthStatus,
+    getBiologicalSex: mockGetBiologicalSex,
+    getDateOfBirth: mockGetDateOfBirth,
+    getLatestWeight: mockGetLatestWeight,
+    getLatestHeight: mockGetLatestHeight,
   };
   mockGetAuthStatus.mockImplementation((_permissions, callback) =>
     callback(null, {
@@ -90,7 +106,13 @@ describe('initWithWritePermissions', () => {
       'HeartRate',
       'BasalEnergyBurned',
     ]);
-    expect(permissionsArg.permissions.read).toEqual(['BasalEnergyBurned']);
+    expect(permissionsArg.permissions.read).toEqual([
+      'BasalEnergyBurned',
+      'BiologicalSex',
+      'DateOfBirth',
+      'Weight',
+      'Height',
+    ]);
     expect(mockRequestCyclingAuth).toHaveBeenCalledTimes(1);
   });
 
@@ -232,5 +254,63 @@ describe('saveWorkout', () => {
     const secondPayload = mockSaveCyclingWorkout.mock.calls[1][0];
     expect(firstPayload).toMatchObject({ basalEnergyKcal: 100 });
     expect(secondPayload).toMatchObject({ basalEnergyKcal: 100 });
+  });
+});
+
+describe('profile reads', () => {
+  it('getBiologicalSex returns "male" / "female" and null otherwise', async () => {
+    mockGetBiologicalSex.mockImplementationOnce((_o, cb) => cb(null, { value: 'male' }));
+    expect(await getBiologicalSex()).toBe('male');
+    mockGetBiologicalSex.mockImplementationOnce((_o, cb) => cb(null, { value: 'female' }));
+    expect(await getBiologicalSex()).toBe('female');
+    mockGetBiologicalSex.mockImplementationOnce((_o, cb) => cb(null, { value: 'other' }));
+    expect(await getBiologicalSex()).toBeNull();
+    mockGetBiologicalSex.mockImplementationOnce((_o, cb) => cb(null, { value: 'unknown' }));
+    expect(await getBiologicalSex()).toBeNull();
+    mockGetBiologicalSex.mockImplementationOnce((_o, cb) => cb('denied', null as never));
+    expect(await getBiologicalSex()).toBeNull();
+  });
+
+  it('getDateOfBirth slices to yyyy-mm-dd and returns null on absent or empty value', async () => {
+    mockGetDateOfBirth.mockImplementationOnce((_o, cb) => cb(null, { value: '1985-03-10T00:00:00.000Z', age: 41 }));
+    expect(await getDateOfBirth()).toBe('1985-03-10');
+    mockGetDateOfBirth.mockImplementationOnce((_o, cb) => cb(null, { value: null, age: null }));
+    expect(await getDateOfBirth()).toBeNull();
+    mockGetDateOfBirth.mockImplementationOnce((_o, cb) => cb('boom', null as never));
+    expect(await getDateOfBirth()).toBeNull();
+  });
+
+  it('getLatestWeightKg requests kg unit and returns positive numbers, null otherwise', async () => {
+    mockGetLatestWeight.mockImplementationOnce((opts, cb) => {
+      expect(opts).toEqual({ unit: 'kg' });
+      cb(null, { value: 80.5 });
+    });
+    expect(await getLatestWeightKg()).toBe(80.5);
+    mockGetLatestWeight.mockImplementationOnce((_o, cb) => cb(null, { value: 0 }));
+    expect(await getLatestWeightKg()).toBeNull();
+    mockGetLatestWeight.mockImplementationOnce((_o, cb) => cb('no sample', null as never));
+    expect(await getLatestWeightKg()).toBeNull();
+  });
+
+  it('getLatestHeightCm requests cm unit and returns positive numbers, null otherwise', async () => {
+    mockGetLatestHeight.mockImplementationOnce((opts, cb) => {
+      expect(opts).toEqual({ unit: 'cm' });
+      cb(null, { value: 178 });
+    });
+    expect(await getLatestHeightCm()).toBe(178);
+    mockGetLatestHeight.mockImplementationOnce((_o, cb) => cb(null, { value: 0 }));
+    expect(await getLatestHeightCm()).toBeNull();
+    mockGetLatestHeight.mockImplementationOnce((_o, cb) => cb('no sample', null as never));
+    expect(await getLatestHeightCm()).toBeNull();
+  });
+
+  it('loadProfileFromAppleHealth aggregates only the populated fields', async () => {
+    mockGetBiologicalSex.mockImplementation((_o, cb) => cb(null, { value: 'male' }));
+    mockGetDateOfBirth.mockImplementation((_o, cb) => cb(null, { value: '1985-03-10T00:00:00.000Z', age: 41 }));
+    mockGetLatestWeight.mockImplementation((_o, cb) => cb(null, { value: 80 }));
+    mockGetLatestHeight.mockImplementation((_o, cb) => cb('no sample', null as never));
+
+    const partial = await loadProfileFromAppleHealth();
+    expect(partial).toEqual({ sex: 'male', dateOfBirth: '1985-03-10', weightKg: 80 });
   });
 });
