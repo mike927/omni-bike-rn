@@ -5,6 +5,8 @@ import { ActionButton } from '../../../ui/components/ActionButton';
 import { SectionCard } from '../../../ui/components/SectionCard';
 import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
+import { loadProfileFromAppleHealth } from '../../../services/health/appleHealthAdapter';
+import { loadProfileFromStrava } from '../../../services/strava/stravaProfileService';
 import { useAppleHealthConnectionStore } from '../../../store/appleHealthConnectionStore';
 import { useStravaConnectionStore } from '../../../store/stravaConnectionStore';
 import { useUserProfileStore } from '../../../store/userProfileStore';
@@ -192,11 +194,20 @@ function DateField({ value, onCommit }: DateFieldProps) {
   );
 }
 
+type SyncStatus =
+  | { kind: 'idle' }
+  | { kind: 'syncing'; source: 'apple-health' | 'strava' }
+  | { kind: 'success'; source: 'apple-health' | 'strava'; fieldCount: number }
+  | { kind: 'error'; source: 'apple-health' | 'strava'; message: string };
+
 export function UserProfileScreen() {
   const profile = useUserProfileStore((s) => s.profile);
   const setManual = useUserProfileStore((s) => s.setManual);
+  const applyProviderSync = useUserProfileStore((s) => s.applyProviderSync);
   const appleHealthConnected = useAppleHealthConnectionStore((s) => s.connected);
   const stravaConnected = useStravaConnectionStore((s) => s.connected);
+
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>({ kind: 'idle' });
 
   const isEmpty = useMemo(
     () =>
@@ -205,17 +216,76 @@ export function UserProfileScreen() {
   );
   const noProviderConnected = !appleHealthConnected && !stravaConnected;
 
+  const handleSyncFromAppleHealth = async () => {
+    setSyncStatus({ kind: 'syncing', source: 'apple-health' });
+    try {
+      const partial = await loadProfileFromAppleHealth();
+      await applyProviderSync('apple-health', partial);
+      setSyncStatus({ kind: 'success', source: 'apple-health', fieldCount: Object.keys(partial).length });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Apple Health sync failed.';
+      setSyncStatus({ kind: 'error', source: 'apple-health', message });
+    }
+  };
+
+  const handleSyncFromStrava = async () => {
+    setSyncStatus({ kind: 'syncing', source: 'strava' });
+    try {
+      const partial = await loadProfileFromStrava();
+      await applyProviderSync('strava', partial);
+      setSyncStatus({ kind: 'success', source: 'strava', fieldCount: Object.keys(partial).length });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Strava sync failed.';
+      setSyncStatus({ kind: 'error', source: 'strava', message });
+    }
+  };
+
   return (
     <AppScreen
       title="User Profile"
       subtitle="Used for accurate calorie estimation when training without an Apple Watch.">
-      {isEmpty && noProviderConnected ? (
-        <SectionCard title="Auto-fill from a provider">
+      <SectionCard title="Sync from a provider">
+        {noProviderConnected ? (
           <Text style={styles.helperText}>
-            Connect Apple Health or Strava to auto-fill your profile, or fill in the fields below manually.
+            Connect Apple Health or Strava in Settings to sync your profile, or fill in the fields below manually.
           </Text>
-        </SectionCard>
-      ) : null}
+        ) : (
+          <Text style={styles.helperText}>
+            Tap a provider to overwrite your profile fields with the latest values. Fields the provider doesn&apos;t
+            return are left untouched.
+          </Text>
+        )}
+        <View style={styles.syncButtonRow}>
+          <ActionButton
+            label={
+              syncStatus.kind === 'syncing' && syncStatus.source === 'apple-health'
+                ? 'Syncing…'
+                : 'Sync from Apple Health'
+            }
+            variant="secondary"
+            disabled={!appleHealthConnected || syncStatus.kind === 'syncing'}
+            onPress={handleSyncFromAppleHealth}
+          />
+          <ActionButton
+            label={syncStatus.kind === 'syncing' && syncStatus.source === 'strava' ? 'Syncing…' : 'Sync from Strava'}
+            variant="secondary"
+            disabled={!stravaConnected || syncStatus.kind === 'syncing'}
+            onPress={handleSyncFromStrava}
+          />
+        </View>
+        {syncStatus.kind === 'success' ? (
+          <Text style={styles.syncSuccessText}>
+            {syncStatus.fieldCount > 0
+              ? `Updated ${syncStatus.fieldCount} field${syncStatus.fieldCount === 1 ? '' : 's'} from ${SOURCE_LABELS[syncStatus.source]}.`
+              : `${SOURCE_LABELS[syncStatus.source]} returned no profile data.`}
+          </Text>
+        ) : null}
+        {syncStatus.kind === 'error' ? (
+          <Text style={styles.syncErrorText}>
+            {SOURCE_LABELS[syncStatus.source]} sync failed: {syncStatus.message}
+          </Text>
+        ) : null}
+      </SectionCard>
 
       <SectionCard title="Personal">
         <FieldRow
@@ -274,7 +344,8 @@ export function UserProfileScreen() {
           Height enables the Mifflin–St Jeor basal fallback for the Apple Health Resting calorie figure.
         </Text>
         <Text style={styles.helperText}>
-          Manual edits are never silently overwritten by future Apple Health or Strava syncs.
+          Manual edits stay until you tap Clear or trigger a Sync from a provider — providers always win when you ask
+          for them, but they only overwrite fields they actually return.
         </Text>
         {isEmpty ? null : (
           <ActionButton
@@ -392,6 +463,23 @@ const styles = StyleSheet.create({
   helperText: {
     color: palette.textMuted,
     fontSize: 13,
+    lineHeight: 20,
+  },
+  syncButtonRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  syncSuccessText: {
+    color: palette.primary,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  syncErrorText: {
+    color: palette.danger,
+    fontSize: 13,
+    fontWeight: '600',
     lineHeight: 20,
   },
 });

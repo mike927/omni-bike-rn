@@ -17,7 +17,6 @@ import { useStravaConnectionStore } from '../src/store/stravaConnectionStore';
 import { useAppleHealthConnectionStore } from '../src/store/appleHealthConnectionStore';
 import { useUserProfileStore } from '../src/store/userProfileStore';
 import { useAppleHealthPermissionsRefresh } from '../src/features/integrations/hooks/useAppleHealthPermissionsRefresh';
-import { useProfileAutoSync } from '../src/features/settings/hooks/useProfileAutoSync';
 import { useWatchHr } from '../src/features/gear/hooks/useWatchHr';
 import { useInterruptedSessionRecovery } from '../src/features/training/hooks/useInterruptedSessionRecovery';
 import { useKeepAwakeDuringTraining } from '../src/features/training/hooks/useKeepAwakeDuringTraining';
@@ -64,7 +63,6 @@ export default function RootLayout() {
 
   useWatchHr();
   useAppleHealthPermissionsRefresh();
-  useProfileAutoSync();
   useKeepAwakeDuringTraining();
   useTrainingSessionPersistence(isDatabaseReady);
   useInterruptedSessionRecovery(isDatabaseReady && onboardingCompleted);

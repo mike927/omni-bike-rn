@@ -8,8 +8,8 @@ import {
   type UserProfileFieldValueMap,
 } from '../types/userProfile';
 
-type AutoSyncSource = 'apple-health' | 'strava';
-type AutoSyncPartial = Partial<{
+type ProviderSyncSource = 'apple-health' | 'strava';
+type ProviderSyncPartial = Partial<{
   [F in UserProfileField]: UserProfileFieldValueMap[F];
 }>;
 
@@ -19,7 +19,7 @@ export interface UserProfileStore {
 
   hydrate: () => Promise<void>;
   setManual: <F extends UserProfileField>(field: F, value: UserProfileFieldValueMap[F] | null) => Promise<void>;
-  applyAutoSync: (source: AutoSyncSource, partial: AutoSyncPartial) => Promise<void>;
+  applyProviderSync: (source: ProviderSyncSource, partial: ProviderSyncPartial) => Promise<void>;
 }
 
 function applyFieldUpdate<F extends UserProfileField>(
@@ -48,11 +48,13 @@ export const useUserProfileStore = create<UserProfileStore>((set, get) => ({
     await saveUserProfile(next);
   },
 
-  applyAutoSync: async (source, partial) => {
+  applyProviderSync: async (source, partial) => {
+    // Explicit user-tapped sync. Overwrites whatever is in each returned
+    // field, including a previously 'manual' value, because the user is
+    // actively requesting the provider's value to win.
     let next = get().profile;
     let mutated = false;
     for (const key of Object.keys(partial) as UserProfileField[]) {
-      if (next.sources[key] === 'manual') continue;
       const value = partial[key];
       if (value === undefined) continue;
       next = applyFieldUpdate(next, key, value, source);
