@@ -46,6 +46,51 @@ public class AppleHealthWorkoutModule: Module {
       }
     }
 
+    // Sums `basalEnergyBurned` samples over the workout interval, filtering out
+    // this app's own prior writes so a re-export of the same session doesn't
+    // read back the basal sample we attached on the previous save and compound
+    // it into the next Total.
+    AsyncFunction("queryBasalEnergyKcal") { (options: [String: Any], promise: Promise) in
+      guard HKHealthStore.isHealthDataAvailable() else {
+        promise.reject("ERR_HEALTH_UNAVAILABLE", "Health data is not available on this device")
+        return
+      }
+      guard
+        let startString = options["startDate"] as? String,
+        let endString = options["endDate"] as? String,
+        let startDate = self.parseDate(startString),
+        let endDate = self.parseDate(endString)
+      else {
+        promise.reject("ERR_INVALID_DATES", "startDate/endDate must be ISO-8601 strings")
+        return
+      }
+
+      let basalType = HKQuantityType(.basalEnergyBurned)
+      let timePredicate = HKQuery.predicateForSamples(
+        withStart: startDate,
+        end: endDate,
+        options: [.strictStartDate, .strictEndDate]
+      )
+      let notFromSelf = NSCompoundPredicate(
+        notPredicateWithSubpredicate: HKQuery.predicateForObjects(from: [HKSource.default()])
+      )
+      let combined = NSCompoundPredicate(andPredicateWithSubpredicates: [timePredicate, notFromSelf])
+
+      let query = HKStatisticsQuery(
+        quantityType: basalType,
+        quantitySamplePredicate: combined,
+        options: .cumulativeSum
+      ) { _, result, error in
+        if let error {
+          promise.reject("ERR_QUERY_FAILED", error.localizedDescription)
+          return
+        }
+        let kcal = result?.sumQuantity()?.doubleValue(for: .kilocalorie()) ?? 0
+        promise.resolve(kcal)
+      }
+      self.healthStore.execute(query)
+    }
+
     AsyncFunction("saveCyclingWorkout") { (options: [String: Any], promise: Promise) in
       guard HKHealthStore.isHealthDataAvailable() else {
         promise.reject("ERR_HEALTH_UNAVAILABLE", "Health data is not available on this device")

@@ -1,5 +1,5 @@
 import { NativeModules } from 'react-native';
-import type { HealthKitPermissions, HealthStatusResult, HealthValue } from 'react-native-health';
+import type { HealthKitPermissions, HealthStatusResult } from 'react-native-health';
 
 import { AppleHealthWorkout, type CyclingQuantitySampleInput, type HeartRateSampleInput } from 'apple-health-workout';
 import {
@@ -8,20 +8,11 @@ import {
 } from '../diagnostics/appleHealthDiagnostics';
 import type { PersistedTrainingSample, PersistedTrainingSession } from '../../types/sessionPersistence';
 
-interface BasalEnergyQueryOptions {
-  startDate: string;
-  endDate: string;
-}
-
 interface HealthKitNativeModule {
   initHealthKit: (permissions: HealthKitPermissions, callback: (error: HealthKitErrorLike) => void) => void;
   getAuthStatus: (
     permissions: HealthKitPermissions,
     callback: (error: HealthKitErrorLike, result: HealthStatusResult) => void,
-  ) => void;
-  getBasalEnergyBurned: (
-    options: BasalEnergyQueryOptions,
-    callback: (error: HealthKitErrorLike, results: HealthValue[]) => void,
   ) => void;
 }
 
@@ -235,57 +226,25 @@ function mapCyclingSamples(
 }
 
 /**
- * Sums HealthKit `basalEnergyBurned` samples over the workout interval so the
- * Apple Health upload can attach a Basal cumulative sample alongside Active.
- * Returns 0 when the library reports an error or no samples — the native
- * module then skips emitting the Basal sample and Apple Fitness renders
- * Active = Total, matching pre-split behavior.
+ * Sums HealthKit `basalEnergyBurned` for the workout interval via the native
+ * module, which filters out this app's own prior basal writes so a re-export
+ * doesn't compound. Returns 0 on any failure — the native save then skips
+ * emitting the Basal sample and Apple Fitness renders Active = Total, matching
+ * pre-split behavior.
  */
-function queryBasalEnergyKcal(startedAtMs: number, endedAtMs: number): Promise<number> {
-  return new Promise((resolve) => {
-    let healthKit: HealthKitNativeModule;
-    try {
-      healthKit = getHealthKit();
-    } catch (error: unknown) {
-      appendAppleHealthDiagnostic('basalEnergy-query-module-unavailable', { error });
-      resolve(0);
-      return;
-    }
-
-    const options: BasalEnergyQueryOptions = {
-      startDate: new Date(startedAtMs).toISOString(),
-      endDate: new Date(endedAtMs).toISOString(),
-    };
-
-    try {
-      healthKit.getBasalEnergyBurned(options, (error, results) => {
-        if (error) {
-          appendAppleHealthDiagnostic('basalEnergy-query-error', { error, options });
-          resolve(0);
-          return;
-        }
-        const totalKcal = Array.isArray(results)
-          ? results.reduce((sum, sample) => {
-              const value = sample?.value;
-              return typeof value === 'number' && Number.isFinite(value) ? sum + value : sum;
-            }, 0)
-          : 0;
-        appendAppleHealthDiagnostic('basalEnergy-query-success', {
-          options,
-          sampleCount: Array.isArray(results) ? results.length : 0,
-          totalKcal,
-        });
-        resolve(totalKcal);
-      });
-    } catch (error: unknown) {
-      // Guard a synchronous throw from the bridge itself (e.g. a stale bundle
-      // where `getBasalEnergyBurned` is missing). Without this, the rejection
-      // propagates out of saveWorkout and a basal-read failure fails the whole
-      // upload — the opposite of the graceful-degradation invariant.
-      appendAppleHealthDiagnostic('basalEnergy-query-threw', { error, options });
-      resolve(0);
-    }
-  });
+async function queryBasalEnergyKcal(startedAtMs: number, endedAtMs: number): Promise<number> {
+  const options = {
+    startDate: new Date(startedAtMs).toISOString(),
+    endDate: new Date(endedAtMs).toISOString(),
+  };
+  try {
+    const kcal = await AppleHealthWorkout.queryBasalEnergyKcal(options);
+    appendAppleHealthDiagnostic('basalEnergy-query-success', { options, totalKcal: kcal });
+    return Number.isFinite(kcal) && kcal > 0 ? kcal : 0;
+  } catch (error: unknown) {
+    appendAppleHealthDiagnostic('basalEnergy-query-error', { error, options });
+    return 0;
+  }
 }
 
 export async function saveWorkout(

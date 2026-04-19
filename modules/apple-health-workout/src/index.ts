@@ -52,6 +52,14 @@ declare class AppleHealthWorkoutNativeModule extends NativeModule {
   requestCyclingMetricsAuthorization(): Promise<void>;
 
   /**
+   * Sums HealthKit `basalEnergyBurned` samples over `[startDate, endDate]`,
+   * excluding samples this app itself wrote — so a re-export of the same
+   * workout interval doesn't read back its own previous basal write and
+   * compound the Total calorie count on each retry.
+   */
+  queryBasalEnergyKcal(options: { startDate: string; endDate: string }): Promise<number>;
+
+  /**
    * Saves an indoor-cycling HKWorkout via `HKWorkoutBuilder` with
    * `HKMetadataKeyIndoorWorkout=true`, cumulative active-energy + distance
    * samples, and per-metric sample traces (HR + power + cadence + speed).
