@@ -1,6 +1,7 @@
 import { NativeModules } from 'react-native';
 
 import {
+  __resetHealthKitInitPromiseForTests,
   getBiologicalSex,
   getDateOfBirth,
   getLatestHeightCm,
@@ -86,6 +87,7 @@ function buildSample(index: number, overrides: SampleOverrides = {}): PersistedT
 
 beforeEach(() => {
   jest.clearAllMocks();
+  __resetHealthKitInitPromiseForTests();
   NativeModules.AppleHealthKit = {
     initHealthKit: mockInit,
     getAuthStatus: mockGetAuthStatus,
@@ -379,6 +381,7 @@ describe('profile reads', () => {
   });
 
   it('loadProfileFromAppleHealth aggregates only the populated fields', async () => {
+    mockInit.mockImplementation((_permissions, callback) => callback(null));
     mockGetBiologicalSex.mockImplementation((_o, cb) => cb(null, { value: 'male' }));
     mockGetDateOfBirth.mockImplementation((_o, cb) => cb(null, { value: '1985-03-10T00:00:00.000Z', age: 41 }));
     mockGetLatestWeight.mockImplementation((_o, cb) => cb(null, { value: 80 }));
@@ -386,5 +389,37 @@ describe('profile reads', () => {
 
     const partial = await loadProfileFromAppleHealth();
     expect(partial).toEqual({ sex: 'male', dateOfBirth: '1985-03-10', weightKg: 80 });
+  });
+
+  it('loadProfileFromAppleHealth awaits init before reading characteristics', async () => {
+    const callOrder: string[] = [];
+    mockInit.mockImplementation((_permissions, callback) => {
+      callOrder.push('init');
+      setTimeout(() => callback(null), 0);
+    });
+    mockGetBiologicalSex.mockImplementation((_o, cb) => {
+      callOrder.push('getBiologicalSex');
+      cb(null, { value: 'female' });
+    });
+    mockGetDateOfBirth.mockImplementation((_o, cb) => cb(null, { value: '1990-01-01T00:00:00.000Z', age: 36 }));
+    mockGetLatestWeight.mockImplementation((_o, cb) => cb(null, { value: 60 }));
+    mockGetLatestHeight.mockImplementation((_o, cb) => cb(null, { value: 165 }));
+
+    await loadProfileFromAppleHealth();
+    expect(callOrder[0]).toBe('init');
+    expect(callOrder).toContain('getBiologicalSex');
+    expect(callOrder.indexOf('init')).toBeLessThan(callOrder.indexOf('getBiologicalSex'));
+  });
+
+  it('initWithWritePermissions memoizes a single in-flight prompt across concurrent callers', async () => {
+    mockInit.mockImplementation((_permissions, callback) => setTimeout(() => callback(null), 0));
+    mockGetBiologicalSex.mockImplementation((_o, cb) => cb(null, { value: 'male' }));
+    mockGetDateOfBirth.mockImplementation((_o, cb) => cb(null, { value: '1985-03-10T00:00:00.000Z', age: 41 }));
+    mockGetLatestWeight.mockImplementation((_o, cb) => cb(null, { value: 80 }));
+    mockGetLatestHeight.mockImplementation((_o, cb) => cb(null, { value: 180 }));
+
+    await Promise.all([initWithWritePermissions(), loadProfileFromAppleHealth(), initWithWritePermissions()]);
+    expect(mockInit).toHaveBeenCalledTimes(1);
+    expect(mockRequestCyclingAuth).toHaveBeenCalledTimes(1);
   });
 });

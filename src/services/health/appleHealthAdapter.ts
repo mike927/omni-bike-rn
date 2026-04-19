@@ -245,10 +245,29 @@ async function initCyclingMetricPermissions(): Promise<void> {
   }
 }
 
+// Memoize a single in-flight init promise so the launch-time permission
+// refresh hook and the profile auto-sync hook can both await initialization
+// without firing duplicate iOS authorization prompts. Cleared on failure so
+// subsequent attempts can retry.
+let initPromise: Promise<void> | null = null;
+
 export async function initWithWritePermissions(): Promise<void> {
-  const healthKit = getHealthKit();
-  await initBaseWritePermissions(healthKit);
-  await initCyclingMetricPermissions();
+  if (initPromise) return initPromise;
+  initPromise = (async () => {
+    const healthKit = getHealthKit();
+    await initBaseWritePermissions(healthKit);
+    await initCyclingMetricPermissions();
+  })().catch((error: unknown) => {
+    initPromise = null;
+    throw error;
+  });
+  return initPromise;
+}
+
+// Test seam: reset the memoized init promise so each test starts from a
+// known state.
+export function __resetHealthKitInitPromiseForTests(): void {
+  initPromise = null;
 }
 
 export interface SaveWorkoutResult {
@@ -443,6 +462,11 @@ export async function getLatestHeightCm(): Promise<number | null> {
 }
 
 export async function loadProfileFromAppleHealth(): Promise<AppleHealthProfilePartial> {
+  // Block on init so the four characteristic-type reads don't run before iOS
+  // has prompted for the new Sex / DOB / Weight / Height read permissions.
+  // Without this, on app upgrade the auto-sync runs to completion before the
+  // user has a chance to grant the new types and silently returns no fields.
+  await initWithWritePermissions();
   const [sex, dateOfBirth, weightKg, heightCm] = await Promise.all([
     getBiologicalSex(),
     getDateOfBirth(),
