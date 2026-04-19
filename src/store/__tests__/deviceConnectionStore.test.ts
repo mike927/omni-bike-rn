@@ -83,9 +83,25 @@ describe('deviceConnectionStore', () => {
       expect(useDeviceConnectionStore.getState().latestBluetoothHr).toBe(145);
     });
 
-    it('should update Apple Watch HR value', () => {
+    it('should update Apple Watch HR value and stamp the Watch-sample freshness timestamp', () => {
+      expect(useDeviceConnectionStore.getState().lastAppleWatchSampleAtMs).toBeNull();
+
       useDeviceConnectionStore.getState().updateAppleWatchHr(151);
-      expect(useDeviceConnectionStore.getState().latestAppleWatchHr).toBe(151);
+
+      const state = useDeviceConnectionStore.getState();
+      expect(state.latestAppleWatchHr).toBe(151);
+      expect(state.lastAppleWatchSampleAtMs).toEqual(expect.any(Number));
+    });
+
+    it('should clear the Watch-sample freshness timestamp when the HR value is set to null', () => {
+      useDeviceConnectionStore.getState().updateAppleWatchHr(151);
+      expect(useDeviceConnectionStore.getState().lastAppleWatchSampleAtMs).toEqual(expect.any(Number));
+
+      useDeviceConnectionStore.getState().updateAppleWatchHr(null);
+
+      const state = useDeviceConnectionStore.getState();
+      expect(state.latestAppleWatchHr).toBeNull();
+      expect(state.lastAppleWatchSampleAtMs).toBeNull();
     });
 
     it('should overwrite previous metrics on update', () => {

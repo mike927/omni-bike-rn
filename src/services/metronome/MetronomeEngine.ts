@@ -6,6 +6,14 @@ import type { MetricSnapshot, TrainingTickInput } from '../../types/training';
 const TICK_INTERVAL_MS = 1_000;
 
 /**
+ * Watch stream is treated as stale — and Watch-sourced HR/kcal dropped in favour
+ * of BLE/bike fallbacks — if no new Watch sample has arrived for this long.
+ * Five ticks of tolerance survives brief WatchConnectivity reachability blips
+ * without flapping the calorie source mid-ride.
+ */
+const WATCH_SAMPLE_STALE_TIMEOUT_MS = 5_000;
+
+/**
  * 1 Hz engine that merges raw device readings into a unified
  * {@link MetricSnapshot} plus calorie-source metadata and pushes it to the
  * training session store.
@@ -46,14 +54,24 @@ export class MetronomeEngine {
   // ── Private ────────────────────────────────────────────
 
   private tick(): void {
-    const { latestBikeMetrics, latestBluetoothHr, latestAppleWatchHr, latestAppleWatchActiveKcal } =
-      useDeviceConnectionStore.getState();
-    const merged = this.mergeMetrics(
+    const {
       latestBikeMetrics,
       latestBluetoothHr,
       latestAppleWatchHr,
       latestAppleWatchActiveKcal,
-    );
+      lastAppleWatchSampleAtMs,
+    } = useDeviceConnectionStore.getState();
+
+    // Staleness gate: if the Watch stream has gone silent, drop its HR and
+    // kcal so the priority chain falls through to BLE / power / bike sources.
+    // Without this, a stale cumulative kcal would pin totalCalories to its
+    // last value and HR would show a frozen BPM indefinitely.
+    const watchIsStale =
+      lastAppleWatchSampleAtMs === null || Date.now() - lastAppleWatchSampleAtMs > WATCH_SAMPLE_STALE_TIMEOUT_MS;
+    const effectiveWatchHr = watchIsStale ? null : latestAppleWatchHr;
+    const effectiveWatchKcal = watchIsStale ? null : latestAppleWatchActiveKcal;
+
+    const merged = this.mergeMetrics(latestBikeMetrics, latestBluetoothHr, effectiveWatchHr, effectiveWatchKcal);
     useTrainingSessionStore.getState().tick(merged);
   }
 

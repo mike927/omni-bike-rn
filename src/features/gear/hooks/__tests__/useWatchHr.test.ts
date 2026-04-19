@@ -76,6 +76,7 @@ function resetStores() {
     latestBluetoothHr: null,
     latestAppleWatchHr: null,
     latestAppleWatchActiveKcal: null,
+    lastAppleWatchSampleAtMs: null,
     watchAvailability: 'unavailable',
   });
   useTrainingSessionStore.setState({ phase: TrainingPhase.Idle } as never);
