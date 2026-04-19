@@ -66,33 +66,46 @@ public class AppleHealthWorkoutModule: Module {
       }
 
       let basalType = HKQuantityType(.basalEnergyBurned)
-      // Basal samples are interval-based (multi-minute buckets). Using strict
-      // bounds would drop any sample that starts before or ends after the
-      // workout window, so a short ride that straddles a bucket boundary would
-      // read back 0. Default (non-strict) predicate includes every sample that
-      // overlaps the window — a minor boundary over-count, which the rounded
-      // display absorbs.
-      let timePredicate = HKQuery.predicateForSamples(
-        withStart: startDate,
-        end: endDate,
-        options: []
-      )
+      // Basal samples are interval-based (multi-minute buckets), so strict
+      // bounds would drop any sample that straddles the workout start/end
+      // and under-count to zero. Default (non-strict) predicate picks up
+      // overlapping samples; we then pro-rate each by the fraction of its
+      // interval that actually falls inside the workout window rather than
+      // summing the full value (HKStatisticsQuery .cumulativeSum would do
+      // the latter and over-count).
+      let timePredicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: [])
       let notFromSelf = NSCompoundPredicate(
         notPredicateWithSubpredicate: HKQuery.predicateForObjects(from: [HKSource.default()])
       )
       let combined = NSCompoundPredicate(andPredicateWithSubpredicates: [timePredicate, notFromSelf])
 
-      let query = HKStatisticsQuery(
-        quantityType: basalType,
-        quantitySamplePredicate: combined,
-        options: .cumulativeSum
-      ) { _, result, error in
+      let query = HKSampleQuery(
+        sampleType: basalType,
+        predicate: combined,
+        limit: HKObjectQueryNoLimit,
+        sortDescriptors: nil
+      ) { _, samples, error in
         if let error {
           promise.reject("ERR_QUERY_FAILED", error.localizedDescription)
           return
         }
-        let kcal = result?.sumQuantity()?.doubleValue(for: .kilocalorie()) ?? 0
-        promise.resolve(kcal)
+        guard let quantitySamples = samples as? [HKQuantitySample] else {
+          promise.resolve(0.0)
+          return
+        }
+        var totalKcal: Double = 0
+        for sample in quantitySamples {
+          let sampleDuration = sample.endDate.timeIntervalSince(sample.startDate)
+          guard sampleDuration > 0 else { continue }
+          let overlapStart = max(sample.startDate, startDate)
+          let overlapEnd = min(sample.endDate, endDate)
+          let overlapDuration = overlapEnd.timeIntervalSince(overlapStart)
+          guard overlapDuration > 0 else { continue }
+          let fraction = min(overlapDuration / sampleDuration, 1.0)
+          let sampleKcal = sample.quantity.doubleValue(for: .kilocalorie())
+          totalKcal += sampleKcal * fraction
+        }
+        promise.resolve(totalKcal)
       }
       self.healthStore.execute(query)
     }
