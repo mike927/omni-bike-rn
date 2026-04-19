@@ -121,6 +121,7 @@ function NumericField({ value, suffix, placeholder, onCommit }: NumericFieldProp
 
   const handleBlur = () => {
     const parsed = parseFiniteNumber(draft);
+    setDraft(parsed === null ? '' : String(parsed));
     if (parsed === value) return;
     onCommit(parsed);
   };
@@ -155,6 +156,7 @@ function DateField({ value, onCommit }: DateFieldProps) {
 
   const handleBlur = () => {
     const parsed = parseDateInput(draft);
+    setDraft(parsed ?? '');
     if (parsed === value) return;
     onCommit(parsed);
   };

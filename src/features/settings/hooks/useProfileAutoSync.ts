@@ -43,6 +43,9 @@ export function useProfileAutoSync(): void {
   useEffect(() => {
     if (!profileHydrated || !stravaHydrated || !appleHealthHydrated) return;
     const previous = prevStravaRef.current;
+    // Update the ref unconditionally (before the AH-authoritative gate) so a
+    // later AH disconnect won't re-seed from a Strava connection that was
+    // already in place but suppressed at mount.
     prevStravaRef.current = stravaConnected;
     // Apple Health is authoritative. Skip the Strava seed when HK is connected
     // so a Strava reconnect doesn't overwrite weight/sex that HK already owns.

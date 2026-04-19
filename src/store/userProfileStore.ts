@@ -10,7 +10,7 @@ import {
 
 type AutoSyncSource = 'apple-health' | 'strava';
 type AutoSyncPartial = Partial<{
-  [F in UserProfileField]: UserProfileFieldValueMap[F] | null;
+  [F in UserProfileField]: UserProfileFieldValueMap[F];
 }>;
 
 export interface UserProfileStore {
