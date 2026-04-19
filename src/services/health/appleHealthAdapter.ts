@@ -6,8 +6,10 @@ import {
   appendAppleHealthDiagnostic,
   getAppleHealthDiagnosticsRelativePath,
 } from '../diagnostics/appleHealthDiagnostics';
+import { basalKcalForWindow } from '../calories/mifflinStJeor';
 import type { PersistedTrainingSample, PersistedTrainingSession } from '../../types/sessionPersistence';
-import type { BiologicalSex, UserProfileField } from '../../types/userProfile';
+import { toMifflinInputs, type BiologicalSex, type UserProfileField } from '../../types/userProfile';
+import { useUserProfileStore } from '../../store/userProfileStore';
 
 interface HealthValueResult {
   value: number | string | null;
@@ -304,6 +306,30 @@ async function queryBasalEnergyKcal(startedAtMs: number, endedAtMs: number): Pro
   }
 }
 
+interface ResolveBasalArgs {
+  queriedBasalKcal: number;
+  durationSeconds: number;
+}
+
+/**
+ * Picks the basal kcal value for the workout. HealthKit is the source of truth
+ * when it returns a positive number; when it returns 0 (no samples for the
+ * window) we fall back to a Mifflin–St Jeor estimate computed from the user
+ * profile so Apple Fitness still renders a real Resting figure. With no
+ * profile, we pass through 0 — Apple Fitness falls back to Active = Total,
+ * which matches pre-fallback behaviour.
+ */
+function resolveBasalKcal({ queriedBasalKcal, durationSeconds }: ResolveBasalArgs): number {
+  if (queriedBasalKcal > 0) return queriedBasalKcal;
+  if (durationSeconds <= 0) return 0;
+  const profile = useUserProfileStore.getState().profile;
+  const mifflinInputs = toMifflinInputs(profile);
+  if (mifflinInputs === null) return 0;
+  const estimate = basalKcalForWindow(mifflinInputs, durationSeconds);
+  appendAppleHealthDiagnostic('basalEnergy-mifflin-fallback', { estimate, durationSeconds });
+  return estimate;
+}
+
 export async function saveWorkout(
   session: PersistedTrainingSession,
   samples: PersistedTrainingSample[],
@@ -315,7 +341,11 @@ export async function saveWorkout(
   const cyclingPowerSamples = mapCyclingSamples(samples, (m) => m.power);
   const cyclingCadenceSamples = mapCyclingSamples(samples, (m) => m.cadence);
   const cyclingSpeedSamples = mapCyclingSamples(samples, (m) => m.speed * KMH_TO_MPS);
-  const basalEnergyKcal = await queryBasalEnergyKcal(session.startedAtMs, endDateMs);
+  const queriedBasalKcal = await queryBasalEnergyKcal(session.startedAtMs, endDateMs);
+  const basalEnergyKcal = resolveBasalKcal({
+    queriedBasalKcal,
+    durationSeconds: Math.max(0, (endDateMs - session.startedAtMs) / 1000),
+  });
 
   try {
     const workoutId = await AppleHealthWorkout.saveCyclingWorkout({

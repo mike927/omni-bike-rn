@@ -11,6 +11,19 @@ import {
 } from '../appleHealthAdapter';
 import { AppleHealthWorkout } from 'apple-health-workout';
 import type { PersistedTrainingSample, PersistedTrainingSession } from '../../../types/sessionPersistence';
+import { useUserProfileStore } from '../../../store/userProfileStore';
+import { EMPTY_USER_PROFILE } from '../../../types/userProfile';
+
+jest.mock('../../../services/profile/userProfileStorage', () => ({
+  loadUserProfile: jest.fn().mockResolvedValue({
+    sex: null,
+    dateOfBirth: null,
+    weightKg: null,
+    heightCm: null,
+    sources: {},
+  }),
+  saveUserProfile: jest.fn().mockResolvedValue(undefined),
+}));
 
 jest.mock('apple-health-workout', () => ({
   AppleHealthWorkout: {
@@ -92,6 +105,9 @@ beforeEach(() => {
   // Default: native basal query returns 0 so Apple Fitness renders Active = Total
   // for tests that don't care about the split.
   mockQueryBasalEnergyKcal.mockResolvedValue(0);
+  // Default: empty profile so the Mifflin fallback is inactive unless a test
+  // explicitly opts in by populating the store.
+  useUserProfileStore.setState({ profile: { ...EMPTY_USER_PROFILE, sources: {} }, hydrated: true });
 });
 
 describe('initWithWritePermissions', () => {
@@ -254,6 +270,64 @@ describe('saveWorkout', () => {
     const secondPayload = mockSaveCyclingWorkout.mock.calls[1][0];
     expect(firstPayload).toMatchObject({ basalEnergyKcal: 100 });
     expect(secondPayload).toMatchObject({ basalEnergyKcal: 100 });
+  });
+
+  it('uses Mifflin–St Jeor as a basal fallback when HealthKit returns 0 and the profile is complete', async () => {
+    mockSaveCyclingWorkout.mockResolvedValue('workout-uuid-mifflin');
+    mockQueryBasalEnergyKcal.mockResolvedValue(0);
+    useUserProfileStore.setState({
+      profile: {
+        sex: 'male',
+        dateOfBirth: '1990-01-01',
+        weightKg: 80,
+        heightCm: 178,
+        sources: { sex: 'manual', dateOfBirth: 'manual', weightKg: 'manual', heightCm: 'manual' },
+      },
+      hydrated: true,
+    });
+
+    await saveWorkout(SESSION, []);
+
+    const payload = mockSaveCyclingWorkout.mock.calls[0][0];
+    // Mifflin BMR for the inputs above is ~1817 kcal/day. Over a 1-hour window
+    // (3600 s of the SESSION fixture) that's ~75.7 kcal — assert a permissive
+    // band so age-rounding via deriveAgeYears doesn't make this brittle.
+    expect(payload.basalEnergyKcal).toBeGreaterThan(60);
+    expect(payload.basalEnergyKcal).toBeLessThan(95);
+  });
+
+  it('passes through HealthKit basal even when the profile is complete (HK is the source of truth)', async () => {
+    mockSaveCyclingWorkout.mockResolvedValue('workout-uuid-hk-wins');
+    mockQueryBasalEnergyKcal.mockResolvedValue(50);
+    useUserProfileStore.setState({
+      profile: {
+        sex: 'male',
+        dateOfBirth: '1990-01-01',
+        weightKg: 80,
+        heightCm: 178,
+        sources: { sex: 'manual', dateOfBirth: 'manual', weightKg: 'manual', heightCm: 'manual' },
+      },
+      hydrated: true,
+    });
+
+    await saveWorkout(SESSION, []);
+
+    const payload = mockSaveCyclingWorkout.mock.calls[0][0];
+    expect(payload).toMatchObject({ basalEnergyKcal: 50 });
+  });
+
+  it('passes basalEnergyKcal=0 when HealthKit returns 0 and the profile is incomplete', async () => {
+    mockSaveCyclingWorkout.mockResolvedValue('workout-uuid-no-profile');
+    mockQueryBasalEnergyKcal.mockResolvedValue(0);
+    useUserProfileStore.setState({
+      profile: { sex: 'male', dateOfBirth: null, weightKg: 80, heightCm: 178, sources: {} },
+      hydrated: true,
+    });
+
+    await saveWorkout(SESSION, []);
+
+    const payload = mockSaveCyclingWorkout.mock.calls[0][0];
+    expect(payload).toMatchObject({ basalEnergyKcal: 0 });
   });
 });
 

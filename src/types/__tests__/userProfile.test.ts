@@ -29,12 +29,15 @@ describe('toKeytelInputs', () => {
   it('returns null when sex is missing', () => {
     expect(toKeytelInputs({ ...COMPLETE_PROFILE, sex: null })).toBeNull();
   });
+
   it('returns null when DOB is missing', () => {
     expect(toKeytelInputs({ ...COMPLETE_PROFILE, dateOfBirth: null })).toBeNull();
   });
+
   it('returns null when weight is missing', () => {
     expect(toKeytelInputs({ ...COMPLETE_PROFILE, weightKg: null })).toBeNull();
   });
+
   it('returns inputs when all three required fields are present (height not required)', () => {
     const result = toKeytelInputs({ ...COMPLETE_PROFILE, heightCm: null }, Date.UTC(2025, 0, 1));
     expect(result).not.toBeNull();
@@ -48,6 +51,7 @@ describe('toMifflinInputs', () => {
   it('returns null when height is missing', () => {
     expect(toMifflinInputs({ ...COMPLETE_PROFILE, heightCm: null })).toBeNull();
   });
+
   it('returns inputs when all four required fields are present', () => {
     const result = toMifflinInputs(COMPLETE_PROFILE, Date.UTC(2025, 0, 1));
     expect(result).toMatchObject({ sex: 'female', weightKg: 62, heightCm: 168 });
