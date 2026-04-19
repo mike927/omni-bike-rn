@@ -14,6 +14,8 @@ describe('trainingSessionStore', () => {
       bikeCaloriesOffset: null,
       lastBikeTotalEnergyKcal: null,
       lastBikeDistance: null,
+      watchCaloriesOffset: null,
+      lastWatchActiveKcal: null,
       lastCalorieSourceMode: 'none',
       currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: null },
     });
@@ -35,6 +37,7 @@ describe('trainingSessionStore', () => {
   ): TrainingTickInput => ({
     metrics: makeSample(metricOverrides),
     bikeTotalEnergyKcal: null,
+    watchActiveKcal: null,
     hasLiveExternalHr: false,
     ...overrides,
   });
@@ -241,6 +244,115 @@ describe('trainingSessionStore', () => {
       expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(4, 5);
     });
 
+    it('should follow Watch cumulative active kcal via offset rebase', () => {
+      useTrainingSessionStore.getState().start();
+
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { watchActiveKcal: 10 }));
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('watch');
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(0, 5);
+
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { watchActiveKcal: 11 }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(1, 5);
+    });
+
+    it('should switch from app-calculated calories to Watch calories without a jump', () => {
+      useTrainingSessionStore.getState().start();
+
+      useTrainingSessionStore.getState().tick(makeTickInput({ power: 4186 }, { hasLiveExternalHr: true }));
+      useTrainingSessionStore.getState().tick(makeTickInput({ power: 4186 }, { hasLiveExternalHr: true }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(8, 5);
+
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { watchActiveKcal: 100 }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(8, 5);
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('watch');
+
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { watchActiveKcal: 101 }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(9, 5);
+    });
+
+    it('should switch from bike calories to Watch calories without a jump', () => {
+      useTrainingSessionStore.getState().start();
+
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { bikeTotalEnergyKcal: 50 }));
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { bikeTotalEnergyKcal: 52 }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(2, 5);
+
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { watchActiveKcal: 200 }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(2, 5);
+      expect(useTrainingSessionStore.getState().bikeCaloriesOffset).toBeNull();
+
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { watchActiveKcal: 202 }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(4, 5);
+    });
+
+    it('should continue seamlessly from Watch calories to app-calculated when the Watch drops', () => {
+      useTrainingSessionStore.getState().start();
+
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { watchActiveKcal: 10 }));
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { watchActiveKcal: 15 }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(5, 5);
+
+      useTrainingSessionStore.getState().tick(makeTickInput({ power: 4186 }, { hasLiveExternalHr: true }));
+
+      const state = useTrainingSessionStore.getState();
+      expect(state.totalCalories).toBeCloseTo(9, 5);
+      expect(state.lastCalorieSourceMode).toBe('app');
+      expect(state.watchCaloriesOffset).toBeNull();
+    });
+
+    it('should rebase Watch calories if the Watch session counter resets mid-ride', () => {
+      useTrainingSessionStore.getState().start();
+
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { watchActiveKcal: 30 }));
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { watchActiveKcal: 32 }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(2, 5);
+
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { watchActiveKcal: 1 }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(2, 5);
+
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { watchActiveKcal: 3 }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(4, 5);
+    });
+
+    it('should prefer Watch calories over the app-power formula when both are present', () => {
+      useTrainingSessionStore.getState().start();
+
+      useTrainingSessionStore
+        .getState()
+        .tick(makeTickInput({ power: 4186 }, { hasLiveExternalHr: true, watchActiveKcal: 10 }));
+
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('watch');
+    });
+
+    // Guards the Watch-AE-unavailable startup window: HR begins flowing from the Watch
+    // seconds before HealthKit produces its first `activeEnergyBurned` sample on
+    // `.cycling + .indoor` (and may never produce one). The Swift payload must OMIT
+    // `activeKcal` in that window so the phone falls through to the power formula
+    // rather than pinning the dashboard at 0 kcal.
+    it('should use the app-power formula while Watch active kcal has not yet arrived, then rebase seamlessly when it does', () => {
+      useTrainingSessionStore.getState().start();
+
+      useTrainingSessionStore
+        .getState()
+        .tick(makeTickInput({ power: 4186 }, { hasLiveExternalHr: true, watchActiveKcal: null }));
+      useTrainingSessionStore
+        .getState()
+        .tick(makeTickInput({ power: 4186 }, { hasLiveExternalHr: true, watchActiveKcal: null }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(8, 5);
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('app');
+
+      useTrainingSessionStore
+        .getState()
+        .tick(makeTickInput({ power: 4186 }, { hasLiveExternalHr: true, watchActiveKcal: 500 }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(8, 5);
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('watch');
+
+      useTrainingSessionStore
+        .getState()
+        .tick(makeTickInput({ power: 4186 }, { hasLiveExternalHr: true, watchActiveKcal: 501 }));
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(9, 5);
+    });
+
     it('should rebase bike distance if the bike counter resets mid-session', () => {
       useTrainingSessionStore.getState().start();
 
@@ -317,8 +429,8 @@ describe('trainingSessionStore', () => {
 
     it('should return all values to initial state', () => {
       useTrainingSessionStore.getState().start();
-      useTrainingSessionStore.getState().tick(makeTickInput());
-      useTrainingSessionStore.getState().tick(makeTickInput());
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { watchActiveKcal: 10 }));
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { watchActiveKcal: 12 }));
       useTrainingSessionStore.getState().finish();
       useTrainingSessionStore.getState().reset();
 
@@ -331,6 +443,8 @@ describe('trainingSessionStore', () => {
       expect(state.bikeCaloriesOffset).toBeNull();
       expect(state.lastBikeTotalEnergyKcal).toBeNull();
       expect(state.lastBikeDistance).toBeNull();
+      expect(state.watchCaloriesOffset).toBeNull();
+      expect(state.lastWatchActiveKcal).toBeNull();
       expect(state.lastCalorieSourceMode).toBe('none');
       expect(state.currentMetrics).toEqual({
         speed: 0,
@@ -361,7 +475,27 @@ describe('trainingSessionStore', () => {
       expect(state.bikeCaloriesOffset).toBeNull();
       expect(state.lastBikeTotalEnergyKcal).toBeNull();
       expect(state.lastBikeDistance).toBeNull();
+      expect(state.watchCaloriesOffset).toBeNull();
+      expect(state.lastWatchActiveKcal).toBeNull();
       expect(state.lastCalorieSourceMode).toBe('none');
+    });
+
+    it('rebases Watch calories on the first post-restore tick', () => {
+      useTrainingSessionStore.getState().restore({
+        elapsedSeconds: 90,
+        totalDistance: 150,
+        totalCalories: 20,
+        currentMetrics: makeSample({ speed: 0, cadence: 0, power: 0, distance: null }),
+      });
+
+      useTrainingSessionStore.getState().resume();
+      useTrainingSessionStore.getState().tick(makeTickInput({}, { watchActiveKcal: 400 }));
+
+      const state = useTrainingSessionStore.getState();
+      expect(state.totalCalories).toBeCloseTo(20, 5);
+      expect(state.watchCaloriesOffset).toBeCloseTo(-380, 5);
+      expect(state.lastWatchActiveKcal).toBe(400);
+      expect(state.lastCalorieSourceMode).toBe('watch');
     });
 
     it('rebases distance and bike calories on the first post-restore tick', () => {

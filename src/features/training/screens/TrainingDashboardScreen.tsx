@@ -101,6 +101,11 @@ export function TrainingDashboardScreen() {
             value={formatMetricValue(resolvedHeartRate, ' bpm')}
             style={styles.primaryMetricTile}
           />
+          <MetricTile
+            label="Calories"
+            value={`${session.totalCalories.toFixed(1)} kcal`}
+            style={styles.primaryMetricTile}
+          />
         </View>
 
         <View style={styles.connectionRow}>

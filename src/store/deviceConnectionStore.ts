@@ -24,6 +24,13 @@ export interface DeviceConnectionStore {
   lastBikeSignalAtMs: number | null;
   latestBluetoothHr: number | null;
   latestAppleWatchHr: number | null;
+  latestAppleWatchActiveKcal: number | null;
+  /**
+   * Wall-clock timestamp of the most recent Apple Watch sample (HR or kcal).
+   * Used by the engine to treat the stream as stale — and fall back to app /
+   * bike calorie sources — when the Watch goes silent for several ticks.
+   */
+  lastAppleWatchSampleAtMs: number | null;
   watchAvailability: WatchAvailability;
 
   // ── Actions ────────────────────────────────────────────
@@ -34,6 +41,7 @@ export interface DeviceConnectionStore {
   updateBikeMetrics: (metrics: BikeMetrics) => void;
   updateBluetoothHr: (hr: number) => void;
   updateAppleWatchHr: (hr: number | null) => void;
+  updateAppleWatchActiveKcal: (kcal: number | null) => void;
   setWatchAvailability: (availability: WatchAvailability) => void;
   clearBikeConnection: () => void;
   clearHrConnection: () => void;
@@ -49,6 +57,8 @@ export const useDeviceConnectionStore = create<DeviceConnectionStore>((set) => (
   lastBikeSignalAtMs: null,
   latestBluetoothHr: null,
   latestAppleWatchHr: null,
+  latestAppleWatchActiveKcal: null,
+  lastAppleWatchSampleAtMs: null,
   watchAvailability: 'unavailable',
 
   setBikeAdapter: (adapter) =>
@@ -65,7 +75,12 @@ export const useDeviceConnectionStore = create<DeviceConnectionStore>((set) => (
       lastBikeSignalAtMs: Date.now(),
     }),
   updateBluetoothHr: (hr) => set({ latestBluetoothHr: hr }),
-  updateAppleWatchHr: (hr) => set({ latestAppleWatchHr: hr }),
+  // HR arrives every 1 Hz on every Watch payload; treat it as the canonical
+  // "stream alive" signal. kcal piggy-backs on the same payload but may be
+  // absent until HealthKit produces its first active-energy sample.
+  updateAppleWatchHr: (hr) =>
+    set({ latestAppleWatchHr: hr, lastAppleWatchSampleAtMs: hr === null ? null : Date.now() }),
+  updateAppleWatchActiveKcal: (kcal) => set({ latestAppleWatchActiveKcal: kcal }),
   setWatchAvailability: (watchAvailability) =>
     set((state) => (state.watchAvailability === watchAvailability ? state : { watchAvailability })),
   clearBikeConnection: () =>
@@ -90,6 +105,8 @@ export const useDeviceConnectionStore = create<DeviceConnectionStore>((set) => (
       lastBikeSignalAtMs: null,
       latestBluetoothHr: null,
       latestAppleWatchHr: null,
+      latestAppleWatchActiveKcal: null,
+      lastAppleWatchSampleAtMs: null,
       watchAvailability: 'unavailable',
     }),
 }));

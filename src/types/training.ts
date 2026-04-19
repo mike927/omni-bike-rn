@@ -41,11 +41,17 @@ export interface TrainingTickInput {
   metrics: MetricSnapshot;
   /** Cumulative FTMS energy reported by the bike. */
   bikeTotalEnergyKcal: number | null;
+  /**
+   * Cumulative active-energy (kcal) reported by the paired Apple Watch's
+   * HKLiveWorkoutBuilder for the current workout. Non-null when the Watch is
+   * streaming and takes priority over app- and bike-based calorie sources.
+   */
+  watchActiveKcal: number | null;
   /** Whether an external HR source is actively reporting on this tick. */
   hasLiveExternalHr: boolean;
 }
 
-export type CalorieSourceMode = 'app' | 'bike' | 'none';
+export type CalorieSourceMode = 'app' | 'bike' | 'watch' | 'none';
 
 /** Allowed transitions for the training state machine. */
 export const VALID_TRANSITIONS: Readonly<Record<TrainingPhase, readonly TrainingPhase[]>> = {

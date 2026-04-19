@@ -36,6 +36,7 @@ fileprivate func wcLog(_ message: String) {
 
 fileprivate enum PayloadKey {
   static let heartRate = "hr"
+  static let activeKcal = "activeKcal"
   static let sessionState = "sessionState"
   static let sentAtMs = "sentAtMs"
   static let command = "cmd"
@@ -57,7 +58,7 @@ public class WatchConnectivityModule: Module {
   public func definition() -> ModuleDefinition {
     Name("WatchConnectivity")
 
-    Events("onWatchHr", "onReachabilityChange", "onWatchSessionState")
+    Events("onWatchHr", "onWatchActiveKcal", "onReachabilityChange", "onWatchSessionState")
 
     // Per WWDC23 session 10023: register the mirroring handler on every app
     // launch (foreground or background) so HealthKit can hand us the primary
@@ -213,6 +214,10 @@ public class WatchConnectivityModule: Module {
     sendEvent("onWatchHr", ["hr": hr])
   }
 
+  fileprivate func emitActiveKcal(_ kcal: Double) {
+    sendEvent("onWatchActiveKcal", ["activeKcal": kcal])
+  }
+
   fileprivate func emitReachability(_ reachable: Bool) {
     sendEvent("onReachabilityChange", ["reachable": reachable])
   }
@@ -248,6 +253,7 @@ fileprivate enum PayloadKeySessionState {
 
 fileprivate struct MirroredWorkoutPayload: Decodable {
   let hr: Int?
+  let activeKcal: Double?
 }
 
 private class SessionDelegateProxy: NSObject, WCSessionDelegate, HKWorkoutSessionDelegate {
@@ -278,6 +284,9 @@ private class SessionDelegateProxy: NSObject, WCSessionDelegate, HKWorkoutSessio
     if let hr = message[PayloadKey.heartRate] as? NSNumber {
       module?.emitHr(hr.intValue)
     }
+    if let kcal = message[PayloadKey.activeKcal] as? NSNumber {
+      module?.emitActiveKcal(kcal.doubleValue)
+    }
     if let state = message[PayloadKey.sessionState] as? String,
        let sentAtMs = message[PayloadKey.sentAtMs] as? NSNumber {
       wcLog("[WC-iPhone] didReceiveMessage sessionState=\(state)")
@@ -289,6 +298,9 @@ private class SessionDelegateProxy: NSObject, WCSessionDelegate, HKWorkoutSessio
     wcLog("[WC-iPhone] didReceiveApplicationContext keys=\(Array(applicationContext.keys))")
     if let hr = applicationContext[PayloadKey.heartRate] as? NSNumber {
       module?.emitHr(hr.intValue)
+    }
+    if let kcal = applicationContext[PayloadKey.activeKcal] as? NSNumber {
+      module?.emitActiveKcal(kcal.doubleValue)
     }
     if let state = applicationContext[PayloadKey.sessionState] as? String,
        let sentAtMs = applicationContext[PayloadKey.sentAtMs] as? NSNumber {
@@ -331,12 +343,16 @@ private class SessionDelegateProxy: NSObject, WCSessionDelegate, HKWorkoutSessio
 
   func workoutSession(_ workoutSession: HKWorkoutSession, didReceiveDataFromRemoteWorkoutSession data: [Data]) {
     for entry in data {
-      guard let payload = try? JSONDecoder().decode(MirroredWorkoutPayload.self, from: entry),
-            let hr = payload.hr else {
+      guard let payload = try? JSONDecoder().decode(MirroredWorkoutPayload.self, from: entry) else {
         continue
       }
-      wcLog("[WC-iPhone] mirrored workoutSession didReceiveDataFromRemoteWorkoutSession hr=\(hr)")
-      module?.emitHr(hr)
+      if let hr = payload.hr {
+        wcLog("[WC-iPhone] mirrored workoutSession didReceiveDataFromRemoteWorkoutSession hr=\(hr)")
+        module?.emitHr(hr)
+      }
+      if let kcal = payload.activeKcal {
+        module?.emitActiveKcal(kcal)
+      }
     }
   }
 }

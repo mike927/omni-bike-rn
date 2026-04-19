@@ -48,6 +48,7 @@ describe('useTrainingSessionPersistence', () => {
   const tickInput: TrainingTickInput = {
     metrics: sample,
     bikeTotalEnergyKcal: null,
+    watchActiveKcal: null,
     hasLiveExternalHr: true,
   };
 
@@ -62,6 +63,8 @@ describe('useTrainingSessionPersistence', () => {
       bikeCaloriesOffset: null,
       lastBikeTotalEnergyKcal: null,
       lastBikeDistance: null,
+      watchCaloriesOffset: null,
+      lastWatchActiveKcal: null,
       lastCalorieSourceMode: 'none',
       currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: null },
     });

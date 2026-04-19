@@ -76,9 +76,14 @@ final class WorkoutManager: NSObject, ObservableObject {
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
     private var lastHrSendAt: TimeInterval = 0
+    // nil until HealthKit produces its first activeEnergyBurned sample for the
+    // current session. Omitting the field from the payload lets the phone fall
+    // through to its power-based formula instead of pinning the dashboard to 0.
+    private var latestActiveKcal: Double?
     private var pendingSessionStatePayload: [String: Any]?
 
     private let hrType = HKQuantityType(.heartRate)
+    private let aeType = HKQuantityType(.activeEnergyBurned)
     private let hrSendIntervalSeconds: TimeInterval = 1.0
 
     override private init() {
@@ -133,7 +138,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         // we never save an HKWorkout ourselves — it's a precondition of the session
         // start API. The companion still doesn't author a workout: there's no
         // HKLiveWorkoutBuilder, no finishWorkout, and no HKWorkout.save call.
-        healthStore.requestAuthorization(toShare: [HKObjectType.workoutType()], read: [hrType]) { [weak self] success, error in
+        healthStore.requestAuthorization(toShare: [HKObjectType.workoutType()], read: [hrType, aeType]) { [weak self] success, error in
             if let error {
                 wcLog("[WC-Watch] Authorization FAILED: \(error.localizedDescription)")
                 return
@@ -175,6 +180,11 @@ final class WorkoutManager: NSObject, ObservableObject {
             let builder = session.associatedWorkoutBuilder()
             let dataSource = HKLiveWorkoutDataSource(healthStore: healthStore, workoutConfiguration: configuration)
             dataSource.enableCollection(for: hrType, predicate: nil)
+            // Active energy is used as the cumulative session kcal source streamed to the
+            // phone; HKLiveWorkoutBuilder computes it from HR + the wearer's Health profile
+            // on `.cycling + .indoor`. We never persist it — the dataSource remains scoped
+            // to sample delivery only, and `teardownSession` still calls `discardWorkout`.
+            dataSource.enableCollection(for: aeType, predicate: nil)
             builder.dataSource = dataSource
             builder.delegate = self
             self.builder = builder
@@ -243,6 +253,9 @@ final class WorkoutManager: NSObject, ObservableObject {
         builder = nil
         session = nil
         lastHrSendAt = 0
+        // Clear before the next session's first delegate callback so a stale
+        // cumulative value is never piggy-backed onto the first HR payload.
+        latestActiveKcal = nil
     }
 
     // ── WatchConnectivity ──────────────────────────────────────────────────────
@@ -258,10 +271,13 @@ final class WorkoutManager: NSObject, ObservableObject {
     }
 
     private func sendHrToPhone(_ bpm: Int) {
-        let payload: [String: Any] = [
+        var payload: [String: Any] = [
             "hr": bpm,
             "sentAtMs": Date().timeIntervalSince1970 * 1000,
         ]
+        if let kcal = latestActiveKcal {
+            payload["activeKcal"] = kcal
+        }
         let session = WCSession.default
         guard session.activationState == .activated else {
             wcLog("[WC-Watch] sendHrToPhone dropped: WC not activated")
@@ -441,6 +457,15 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
 
     func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder,
                         didCollectDataOf collectedTypes: Set<HKSampleType>) {
+        // Active energy arrives as its own collection event. Record the cumulative
+        // session total so the next HR tick piggy-backs it onto the payload. HR
+        // stays the single throttle source to preserve 1 Hz send cadence.
+        if collectedTypes.contains(aeType),
+           let energyStats = workoutBuilder.statistics(for: aeType),
+           let energyQuantity = energyStats.sumQuantity() {
+            latestActiveKcal = energyQuantity.doubleValue(for: .kilocalorie())
+        }
+
         guard collectedTypes.contains(hrType),
               let stats = workoutBuilder.statistics(for: hrType),
               let quantity = stats.mostRecentQuantity() else { return }

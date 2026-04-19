@@ -32,6 +32,7 @@ jest.mock('../../../../services/watch/WatchHrAdapter', () => ({
     connect: jest.fn().mockResolvedValue(undefined),
     disconnect: jest.fn().mockResolvedValue(undefined),
     subscribeToHeartRate: jest.fn().mockReturnValue({ remove: jest.fn() }),
+    subscribeToActiveKcal: jest.fn().mockReturnValue({ remove: jest.fn() }),
   })),
 }));
 
@@ -74,6 +75,8 @@ function resetStores() {
     latestBikeMetrics: null,
     latestBluetoothHr: null,
     latestAppleWatchHr: null,
+    latestAppleWatchActiveKcal: null,
+    lastAppleWatchSampleAtMs: null,
     watchAvailability: 'unavailable',
   });
   useTrainingSessionStore.setState({ phase: TrainingPhase.Idle } as never);
@@ -179,6 +182,7 @@ describe('useWatchHr', () => {
         connect: jest.fn().mockRejectedValue(new Error('WCSession activation failed')),
         disconnect: jest.fn().mockResolvedValue(undefined),
         subscribeToHeartRate: jest.fn().mockReturnValue({ remove: jest.fn() }),
+        subscribeToActiveKcal: jest.fn().mockReturnValue({ remove: jest.fn() }),
       }));
 
       const { rerender } = renderHook(() => useWatchHr());
@@ -312,10 +316,12 @@ describe('useWatchHr', () => {
       };
       const disconnect = jest.fn().mockResolvedValue(undefined);
       const subscribeToHeartRate = jest.fn().mockReturnValue({ remove: jest.fn() });
+      const subscribeToActiveKcal = jest.fn().mockReturnValue({ remove: jest.fn() });
       WatchHrAdapter.mockImplementationOnce(() => ({
         connect: jest.fn().mockImplementation(() => connectPromise),
         disconnect,
         subscribeToHeartRate,
+        subscribeToActiveKcal,
       }));
 
       const { rerender } = renderHook(() => useWatchHr());
@@ -358,10 +364,12 @@ describe('useWatchHr', () => {
       };
       const disconnect = jest.fn().mockResolvedValue(undefined);
       const subscribeToHeartRate = jest.fn().mockReturnValue({ remove: jest.fn() });
+      const subscribeToActiveKcal = jest.fn().mockReturnValue({ remove: jest.fn() });
       WatchHrAdapter.mockImplementationOnce(() => ({
         connect: jest.fn().mockImplementation(() => connectPromise),
         disconnect,
         subscribeToHeartRate,
+        subscribeToActiveKcal,
       }));
 
       const { rerender } = renderHook(() => useWatchHr());
@@ -510,6 +518,81 @@ describe('useWatchHr', () => {
 
       expect(useDeviceConnectionStore.getState().watchAvailability).toBe('in_progress');
       expect(useDeviceConnectionStore.getState().latestAppleWatchHr).toBe(147);
+    });
+
+    it('forwards Watch-computed active kcal into the device store', async () => {
+      useWatchHrStore.setState({ enabled: true, hydrated: true });
+      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+      renderHook(() => useWatchHr());
+
+      const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
+        WatchHrAdapter: jest.Mock;
+      };
+
+      await waitFor(() => {
+        const inst = WatchHrAdapter.mock.results[0]?.value as { connect: jest.Mock } | undefined;
+        expect(inst?.connect).toHaveBeenCalled();
+      });
+
+      const subscribeToActiveKcal = (WatchHrAdapter.mock.results[0]?.value as { subscribeToActiveKcal: jest.Mock })
+        .subscribeToActiveKcal;
+      const kcalCallback = subscribeToActiveKcal.mock.calls[0]?.[0] as ((kcal: number) => void) | undefined;
+
+      act(() => {
+        kcalCallback?.(42.5);
+      });
+
+      expect(useDeviceConnectionStore.getState().latestAppleWatchActiveKcal).toBe(42.5);
+    });
+
+    it('clears latestAppleWatchActiveKcal when the Watch goes out of range', () => {
+      useDeviceConnectionStore.setState({ latestAppleWatchActiveKcal: 42.5 });
+      renderHook(() => useWatchHr());
+
+      const wc = getWatchConnectivityMock();
+      const reachabilityCallback = wc.addListener.mock.calls[0]?.[1] as
+        | ((payload: { reachable: boolean }) => void)
+        | undefined;
+
+      act(() => {
+        reachabilityCallback?.({ reachable: false });
+      });
+
+      expect(useDeviceConnectionStore.getState().latestAppleWatchActiveKcal).toBeNull();
+    });
+
+    it('clears latestAppleWatchActiveKcal when the stream is stopped', async () => {
+      useWatchHrStore.setState({ enabled: true, hydrated: true });
+      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+
+      const { rerender } = renderHook(() => useWatchHr());
+
+      const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
+        WatchHrAdapter: jest.Mock;
+      };
+
+      await waitFor(() => {
+        const inst = WatchHrAdapter.mock.results[0]?.value as { connect: jest.Mock } | undefined;
+        expect(inst?.connect).toHaveBeenCalled();
+      });
+
+      const subscribeToActiveKcal = (WatchHrAdapter.mock.results[0]?.value as { subscribeToActiveKcal: jest.Mock })
+        .subscribeToActiveKcal;
+      const kcalCallback = subscribeToActiveKcal.mock.calls[0]?.[0] as ((kcal: number) => void) | undefined;
+
+      act(() => {
+        kcalCallback?.(30);
+      });
+      expect(useDeviceConnectionStore.getState().latestAppleWatchActiveKcal).toBe(30);
+
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Finished } as never);
+      });
+      rerender({});
+
+      await waitFor(() => {
+        expect(useDeviceConnectionStore.getState().latestAppleWatchActiveKcal).toBeNull();
+      });
     });
 
     it('ignores stale watch session state events from before the current start request', async () => {

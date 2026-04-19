@@ -27,4 +27,16 @@ export class WatchHrAdapter implements HrAdapter {
     });
     return subscription;
   }
+
+  /**
+   * Cumulative active-energy samples for the current Watch workout session.
+   * Emitted at the same ~1 Hz cadence as HR and piggy-backed on the same WC
+   * payload; subscribers receive the session-to-date kcal, not a per-tick delta.
+   */
+  subscribeToActiveKcal(callback: (kcal: number) => void): { remove: () => void } {
+    const subscription = WatchConnectivity.addListener('onWatchActiveKcal', ({ activeKcal }) => {
+      callback(activeKcal);
+    });
+    return subscription;
+  }
 }

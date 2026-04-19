@@ -32,6 +32,9 @@ describe('MetronomeEngine', () => {
       initialDistance: null,
       bikeCaloriesOffset: null,
       lastBikeTotalEnergyKcal: null,
+      lastBikeDistance: null,
+      watchCaloriesOffset: null,
+      lastWatchActiveKcal: null,
       lastCalorieSourceMode: 'none',
       currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: null },
     });
@@ -235,6 +238,85 @@ describe('MetronomeEngine', () => {
 
       expect(useTrainingSessionStore.getState().currentMetrics.heartRate).toBe(145);
       expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(4, 5);
+    });
+  });
+
+  describe('Watch-computed calories', () => {
+    it('should forward latestAppleWatchActiveKcal into the session store tick and mark the source as watch', () => {
+      useTrainingSessionStore.getState().start();
+
+      useDeviceConnectionStore.getState().updateAppleWatchHr(150);
+      useDeviceConnectionStore.getState().updateAppleWatchActiveKcal(10);
+
+      engine.start();
+      jest.advanceTimersByTime(1000);
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('watch');
+
+      useDeviceConnectionStore.getState().updateAppleWatchActiveKcal(11);
+      jest.advanceTimersByTime(1000);
+
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('watch');
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(1, 5);
+    });
+
+    it('should prefer Watch calories over the app-power formula when both are available', () => {
+      useTrainingSessionStore.getState().start();
+
+      const bikeMetrics: BikeMetrics = {
+        speed: 25,
+        cadence: 80,
+        power: 4186,
+        heartRate: 72,
+      };
+      useDeviceConnectionStore.getState().updateBikeMetrics(bikeMetrics);
+      useDeviceConnectionStore.getState().updateBluetoothHr(145);
+      // HR also comes from the Watch payload — this establishes the freshness
+      // timestamp the engine uses to gate the Watch branch.
+      useDeviceConnectionStore.getState().updateAppleWatchHr(150);
+      useDeviceConnectionStore.getState().updateAppleWatchActiveKcal(7);
+
+      engine.start();
+      jest.advanceTimersByTime(1000);
+
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('watch');
+    });
+
+    it('should drop stale Watch samples and fall back to app-power when the Watch stream goes silent', () => {
+      useTrainingSessionStore.getState().start();
+
+      useDeviceConnectionStore.getState().updateBluetoothHr(140);
+      useDeviceConnectionStore.getState().updateBikeMetrics({ speed: 25, cadence: 80, power: 4186 });
+      useDeviceConnectionStore.getState().updateAppleWatchHr(150);
+      useDeviceConnectionStore.getState().updateAppleWatchActiveKcal(10);
+
+      engine.start();
+      jest.advanceTimersByTime(1000);
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('watch');
+
+      // No new Watch samples arrive. After the staleness timeout passes, the
+      // engine must ignore the stale cumulative value and fall back to app-power.
+      jest.advanceTimersByTime(6000);
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('app');
+    });
+
+    it('should resume the Watch branch when a fresh sample arrives after a staleness drop', () => {
+      useTrainingSessionStore.getState().start();
+
+      useDeviceConnectionStore.getState().updateBluetoothHr(140);
+      useDeviceConnectionStore.getState().updateBikeMetrics({ speed: 25, cadence: 80, power: 4186 });
+      useDeviceConnectionStore.getState().updateAppleWatchHr(150);
+      useDeviceConnectionStore.getState().updateAppleWatchActiveKcal(10);
+
+      engine.start();
+      jest.advanceTimersByTime(1000);
+      jest.advanceTimersByTime(6000);
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('app');
+
+      // Fresh Watch sample refreshes the timestamp — next tick re-enters the Watch branch.
+      useDeviceConnectionStore.getState().updateAppleWatchHr(152);
+      useDeviceConnectionStore.getState().updateAppleWatchActiveKcal(11);
+      jest.advanceTimersByTime(1000);
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('watch');
     });
   });
 

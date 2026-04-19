@@ -112,8 +112,23 @@ describe('TrainingDashboardScreen', () => {
 
     expect(getByText('Pause')).toBeTruthy();
     expect(getByText('Finish')).toBeTruthy();
+    expect(getByText('45.6 kcal')).toBeTruthy();
     expect(queryByText('Resume')).toBeNull();
     expect(queryByText('View Summary')).toBeNull();
+  });
+
+  it('renders a Calories tile that tracks the session total', () => {
+    Object.assign(mockSession, {
+      phase: 'active',
+      totalCalories: 123.4,
+      currentMetrics: { speed: 28, cadence: 85, power: 210, heartRate: 140, resistance: 6, distance: 1000 },
+    });
+    Object.assign(mockDeviceConnection, { bikeConnected: true });
+
+    const { getByText } = render(<TrainingDashboardScreen />);
+
+    expect(getByText('Calories')).toBeTruthy();
+    expect(getByText('123.4 kcal')).toBeTruthy();
   });
 
   it('shows Resume and Finish while paused', () => {

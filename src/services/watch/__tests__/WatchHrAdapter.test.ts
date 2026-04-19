@@ -75,4 +75,26 @@ describe('WatchHrAdapter', () => {
       expect(removeFn).toHaveBeenCalled();
     });
   });
+
+  describe('subscribeToActiveKcal', () => {
+    it('registers a listener on the onWatchActiveKcal event and forwards kcal values', () => {
+      const kcalCallback = jest.fn();
+      const removeFn = jest.fn();
+      (WatchConnectivity.addListener as jest.Mock).mockReturnValue({ remove: removeFn });
+
+      const sub = adapter.subscribeToActiveKcal(kcalCallback);
+
+      expect(WatchConnectivity.addListener).toHaveBeenCalledWith('onWatchActiveKcal', expect.any(Function));
+
+      const listenerCallback = (WatchConnectivity.addListener as jest.Mock).mock.calls[0][1] as (payload: {
+        activeKcal: number;
+      }) => void;
+      listenerCallback({ activeKcal: 12.5 });
+
+      expect(kcalCallback).toHaveBeenCalledWith(12.5);
+
+      sub.remove();
+      expect(removeFn).toHaveBeenCalled();
+    });
+  });
 });
