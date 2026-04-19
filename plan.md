@@ -116,7 +116,7 @@ Lightweight, modern onboarding shown only on first launch. 2-3 swipeable intro s
 ## Phase 7: Extras & Platform Features
 
 - [ ] Live Activities & Dynamic Island integration (`react-native-activity-kit`)
-- [ ] Apple Health export via `react-native-health` (completed sessions only)
+- [x] Apple Health export via `react-native-health` (completed sessions only)
 - [ ] Raw `.FIT` binary file export generation
 
 ## Phase 8: Advanced HR Sources & Watch Integration
