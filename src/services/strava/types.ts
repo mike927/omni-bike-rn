@@ -49,4 +49,8 @@ export interface StravaDetailedAthleteResponse {
   firstname: string;
   lastname: string;
   bikes?: StravaGear[];
+  /** Strava-reported athlete weight in kilograms. */
+  weight?: number | null;
+  /** Strava-reported sex; 'M' for male, 'F' for female. Other values are ignored. */
+  sex?: 'M' | 'F' | null;
 }

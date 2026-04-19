@@ -6,13 +6,45 @@ import {
   appendAppleHealthDiagnostic,
   getAppleHealthDiagnosticsRelativePath,
 } from '../diagnostics/appleHealthDiagnostics';
+import { basalKcalForWindow } from '../calories/mifflinStJeor';
 import type { PersistedTrainingSample, PersistedTrainingSession } from '../../types/sessionPersistence';
+import { toMifflinInputs, type BiologicalSex, type UserProfileField } from '../../types/userProfile';
+import { useUserProfileStore } from '../../store/userProfileStore';
+
+interface HealthValueResult {
+  value: number | string | null;
+}
+
+interface HealthDateOfBirthResult {
+  value: string | null;
+  age: number | null;
+}
+
+interface HealthQuantityOptions {
+  unit?: string;
+}
 
 interface HealthKitNativeModule {
   initHealthKit: (permissions: HealthKitPermissions, callback: (error: HealthKitErrorLike) => void) => void;
   getAuthStatus: (
     permissions: HealthKitPermissions,
     callback: (error: HealthKitErrorLike, result: HealthStatusResult) => void,
+  ) => void;
+  getBiologicalSex: (
+    options: HealthQuantityOptions,
+    callback: (error: HealthKitErrorLike, result: HealthValueResult) => void,
+  ) => void;
+  getDateOfBirth: (
+    options: HealthQuantityOptions,
+    callback: (error: HealthKitErrorLike, result: HealthDateOfBirthResult) => void,
+  ) => void;
+  getLatestWeight: (
+    options: HealthQuantityOptions,
+    callback: (error: HealthKitErrorLike, result: HealthValueResult) => void,
+  ) => void;
+  getLatestHeight: (
+    options: HealthQuantityOptions,
+    callback: (error: HealthKitErrorLike, result: HealthValueResult) => void,
   ) => void;
 }
 
@@ -29,12 +61,25 @@ type HealthKitErrorLike = HealthKitErrorObject | string | null | undefined;
 // react-native-health typings model write[] as a `HealthPermission` enum, but
 // the real native API accepts plain string literals. Use a local string-union
 // type to avoid importing a mismatched enum while keeping the array typed.
-type HealthPermissionName = 'Workout' | 'ActiveEnergyBurned' | 'DistanceCycling' | 'HeartRate' | 'BasalEnergyBurned';
+type HealthPermissionName =
+  | 'Workout'
+  | 'ActiveEnergyBurned'
+  | 'DistanceCycling'
+  | 'HeartRate'
+  | 'BasalEnergyBurned'
+  | 'BiologicalSex'
+  | 'DateOfBirth'
+  | 'Weight'
+  | 'Height';
 const HEALTH_PERMISSION_WORKOUT: HealthPermissionName = 'Workout';
 const HEALTH_PERMISSION_ACTIVE_ENERGY_BURNED: HealthPermissionName = 'ActiveEnergyBurned';
 const HEALTH_PERMISSION_DISTANCE_CYCLING: HealthPermissionName = 'DistanceCycling';
 const HEALTH_PERMISSION_HEART_RATE: HealthPermissionName = 'HeartRate';
 const HEALTH_PERMISSION_BASAL_ENERGY_BURNED: HealthPermissionName = 'BasalEnergyBurned';
+const HEALTH_PERMISSION_BIOLOGICAL_SEX: HealthPermissionName = 'BiologicalSex';
+const HEALTH_PERMISSION_DATE_OF_BIRTH: HealthPermissionName = 'DateOfBirth';
+const HEALTH_PERMISSION_WEIGHT: HealthPermissionName = 'Weight';
+const HEALTH_PERMISSION_HEIGHT: HealthPermissionName = 'Height';
 const HEALTHKIT_STATUS_LABELS = ['NotDetermined', 'SharingDenied', 'SharingAuthorized'] as const;
 const HEALTHKIT_WRITE_PERMISSIONS: readonly HealthPermissionName[] = [
   HEALTH_PERMISSION_WORKOUT,
@@ -46,7 +91,17 @@ const HEALTHKIT_WRITE_PERMISSIONS: readonly HealthPermissionName[] = [
   // HealthKit rejects `builder.add(samples)` with "Not authorized".
   HEALTH_PERMISSION_BASAL_ENERGY_BURNED,
 ];
-const HEALTHKIT_READ_PERMISSIONS: readonly HealthPermissionName[] = [HEALTH_PERMISSION_BASAL_ENERGY_BURNED];
+const HEALTHKIT_READ_PERMISSIONS: readonly HealthPermissionName[] = [
+  HEALTH_PERMISSION_BASAL_ENERGY_BURNED,
+  // Part C reads the user's biological sex, date of birth, latest weight, and
+  // latest height to personalize the Keytel calorie formula and the Mifflin
+  // basal fallback. All four are read-only; the user manages the source of
+  // truth in the Apple Health app.
+  HEALTH_PERMISSION_BIOLOGICAL_SEX,
+  HEALTH_PERMISSION_DATE_OF_BIRTH,
+  HEALTH_PERMISSION_WEIGHT,
+  HEALTH_PERMISSION_HEIGHT,
+];
 
 function getHealthKit(): HealthKitNativeModule {
   const healthKit = NativeModules.AppleHealthKit as HealthKitNativeModule | undefined;
@@ -190,10 +245,29 @@ async function initCyclingMetricPermissions(): Promise<void> {
   }
 }
 
+// Memoize a single in-flight init promise so the launch-time permission
+// refresh hook and the profile auto-sync hook can both await initialization
+// without firing duplicate iOS authorization prompts. Cleared on failure so
+// subsequent attempts can retry.
+let initPromise: Promise<void> | null = null;
+
 export async function initWithWritePermissions(): Promise<void> {
-  const healthKit = getHealthKit();
-  await initBaseWritePermissions(healthKit);
-  await initCyclingMetricPermissions();
+  if (initPromise) return initPromise;
+  initPromise = (async () => {
+    const healthKit = getHealthKit();
+    await initBaseWritePermissions(healthKit);
+    await initCyclingMetricPermissions();
+  })().catch((error: unknown) => {
+    initPromise = null;
+    throw error;
+  });
+  return initPromise;
+}
+
+// Test seam: reset the memoized init promise so each test starts from a
+// known state.
+export function __resetHealthKitInitPromiseForTests(): void {
+  initPromise = null;
 }
 
 export interface SaveWorkoutResult {
@@ -251,6 +325,30 @@ async function queryBasalEnergyKcal(startedAtMs: number, endedAtMs: number): Pro
   }
 }
 
+interface ResolveBasalArgs {
+  queriedBasalKcal: number;
+  durationSeconds: number;
+}
+
+/**
+ * Picks the basal kcal value for the workout. HealthKit is the source of truth
+ * when it returns a positive number; when it returns 0 (no samples for the
+ * window) we fall back to a Mifflin–St Jeor estimate computed from the user
+ * profile so Apple Fitness still renders a real Resting figure. With no
+ * profile, we pass through 0 — Apple Fitness falls back to Active = Total,
+ * which matches pre-fallback behaviour.
+ */
+function resolveBasalKcal({ queriedBasalKcal, durationSeconds }: ResolveBasalArgs): number {
+  if (queriedBasalKcal > 0) return queriedBasalKcal;
+  if (durationSeconds <= 0) return 0;
+  const profile = useUserProfileStore.getState().profile;
+  const mifflinInputs = toMifflinInputs(profile);
+  if (mifflinInputs === null) return 0;
+  const estimate = basalKcalForWindow(mifflinInputs, durationSeconds);
+  appendAppleHealthDiagnostic('basalEnergy-mifflin-fallback', { estimate, durationSeconds });
+  return estimate;
+}
+
 export async function saveWorkout(
   session: PersistedTrainingSession,
   samples: PersistedTrainingSample[],
@@ -262,7 +360,11 @@ export async function saveWorkout(
   const cyclingPowerSamples = mapCyclingSamples(samples, (m) => m.power);
   const cyclingCadenceSamples = mapCyclingSamples(samples, (m) => m.cadence);
   const cyclingSpeedSamples = mapCyclingSamples(samples, (m) => m.speed * KMH_TO_MPS);
-  const basalEnergyKcal = await queryBasalEnergyKcal(session.startedAtMs, endDateMs);
+  const queriedBasalKcal = await queryBasalEnergyKcal(session.startedAtMs, endDateMs);
+  const basalEnergyKcal = resolveBasalKcal({
+    queriedBasalKcal,
+    durationSeconds: Math.max(0, (endDateMs - session.startedAtMs) / 1000),
+  });
 
   try {
     const workoutId = await AppleHealthWorkout.saveCyclingWorkout({
@@ -304,4 +406,77 @@ export async function saveWorkout(
     });
     throw normalizeHealthKitError(error, 'Failed to save Apple Health workout.');
   }
+}
+
+export type AppleHealthProfilePartial = Partial<{
+  [F in UserProfileField]: F extends 'sex' ? BiologicalSex : F extends 'dateOfBirth' ? string : number;
+}>;
+
+function callBridge<R>(invoke: (callback: (error: HealthKitErrorLike, result: R) => void) => void): Promise<R | null> {
+  return new Promise((resolve) => {
+    try {
+      invoke((error, result) => {
+        if (error) {
+          resolve(null);
+          return;
+        }
+        resolve(result ?? null);
+      });
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+export async function getBiologicalSex(): Promise<BiologicalSex | null> {
+  const healthKit = getHealthKit();
+  const result = await callBridge<HealthValueResult>((cb) => healthKit.getBiologicalSex({}, cb));
+  if (!result) return null;
+  if (result.value === 'male' || result.value === 'female') return result.value;
+  return null;
+}
+
+export async function getDateOfBirth(): Promise<string | null> {
+  const healthKit = getHealthKit();
+  const result = await callBridge<HealthDateOfBirthResult>((cb) => healthKit.getDateOfBirth({}, cb));
+  const iso = result?.value;
+  if (typeof iso !== 'string' || iso.length === 0) return null;
+  // The native bridge returns a full ISO timestamp; profile storage canonicalizes
+  // on the date portion (yyyy-mm-dd) so the value renders cleanly in UI inputs
+  // and is stable across timezones.
+  return iso.slice(0, 10);
+}
+
+export async function getLatestWeightKg(): Promise<number | null> {
+  const healthKit = getHealthKit();
+  const result = await callBridge<HealthValueResult>((cb) => healthKit.getLatestWeight({ unit: 'kg' }, cb));
+  const value = result?.value;
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+export async function getLatestHeightCm(): Promise<number | null> {
+  const healthKit = getHealthKit();
+  const result = await callBridge<HealthValueResult>((cb) => healthKit.getLatestHeight({ unit: 'cm' }, cb));
+  const value = result?.value;
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+export async function loadProfileFromAppleHealth(): Promise<AppleHealthProfilePartial> {
+  // Block on init so the four characteristic-type reads don't run before iOS
+  // has prompted for the new Sex / DOB / Weight / Height read permissions.
+  // Without this, on app upgrade the auto-sync runs to completion before the
+  // user has a chance to grant the new types and silently returns no fields.
+  await initWithWritePermissions();
+  const [sex, dateOfBirth, weightKg, heightCm] = await Promise.all([
+    getBiologicalSex(),
+    getDateOfBirth(),
+    getLatestWeightKg(),
+    getLatestHeightCm(),
+  ]);
+  const partial: AppleHealthProfilePartial = {};
+  if (sex !== null) partial.sex = sex;
+  if (dateOfBirth !== null) partial.dateOfBirth = dateOfBirth;
+  if (weightKg !== null) partial.weightKg = weightKg;
+  if (heightCm !== null) partial.heightCm = heightCm;
+  return partial;
 }

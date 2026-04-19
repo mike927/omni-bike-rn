@@ -15,6 +15,7 @@ import { useAppPreferencesStore } from '../src/store/appPreferencesStore';
 import { useProviderGearLinkStore } from '../src/store/providerGearLinkStore';
 import { useStravaConnectionStore } from '../src/store/stravaConnectionStore';
 import { useAppleHealthConnectionStore } from '../src/store/appleHealthConnectionStore';
+import { useUserProfileStore } from '../src/store/userProfileStore';
 import { useAppleHealthPermissionsRefresh } from '../src/features/integrations/hooks/useAppleHealthPermissionsRefresh';
 import { useWatchHr } from '../src/features/gear/hooks/useWatchHr';
 import { useInterruptedSessionRecovery } from '../src/features/training/hooks/useInterruptedSessionRecovery';
@@ -53,6 +54,8 @@ export default function RootLayout() {
   const stravaHydrated = useStravaConnectionStore((s) => s.hydrated);
   const hydrateAppleHealth = useAppleHealthConnectionStore((s) => s.hydrate);
   const appleHealthHydrated = useAppleHealthConnectionStore((s) => s.hydrated);
+  const hydrateUserProfile = useUserProfileStore((s) => s.hydrate);
+  const userProfileHydrated = useUserProfileStore((s) => s.hydrated);
 
   const [isDatabaseReady, setIsDatabaseReady] = useState(false);
   const [isDatabaseError, setIsDatabaseError] = useState(false);
@@ -71,7 +74,8 @@ export default function RootLayout() {
     void hydrateProviderGearLinks();
     void hydrateStrava();
     void hydrateAppleHealth();
-  }, [hydrateGear, hydratePrefs, hydrateProviderGearLinks, hydrateStrava, hydrateAppleHealth]);
+    void hydrateUserProfile();
+  }, [hydrateGear, hydratePrefs, hydrateProviderGearLinks, hydrateStrava, hydrateAppleHealth, hydrateUserProfile]);
 
   useEffect(() => {
     let isMounted = true;
@@ -119,7 +123,14 @@ export default function RootLayout() {
     );
   }
 
-  if (!isDatabaseReady || !prefsHydrated || !providerGearLinksHydrated || !stravaHydrated || !appleHealthHydrated) {
+  if (
+    !isDatabaseReady ||
+    !prefsHydrated ||
+    !providerGearLinksHydrated ||
+    !stravaHydrated ||
+    !appleHealthHydrated ||
+    !userProfileHydrated
+  ) {
     return (
       <>
         <StatusBar style="light" />
@@ -166,6 +177,13 @@ export default function RootLayout() {
           name="provider-gear-link"
           options={{
             title: 'Link Provider Bike',
+            headerBackTitle: 'Settings',
+          }}
+        />
+        <Stack.Screen
+          name="user-profile"
+          options={{
+            title: 'User Profile',
             headerBackTitle: 'Settings',
           }}
         />

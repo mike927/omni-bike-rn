@@ -1,7 +1,9 @@
 import { useDeviceConnectionStore } from '../../store/deviceConnectionStore';
 import { useTrainingSessionStore } from '../../store/trainingSessionStore';
+import { useUserProfileStore } from '../../store/userProfileStore';
 import type { BikeMetrics } from '../ble/BikeAdapter';
 import type { MetricSnapshot, TrainingTickInput } from '../../types/training';
+import { toKeytelInputs } from '../../types/userProfile';
 
 const TICK_INTERVAL_MS = 1_000;
 
@@ -71,7 +73,18 @@ export class MetronomeEngine {
     const effectiveWatchHr = watchIsStale ? null : latestAppleWatchHr;
     const effectiveWatchKcal = watchIsStale ? null : latestAppleWatchActiveKcal;
 
-    const merged = this.mergeMetrics(latestBikeMetrics, latestBluetoothHr, effectiveWatchHr, effectiveWatchKcal);
+    // Profile snapshot read once per tick. Pure derivation — no store
+    // mutation. Returns null when sex / DOB / weight aren't all set, in which
+    // case the store falls through to the existing power-based formula.
+    const keytelInputs = toKeytelInputs(useUserProfileStore.getState().profile);
+
+    const merged = this.mergeMetrics(
+      latestBikeMetrics,
+      latestBluetoothHr,
+      effectiveWatchHr,
+      effectiveWatchKcal,
+      keytelInputs,
+    );
     useTrainingSessionStore.getState().tick(merged);
   }
 
@@ -89,6 +102,7 @@ export class MetronomeEngine {
     bluetoothHr: number | null,
     appleWatchHr: number | null,
     watchActiveKcal: number | null,
+    keytelInputs: TrainingTickInput['keytelInputs'],
   ): TrainingTickInput {
     const speed = bikeMetrics?.speed ?? 0;
     const cadence = bikeMetrics?.cadence ?? 0;
@@ -106,6 +120,7 @@ export class MetronomeEngine {
       bikeTotalEnergyKcal,
       watchActiveKcal,
       hasLiveExternalHr,
+      keytelInputs,
     };
   }
 }

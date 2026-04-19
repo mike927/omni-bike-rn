@@ -1,7 +1,9 @@
 import { MetronomeEngine } from '../MetronomeEngine';
 import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
 import { useTrainingSessionStore } from '../../../store/trainingSessionStore';
+import { useUserProfileStore } from '../../../store/userProfileStore';
 import { TrainingPhase } from '../../../types/training';
+import { EMPTY_USER_PROFILE } from '../../../types/userProfile';
 import type { BikeMetrics } from '../../ble/BikeAdapter';
 
 describe('MetronomeEngine', () => {
@@ -38,6 +40,10 @@ describe('MetronomeEngine', () => {
       lastCalorieSourceMode: 'none',
       currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: null },
     });
+    // Profile store starts empty so engine passes keytelInputs: null and the
+    // training store falls through to the existing power formula. Tests that
+    // exercise the Keytel branch override this explicitly.
+    useUserProfileStore.setState({ profile: { ...EMPTY_USER_PROFILE, sources: {} }, hydrated: false });
   });
 
   afterEach(() => {
@@ -315,6 +321,56 @@ describe('MetronomeEngine', () => {
       // Fresh Watch sample refreshes the timestamp — next tick re-enters the Watch branch.
       useDeviceConnectionStore.getState().updateAppleWatchHr(152);
       useDeviceConnectionStore.getState().updateAppleWatchActiveKcal(11);
+      jest.advanceTimersByTime(1000);
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('watch');
+    });
+  });
+
+  describe('Keytel HR-based personalized calories', () => {
+    it('switches the source to keytel when the profile is complete and external HR is live', () => {
+      useUserProfileStore.setState({
+        profile: {
+          sex: 'male',
+          dateOfBirth: '1990-01-01',
+          weightKg: 80,
+          heightCm: 180,
+          sources: {},
+        },
+        hydrated: true,
+      });
+      useTrainingSessionStore.getState().start();
+      useDeviceConnectionStore.getState().updateBluetoothHr(150);
+      useDeviceConnectionStore.getState().updateBikeMetrics({ speed: 25, cadence: 80, power: 4186 });
+
+      engine.start();
+      jest.advanceTimersByTime(1000);
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('keytel');
+    });
+
+    it('falls through to the power-based formula when the profile is incomplete', () => {
+      useUserProfileStore.setState({
+        profile: { sex: 'male', dateOfBirth: '1990-01-01', weightKg: null, heightCm: null, sources: {} },
+        hydrated: true,
+      });
+      useTrainingSessionStore.getState().start();
+      useDeviceConnectionStore.getState().updateBluetoothHr(150);
+      useDeviceConnectionStore.getState().updateBikeMetrics({ speed: 25, cadence: 80, power: 4186 });
+
+      engine.start();
+      jest.advanceTimersByTime(1000);
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('app');
+    });
+
+    it('lets Watch active kcal beat keytel even with a complete profile', () => {
+      useUserProfileStore.setState({
+        profile: { sex: 'female', dateOfBirth: '1992-04-15', weightKg: 60, heightCm: 165, sources: {} },
+        hydrated: true,
+      });
+      useTrainingSessionStore.getState().start();
+      useDeviceConnectionStore.getState().updateAppleWatchHr(150);
+      useDeviceConnectionStore.getState().updateAppleWatchActiveKcal(7);
+
+      engine.start();
       jest.advanceTimersByTime(1000);
       expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('watch');
     });

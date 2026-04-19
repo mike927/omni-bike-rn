@@ -7,10 +7,12 @@ import { useDeviceConnection } from '../../training/hooks/useDeviceConnection';
 import { useAppleHealthConnection } from '../../integrations/hooks/useAppleHealthConnection';
 import { useStravaConnection } from '../../integrations/hooks/useStravaConnection';
 import { useWatchHrControls } from '../../gear/hooks/useWatchHrControls';
+import { useUserProfileStore } from '../../../store/userProfileStore';
 import { ActionButton } from '../../../ui/components/ActionButton';
 import { SectionCard } from '../../../ui/components/SectionCard';
 import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
+import type { UserProfile } from '../../../types/userProfile';
 import type { WatchAvailability } from '../../../types/watch';
 
 interface WatchHrRowProps {
@@ -66,9 +68,20 @@ function WatchHrRow({ watchHrEnabled, watchAvailability, latestAppleWatchHr, onE
   );
 }
 
+function summarizeProfile(profile: UserProfile): string {
+  const parts: string[] = [];
+  if (profile.sex !== null) parts.push(profile.sex === 'male' ? 'Male' : 'Female');
+  if (profile.dateOfBirth !== null) parts.push(`DOB ${profile.dateOfBirth}`);
+  if (profile.weightKg !== null) parts.push(`${Math.round(profile.weightKg)} kg`);
+  if (profile.heightCm !== null) parts.push(`${Math.round(profile.heightCm)} cm`);
+  if (parts.length === 0) return 'Not set';
+  return parts.join(' · ');
+}
+
 // eslint-disable-next-line sonarjs/cognitive-complexity -- large screen component; refactor tracked separately
 export function SettingsScreen() {
   const router = useRouter();
+  const userProfile = useUserProfileStore((s) => s.profile);
   const { bikeConnected, hrConnected, latestAppleWatchHr, watchAvailability, disconnectAll } = useDeviceConnection();
   const { watchAvailable, watchHrEnabled, enableWatchHr, disableWatchHr } = useWatchHrControls();
   const { savedBike, savedHrSource, forgetBike, forgetHr } = useSavedGear();
@@ -224,6 +237,19 @@ export function SettingsScreen() {
           variant="danger"
           disabled={!bikeConnected && !hrConnected}
         />
+      </SectionCard>
+
+      <SectionCard title="Personal">
+        <View style={styles.gearRow}>
+          <View style={styles.gearInfo}>
+            <Text style={styles.gearLabel}>User Profile</Text>
+            <Text style={styles.gearName}>{summarizeProfile(userProfile)}</Text>
+            <Text style={styles.gearHint}>Sex, age, weight, height — used for calorie accuracy</Text>
+          </View>
+          <View style={styles.gearActions}>
+            <ActionButton label="Edit" onPress={() => router.push('/user-profile')} variant="secondary" />
+          </View>
+        </View>
       </SectionCard>
 
       <SectionCard title="Integrations">
