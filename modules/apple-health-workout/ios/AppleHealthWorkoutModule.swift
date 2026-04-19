@@ -66,10 +66,16 @@ public class AppleHealthWorkoutModule: Module {
       }
 
       let basalType = HKQuantityType(.basalEnergyBurned)
+      // Basal samples are interval-based (multi-minute buckets). Using strict
+      // bounds would drop any sample that starts before or ends after the
+      // workout window, so a short ride that straddles a bucket boundary would
+      // read back 0. Default (non-strict) predicate includes every sample that
+      // overlaps the window — a minor boundary over-count, which the rounded
+      // display absorbs.
       let timePredicate = HKQuery.predicateForSamples(
         withStart: startDate,
         end: endDate,
-        options: [.strictStartDate, .strictEndDate]
+        options: []
       )
       let notFromSelf = NSCompoundPredicate(
         notPredicateWithSubpredicate: HKQuery.predicateForObjects(from: [HKSource.default()])
