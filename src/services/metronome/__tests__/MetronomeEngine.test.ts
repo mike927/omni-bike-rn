@@ -32,6 +32,8 @@ describe('MetronomeEngine', () => {
       initialDistance: null,
       bikeCaloriesOffset: null,
       lastBikeTotalEnergyKcal: null,
+      watchCaloriesOffset: null,
+      lastWatchActiveKcal: null,
       lastCalorieSourceMode: 'none',
       currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: null },
     });
@@ -235,6 +237,44 @@ describe('MetronomeEngine', () => {
 
       expect(useTrainingSessionStore.getState().currentMetrics.heartRate).toBe(145);
       expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(4, 5);
+    });
+  });
+
+  describe('Watch-computed calories', () => {
+    it('should forward latestAppleWatchActiveKcal into the session store tick and mark the source as watch', () => {
+      useTrainingSessionStore.getState().start();
+
+      useDeviceConnectionStore.getState().updateAppleWatchHr(150);
+      useDeviceConnectionStore.getState().updateAppleWatchActiveKcal(10);
+
+      engine.start();
+      jest.advanceTimersByTime(1000);
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('watch');
+
+      useDeviceConnectionStore.getState().updateAppleWatchActiveKcal(11);
+      jest.advanceTimersByTime(1000);
+
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('watch');
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(1, 5);
+    });
+
+    it('should prefer Watch calories over the app-power formula when both are available', () => {
+      useTrainingSessionStore.getState().start();
+
+      const bikeMetrics: BikeMetrics = {
+        speed: 25,
+        cadence: 80,
+        power: 4186,
+        heartRate: 72,
+      };
+      useDeviceConnectionStore.getState().updateBikeMetrics(bikeMetrics);
+      useDeviceConnectionStore.getState().updateBluetoothHr(145);
+      useDeviceConnectionStore.getState().updateAppleWatchActiveKcal(7);
+
+      engine.start();
+      jest.advanceTimersByTime(1000);
+
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('watch');
     });
   });
 

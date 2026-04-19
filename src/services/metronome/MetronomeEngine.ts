@@ -46,8 +46,14 @@ export class MetronomeEngine {
   // ── Private ────────────────────────────────────────────
 
   private tick(): void {
-    const { latestBikeMetrics, latestBluetoothHr, latestAppleWatchHr } = useDeviceConnectionStore.getState();
-    const merged = this.mergeMetrics(latestBikeMetrics, latestBluetoothHr, latestAppleWatchHr);
+    const { latestBikeMetrics, latestBluetoothHr, latestAppleWatchHr, latestAppleWatchActiveKcal } =
+      useDeviceConnectionStore.getState();
+    const merged = this.mergeMetrics(
+      latestBikeMetrics,
+      latestBluetoothHr,
+      latestAppleWatchHr,
+      latestAppleWatchActiveKcal,
+    );
     useTrainingSessionStore.getState().tick(merged);
   }
 
@@ -56,7 +62,7 @@ export class MetronomeEngine {
    *
    * Priority rules:
    *  - **HR**: Apple Watch > Bluetooth HR source > bike's built-in HR.
-   *  - **Calories**: the store decides between app-calculated and bike-reported
+   *  - **Calories**: the store decides between watch-, app-, and bike-sourced
    *    calories using the metadata returned here.
    *  - **All other fields**: taken directly from bike metrics.
    */
@@ -64,6 +70,7 @@ export class MetronomeEngine {
     bikeMetrics: BikeMetrics | null,
     bluetoothHr: number | null,
     appleWatchHr: number | null,
+    watchActiveKcal: number | null,
   ): TrainingTickInput {
     const speed = bikeMetrics?.speed ?? 0;
     const cadence = bikeMetrics?.cadence ?? 0;
@@ -79,6 +86,7 @@ export class MetronomeEngine {
     return {
       metrics: { speed, cadence, power, heartRate, resistance, distance } satisfies MetricSnapshot,
       bikeTotalEnergyKcal,
+      watchActiveKcal,
       hasLiveExternalHr,
     };
   }

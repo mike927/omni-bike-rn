@@ -40,6 +40,10 @@ export interface TrainingSessionStore {
   bikeCaloriesOffset: number | null;
   lastBikeTotalEnergyKcal: number | null;
   lastBikeDistance: number | null;
+  /** Offset that maps the Watch's cumulative kcal stream onto `totalCalories`. */
+  watchCaloriesOffset: number | null;
+  /** Last Watch cumulative kcal observed; used to detect counter resets. */
+  lastWatchActiveKcal: number | null;
   lastCalorieSourceMode: CalorieSourceMode;
 
   // ── Actions ────────────────────────────────────────────
@@ -78,6 +82,8 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
   bikeCaloriesOffset: null,
   lastBikeTotalEnergyKcal: null,
   lastBikeDistance: null,
+  watchCaloriesOffset: null,
+  lastWatchActiveKcal: null,
   lastCalorieSourceMode: 'none',
   currentMetrics: { ...INITIAL_METRICS, distance: null },
 
@@ -103,6 +109,8 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
       bikeCaloriesOffset: null,
       lastBikeTotalEnergyKcal: null,
       lastBikeDistance: null,
+      watchCaloriesOffset: null,
+      lastWatchActiveKcal: null,
       lastCalorieSourceMode: 'none',
       currentMetrics: { ...INITIAL_METRICS, distance: null },
     }),
@@ -118,12 +126,14 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
       bikeCaloriesOffset: null,
       lastBikeTotalEnergyKcal: null,
       lastBikeDistance: null,
+      watchCaloriesOffset: null,
+      lastWatchActiveKcal: null,
       lastCalorieSourceMode: 'none',
     }),
 
   // ── Tick (called by MetronomeEngine every 1 s) ─────────
   tick: (input) => {
-    const { metrics, bikeTotalEnergyKcal, hasLiveExternalHr } = input;
+    const { metrics, bikeTotalEnergyKcal, watchActiveKcal, hasLiveExternalHr } = input;
     const {
       phase,
       elapsedSeconds,
@@ -133,6 +143,8 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
       bikeCaloriesOffset,
       lastBikeTotalEnergyKcal,
       lastBikeDistance,
+      watchCaloriesOffset,
+      lastWatchActiveKcal,
       lastCalorieSourceMode,
     } = get();
     if (phase !== TrainingPhase.Active) return;
@@ -165,16 +177,41 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
     let nextTotalCalories = totalCalories;
     let nextBikeCaloriesOffset = bikeCaloriesOffset;
     let nextLastBikeTotalEnergyKcal: number | null = null;
+    let nextWatchCaloriesOffset = watchCaloriesOffset;
+    let nextLastWatchActiveKcal: number | null = null;
     let nextCalorieSourceMode: CalorieSourceMode = 'none';
 
-    if (hasLiveExternalHr) {
+    // Priority: Watch-computed active kcal > app-power formula > bike-reported
+    // energy > none. Watch must win even when `hasLiveExternalHr` is true,
+    // because the Watch typically provides HR as well.
+    if (watchActiveKcal !== null) {
+      // Rebase on first watch tick, on any source switch into 'watch', and on
+      // a cumulative drop (Watch HK session was restarted mid-ride). The offset
+      // maps the Watch's session-scoped total onto the displayed totalCalories
+      // so transitions stay monotonic.
+      const shouldRebaseWatchCalories =
+        watchCaloriesOffset === null ||
+        lastCalorieSourceMode !== 'watch' ||
+        (lastWatchActiveKcal !== null && watchActiveKcal < lastWatchActiveKcal);
+
+      if (shouldRebaseWatchCalories) {
+        nextWatchCaloriesOffset = totalCalories - watchActiveKcal;
+      }
+
+      nextTotalCalories = watchActiveKcal + (nextWatchCaloriesOffset ?? 0);
+      nextLastWatchActiveKcal = watchActiveKcal;
+      nextBikeCaloriesOffset = null;
+      nextCalorieSourceMode = 'watch';
+    } else if (hasLiveExternalHr) {
       // Metabolic calorie delta: mechanical work adjusted for gross efficiency
       const calorieDelta = metrics.power / JOULES_PER_KCAL / GROSS_MECHANICAL_EFFICIENCY;
       nextTotalCalories = totalCalories + calorieDelta;
       nextBikeCaloriesOffset = null;
+      nextWatchCaloriesOffset = null;
       nextCalorieSourceMode = 'app';
     } else if (bikeTotalEnergyKcal === null) {
       nextBikeCaloriesOffset = null;
+      nextWatchCaloriesOffset = null;
     } else {
       const shouldRebaseBikeCalories =
         bikeCaloriesOffset === null ||
@@ -187,6 +224,7 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
 
       nextTotalCalories = bikeTotalEnergyKcal + (nextBikeCaloriesOffset ?? 0);
       nextLastBikeTotalEnergyKcal = bikeTotalEnergyKcal;
+      nextWatchCaloriesOffset = null;
       nextCalorieSourceMode = 'bike';
     }
 
@@ -198,6 +236,8 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
       bikeCaloriesOffset: nextBikeCaloriesOffset,
       lastBikeTotalEnergyKcal: nextLastBikeTotalEnergyKcal,
       lastBikeDistance: nextLastBikeDistance,
+      watchCaloriesOffset: nextWatchCaloriesOffset,
+      lastWatchActiveKcal: nextLastWatchActiveKcal,
       lastCalorieSourceMode: nextCalorieSourceMode,
       currentMetrics: metrics,
     });
