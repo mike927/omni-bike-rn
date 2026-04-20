@@ -16,6 +16,7 @@ Apply these to every harness file before writing or accepting a change.
 - **Agent-First.** Instructions target the agent. Describe how the agent reacts when the human acts — not what the human should type or do.
 - **Concise over verbose.** State constraints simply. "Requires explicit human approval" beats "The agent must NEVER spontaneously decide...".
 - **Simple over engineered.** No speculative rules or abstractions for hypothetical future cases. Add workflow complexity only when a real observed problem demands it.
+- **Single Ownership.** See `AGENTS.md` § `Harness Principles`.
 - **Technically viable.** Before mandating a behavior (mode switch, tool call, UI primitive), verify it is actually supported in target host environments.
 - **Style coherent.** Use consistent formatting patterns within a file and across related files. If steps use bold-label bullets, all steps use bold-label bullets.
 - **Logic coherent.** Every loop, conditional, and state machine must have explicit entry condition, cycle body, and exit/proceed. No dangling loops or implicit exits.
@@ -40,6 +41,13 @@ Patterns for scannable reference material.
 | `ai/commands/README.md` | File format contract for commands. Update when the command shape changes. |
 | `ai/README.md` | Directory index. Update when commands or skills are added or removed. |
 | Provider bridges | Thin pointers to canonical `COMMAND.md` files. One line only. |
+
+## Kinds Of Skills
+
+Two kinds share the `SKILL.md` shape but stress the "passive" definition differently:
+
+- **Domain skills** — knowledge about the codebase, platform, or tech stack. Examples: `ble-hardware`, `ios-native`, `sqlite-persistence`. Keep them strictly declarative — no loops, no decision trees.
+- **Meta skills** — cross-cutting patterns, decision frameworks, and authoring guidance. Examples: `harness-authoring`, `provider-entrypoints`, `quality-review`. May contain decision filters and pattern-shape descriptions; must not drift into numbered procedures.
 
 ## Rules For `AGENTS.md`
 

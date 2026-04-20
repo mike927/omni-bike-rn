@@ -19,6 +19,10 @@ Omni Bike is an iOS indoor cycling companion app. It connects to a BLE stationar
 - **Gear persistence before DB**: Saved devices use lightweight key-value storage. The full SQLite schema is introduced only when session recording needs it.
 - **Offline-first**: All session data persists locally. Network failures never block the training flow. Uploads happen post-workout and can be retried.
 
+## Harness Principles
+
+- **Single Ownership.** Every harness rule, convention, procedure, or state transition has exactly one owner. Every other reference cross-links to that owner rather than restating it.
+
 ## Core Sources
 
 Read these in this order before feature work:
