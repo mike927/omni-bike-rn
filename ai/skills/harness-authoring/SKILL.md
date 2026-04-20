@@ -22,13 +22,13 @@ Apply these to every harness file before writing or accepting a change.
 
 ## Formatting
 
-Concrete patterns that make reference material scannable. Apply preemptively.
+Patterns for scannable reference material.
 
-- **One rule per bullet.** A bullet carries one claim. Packing multiple commands or actors into one line forces the reader to re-parse.
-- **Merge tables that share a key column.** Two tables keyed on the same column become one table with an extra column; headers stop competing.
-- **Drop tautological rows.** A state-table row describing a no-op transition (e.g., "`needs-changes` stays `needs-changes` during work") carries no information.
-- **Cut ceremony.** Prefer "Only `/code-review` writes `ready`" over "`/code-review` is the only command that is permitted to write `State: ready`".
-- **Backticks for identifiers.** Command names, state values, file paths, and section labels always in backticks.
+- **One rule per bullet.**
+- **Merge tables that share a key column.**
+- **Drop tautological rows.**
+- **Cut ceremony.** Prefer the shorter declarative phrasing.
+- **Backticks for identifiers** — commands, states, file paths, section labels.
 
 ## Harness File Map
 
