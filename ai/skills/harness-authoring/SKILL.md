@@ -20,6 +20,16 @@ Apply these to every harness file before writing or accepting a change.
 - **Style coherent.** Use consistent formatting patterns within a file and across related files. If steps use bold-label bullets, all steps use bold-label bullets.
 - **Logic coherent.** Every loop, conditional, and state machine must have explicit entry condition, cycle body, and exit/proceed. No dangling loops or implicit exits.
 
+## Formatting
+
+Concrete patterns that make reference material scannable. Apply preemptively.
+
+- **One rule per bullet.** A bullet carries one claim. Packing multiple commands or actors into one line forces the reader to re-parse.
+- **Merge tables that share a key column.** Two tables keyed on the same column become one table with an extra column; headers stop competing.
+- **Drop tautological rows.** A state-table row describing a no-op transition (e.g., "`needs-changes` stays `needs-changes` during work") carries no information.
+- **Cut ceremony.** Prefer "Only `/code-review` writes `ready`" over "`/code-review` is the only command that is permitted to write `State: ready`".
+- **Backticks for identifiers.** Command names, state values, file paths, and section labels always in backticks.
+
 ## Harness File Map
 
 | File | Role |
@@ -72,6 +82,9 @@ If any condition fails, fix ownership first.
 | Verbose defensive instructions | State the constraint simply |
 | Step instructs the human what to type | Rewrite as how the agent reacts to a human action |
 | Inconsistent formatting across steps or files | Normalise to one bold-label bullet pattern |
+| Bullet packs multiple commands or actors | One rule per bullet |
+| Two tables keyed on the same column | Merge into one table with an extra column |
+| Tautological row in a state or transition table | Drop rows that describe no-op transitions |
 | Loop with no explicit exit condition | Add entry, cycle body, exit value, and proceed |
 | Command defines quality criteria inline | Cross-reference the authoritative source |
 | Same rule in Workflow Pacing and a numbered step | Keep in Workflow Pacing; replace step copy with a cross-reference |
