@@ -54,11 +54,7 @@ If `type` and `description` were provided as inputs (e.g., passed from `/next-ta
 If they were not provided:
 1. Read `plan.md` and identify the relevant unstarted task when one exists.
 2. If no `plan.md` item applies, derive the branch name from the human-approved ad-hoc task.
-3. Infer the Conventional Commits `type` from the task scope:
-   - New capability → `feat`
-   - Bug fix → `fix`
-   - Documentation or workflow only → `docs`
-   - Structural refactor, no behaviour change → `refactor`
+3. Infer the Conventional Commits prefix from task scope per `AGENTS.md` § `Branching And Workspace Rules`.
 4. Derive a short kebab-case `description` from the task title.
 
 Construct the proposed branch name: `<type>/<description>`.
@@ -77,12 +73,10 @@ Do not prompt the human for a strategy on every run. Announce the chosen mode in
 
 ### Step 4: Ask Workflow Track
 
-Present the workflow track options using the most interactive mechanism your platform provides (e.g., a multiple-choice UI tool like `ask_user` if available, or a numbered list in chat):
+Present the workflow track options using the most interactive mechanism your host provides — a multiple-choice UI prompt when available, otherwise a numbered list in chat. Pause execution and wait for the reply; do not default silently.
 
 - **Option 1:** `Standard Track` — proceed to `Plan Drafting`.
 - **Option 2:** `Fast Track` — skip planning/review; proceed directly to `Implementation In Progress`. Only for ad-hoc bug fixes or minor chores.
-
-If your platform does not support interactive UI tools, print the options as a numbered list and explicitly wait for the user's choice. Do not default silently.
 
 ### Step 5: Create The Workspace
 

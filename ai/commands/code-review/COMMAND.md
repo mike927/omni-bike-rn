@@ -41,7 +41,7 @@ For `gh` source, also fetch CI status: `gh pr checks`.
 
 ### Step 2: Load Review Context
 
-1. Load the review checklist from `ai/skills/quality-review/SKILL.md` § Review Checklist.
+1. Load the review checklist from `ai/skills/quality-review/SKILL.md` § `Review Checklist`.
 2. Cross-reference `plan.md` to confirm the changes align with the intended task scope.
 
 ### Step 3: Review Each Changed File

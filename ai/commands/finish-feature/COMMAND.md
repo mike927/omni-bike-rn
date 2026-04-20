@@ -31,13 +31,7 @@ Read `plan.md` and find the task item(s) for this branch.
 
 - If the branch is intentional branch-local work with no matching `plan.md` item: note that no `plan.md` update is required and skip this sub-step.
 - If already marked `[x]`: note the existing state and skip this sub-step.
-- If not yet `[x]`: update the task to `[x]`, then commit and push:
-
-```bash
-git add plan.md
-git commit -m "docs: mark <task> as completed in plan"
-git push
-```
+- If not yet `[x]`: update the task to `[x]`, then commit and push as a `docs:` commit following `AGENTS.md` § `Commit Rules`.
 
 Report the commit hash (or note that plan.md was already `[x]`).
 
@@ -128,10 +122,11 @@ Use `-d` (safe delete) not `-D`. If the safe delete fails, investigate before fo
 
 ## Completion Criteria
 
-- `plan.md` has the task marked `[x]` and that commit is merged into `main`, or the branch was explicitly branch-local work with no `plan.md` item.
+- `plan.md` has the task marked `[x]` and that commit is merged into `main` — or the branch was explicitly branch-local work with no matching `plan.md` item.
 - PR state is `MERGED` on GitHub.
 - No unpushed local-only commits remain on the feature branch.
-- Local branch and worktree (if applicable) are removed.
+- Local branch is removed.
+- Worktree is removed, if applicable.
 - Active branch is `main`.
 
 ## See Also

@@ -39,11 +39,10 @@ Confirm:
 - Working tree is clean (no uncommitted changes).
 - There are commits to include in the PR.
 
-Check the internal review state. Read `ai/local/reviews/<branch-slug>.md` (if it exists) and look for the `State:` header line:
+Check the internal review state. Read `ai/local/reviews/<branch-slug>.md` (if it exists) and apply the gate defined in `AGENTS.md` § `Review File State`:
 - `State: ready` — proceed.
-- `State: needs-review` — stop. Report that another review was explicitly requested and must complete before opening the PR.
-- `State: needs-changes` — stop. Report the count of unresolved `[ ]` findings and ask the human to run `/address-code-review` first.
-- File missing — proceed (no review was run; this is allowed for trivial changes).
+- Any other state — stop. Report the state and the remediation (re-run `/code-review` when `needs-review`, run `/address-code-review` when `needs-changes`).
+- File missing — proceed (no review was run; allowed for trivial changes).
 
 Check if a PR already exists for this branch:
 
@@ -92,14 +91,7 @@ git merge origin/main
 
 ### Step 4: Build PR Title
 
-Use Conventional Commits style matching the primary change:
-
-- `feat: <short description>` for new features
-- `fix: <short description>` for bug fixes
-- `docs: <short description>` for documentation changes
-- `refactor: <short description>` for refactors
-
-Keep the title under 70 characters.
+Derive the Conventional Commits prefix per `AGENTS.md` § `Commit Rules`, then a short description of the primary change. Keep the title under 70 characters.
 
 ### Step 5: Build PR Body
 
@@ -132,13 +124,7 @@ Use a HEREDOC for the body to preserve formatting.
 ### Step 7: Record PR State
 
 1. Report the PR URL in chat.
-2. If the branch maps to a `plan.md` item, update it to `[x]` (since opening the PR essentially completes the development phase for this branch) and commit separately:
-
-```bash
-git add plan.md
-git commit -m "docs: mark <task> as completed in plan"
-git push
-```
+2. If the branch maps to a `plan.md` item, update it to `[x]` (since opening the PR essentially completes the development phase for this branch), then commit and push that change as a separate `docs:` commit following `AGENTS.md` § `Commit Rules`.
 
 If the branch is branch-local work with no matching `plan.md` item, note that no `plan.md` update is required and skip this sub-step.
 

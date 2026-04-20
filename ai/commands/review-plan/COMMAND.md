@@ -70,17 +70,17 @@ If no relevant `plan.md` item can be identified:
 
 ### Step 4: Evaluate The Plan
 
-Review the plan against the requirements in `AGENTS.md` `Plan Reviewing` stage and the artifact conventions in `AGENTS.md` § Workflow Artifacts. Do not apply generic prose quality standards — only check alignment with repo rules.
+Review the plan against the requirements in `AGENTS.md` § `Plan Reviewing` and the artifact conventions in `AGENTS.md` § `Workflow Artifacts`. Do not apply generic prose quality standards — only check alignment with repo rules.
 
 Check each area against the relevant `AGENTS.md` requirement:
 
 1. **Branch alignment** — the plan matches the active branch purpose and does not describe unrelated work.
-2. **Scope alignment** — covers the intended `plan.md` task, or explicitly records approved branch-local scope when there is no `plan.md` match; no drift, omissions, or scope creep.
-3. **Decision completeness** — the implementer would not need to make product, workflow, or architecture decisions during implementation (per the `AGENTS.md` `Plan Drafting` stage requirement that the plan "must be specific enough to execute without further design decisions").
+2. **Scope alignment** — covers the intended `plan.md` task, or explicitly records approved branch-local scope when no `plan.md` match exists. No drift, omissions, or scope creep.
+3. **Decision completeness** — the implementer would not need to make product, workflow, or architecture decisions during implementation (per `AGENTS.md` § `Plan Drafting`, which requires the plan to be specific enough to execute without further design decisions).
 4. **Implementation sequencing** — steps and dependencies are ordered clearly enough to execute without re-planning.
-5. **Validation and testing** — validation commands, manual checks, and acceptance scenarios are present and proportional to the change (per the `AGENTS.md` implementation-through-manual-testing stages).
+5. **Validation and testing** — validation commands, manual checks, and acceptance scenarios are present and proportional to the change.
 6. **Assumptions and tradeoffs** — important defaults, constraints, and out-of-scope choices are stated explicitly.
-7. **Plan-file conventions** — `## What Will Be Available After Completion` exists and is the final section; plan is at the canonical path; no conflict with `AGENTS.md` workflow or artifact rules.
+7. **Plan-file conventions** — `## What Will Be Available After Completion` exists and is the final section. Plan is at the canonical path. No conflict with `AGENTS.md` workflow or artifact rules.
 
 Classify findings into these buckets:
 

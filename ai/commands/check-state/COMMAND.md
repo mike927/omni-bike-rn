@@ -84,7 +84,7 @@ Use these rules in order:
    - If evidence is mixed, report a bounded range such as `between Implementation In Progress and Internal Review Fix Loop` instead of a false precise claim.
 5. If `plan.md` does not mention the branch task, describe that as `branch-local work` or `plan drift`, not automatically as a fresh start.
 
-The goal is to identify the most likely current workflow position, not to force certainty when evidence is incomplete.
+When evidence is incomplete, report a bounded range with a confidence note rather than forcing a single precise step.
 
 ### Step 5: Analyze Discrepancies
 

@@ -114,7 +114,7 @@ For each finding you process, use your text replacement tool to change `[ ]` to 
 `- [x] <file:line> [<severity>] - <description> -> ANSWERED: <brief answer>`
 `- [x] <file:line> [<severity>] - <description> -> DECLINED: <reason>`
 
-*Why this matters:* Single-line replacements are safe and prevent document corruption. Do not attempt to restructure the Markdown headers.
+Edit each finding line in place; do not restructure headers or move items between sections.
 
 ### Step 6: Prepare Reply Text (gh source only)
 
@@ -160,9 +160,10 @@ Append the state line only when at least one actionable finding was processed in
 
 ## Completion Criteria
 
-- Every actionable finding is either fixed+committed (and pushed if source=gh), answered, or explicitly declined with a reason.
-- Each fix passed the Fix Loop Decision Rules before the next finding was started.
-- `ai/local/reviews/<branch-slug>.md` is updated. When every actionable finding has been processed this run, its `State:` line is set to `needs-review` per `AGENTS.md` `### Review File State` — not `ready`. Only `/code-review` can produce `ready`.
+- Every actionable finding is fixed and committed (pushed when `source: gh`), answered, or explicitly declined with a reason.
+- Each fix passed the `Fix Loop Decision Rules` before the next finding was started.
+- `ai/local/reviews/<branch-slug>.md` reflects the processed state for every finding.
+- When all actionable findings were processed this run, `State:` is set to `needs-review` per `AGENTS.md` § `Review File State` — never `ready` (only `/code-review` produces `ready`).
 - For `source: gh`: reply text exists for every thread.
 
 ## See Also
