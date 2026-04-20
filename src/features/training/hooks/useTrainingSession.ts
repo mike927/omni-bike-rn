@@ -155,15 +155,13 @@ export function useTrainingSession(): UseTrainingSessionReturn {
       await awaitPendingFinishStop();
 
       // Release FTMS control so the bike exits "APP" mode and clears its display metrics.
-      // Queued after any pending Stop via the adapter's command queue.
+      // Queued fire-and-forget so a stalled Stop cannot block this path; disconnect()'s own
+      // command-queue drain (bounded by CONTROL_COMMAND_DRAIN_TIMEOUT_MS) flushes it before
+      // cancelling BLE.
       const adapter = useDeviceConnectionStore.getState().bikeAdapter;
-      if (adapter) {
-        try {
-          await adapter.setControlState(BikeStatus.Reset);
-        } catch (err: unknown) {
-          console.error('[useTrainingSession] Bike reset failed before disconnect:', err);
-        }
-      }
+      adapter?.setControlState(BikeStatus.Reset).catch((err: unknown) => {
+        console.error('[useTrainingSession] Bike reset failed before disconnect:', err);
+      });
 
       await disconnectAllDeviceConnections({ updateReconnectState: true, suppressAutoReconnect: true });
       useTrainingSessionStore.getState().reset();
