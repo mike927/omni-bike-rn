@@ -103,8 +103,10 @@ Examples:
 | `needs-review` | Review finishes with no unresolved actionable findings | `ready` |
 | `needs-changes` | Review-fix work starts | `needs-changes` |
 | `needs-changes` | Some findings fixed, at least one actionable `[ ]` remains | `needs-changes` |
-| `needs-changes` | All actionable findings are resolved | `ready` |
+| `needs-changes` | All actionable findings are resolved (via `/address-code-review`) | `needs-review` |
 
+- `/code-review` is the **only** command that can write `State: ready`. A fresh review pass must confirm the fixes before the queue is considered clean.
+- `/address-code-review` never writes `ready` on its own — once every finding is marked `[x]`, it sets state to `needs-review` and hands off. Re-run `/code-review` to transition to `ready` (clean) or `needs-changes` (new findings).
 - `/code-review`: write `needs-review` at start, then finish with `ready` or `needs-changes`
 - `/open-pr`: require `State: ready` when a review file exists
 

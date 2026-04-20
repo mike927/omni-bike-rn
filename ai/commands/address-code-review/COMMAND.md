@@ -107,7 +107,7 @@ Do NOT delete or move items to new sections. Update the findings in `ai/local/re
 
 For each finding you process, use your text replacement tool to change `[ ]` to `[x]` and append your resolution inline using the `->` symbol.
 
-- After all actionable findings (bug, regression, convention, accepted suggestion) are marked `[x]`, update the `State:` header line to `ready` per `AGENTS.md` `### Review File State`.
+- After all actionable findings (bug, regression, convention, accepted suggestion) are marked `[x]`, update the `State:` header line to `needs-review` per `AGENTS.md` `### Review File State`. **This command never writes `ready` on its own** — a fresh `/code-review` pass must confirm that the applied fixes are correct before the queue is considered clean. Declined-with-reason items count as resolved for the purpose of this transition.
 
 **Format:**
 `- [x] <file:line> [<severity>] - <description> -> FIXED: <commit-hash>`
@@ -153,13 +153,16 @@ Otherwise output the paste-ready text from Step 6 for the human to post manually
 - Replies ready: <all threads | n/a for local source>
 
 Details: ai/local/reviews/<branch-slug>.md
+State: needs-review — re-run `/code-review` to confirm fixes.
 ```
+
+Append the state line only when at least one actionable finding was processed in this run; if the command stopped early (already-clean queue, no unresolved threads, blocker), omit it.
 
 ## Completion Criteria
 
 - Every actionable finding is either fixed+committed (and pushed if source=gh), answered, or explicitly declined with a reason.
 - Each fix passed the Fix Loop Decision Rules before the next finding was started.
-- `ai/local/reviews/<branch-slug>.md` is updated, and its `State:` line follows `AGENTS.md` `### Review File State`.
+- `ai/local/reviews/<branch-slug>.md` is updated. When every actionable finding has been processed this run, its `State:` line is set to `needs-review` per `AGENTS.md` `### Review File State` — not `ready`. Only `/code-review` can produce `ready`.
 - For `source: gh`: reply text exists for every thread.
 
 ## See Also
