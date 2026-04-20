@@ -155,7 +155,7 @@ Also append one of these next-step lines based on the recommendation:
 
 - `ready` → "All findings resolved. Re-run `/review-plan` to refresh the review file and confirm the quality gate before proceeding to `Plan Approving`."
 - `revise` → "Re-run `/review-plan` to generate updated findings, then `/address-plan-review` again."
-- `blocked` → "Surface the `Needs User Input` questions to the human. After answers are received, re-run `/review-plan` to re-enter the loop."
+- `blocked` → "Surface the `Needs User Input` questions to the human. After answers are received, re-run `/address-plan-review` to fold them into the plan, then `/review-plan` to re-enter the loop."
 
 ## Completion Criteria
 
