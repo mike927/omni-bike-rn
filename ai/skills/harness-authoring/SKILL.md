@@ -16,9 +16,20 @@ Apply these to every harness file before writing or accepting a change.
 - **Agent-First.** Instructions target the agent. Describe how the agent reacts when the human acts — not what the human should type or do.
 - **Concise over verbose.** State constraints simply. "Requires explicit human approval" beats "The agent must NEVER spontaneously decide...".
 - **Simple over engineered.** No speculative rules or abstractions for hypothetical future cases. Add workflow complexity only when a real observed problem demands it.
+- **Single Ownership.** See `AGENTS.md` § `Harness Principles`.
 - **Technically viable.** Before mandating a behavior (mode switch, tool call, UI primitive), verify it is actually supported in target host environments.
 - **Style coherent.** Use consistent formatting patterns within a file and across related files. If steps use bold-label bullets, all steps use bold-label bullets.
 - **Logic coherent.** Every loop, conditional, and state machine must have explicit entry condition, cycle body, and exit/proceed. No dangling loops or implicit exits.
+
+## Formatting
+
+Patterns for scannable reference material.
+
+- **One rule per bullet.**
+- **Merge tables that share a key column.**
+- **Drop tautological rows.**
+- **Cut ceremony.** Prefer the shorter declarative phrasing.
+- **Backticks for identifiers** — commands, states, file paths, section labels.
 
 ## Harness File Map
 
@@ -30,6 +41,13 @@ Apply these to every harness file before writing or accepting a change.
 | `ai/commands/README.md` | File format contract for commands. Update when the command shape changes. |
 | `ai/README.md` | Directory index. Update when commands or skills are added or removed. |
 | Provider bridges | Thin pointers to canonical `COMMAND.md` files. One line only. |
+
+## Kinds Of Skills
+
+Two kinds share the `SKILL.md` shape but stress the "passive" definition differently:
+
+- **Domain skills** — knowledge about the codebase, platform, or tech stack. Examples: `ble-hardware`, `ios-native`, `sqlite-persistence`. Keep them strictly declarative — no loops, no decision trees.
+- **Meta skills** — cross-cutting patterns, decision frameworks, and authoring guidance. Examples: `harness-authoring`, `provider-entrypoints`, `quality-review`. May contain decision filters and pattern-shape descriptions; must not drift into numbered procedures.
 
 ## Rules For `AGENTS.md`
 
@@ -72,6 +90,9 @@ If any condition fails, fix ownership first.
 | Verbose defensive instructions | State the constraint simply |
 | Step instructs the human what to type | Rewrite as how the agent reacts to a human action |
 | Inconsistent formatting across steps or files | Normalise to one bold-label bullet pattern |
+| Bullet packs multiple commands or actors | One rule per bullet |
+| Two tables keyed on the same column | Merge into one table with an extra column |
+| Tautological row in a state or transition table | Drop rows that describe no-op transitions |
 | Loop with no explicit exit condition | Add entry, cycle body, exit value, and proceed |
 | Command defines quality criteria inline | Cross-reference the authoritative source |
 | Same rule in Workflow Pacing and a numbered step | Keep in Workflow Pacing; replace step copy with a cross-reference |

@@ -187,6 +187,7 @@ export default function RootLayout() {
             headerBackTitle: 'Settings',
           }}
         />
+        <Stack.Screen name="localhost/oauth/callback" options={{ headerShown: false }} />
       </Stack>
     </>
   );

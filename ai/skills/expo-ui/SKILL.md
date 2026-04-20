@@ -9,7 +9,7 @@ Source: [expo/skills](https://github.com/expo/skills) (official Expo team, MIT l
 
 ## Code Style
 
-- Be cautious of unterminated strings. Ensure nested backticks are escaped; never forget to escape quotes correctly.
+- Escape nested backticks and quotes in template literals.
 - Always use import statements at the top of the file.
 - Always use kebab-case for file names, e.g. `comment-card.tsx`
 - Always remove old route files when moving or restructuring navigation
@@ -24,7 +24,7 @@ Source: [expo/skills](https://github.com/expo/skills) (official Expo team, MIT l
 
 ## Library Preferences
 
-- Never use modules removed from React Native such as Picker, WebView, SafeAreaView, or AsyncStorage
+- Never use modules removed from React Native such as `Picker`, `WebView`, `SafeAreaView`, or `AsyncStorage`
 - Never use legacy expo-permissions
 - `expo-audio` not `expo-av`
 - `expo-video` not `expo-av`

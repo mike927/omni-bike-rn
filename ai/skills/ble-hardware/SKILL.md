@@ -17,7 +17,9 @@ Use this skill when the task is about BLE scanning, FTMS parsing, bike devices, 
 
 When ZIPRO Rave device behavior, setup steps, console behavior, or compatibility details matter, consult the local vendor docs in `docs/vendor/zipro/rave/` first. Treat those files as the preferred product-specific source before using memory or non-vendor pages.
 
-Keep BLE adapter files focused on behavior. If an adapter needs a reusable interface or type alias such as an error shape, move it into a dedicated sibling file and import it rather than declaring it inside the adapter implementation file.
+Keep BLE adapter files focused on behavior.
+
+Adapter-specific type placement follows `AGENTS.md` § `Coding Conventions` — reusable interfaces and type aliases live in sibling files or `src/types/`, not inside adapter implementation files.
 
 ## FTMS (Fitness Machine Service)
 

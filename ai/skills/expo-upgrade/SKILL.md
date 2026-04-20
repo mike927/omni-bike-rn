@@ -7,62 +7,46 @@ description: Guidelines for upgrading Expo SDK versions, fixing dependency issue
 
 Source: [expo/skills](https://github.com/expo/skills) (official Expo team, MIT license)
 
-## Step-by-Step Upgrade Process
+## Upgrade Shape
 
-1. Upgrade Expo and dependencies
+An SDK upgrade touches three surfaces in this order: JS dependencies, native directories (if present), then caches. The canonical commands for each:
 
-```bash
-npx expo install expo@latest
-npx expo install --fix
-```
+| Surface | Command(s) |
+|---|---|
+| Dependencies | `npx expo install expo@latest` + `npx expo install --fix` |
+| Diagnostics | `npx expo-doctor` |
+| JS/Metro caches | `npx expo export -p ios --clear` + `rm -rf node_modules .expo` + `watchman watch-del-all` |
+| Native regen (bare workflow only) | `npx expo prebuild --clean` |
 
-2. Run diagnostics: `npx expo-doctor`
+**Whether a prebuild is needed depends on the repo shape.** Projects with no `ios/` or `android/` directories use Continuous Native Generation — the native projects are regenerated at build time and the prebuild step is skipped. Projects with committed native directories (partial eject) must prebuild when native modules change, but destructive `--clean` is unsafe if any native target is manually maintained (e.g., a watchOS companion target) — repo-specific rules override the generic command.
 
-3. Clear caches and reinstall
+## Breaking Changes — Audit Surface
 
-```bash
-npx expo export -p ios --clear
-rm -rf node_modules .expo
-watchman watch-del-all
-```
+- Removed APIs called out in release notes.
+- Moved modules and their new import paths.
+- Native module changes that require a prebuild.
+- Camera, audio, and video features (frequent churn area).
+- Navigation behavior.
 
-## Breaking Changes Checklist
+## Bare-Workflow Cache Layers
 
-- Check for removed APIs in release notes
-- Update import paths for moved modules
-- Review native module changes requiring prebuild
-- Test all camera, audio, and video features
-- Verify navigation still works correctly
+Only relevant when `ios/` or `android/` directories are committed. Each layer has its own cache to purge when things stop behaving:
 
-## Prebuild for Native Changes
+| Layer | Purge |
+|---|---|
+| iOS Cocoapods | `cd ios && pod install --repo-update` |
+| Xcode DerivedData | `npx expo run:ios --no-build-cache` |
+| Android Gradle | `cd android && ./gradlew clean` |
 
-**First check if `ios/` and `android/` directories exist in the project.** If neither directory exists, the project uses Continuous Native Generation (CNG) and native projects are regenerated at build time — skip this section.
+## Housekeeping Items
 
-If upgrading requires native changes:
-
-```bash
-npx expo prebuild --clean
-```
-
-This regenerates the `ios` and `android` directories.
-
-## Clear Caches for Bare Workflow
-
-These steps only apply when `ios/` and/or `android/` directories exist in the project:
-
-- Clear the cocoapods cache for iOS: `cd ios && pod install --repo-update`
-- Clear derived data for Xcode: `npx expo run:ios --no-build-cache`
-- Clear the Gradle cache for Android: `cd android && ./gradlew clean`
-
-## Housekeeping
-
-- Review release notes for the target SDK version at https://expo.dev/changelog
-- If using Expo SDK 54 or later, ensure react-native-worklets is installed (required for react-native-reanimated)
-- Enable React Compiler in SDK 54+ by adding `"experiments": { "reactCompiler": true }` to app.json
-- Delete sdkVersion from `app.json` to let Expo manage it automatically
-- Remove implicit packages from `package.json`: `@babel/core`, `babel-preset-expo`, `expo-constants`
-- If the babel.config.js only contains 'babel-preset-expo', delete the file
-- If the metro.config.js only contains expo defaults, delete the file
+- Release notes for the target SDK version live at `https://expo.dev/changelog`.
+- SDK 54+ requires `react-native-worklets` (dependency of `react-native-reanimated`).
+- SDK 54+ enables React Compiler via `"experiments": { "reactCompiler": true }` in `app.json`.
+- `sdkVersion` in `app.json` is auto-managed — delete it.
+- Implicit packages in `package.json` that should be removed: `@babel/core`, `babel-preset-expo`, `expo-constants`.
+- If `babel.config.js` only contains `babel-preset-expo`, delete the file.
+- If `metro.config.js` only contains Expo defaults, delete the file.
 
 ## Deprecated Packages
 

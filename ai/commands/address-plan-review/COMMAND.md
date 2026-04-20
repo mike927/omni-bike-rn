@@ -101,7 +101,7 @@ For each finding you process, use your text replacement tool to change `[ ]` to 
 `- [x] <item summary> -> NEEDS USER INPUT: <exact question>`
 `- [x] <item summary> -> ALREADY RESOLVED: <plan section>`
 
-*Why this matters:* Single-line replacements are safe and prevent document corruption. Do not attempt to restructure the Markdown headers.
+Edit each finding line in place; do not restructure headers or move items between sections.
 
 After checking off the processed items, append a brief resolution summary to the bottom of the file (or update the existing `## Resolution Summary` block if present):
 
@@ -165,10 +165,12 @@ Also append one of these next-step lines based on the recommendation:
 
 ## Completion Criteria
 
-- The branch, planning context, and allowed dirty-state constraints were checked.
+- Branch is a feature branch.
+- Planning context is intact (plan + plan-review file present).
+- Working tree contains no unrelated dirty files.
 - Every actionable review item was classified as `apply`, `decline`, `already-resolved`, or `needs-user-input`.
 - Accepted items were folded into the canonical plan cleanly.
-- A new resolution block was appended to the review file.
+- A resolution block was appended to the review file.
 - Final readiness was reassessed and reported as `ready`, `revise`, or `blocked`.
 
 ## See Also

@@ -40,7 +40,7 @@ If no unstarted tasks are found in the entire document, report that the plan app
 
 ### Step 3: Propose The Tasks
 
-Present the collected tasks to the user using the most interactive mechanism your platform provides (e.g., a multiple-choice UI tool like `ask_user` if available, or a numbered list in chat). 
+Present the collected tasks to the user using the most interactive mechanism your host provides — a multiple-choice UI prompt when available, otherwise a numbered list in chat, and pause execution explicitly while waiting for the reply.
 
 Format the options clearly:
 - **Option 1:** `[Phase/Priority Name]` - `<task description>`
@@ -49,15 +49,9 @@ Format the options clearly:
 - **Option 4:** Something else / new — the human describes what they have in mind; search `plan.md` for a matching entry or, if none exists, propose adding a new one before proceeding
 - **Option 5:** Cancel / None
 
-If your platform does not support interactive UI tools, print the options as a numbered list and explicitly pause execution, waiting for the user to reply with their choice.
-
 ### Step 4: Prepare And Handoff
 
-Once the user selects a task (including a task sourced or created via Option 4):
-
-1. Infer the Conventional Commits `type` based on the selected task (e.g., `feat` for new features, `fix` for bugs, `test` for tests, `docs` for documentation).
-2. Derive a short, kebab-case `description` from the task title (e.g., `core-training-unit-tests`).
-3. Execute the `/start-feature` command logic, passing the inferred `type` and `description` as inputs to skip the manual naming prompts in that command.
+Once the user selects a task (including a task sourced or created via Option 4), derive a short, kebab-case `description` from the task title (e.g., `core-training-unit-tests`) and execute `/start-feature`, passing `description` as input. `/start-feature` owns the Conventional Commits prefix inference per `AGENTS.md` § `Branching And Workspace Rules`.
 
 ## Completion Criteria
 

@@ -19,6 +19,10 @@ Omni Bike is an iOS indoor cycling companion app. It connects to a BLE stationar
 - **Gear persistence before DB**: Saved devices use lightweight key-value storage. The full SQLite schema is introduced only when session recording needs it.
 - **Offline-first**: All session data persists locally. Network failures never block the training flow. Uploads happen post-workout and can be retried.
 
+## Harness Principles
+
+- **Single Ownership.** Every harness rule, convention, procedure, or state transition has exactly one owner. Every other reference cross-links to that owner rather than restating it.
+
 ## Core Sources
 
 Read these in this order before feature work:
@@ -90,23 +94,15 @@ Examples:
 
 ### Review File State
 
-| State | Meaning |
-|---|---|
-| `needs-review` | Requested review has not finished yet. |
-| `needs-changes` | Latest review has unresolved actionable findings. |
-| `ready` | Latest review has no unresolved actionable findings. |
-
-| Current state | Event | Next state |
+| State | Meaning | Written by |
 |---|---|---|
-| `ready` | Human explicitly requests another review | `needs-review` |
-| `needs-review` | Review finishes with unresolved actionable findings | `needs-changes` |
-| `needs-review` | Review finishes with no unresolved actionable findings | `ready` |
-| `needs-changes` | Review-fix work starts | `needs-changes` |
-| `needs-changes` | Some findings fixed, at least one actionable `[ ]` remains | `needs-changes` |
-| `needs-changes` | All actionable findings are resolved | `ready` |
+| `needs-review` | Review in progress, or fixes await re-review | `/code-review` at start; `/address-code-review` when all findings are resolved |
+| `needs-changes` | Latest review has unresolved actionable findings | `/code-review` |
+| `ready` | Latest review is clean | `/code-review` only |
 
-- `/code-review`: write `needs-review` at start, then finish with `ready` or `needs-changes`
-- `/open-pr`: require `State: ready` when a review file exists
+- `/code-review` is the only command that writes `State: ready`.
+- `/address-code-review` writes `State: needs-review` after fixes and hands off — never `ready`.
+- `/open-pr` requires `State: ready` when a review file exists.
 
 ## Agent Roles
 

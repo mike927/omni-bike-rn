@@ -1,4 +1,5 @@
 import * as WebBrowser from 'expo-web-browser';
+import { Linking } from 'react-native';
 
 import {
   STRAVA_AUTH_URL,
@@ -15,6 +16,9 @@ import type { StravaAthlete, StravaTokenResponse, StravaTokens } from './types';
 
 /** Promise-based mutex to prevent concurrent token refreshes. */
 let refreshPromise: Promise<StravaTokens> | null = null;
+
+/** Promise-based mutex to prevent concurrent authorization flows (e.g. double-tap). */
+let authorizePromise: Promise<StravaTokens> | null = null;
 
 function parseAthleteFromResponse(raw: StravaTokenResponse['athlete']): StravaAthlete {
   return {
@@ -53,6 +57,13 @@ async function exchangeCodeForTokens(code: string): Promise<StravaTokens> {
 }
 
 export async function authorizeWithStrava(): Promise<StravaTokens> {
+  authorizePromise ??= runAuthorize().finally(() => {
+    authorizePromise = null;
+  });
+  return authorizePromise;
+}
+
+async function runAuthorize(): Promise<StravaTokens> {
   const params = new URLSearchParams({
     client_id: STRAVA_CLIENT_ID,
     redirect_uri: STRAVA_REDIRECT_URI,
@@ -62,20 +73,54 @@ export async function authorizeWithStrava(): Promise<StravaTokens> {
   });
   const authUrl = `${STRAVA_AUTH_URL}?${params.toString()}`;
 
-  const result = await WebBrowser.openAuthSessionAsync(authUrl, STRAVA_REDIRECT_URI);
-
-  if (result.type !== 'success') {
-    throw new Error('[stravaAuthService] Strava authorization was cancelled or failed.');
-  }
-
-  const url = new URL(result.url);
-  const code = url.searchParams.get('code');
-  if (!code) {
-    const error = url.searchParams.get('error') ?? 'unknown';
-    throw new Error(`[stravaAuthService] No authorization code returned. Strava error: ${error}`);
-  }
-
+  const code = await awaitRedirectCode(authUrl);
   return exchangeCodeForTokens(code);
+}
+
+/**
+ * Opens Strava's authorize page in an in-app Safari sheet and resolves with the
+ * authorization code when iOS dispatches the `omnibike://` deep-link callback.
+ *
+ * Why `openBrowserAsync` + `Linking` instead of `openAuthSessionAsync`:
+ * the latter wraps `ASWebAuthenticationSession`, which hangs on
+ * `accounts.google.com` during Strava's post-consent redirect chain for
+ * Google-linked accounts. `SFSafariViewController` behaves as standard Safari
+ * to Google's auth flow and completes the handshake correctly.
+ */
+async function awaitRedirectCode(authUrl: string): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    let settled = false;
+
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      if (settled || !url.startsWith(STRAVA_REDIRECT_URI)) return;
+      settled = true;
+      subscription.remove();
+      void WebBrowser.dismissBrowser();
+
+      const parsed = new URL(url);
+      const returnedCode = parsed.searchParams.get('code');
+      if (returnedCode) {
+        resolve(returnedCode);
+      } else {
+        const error = parsed.searchParams.get('error') ?? 'unknown';
+        reject(new Error(`[stravaAuthService] No authorization code returned. Strava error: ${error}`));
+      }
+    });
+
+    WebBrowser.openBrowserAsync(authUrl)
+      .then(() => {
+        if (settled) return;
+        settled = true;
+        subscription.remove();
+        reject(new Error('[stravaAuthService] Strava authorization was cancelled or failed.'));
+      })
+      .catch((err: unknown) => {
+        if (settled) return;
+        settled = true;
+        subscription.remove();
+        reject(err instanceof Error ? err : new Error(String(err)));
+      });
+  });
 }
 
 export async function refreshAccessToken(): Promise<StravaTokens> {

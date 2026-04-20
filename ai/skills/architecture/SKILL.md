@@ -57,4 +57,4 @@ New devices get a new adapter class, not changes to existing ones.
 
 ## See Also
 
-- `AGENTS.md` § Coding Conventions for layer rules, import direction, and naming conventions.
+- `AGENTS.md` § `Coding Conventions` for layer rules, import direction, and naming conventions.
