@@ -33,6 +33,7 @@ Answer each question in order before writing or accepting a new harness rule. St
 | Command procedure is a flat numbered list | Use `### Step N: <Title>` subsections to match siblings |
 | Shared file uses provider-specific wording | Move it to a provider entrypoint |
 | Safety warning bolted into an unrelated file | Keep the warning with its owning domain |
+| New command added without matching provider bridges | Mirror to every active bridge directory per `AGENTS.md` § `Adding A New Command` |
 
 ## File-Specific Rules
 

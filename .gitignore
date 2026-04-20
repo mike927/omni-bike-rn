@@ -34,7 +34,7 @@ yarn-error.*
 .claude/*
 !.claude/commands/
 .agents/*
-!.agents/workflows/
+!.agents/skills/
 ai/local/
 
 # local env files

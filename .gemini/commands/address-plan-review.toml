@@ -1,0 +1,6 @@
+description = "Triage the active branch's plan-review findings, update the canonical plan intentionally, and record what was applied or declined."
+prompt = """
+Execute the procedure defined in @{ai/commands/address-plan-review/COMMAND.md}.
+
+{{args}}
+"""

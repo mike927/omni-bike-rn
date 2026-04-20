@@ -6,7 +6,7 @@
 
 ## Gemini-Specific Notes
 
-- Workflow procedures (`.agents/workflows/`) are thin pointers to `ai/commands/*/COMMAND.md` — all logic lives in the canonical command files
+- Slash-command bridges (`.gemini/commands/*.toml`) are thin TOML pointers to `ai/commands/*/COMMAND.md` — each bridge's `description` drives the `/` picker; the `prompt` auto-loads the canonical file via `@{...}`. Edit the canonical COMMAND.md, not the bridge.
 - Use `GEMINI.local.md` for personal preferences not shared with the team (git-ignored)
 - Gemini has no dedicated planning mode API.
 - **Rich Markdown & Artifacts**: Map the `AGENTS.md` rich-rendering rule by using the `write_to_file` tool with the `IsArtifact` flag when generating plans or reviews.

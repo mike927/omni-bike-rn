@@ -1,0 +1,6 @@
+description = "Read plan.md, identify the next logical unstarted task, and propose it to the user."
+prompt = """
+Execute the procedure defined in @{ai/commands/next-task/COMMAND.md}.
+
+{{args}}
+"""

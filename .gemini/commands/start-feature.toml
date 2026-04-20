@@ -1,0 +1,6 @@
+description = "Set up the workspace for a new feature: confirm branch name, create an in-place branch by default (or a worktree when explicitly requested), and print the branch slug for use in all downstream ai/local/ artifacts."
+prompt = """
+Execute the procedure defined in @{ai/commands/start-feature/COMMAND.md}.
+
+{{args}}
+"""

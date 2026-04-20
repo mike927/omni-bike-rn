@@ -1,0 +1,6 @@
+description = "Run the full validation suite and report pass/fail per command."
+prompt = """
+Execute the procedure defined in @{ai/commands/validate/COMMAND.md}.
+
+{{args}}
+"""
