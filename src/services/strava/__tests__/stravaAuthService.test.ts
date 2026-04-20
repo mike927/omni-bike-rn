@@ -156,8 +156,8 @@ describe('authorizeWithStrava', () => {
     mockSaveTokens.mockResolvedValue(undefined);
 
     const pending = authorizeWithStrava();
-    // Unrelated deep link (e.g. provider-gear-link) must not resolve the auth flow.
-    fireRedirect('omnibike://provider-gear-link?result=ok');
+    // Unrelated deep link on the same scheme must not resolve the auth flow.
+    fireRedirect('omnibike://some-other-path?foo=bar');
     // Now fire the real callback.
     fireRedirect('omnibike://localhost/oauth/callback?code=auth-code-999');
 
