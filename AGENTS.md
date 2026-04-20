@@ -90,25 +90,14 @@ Examples:
 
 ### Review File State
 
-| State | Meaning |
-|---|---|
-| `needs-review` | Requested review has not finished yet. |
-| `needs-changes` | Latest review has unresolved actionable findings. |
-| `ready` | Latest review has no unresolved actionable findings. |
-
-| Current state | Event | Next state |
+| State | Meaning | Written by |
 |---|---|---|
-| `ready` | Human explicitly requests another review | `needs-review` |
-| `needs-review` | Review finishes with unresolved actionable findings | `needs-changes` |
-| `needs-review` | Review finishes with no unresolved actionable findings | `ready` |
-| `needs-changes` | Review-fix work starts | `needs-changes` |
-| `needs-changes` | Some findings fixed, at least one actionable `[ ]` remains | `needs-changes` |
-| `needs-changes` | All actionable findings are resolved (via `/address-code-review`) | `needs-review` |
+| `needs-review` | Review in progress, or fixes await re-review | `/code-review` at start; `/address-code-review` when all findings are resolved |
+| `needs-changes` | Latest review has unresolved actionable findings | `/code-review` |
+| `ready` | Latest review is clean | `/code-review` only |
 
-- `/code-review` is the **only** command that can write `State: ready`. A fresh review pass must confirm the fixes before the queue is considered clean.
-- `/address-code-review` never writes `ready` on its own — once every finding is marked `[x]`, it sets state to `needs-review` and hands off. Re-run `/code-review` to transition to `ready` (clean) or `needs-changes` (new findings).
-- `/code-review`: write `needs-review` at start, then finish with `ready` or `needs-changes`
-- `/open-pr`: require `State: ready` when a review file exists
+- **Only `/code-review` produces `ready`.** `/address-code-review` hands off to a fresh review pass rather than declaring the queue clean itself.
+- `/open-pr` requires `State: ready` when a review file exists.
 
 ## Agent Roles
 
