@@ -31,4 +31,4 @@ Optional sections go between `Procedure` and `Completion Criteria`. **Output For
 
 ## Platform Invocation
 
-Commands are agent-agnostic. The logic is ALWAYS hosted here, never duplicated. To expose a command to a specific host, register a thin pointer in that host's command directory (e.g., `.claude/commands/<name>.md`, `.agents/workflows/<name>.md`). The bridge must do nothing more than route to the canonical `ai/commands/<name>/COMMAND.md`.
+Commands are agent-agnostic. The logic is ALWAYS hosted here, never duplicated. To expose a command to a specific host, register a thin pointer in that host's command directory (e.g., `.claude/commands/<name>.md`, `.agents/skills/<name>/SKILL.md`, `.gemini/commands/<name>.toml`). The bridge must do nothing more than route to the canonical `ai/commands/<name>/COMMAND.md`.
