@@ -1,22 +1,10 @@
 ---
 name: sqlite-persistence
-description: Use this skill for Expo SQLite, session persistence rules, repositories, and recorded workout storage decisions in this repo.
+description: Use when working on Expo SQLite, repository persistence, session-recording rules, or recorded workout storage decisions in this repo.
 ---
 # SQLite Persistence
 
-Use this skill when the task involves `expo-sqlite`, repositories under `src/services/db/`, or recorded workout persistence behavior in this app.
-
 For the official Drizzle migration and generation workflow, also use `ai/skills/drizzle-expo/SKILL.md`.
-
-## Source Provenance
-
-This skill is grounded in:
-
-- Expo SQLite docs: `https://docs.expo.dev/versions/v54.0.0/sdk/sqlite/`
-- Drizzle Expo SQLite docs: `https://orm.drizzle.team/docs/connect-expo-sqlite`
-- Expo storage guidance from `expo/skills`
-
-Use those sources as the primary reference when platform behavior is unclear.
 
 ## Repo Paths And Layer Rules
 
@@ -33,12 +21,8 @@ Use those sources as the primary reference when platform behavior is unclear.
 
 ## Runtime Migration Pattern
 
-- Prefer the official Drizzle Expo flow:
-  - update `src/services/db/schema.ts`
-  - generate SQL with `drizzle-kit`
-  - commit the generated `drizzle/` folder
-  - apply the generated migration bundle through Drizzle's Expo migrator at startup
-- Treat custom `PRAGMA user_version` migrations as an exception path, not the default.
+- Schema, generation, and migrator wiring are owned by `ai/skills/drizzle-expo/SKILL.md`.
+- App-policy rule: treat custom `PRAGMA user_version` migrations as an exception path, not the default.
 
 ## Drizzle Layout
 
@@ -63,11 +47,3 @@ Use those sources as the primary reference when platform behavior is unclear.
 - Test migrations separately from repository behavior.
 - Verify ordered sample writes, session status transitions, and discard/finalize behavior explicitly.
 - Keep tests focused on repository contracts and persistence hooks rather than screen rendering.
-
-## Common Mistakes To Avoid
-
-- Mixing `kv-store` and relational session data in the same abstraction.
-- Running repository writes before database initialization completes.
-- Creating duplicate draft sessions on resume or repeated renders.
-- Persisting raw BLE source state instead of the merged session snapshot.
-- Hiding reusable persistence types inside hooks or repository implementation files.

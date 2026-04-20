@@ -138,4 +138,5 @@ Do not emit a `**Next:** Proceed to ...?` confirmation line. The track choice in
 
 ## See Also
 
+- `ai/commands/next-task/COMMAND.md` — pick the next `plan.md` task before creating a branch
 - `ai/commands/check-state/COMMAND.md` — use at session start to resume an existing branch
