@@ -7,7 +7,6 @@
 ## Codex-Specific Notes
 
 - Use `CODEX.local.md` for personal preferences not shared with the team (git-ignored)
-- **Terminal Execution**: Map the `AGENTS.md` CLI capabilities rule to the `exec_command` tool.
-- **Context Gathering**: Map context gathering to the `multi_tool_use.parallel` capability.
-- **File Edits**: Map standard file-mutation rules to the `apply_patch` tool for focused, reviewable edits.
-- **External Workflows**: Prioritize native repository-integrated plugins (PR, review, CI) over manual shell scripting when available.
+- **Canonical Commands**: When user intent or the workflow maps to a repo command such as `/code-review`, `/validate`, or `/open-pr`, load and follow `ai/commands/<name>/COMMAND.md`. Native Codex helpers may assist, but they do not replace the canonical command.
+- **Built-In Reviews**: If Codex uses provider-native review tooling during a review, mirror the final findings and review state into `ai/local/reviews/<branch-slug>.md` before concluding so follow-up project workflows keep a single canonical queue.
+- **External Workflows**: Prefer native repository-integrated plugins for PR, review, and CI metadata/actions when they support the needed step well; fall back to shell commands when plugin coverage is insufficient or the shell path is simpler and more reliable.
