@@ -11,16 +11,17 @@ Use this skill when the task changes SQLite schema, updates generated migrations
 - `ai/skills/sqlite-persistence/SKILL.md` for this app's session-recording rules, storage boundaries, and repository contracts.
 - `ai/skills/architecture/SKILL.md` for layer ownership and direction.
 
-## Official Workflow
+## Workflow Shape
 
-1. Update `src/services/db/schema.ts`.
-2. Ensure `drizzle.config.ts` points to the schema with `dialect: 'sqlite'` and `driver: 'expo'`.
-3. Generate migrations with `npm run db:generate` or `npx drizzle-kit generate`.
-4. Commit the generated `drizzle/` artifacts:
-   - SQL files
-   - `drizzle/migrations.js`
-   - `drizzle/meta/*`
-5. Apply migrations at app startup with Drizzle's Expo migrator from `drizzle-orm/expo-sqlite/migrator`.
+The Drizzle-on-Expo loop is schema-first and codegen-driven:
+
+- `src/services/db/schema.ts` is the schema source of truth.
+- `drizzle.config.ts` points to the schema with `dialect: 'sqlite'` and `driver: 'expo'`.
+- `npm run db:generate` (or `npx drizzle-kit generate`) emits SQL + bookkeeping under `drizzle/`.
+- The generated artifacts (`drizzle/*.sql`, `drizzle/migrations.js`, `drizzle/meta/*`) are committed — they are the deployable migration bundle.
+- Drizzle's Expo migrator (`drizzle-orm/expo-sqlite/migrator`) applies the bundle at app startup.
+
+Any schema change without a regenerate-and-commit pass is broken by definition — the shipped bundle would lag the schema.
 
 ## Required Project Wiring
 

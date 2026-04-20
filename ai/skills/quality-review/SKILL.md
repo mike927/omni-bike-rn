@@ -14,4 +14,4 @@ Use this skill for the review checklist and quality standards applied during cod
 - [ ] Mocks reset in `beforeEach` with `jest.clearAllMocks()`
 - [ ] No stale mock shapes (mock matches current hook return type)
 
-All other conventions (TypeScript, architecture, style, test structure) are in `AGENTS.md` § Coding Conventions.
+All other conventions (TypeScript, architecture, style, test structure) are in `AGENTS.md` § `Coding Conventions`.

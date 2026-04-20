@@ -39,13 +39,7 @@ Start the MCP proxy so any MCP-compatible agent can access Stitch projects:
 npx @_davideast/stitch-mcp proxy
 ```
 
-Configure your agent to connect to this MCP server. The setup depends on your agent:
-
-- **Claude Code**: add to `.claude/settings.json` under `mcpServers`
-- **Antigravity**: built-in Stitch MCP support
-- **Codex / other agents**: add to the agent's MCP configuration file
-
-Once connected, the agent gains access to virtual tools:
+Register this MCP server with your host's MCP configuration (paths and file names vary per host). Once connected, the agent gains access to virtual tools:
 
 | Tool | Purpose |
 |---|---|
@@ -62,33 +56,27 @@ Once connected, the agent gains access to virtual tools:
 | `site` | Generate an Astro website mapping screens to routes |
 | `doctor` | Diagnose configuration issues |
 
-## Interactive Design Workflow
+## Collaborative Design Loop
 
-Design tasks that involve Stitch are collaborative. The agent drives the process, the human operates Stitch in the browser, and then the agent fetches and implements the result. Every screen or component that needs a design goes through this loop.
+Stitch work is collaborative by design: the agent writes the prompt, the human operates Stitch in the browser, and the agent fetches and implements the result. The loop has four beats per screen:
 
-### Prerequisites
+- **Prompt prep** (agent) — read the current screen, understand functional requirements, produce a ready-to-paste Stitch prompt.
+- **Design creation** (human) — open Stitch, set device type, optionally upload a screenshot, paste the prompt, pick a variation, signal completion.
+- **Fetch and review** (agent) — use `get_screen_image` and `get_screen_code` via MCP, confirm coverage, re-prompt on gaps.
+- **Implementation** (agent) — convert HTML/CSS to React Native, apply project conventions, hand off to the human for device testing.
 
-- MCP proxy is running (`npx @_davideast/stitch-mcp proxy`)
-- Agent is connected to the Stitch MCP server
+Without MCP, the human bridges by pasting the generated HTML/CSS into `ai/designs/<screen-name>.html` and the agent reads the file in place of the `get_screen_code` call.
 
-### The Loop
+### What A Good Stitch Prompt Contains
 
-For each screen or component that needs a design:
+- **Device type** — always `Mobile` for this project.
+- **Screen purpose** — what the screen does and its role in the app flow.
+- **Key elements** — every UI element that must appear (cards, buttons, metrics, states).
+- **Interactions** — taps, swipes, toggles, transitions.
+- **Constraints** — dark/light theme, brand colors, accessibility.
+- **Reference** — whether the human should upload a screenshot as a starting point.
 
-#### Step 1: Agent Prepares The Prompt
-
-The agent reads the current screen code (if it exists), understands the functional requirements from `plan.md`, and writes a ready-to-paste Stitch prompt for the human.
-
-The prompt must include:
-
-- **Device type**: always `Mobile` for this project
-- **Screen purpose**: what the screen does and its role in the app flow
-- **Key elements**: list every UI element that must appear (cards, buttons, metrics, states)
-- **Interactions**: taps, swipes, toggles, transitions
-- **Constraints**: dark/light theme, brand colors if defined, accessibility needs
-- **Reference**: mention if the human should upload a screenshot of the current screen as a starting point
-
-Example prompt the agent would provide:
+Example:
 
 > **Paste this into Stitch (Mobile device type):**
 >
@@ -99,59 +87,14 @@ Example prompt the agent would provide:
 > Bottom bar: Pause/Resume button (large, centered), Finish button (smaller, right side).
 > The layout must work in both portrait and landscape orientations.
 
-#### Step 2: Human Creates The Design
+### Prompt Writing Guidelines
 
-The human:
-
-1. Opens [stitch.withgoogle.com](https://stitch.withgoogle.com)
-2. Sets device type to **Mobile**
-3. Optionally uploads a screenshot of the current screen
-4. Pastes the agent-provided prompt
-5. Reviews generated variations and picks the best one (or iterates)
-6. Confirms to the agent that the design is ready (e.g., "done" or "design is ready")
-
-#### Step 3: Agent Fetches And Reviews
-
-The agent uses MCP tools to retrieve the design:
-
-1. `get_screen_image` — visually review the design
-2. `get_screen_code` — get the generated HTML/CSS
-
-The agent then:
-
-- Confirms the design covers all required elements
-- Flags anything missing or inconsistent with the functional requirements
-- If issues are found, provides an updated prompt and the loop returns to Step 2
-
-#### Step 4: Agent Implements
-
-Once the design is approved:
-
-1. Convert HTML/CSS to React Native (see conversion table below)
-2. Apply project conventions
-3. Integrate with existing navigation and state
-4. Ask the human to test on device/simulator
-
-### Prompt Guidelines For Agents
-
-When writing Stitch prompts, follow these rules:
-
-- Be specific about every element — Stitch cannot infer app context
-- Include exact metric names and units (e.g., "Speed (km/h)" not just "speed")
-- Specify states: empty, loading, error, active, paused, disabled
-- For refinement rounds, reference what to keep and what to change: "Keep the card layout but increase spacing between metric cards and make the HR value use a red accent"
-- For complex screens, split into sub-prompts: design the header, metric grid, and bottom bar separately, then ask for a combined view
-- Always specify dark or light theme explicitly
-
-### Fallback Without MCP
-
-If MCP is not available, the human can manually bridge:
-
-1. Agent provides the Stitch prompt (same as Step 1)
-2. Human creates the design in Stitch
-3. Human copies the generated HTML/CSS from Stitch's code panel
-4. Human pastes it into `ai/designs/<screen-name>.html`
-5. Agent reads the file and continues from Step 4
+- Be specific about every element — Stitch cannot infer app context.
+- Include exact metric names and units (e.g., `Speed (km/h)` not `speed`).
+- Specify all relevant states: empty, loading, error, active, paused, disabled.
+- For refinement rounds, reference what to keep and what to change (`Keep the card layout but tighten the grid gap and recolor the HR value`).
+- For complex screens, split into sub-prompts (header, metric grid, bottom bar) then request a combined view.
+- Always specify dark or light theme.
 
 ### HTML/CSS To React Native Conversion
 
@@ -167,14 +110,13 @@ If MCP is not available, the human can manually bridge:
 | CSS flexbox | React Native flexbox (column default) |
 | `className` | `style` prop |
 
-### Apply Project Conventions After Conversion
+### Project Conventions Applied During Conversion
 
-- Use `StyleSheet.create()` for styles
-- Follow `expo-router` navigation patterns
-- Place components in `src/features/<domain>/components/`
-- Place screens in `app/` directory only
-- Use TypeScript strict mode types
-- Follow the adapter pattern for any external integrations
+- Styles live in `StyleSheet.create()`.
+- Navigation follows `expo-router` patterns.
+- Components live under `src/features/<domain>/components/`; screens only under `app/`.
+- Types follow TypeScript strict mode.
+- External integrations follow the adapter pattern.
 
 ## Key Limitations
 

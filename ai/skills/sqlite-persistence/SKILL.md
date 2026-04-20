@@ -23,7 +23,7 @@ Use those sources as the primary reference when platform behavior is unclear.
 - `src/services/db/` owns database setup, migrations, schema, and repositories.
 - `src/types/` owns reusable persistence interfaces and type aliases.
 - `src/features/training/hooks/` may orchestrate persistence side effects, but should not contain raw SQL or schema definitions.
-- Keep layers directional: features -> services -> parsers/types. Do not import DB services upward into UI screens.
+- Layer direction follows `AGENTS.md` § `Coding Conventions`.
 
 ## Storage Choice
 
@@ -51,9 +51,11 @@ Use those sources as the primary reference when platform behavior is unclear.
 
 - Persist merged 1 Hz samples, not raw device-specific packets.
 - Treat the app as offline-first: local writes should not depend on network availability.
-- Create one draft session when training starts, append one sample per active tick, and finalize the same session on finish.
-- Pause/resume should update session status without creating a second draft.
-- Reset before finish should delete the unfinished draft; reset after finish should preserve the completed session row.
+- Create one draft session when training starts.
+- Append one sample per active tick.
+- Finalize the same session on finish — never open a second draft mid-session.
+- Pause/resume updates session status without creating a second draft.
+- Reset before finish deletes the unfinished draft; reset after finish preserves the completed session row.
 
 ## Testing And Mocking
 

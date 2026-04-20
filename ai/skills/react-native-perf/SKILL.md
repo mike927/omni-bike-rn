@@ -31,16 +31,9 @@ Reference these guidelines when:
 | 5 | Memory Management | MEDIUM-HIGH | Leak hunting, cleanup |
 | 6 | Animations | MEDIUM | Reanimated worklets |
 
-## Optimization Workflow
+## Measurement-First Principle
 
-Follow this cycle for any performance issue: **Measure -> Optimize -> Re-measure -> Validate**
-
-1. **Measure**: Capture baseline metrics (FPS, TTI, bundle size) before changes
-2. **Optimize**: Apply the targeted fix
-3. **Re-measure**: Run the same measurement to get updated metrics
-4. **Validate**: Confirm improvement (e.g., FPS 45->60, TTI 3.2s->1.8s, bundle 2.1MB->1.6MB)
-
-If metrics did not improve, revert and try the next suggested fix.
+Performance work only counts when a measurement proves it. The shape of a valid change: capture the baseline metric (FPS, TTI, bundle size) → apply the targeted fix → re-measure with the same method → confirm an improvement (e.g., FPS `45 → 60`, TTI `3.2s → 1.8s`, bundle `2.1MB → 1.6MB`). A change that does not move the metric is reverted, not defended.
 
 ## Critical: FPS & Re-renders
 
