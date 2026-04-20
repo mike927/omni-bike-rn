@@ -175,6 +175,13 @@ Three-part initiative to align our calorie numbers with Apple Fitness and Strava
 - [ ] Add motion, typography, theming, and interaction polish
 - [ ] Final cross-screen QA for portrait and iOS live surfaces
 
+## Android Parity (Deferred)
+
+Android is not actively supported today — the product is iOS-first (watchOS companion, HealthKit, Apple Watch HR). Android scaffolding exists in `app.config.ts`, but platform-specific regressions are tracked here for a future pass.
+
+- [ ] Strava OAuth on Android: `WebBrowser.openBrowserAsync` resolves with `{ type: 'opened' }` immediately on Android (the runtime cannot observe the Chrome Custom Tab close), so the iOS-focused fix in PR [#56](https://github.com/mike927/omni-bike-rn/pull/56) rejects the auth flow before the deep link can arrive. Fix: add a `Platform.OS` split — keep the new `openBrowserAsync` + `Linking` flow on iOS, restore `openAuthSessionAsync` on Android.
+
 ## Future Considerations
 
 - [ ] Move Strava OAuth token exchange and refresh behind a backend or other secure server-side flow so the client app no longer ships the Strava client secret
+- [ ] Align the Strava OAuth callback route with the configurable callback host. The expo-router handler added in PR [#56](https://github.com/mike927/omni-bike-rn/pull/56) is hardcoded at `app/localhost/oauth/callback.tsx`, but `STRAVA_REDIRECT_URI` uses the configurable `stravaCallbackDomain` from `app.config.ts` (env: `STRAVA_CALLBACK_DOMAIN`). In any environment that overrides the domain, expo-router will fall back to `+not-found`. Fix: either hardcode `localhost` everywhere (remove the env override) or switch to a dynamic segment (`app/[callbackDomain]/oauth/callback.tsx`). No immediate action needed — `localhost` is the only domain in use.
