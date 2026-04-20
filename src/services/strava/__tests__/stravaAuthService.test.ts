@@ -44,18 +44,6 @@ interface LinkingMockState {
 
 const linkingMock: LinkingMockState = { handler: null, removeCount: 0 };
 
-jest.spyOn(Linking, 'addEventListener').mockImplementation((type, handler) => {
-  if (type === 'url') {
-    linkingMock.handler = handler as UrlEventHandler;
-  }
-  return {
-    remove: () => {
-      linkingMock.removeCount += 1;
-      linkingMock.handler = null;
-    },
-  } as ReturnType<typeof Linking.addEventListener>;
-});
-
 function fireRedirect(url: string): void {
   if (!linkingMock.handler) throw new Error('Linking listener was not registered');
   linkingMock.handler({ url });
@@ -92,6 +80,22 @@ beforeEach(() => {
   linkingMock.handler = null;
   linkingMock.removeCount = 0;
   mockDismissBrowser.mockResolvedValue(undefined);
+
+  jest.spyOn(Linking, 'addEventListener').mockImplementation((type, handler) => {
+    if (type === 'url') {
+      linkingMock.handler = handler as UrlEventHandler;
+    }
+    return {
+      remove: () => {
+        linkingMock.removeCount += 1;
+        linkingMock.handler = null;
+      },
+    } as ReturnType<typeof Linking.addEventListener>;
+  });
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
 });
 
 describe('authorizeWithStrava', () => {
