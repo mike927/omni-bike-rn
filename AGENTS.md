@@ -96,7 +96,8 @@ Examples:
 | `needs-changes` | Latest review has unresolved actionable findings | `/code-review` |
 | `ready` | Latest review is clean | `/code-review` only |
 
-- **Only `/code-review` produces `ready`.** `/address-code-review` hands off to a fresh review pass rather than declaring the queue clean itself.
+- `/code-review` is the only command that writes `State: ready`.
+- `/address-code-review` writes `State: needs-review` after fixes and hands off — never `ready`.
 - `/open-pr` requires `State: ready` when a review file exists.
 
 ## Agent Roles
