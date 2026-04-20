@@ -234,7 +234,7 @@ describe('ZiproRaveAdapter', () => {
   });
 
   describe('setControlState', () => {
-    it('should request control before sending a reset command and clear local state without BLE disconnect', async () => {
+    it('should request control before sending a reset command', async () => {
       const mockDevice = createMockDevice();
       (bleManager.connectToDevice as jest.Mock).mockResolvedValue(mockDevice);
 
@@ -253,10 +253,20 @@ describe('ZiproRaveAdapter', () => {
         FTMS_CONTROL_POINT_UUID,
         'AQ==',
       );
-      // After reset, adapter clears local state but does NOT explicitly disconnect BLE.
-      // The bike may reboot and drop BLE naturally — auto-reconnect handles it.
+      // Reset alone does not tear down BLE; the caller is expected to call disconnect() next.
       expect(bleManager.cancelDeviceConnection).not.toHaveBeenCalled();
       expect(bleManager.connectToDevice).toHaveBeenCalledTimes(1);
+    });
+
+    it('should leave the device connected after a successful reset so disconnect can tear down BLE', async () => {
+      const mockDevice = createMockDevice();
+      (bleManager.connectToDevice as jest.Mock).mockResolvedValue(mockDevice);
+
+      await adapter.connect();
+      await adapter.setControlState(BikeStatus.Reset);
+      await adapter.disconnect();
+
+      expect(bleManager.cancelDeviceConnection).toHaveBeenCalledWith(DEVICE_ID);
     });
 
     it('should send start directly without requesting control first', async () => {

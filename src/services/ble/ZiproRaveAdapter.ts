@@ -308,9 +308,6 @@ export class ZiproRaveAdapter implements BikeAdapter {
           await this.requestControlIfNeeded();
         }
         await this.writeControlCommand(command);
-        if (status === BikeStatus.Reset) {
-          this.cleanupAfterReset();
-        }
       }
     } catch (err) {
       if (isExpectedBleDisconnectError(err)) {
