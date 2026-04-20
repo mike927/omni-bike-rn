@@ -111,7 +111,7 @@ Lightweight, modern onboarding shown only on first launch. 2-3 swipeable intro s
 - [ ] Garmin Connect as additional upload provider (OAuth + .FIT upload, sitting alongside Strava via the existing provider-adapter contract; depends on Phase 7 .FIT export)
 - [ ] If a user taps `Upload` from history without a connected provider, redirect to the relevant provider connection flow
 - [x] Minimal UI elements needed for integrations, export, and provider sync flows
-- [ ] Strava webhook is not working for "localhost" once oauth is agreed - it hangs on "accounts.google.com"
+- [x] Strava webhook is not working for "localhost" once oauth is agreed - it hangs on "accounts.google.com"
 
 ## Phase 7: Extras & Platform Features
 
