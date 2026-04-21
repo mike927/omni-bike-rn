@@ -4,5 +4,3 @@ description: Work through code review findings (local review file or GitHub PR t
 ---
 
 Read and execute the procedure in `ai/commands/address-code-review/COMMAND.md`.
-
-Source: `local` (default) · `gh`

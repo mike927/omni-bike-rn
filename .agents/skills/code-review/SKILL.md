@@ -4,5 +4,3 @@ description: Run an internal code review against the branch diff (local working 
 ---
 
 Read and execute the procedure in `ai/commands/code-review/COMMAND.md`.
-
-Source: `local` (default) · `gh`

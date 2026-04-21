@@ -4,5 +4,3 @@ description: Open a GitHub PR with the project's standardized summary built from
 ---
 
 Read and execute the procedure in `ai/commands/open-pr/COMMAND.md`.
-
-Base: $ARGUMENTS (default: `main`)

@@ -4,5 +4,3 @@ description: Run the project's full validation suite (lint, typecheck, tests, fo
 ---
 
 Read and execute the procedure in `ai/commands/validate/COMMAND.md`.
-
-Scope: `full` (default) · `quick` · `test`
