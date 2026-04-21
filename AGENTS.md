@@ -96,7 +96,14 @@ Examples:
 
 ### Review File State
 
-Under the append-mode contract (§ `Commands`), every `/code-review` invocation appends a new `## Review (<provider>, <ISO>)` block. The review file has no file-level `State:` header — state lives on the `State:` line **inside** the latest block. Every rule below resolves against that latest block.
+**Append-mode contract (single owner).** Every `/code-review` and `/review-plan` invocation appends a new `## Review (<provider>, <ISO timestamp>)` block to the review file. File-level rules:
+
+- Never overwrite or edit prior blocks. Every run appends to the absolute end of the file, after all previous blocks and any `/address-*` resolution sections.
+- The latest block wins. File-level state, recommendation, and readiness all resolve against the **last** `## Review (...)` block — readers must locate it, not grep for the first match.
+- The review file has no file-level `State:` header. State lives on the `State:` line **inside** the latest block.
+- Prior blocks, cross-provider findings, and `/address-*` resolution sections are preserved verbatim. This is what enables the challenge path at the two human gates (see § `Three-Way Approval Gate`) to accumulate reviews across providers without clobbering.
+
+**State values (written inside the latest block):**
 
 | State (latest block) | Meaning | Written by (inside that block) |
 |---|---|---|
@@ -106,7 +113,17 @@ Under the append-mode contract (§ `Commands`), every `/code-review` invocation 
 
 - `/code-review` is the only command that writes `State: ready` (in the block it just appended).
 - `/address-code-review` writes `State: needs-review` after fixes and hands off — never `ready`.
-- `/open-pr` requires `State: ready` when a review file exists — specifically, the `State:` line inside the **last** `## Review (...)` block in the file. A naive grep that returns the first `State:` match may pick an older block; readers must locate the final block.
+- `/open-pr` requires `State: ready` when a review file exists — specifically, the `State:` line inside the **last** `## Review (...)` block in the file.
+
+### Review Resolution Format
+
+Address-family commands (`/address-plan-review`, `/address-code-review`) update findings **in place** in the review file, never moving them between sections.
+
+- Change the checklist marker from `[ ]` to `[x]`.
+- Append the resolution inline using `-> OUTCOME: <detail>`.
+- Do not restructure headers or relocate items.
+- Outcome verbs are command-specific (see each command's own outcome-verb table).
+- `/address-plan-review` additionally appends a `## Resolution Summary` block at the end of the review file summarizing the pass. `/address-code-review` does not use this trailing block; its `State:` transition is recorded inside the latest `## Review (...)` block instead.
 
 ## Agent Roles
 
@@ -161,9 +178,10 @@ For unplanned work (e.g., a bug the user reports during a session, a quick chore
 
 - **Analysis is free.** Reading code, tracing logic, and discussing findings does not trigger the workflow.
 - **The moment a code change is agreed upon**, the workflow activates.
-- **Fast Track (Optional):** For minor tasks, skip formal planning and review (Steps 3, 4, 5, 8, 9) and proceed from Step 2 directly to Step 6. *Requires explicit human approval; never auto-select.*
 - **plan.md updates are optional.** Mark an existing item if the fix addresses one; otherwise skip `plan.md` references in the workflow steps.
 - **Rule of thumb:** If the ad-hoc task clearly matches an existing `plan.md` item, align the branch and workflow to that item. Otherwise, proceed as explicit branch-local work without forcing artificial `plan.md` linkage.
+
+For trivial fixes, the human may explicitly request skipping planning — an escape hatch, not a named track.
 
 ### Workflow Pacing and Discipline
 
