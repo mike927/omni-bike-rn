@@ -226,29 +226,49 @@ Automated pipeline steps (see `§ Workflow Pacing and Discipline`) post the head
 - **Plan mode:** Activate plan mode now. Use your host's dedicated tool if one is available; otherwise ask the human to enable it and select a reasoning model before continuing. Until approved (Step 5), you may only search/read files and write to `ai/local/plans/<branch-slug>.md`. Do not modify source code or commit changes.
 - **Questions:** Derive technical decisions from the codebase. For product or business decisions, ask interactively (offer 2–4 concrete options plus a free-text escape hatch) or mark the `plan.md` item `[?]` with a reason.
 - **Draft:** Write a detailed, actionable plan to `ai/local/plans/<branch-slug>.md`. If no `plan.md` item applies, record explicit branch-local scope in the plan. The final section must always be `## What Will Be Available After Completion`, focused on user-facing outcomes.
-- **Yield:** Post a `**Workflow Progress: Step 3 Complete**` message and ask whether to proceed to Step 4.
+- **Yield:** Post a `**Workflow Progress: Step 3 Complete**` message, then proceed directly into Step 4 (Plan Reviewing) without asking. The Step 4 review loop is autonomous; the next human gate is Step 5.
 
 ### 4. Plan Reviewing
 
 - **Prerequisite:** Plan file exists at `ai/local/plans/<branch-slug>.md`.
-- **Review loop:** Run `/review-plan`.
-  - `ready` → exit the loop.
-  - `revise` → run `/address-plan-review`. Then branch on its recommendation:
-    - `ready` or `revise` → re-run `/review-plan`.
-    - `blocked` → surface the `Needs User Input` questions to the human; await answers; re-run `/address-plan-review`, then `/review-plan`.
-- **Exit:** `/review-plan` returns `ready` with no unresolved blocking findings.
-- **Yield:** Post a `**Workflow Progress: Step 4 Complete**` message including the plan path, review path, and state line `reviewed | addressed | ready for human approval`. Ask whether to proceed to Step 5.
+- **Delegation mandate:** The review must run in a fresh-context reviewer subagent — `plan-reviewer` if defined under `.claude/agents/`, otherwise `general-purpose`. The main agent does **not** run `/review-plan` inline in Step 4; the point of delegation is fresh context and independence from the drafting path (mirror of Step 8 Phase B for code review). If the provider has no subagent primitive at all, fall back to main-agent inline execution and note it in the Step 4 summary.
+- **Autonomous loop:** The loop runs without per-iteration human handoff.
+  1. Main agent spawns the reviewer subagent with a short brief (plan intent, scope framing, branch-slug). Subagent executes `/review-plan` end-to-end and appends a new block to `ai/local/plans/<branch-slug>.review.md`.
+  2. Main agent reads the latest block's `Recommendation:`.
+  3. If `ready` → exit the loop.
+  4. If `revise` → main agent runs `/address-plan-review` in the **same session** (asymmetric policy: fresh-context discovery, same-session resolution). If `/address-plan-review` surfaces `Needs User Input`, pause, await human answers, then re-run `/address-plan-review`.
+  5. Main agent re-spawns the reviewer subagent for the next cycle.
+  6. **Cap: 3 cycles.** If the loop does not reach `ready` after 3 subagent reviews, halt, surface the remaining findings to the human with `needs-user-input` framing, and wait for direction.
+- **Exit:** Latest review block's `Recommendation:` is `ready` with no unresolved blocking findings.
+- **Yield:** Post a `**Workflow Progress: Step 4 Complete**` message including the plan path, review path, and state line `reviewed | addressed | ready for human approval`, then proceed directly into the Step 5 gate without asking.
 
 When reviewing an ad-hoc branch:
 - prefer a real `plan.md` match when one exists
 - if none exists, treat explicit branch-local scope as valid when the human has approved that framing
 - do not block solely because no `plan.md` item matches
 
+### Three-Way Approval Gate
+
+Used at the two human decision points — Step 5 (Plan Approving) and post-Step-9 (Internal Review Fix Loop exit). Present three options. **Only `approve` advances the workflow.** `challenge` and `revise` keep the agent paused at the same gate — after each runs its course, the gate is re-presented for another decision.
+
+| Option | Accept text | Agent behavior | Does it advance? |
+|---|---|---|---|
+| **Approve** | `1`, `approve`, `proceed`, `ok`, `go` | Continue the workflow. Step 5: lift plan-mode, post `**Workflow Progress: Step 5 Complete**`, proceed to Step 6. Post-Step-9: post `**Workflow Progress: Step 9 Complete**`, proceed to Step 10 (or skip to Step 12 when the change is not user-visible per § `Workflow Pacing and Discipline`). | Yes |
+| **Challenge externally** | `2`, `challenge`, `codex`, `gemini`, `external` | Pause. Instruct the human to run `/review-plan` (plan gate) or `/code-review` (code gate) from an external provider (Codex, Gemini, etc.). External provider appends a new `## Review (<provider>, <ISO>)` block per § `Commands`. External provider is reviewer-only — it never runs the fix loop. On human return signal (`done` or similar), route per **Challenge-return routing** below, then re-present the gate. | No — returns to gate |
+| **Revise manually** | `3`, `revise`, `edit`, `change` | Pause. Accept either manual human edits to the plan/code or natural-language change instructions (apply them directly). After changes land, re-enter the prior review loop (Step 4 for plan gate; Step 8-9 for code gate) once; on exit, return to the gate. | No — returns to gate |
+
+**Challenge-return routing.** On return from the external provider, the main agent inspects the latest appended block in the review file:
+- Latest block has unresolved actionable findings, or its `Recommendation`/`State` is not `ready` → run `/address-plan-review` or `/address-code-review` in the same session, announce the updated state, and re-present the gate.
+- Latest block is clean (`ready`, no unchecked findings) → skip the address pass, announce "external review clean", and re-present the gate. The human can approve immediately without a pointless empty address run.
+
+**Primitive.** Use the host's most interactive primitive (`AskUserQuestion` on Claude Code; numbered-list prompt on Codex/Gemini).
+
 ### 5. Plan Approving
 
 - **Prerequisite:** Step 4 complete; plan state is `reviewed | addressed | ready for human approval`.
-- **Approval:** Wait for the human's explicit approval. Discuss tradeoffs exposed by the plan if needed; technical implementation choices are left to the agent.
+- **Gate:** Present the Three-Way Approval Gate (see § `Three-Way Approval Gate`). Discuss plan tradeoffs with the human if they raise them; technical implementation choices remain with the agent.
 - **On approval:** Lift the plan-mode read-only constraint from Step 3. Post a `**Workflow Progress: Step 5 Complete**` message with state line `reviewed | addressed | approved | ready to implement`, then proceed directly into the automated pipeline at Step 6.
+- **On challenge or revise:** Handle per § `Three-Way Approval Gate`; re-present the gate on return.
 
 ### 6. Implementation In Progress
 
@@ -305,9 +325,12 @@ A fix loop is clean only when the selected validation passes, no unresolved bloc
 - If internal review finds issues, fix them before asking the human to test.
 - After each review-driven code change, follow the Fix Loop Decision Rules for validation scope and review execution.
 - For small incremental fixes the main agent may run `/code-review` inline since it just saw the subagent's findings and has context to verify targeted fixes. For larger fixes — or whenever the rules table says "respawned reviewer subagent" — spawn a fresh reviewer subagent with a new brief rather than reusing the main agent.
-- Do not proceed to manual testing until the fix loop is clean.
+- Cap: 3 cycles. If the loop does not converge to clean after 3 fix-and-re-review cycles, halt and surface the outstanding findings to the human with `needs-user-input` framing.
+- Do not proceed to the gate until the fix loop is clean.
 - Once the fix loop is clean, automatically commit the resulting review-driven changes. Verify `git status --short` is clean. If no review-driven changes were needed beyond the Step 7 implementation snapshot commit, note that explicitly instead of creating an empty commit.
-- **Proceed:** Post a `**Workflow Progress: Step 9 Complete**` message, then proceed directly to Step 10.
+- **Gate:** Present the Three-Way Approval Gate (see § `Three-Way Approval Gate`).
+- **On approval:** Post a `**Workflow Progress: Step 9 Complete**` message, then proceed directly to Step 10.
+- **On challenge or revise:** Handle per § `Three-Way Approval Gate`; re-present the gate on return.
 
 ### 10. Manual Human Testing
 
@@ -389,6 +412,8 @@ Commands are active procedures for specific, repeatable tasks. They complement s
 **Resolution is by file path, not by slash picker.** Slash syntax (`/code-review`, `/validate`, etc.) is ergonomic shorthand used throughout this document. The contract is always `ai/commands/<name>/COMMAND.md` — load that file directly. Do not depend on your client's command picker to surface the command; discoverability varies per client and some clients surface nothing at all. If the canonical file cannot be read, the step is blocked.
 
 **Client-specific bridges are optional per-client, mandatory per-command once adopted.** A client may wrap commands as slash-commands, skills, or whatever primitive it supports. Bridges exist purely as ergonomic sugar for the human composing prompts — they must resolve to the same canonical file, and the harness must continue to work when they are absent. Document any such bridge in the matching provider entrypoint file, never here. Do not add a bridge for a client that is not in the user's active rotation. **Once a client's bridge directory exists in the repo, every canonical command must have a matching bridge there — partial coverage is a harness bug.** Active bridge directories in this repo: `.claude/commands/<name>.md` (Claude Code), `.codex/skills/<name>/SKILL.md` (Codex), `.gemini/commands/<name>.toml` (Gemini).
+
+**Review-family commands (`/review-plan`, `/code-review`) append provider-tagged blocks.** Each invocation appends a new `## Review (<provider>, <ISO timestamp>)` block to the review file rather than overwriting. Prior blocks, `/address-*` resolution sections, and cross-provider findings are preserved verbatim. File-level recommendation or state is read from the latest block. This is what enables the Step 5 / post-Step-9 challenge path (see § `Three-Way Approval Gate`) to accumulate reviews across providers without clobbering.
 
 Available commands:
 

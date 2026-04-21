@@ -94,69 +94,58 @@ Recommendation rules:
 - `ready` — no blocking issues; only optional improvements remain
 - `revise` — any blocking issue exists in `## Must Change` or `## Missing Decisions`
 
-### Step 5: Write Or Refresh The Review File
+### Step 5: Append A New Review Block
 
-Write the current assessment to `ai/local/plans/<branch-slug>.review.md`, but preserve any appended resolution history created by `/address-plan-review`.
+Append a fresh `## Review (<provider>, <ISO timestamp>)` block to the end of `ai/local/plans/<branch-slug>.review.md`. Every invocation appends; nothing in the file is overwritten. Prior review blocks, prior `/address-plan-review` resolution sections, and any other appended history stay intact.
 
-Refresh only these review-owned sections:
+Values:
+- `<provider>` — the host name (e.g., `Claude`, `Codex`, `Gemini`).
+- `<ISO timestamp>` — UTC ISO-8601, second precision (e.g., `2026-04-21T14:15:00Z`).
 
-- title and metadata
-- `## What Is Good`
-- `## Must Change`
-- `## Suggested Improvements`
-- `## Missing Decisions`
-- `## Summary`
-
-If the file already contains appended history sections such as:
-
-- `## Addressed Items`
-- `## Declined Items`
-- `## Needs User Input`
-- `## Already Resolved`
-- `## Resolution Summary`
-
-keep them intact and leave them after the refreshed top review block. Do not delete prior decision history on reruns.
-
-Use this exact structure:
+Block structure:
 
 ```md
-# Plan Review: <branch-name>
+## Review (<provider>, <ISO timestamp>)
 
-Date: <YYYY-MM-DD>
-Source Plan: ai/local/plans/<branch-slug>.md
 Recommendation: <ready | revise>
+Source Plan: ai/local/plans/<branch-slug>.md
 Relevant plan.md item: <quoted task line | "branch-local work; no plan.md item required" | "none identified">
 
-## What Is Good
+### What Is Good
 
 - <strength>
 
-## Must Change
+### Must Change
 
 - [ ] <blocking issue>
 
-## Suggested Improvements
+### Suggested Improvements
 
 - [ ] <non-blocking improvement>
 
-## Missing Decisions
+### Missing Decisions
 
 - [ ] <decision still unresolved>
 
-## Summary
+### Summary
 
 <1-3 sentences stating whether implementation can proceed safely and why.>
 ```
 
-Rules:
+File-level rules:
+
+- If no prior file exists, create it with a single `# Plan Review: <branch-name>` H1 on line 1, then append the first block below it.
+- If the file exists, append the new `## Review (...)` block at the absolute end of the file (after every prior block and every prior resolution section).
+- File-level Recommendation is read from the **latest** `## Review (...)` block.
+- Never delete, edit, or reorder prior blocks or history sections.
+
+Block-content rules:
 
 - Always list positives first.
 - Keep required changes actionable and specific.
 - Format all actionable items (Must Change, Suggested Improvements, Missing Decisions) as Markdown checklists (`- [ ] <issue>`) so they can be checked off during resolution.
 - Do not rewrite the plan or edit the canonical plan file.
-- If a section has no items, write `- None.`
-- If no prior review file exists, create it from scratch using the structure above.
-- If prior resolution history exists, preserve it verbatim below the refreshed review block.
+- If a sub-section has no items, write `- None.`
 
 ### Step 6: Report In Chat
 
