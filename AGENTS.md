@@ -113,12 +113,13 @@ For trivial fixes, the human may explicitly request skipping planning — an esc
 
 - Execute the workflow strictly and sequentially. Do not spontaneously skip numbered workflow steps. Branch creation must precede planning — Plan Drafting documents the prerequisite and why read-only plan mode makes the order irreversible.
 - Do not chain multiple distinct workflow steps together in a single turn. Pause at the logical end of your current step, emit the exit banner (see `### Banner Format` below), and await explicit human instruction before executing the next numbered phase. **Exception:** the Implementation → Internal Review Fix Loop pipeline — see below.
-- Human-gated boundaries are exactly four, in workflow order:
+- Human-gated boundaries are exactly five, in workflow order:
   1. **Scope Clarification** — exit of Workspace Preparing, before Plan Drafting. Simple confirmation (see § `Confirmation Gate`).
   2. **Plan Approval** — exit of Plan Approving, after the Plan Reviewing loop converges. 3-way (see § `Three-Way Approval Gate`).
-  3. **PR Review Approval** — entry of PR Review Comments, once the PR is open and has incoming review comments (or no actionable comments and the review cycle is trivially clean). 3-way. This is where the human chooses between addressing GitHub comments automatically, requesting a fresh-context external review, or revising manually.
-  4. **Merge Approval** — entry of Merge And Cleanup, before `/finish-feature` runs. Simple confirmation.
-- Internal Review Fix Loop, Manual Human Testing, and Manual Testing Fix Loop finish autonomously — no 3-way gate fires between internal review and PR Open. Manual Testing still pauses for human testing when the change is user-visible (that pause is a checklist handoff, not a 3-way gate).
+  3. **Manual Testing Outcome** — exit of Manual Human Testing for user-visible changes, after the agent presents the testing checklist and the human runs it. Simple confirmation: address issues (routes into Manual Testing Fix Loop) or proceed (routes to PR Open). Skipped entirely for non-user-visible changes.
+  4. **PR Review Approval** — entry of PR Review Comments, once the PR is open and has incoming review comments (or no actionable comments and the review cycle is trivially clean). 3-way. This is where the human chooses between addressing GitHub comments automatically, requesting a fresh-context external review, or revising manually.
+  5. **Merge Approval** — entry of Merge And Cleanup, before `/finish-feature` runs. Simple confirmation.
+- Internal Review Fix Loop and Manual Testing Fix Loop finish autonomously — no 3-way gate fires between internal review and PR Open. The user-visible Manual Testing pause is structured as the Manual Testing Outcome Confirmation Gate above, not a free-text wait.
 - At every gate, the host's interactive primitive is mandatory when available; otherwise ask directly in chat. Every other step boundary is autonomous — flow directly, no "Proceed to <StepName>?" ask. At autonomous boundaries the exit banner IS the handoff. Before yielding at any boundary, make sure the current step's required save/validation work is actually complete so the next step begins from the expected repo state.
 - Ask a pending human-decision question once per turn. If an intermediary progress update already asked the blocking question, do not repeat the same question verbatim in the final handoff for that same turn.
 - If a step is logically irrelevant for a given task (e.g., Manual Human Testing for a pure documentation update), emit a `▸ Skipped Step N/15 — <Name>` banner with a one-line reason. Do not silently skip past it.
@@ -156,8 +157,8 @@ Each workflow step emits a single banner when it finishes — a markdown horizon
 | 7 Validation Complete | Completed | `/validate passed` |
 | 8 Internal Review | Completed | `Review: <path> — N findings` |
 | 9 Internal Review Fix Loop | Completed | `N cycles, clean` |
-| 10 Manual Human Testing | Completed \| Skipped | `Checklist approved` (user-visible); skipped when non-user-visible |
-| 11 Manual Testing Fix Loop | Completed | `N fixes applied` |
+| 10 Manual Human Testing | Gate \| Skipped | `Manual Testing Outcome` (user-visible); skipped when non-user-visible |
+| 11 Manual Testing Fix Loop | Gate | `Manual Testing Outcome` (re-presented after fixes) |
 | 12 PR Open | Completed | `PR: <url>` |
 | 13 PR Review Comments | Gate | `PR Review Approval` |
 | 14 PR Review Fix Loop | Completed | `N cycles, clean` |
@@ -230,11 +231,12 @@ Used at the two review-approval points — **Plan Approval** and **PR Review App
 
 ### Confirmation Gate
 
-Used at the two non-review gates — **Scope Clarification** and **Merge Approval**. A simple two-option prompt; the alternative is not "reject" but "pause for input".
+Used at the three non-review gates — **Scope Clarification**, **Manual Testing Outcome**, and **Merge Approval**. A simple two-option prompt; the alternative is not "reject" but "pause for input" or "route to a fix loop".
 
-| Gate | Options | Advance behavior | Pause behavior |
+| Gate | Options | Advance behavior | Other-option behavior |
 |---|---|---|---|
 | **Scope Clarification** | `proceed` \| `clarify` | Enter Plan Drafting. | Human supplies additional scope or corrections; agent integrates the clarification, then re-presents the gate. |
+| **Manual Testing Outcome** | `proceed` \| `address issues` | Mark `plan.md` item `[R]`; continue to PR Open. | Enter Manual Testing Fix Loop; fix the reported issues, then re-present the gate after the human re-tests. |
 | **Merge Approval** | `merge` \| `hold` | Run `/finish-feature`. | Stay at gate; human directs when to merge. |
 
 **Primitive.** Same mandate as § `Three-Way Approval Gate` — host's interactive primitive when available, numbered-list fallback otherwise.
@@ -304,17 +306,16 @@ A fix loop is clean only when the selected validation passes, no unresolved bloc
 ### 10. Manual Human Testing
 
 - **Prerequisite — clean working tree:** Before presenting the testing checklist, verify `git status --short` is empty. Any stray uncommitted changes (including whitespace-only diffs or unrelated `plan.md` edits from prior sessions) must be resolved first — either committed on this branch if they belong to the feature, stashed if they are unrelated, or reverted if they are accidental. The human should test the same state that will be reviewed and merged; untracked drift in the working tree invalidates that guarantee.
-- **Not user-visible** (docs, harness, config, test-only): skipped per Internal Review Fix Loop's exit; continue autonomously to PR Open.
-- **User-visible change:** Pause and present the testing checklist. Include a concise summary of what changed and how it affects user experience or behavior. Explicitly state whether the human needs to restart Metro, rebuild the app, both, or neither.
+- **Not user-visible** (docs, harness, config, test-only): skipped per Internal Review Fix Loop's exit; continue autonomously to PR Open. The Manual Testing Outcome gate does not fire.
+- **User-visible change:** Present the testing checklist. Include a concise summary of what changed and how it affects user experience or behavior. Explicitly state whether the human needs to restart Metro, rebuild the app, both, or neither.
 - **Checklist:** Provide inline. For follow-up fixes, provide only incremental retest steps unless the full flow needs re-running. Do not create `ai/local/testing/<branch-slug>.md` unless the human explicitly asks.
-- **Issues reported:** Proceed to Manual Testing Fix Loop.
-- **Approved:** Mark the `plan.md` item `[R]` and continue autonomously to PR Open.
+- **Gate:** Once the checklist is presented and the human has had a chance to run it, fire the **Manual Testing Outcome** Confirmation Gate (see § `Confirmation Gate`). Options: `proceed` (mark `[R]`, continue to PR Open) or `address issues` (enter Manual Testing Fix Loop).
 
 ### 11. Manual Testing Fix Loop
 
-- **Entry:** Human reported issues in Manual Human Testing.
+- **Entry:** Human selected `address issues` at the Manual Testing Outcome gate.
 - **Fix loop:** Apply § `Fix Loop Decision Rules`. Request targeted retesting only for the affected behavior.
-- **Exit:** Human explicitly approves the latest changes; mark the `plan.md` item `[R]` and continue autonomously to PR Open.
+- **Exit:** After the fix lands and the human re-tests, re-present the **Manual Testing Outcome** Confirmation Gate (same gate as Manual Human Testing). On `proceed`, mark the `plan.md` item `[R]` and continue autonomously to PR Open.
 
 ### 12. PR Open
 
