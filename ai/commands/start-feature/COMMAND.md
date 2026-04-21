@@ -69,7 +69,7 @@ Only switch to a dedicated worktree at `../omni-bike-rn-worktrees/<branch-slug>`
 - the human passed `workspace: worktree` as an input, or
 - the human explicitly asked for parallel isolation in chat.
 
-Do not prompt the human for a strategy on every run. Announce the chosen mode in the Step 7 summary so they can redirect if needed.
+Do not prompt the human for a strategy on every run. Announce the chosen mode in the Step 6 Report And Continue summary so they can redirect if needed.
 
 ### Step 4: Create The Workspace
 

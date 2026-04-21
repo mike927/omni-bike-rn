@@ -342,12 +342,12 @@ A fix loop is clean only when the selected validation passes, no unresolved bloc
 
 ### 13. PR Review Comments
 
-- **Entry:** PR is open; this step begins as soon as PR Open completes, regardless of whether comments have arrived yet.
-- **Gate:** Fire the **PR Review Approval** Three-Way Approval Gate at entry. The human chooses:
+- **Entry:** Event-driven. This step does not auto-enter when PR Open completes. It enters when **either** (a) at least one GitHub review comment has arrived on the PR, **or** (b) the human explicitly invokes the review process (e.g., asks to run `/address-code-review` / `/code-review` on the PR, or reports the external review cycle complete). Silence after `/open-pr` is not a valid entry — an unreviewed PR stays paused between Step 12 and Step 13 until a real review signal arrives.
+- **Gate:** On entry, fire the **PR Review Approval** Three-Way Approval Gate. The human chooses:
   - **Approve** → run `/address-code-review` against the PR. `/address-code-review` consumes GitHub review threads, fixes each actionable finding (committing and pushing per its procedure), and cycles through PR Review Fix Loop as needed.
   - **Challenge externally** → pause for a fresh-context `/code-review` on the PR (any provider, new session). Returns here once the external block is appended.
   - **Revise manually** → pause for manual edits or natural-language change instructions, re-verify once, then return to the gate.
-- **No actionable comments:** Approving the gate when `/address-code-review` finds no unresolved threads is valid — the command reports "nothing to address" and flows to Merge Approval without entering PR Review Fix Loop.
+- **No actionable threads after `/address-code-review`:** If the human approved the gate *and* `/address-code-review` legitimately finds no unresolved GitHub threads (because reviewers posted questions-only, non-blocking suggestions, or the threads were already resolved on GitHub), the command reports "nothing to address" and flows to Merge Approval without entering PR Review Fix Loop. This shortcut is only available after the gate has actually fired and `/address-code-review` has actually run — it is never reached by auto-approving a freshly-opened PR with no comments.
 
 ### 14. PR Review Fix Loop
 
