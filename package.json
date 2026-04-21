@@ -19,7 +19,9 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "apple-health-workout": "file:modules/apple-health-workout",
     "buffer": "^6.0.3",
     "drizzle-orm": "^0.45.2",
     "expo": "~54.0.33",
@@ -43,7 +45,6 @@
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
     "react-native-web": "^0.21.2",
-    "apple-health-workout": "file:modules/apple-health-workout",
     "watch-connectivity": "file:modules/watch-connectivity",
     "zustand": "^5.0.12"
   },
