@@ -61,7 +61,7 @@ Branch-local work with no matching `plan.md` item skips every state transition i
 - Never overwrite or edit prior blocks. Every run appends to the absolute end of the file, after all previous blocks and any `/address-*` resolution sections.
 - The latest block wins. File-level state, recommendation, and readiness all resolve against the **last** `## Review (...)` block — readers must locate it, not grep for the first match.
 - The review file has no file-level `State:` header. State lives on the `State:` line **inside** the latest block.
-- Prior blocks, cross-provider findings, and `/address-*` resolution sections are preserved verbatim. This is what enables the challenge path at the three review-approval gates (see § `Three-Way Approval Gate`) to accumulate reviews across providers without clobbering.
+- Prior blocks, cross-provider findings, and `/address-*` resolution sections are preserved verbatim. This is what enables the challenge path at the two review-approval gates (see § `Three-Way Approval Gate`) to accumulate reviews across providers without clobbering.
 
 **State values (written inside the latest block):**
 
@@ -113,16 +113,16 @@ For trivial fixes, the human may explicitly request skipping planning — an esc
 
 - Execute the workflow strictly and sequentially. Do not spontaneously skip numbered workflow steps. Branch creation must precede planning — Plan Drafting documents the prerequisite and why read-only plan mode makes the order irreversible.
 - Do not chain multiple distinct workflow steps together in a single turn. Pause at the logical end of your current step, emit the exit banner (see `### Banner Format` below), and await explicit human instruction before executing the next numbered phase. **Exception:** the Implementation → Internal Review Fix Loop pipeline — see below.
-- Human-gated boundaries are exactly five, in workflow order:
+- Human-gated boundaries are exactly four, in workflow order:
   1. **Scope Clarification** — exit of Workspace Preparing, before Plan Drafting. Simple confirmation (see § `Confirmation Gate`).
   2. **Plan Approval** — exit of Plan Approving, after the Plan Reviewing loop converges. 3-way (see § `Three-Way Approval Gate`).
-  3. **Code + Test Approval** — exit of Manual Testing / Manual Testing Fix Loop for user-visible changes, or exit of Internal Review Fix Loop for non-user-visible. 3-way.
-  4. **PR Review Approval** — exit of PR Review Fix Loop (or exit of PR Review Comments when there are no actionable comments). 3-way.
-  5. **Merge Approval** — entry of Merge And Cleanup, before `/finish-feature` runs. Simple confirmation.
+  3. **PR Review Approval** — entry of PR Review Comments, once the PR is open and has incoming review comments (or no actionable comments and the review cycle is trivially clean). 3-way. This is where the human chooses between addressing GitHub comments automatically, requesting a fresh-context external review, or revising manually.
+  4. **Merge Approval** — entry of Merge And Cleanup, before `/finish-feature` runs. Simple confirmation.
+- Internal Review Fix Loop, Manual Human Testing, and Manual Testing Fix Loop finish autonomously — no 3-way gate fires between internal review and PR Open. Manual Testing still pauses for human testing when the change is user-visible (that pause is a checklist handoff, not a 3-way gate).
 - At every gate, the host's interactive primitive is mandatory when available; otherwise ask directly in chat. Every other step boundary is autonomous — flow directly, no "Proceed to <StepName>?" ask. At autonomous boundaries the exit banner IS the handoff. Before yielding at any boundary, make sure the current step's required save/validation work is actually complete so the next step begins from the expected repo state.
 - Ask a pending human-decision question once per turn. If an intermediary progress update already asked the blocking question, do not repeat the same question verbatim in the final handoff for that same turn.
 - If a step is logically irrelevant for a given task (e.g., Manual Human Testing for a pure documentation update), emit a `▸ Skipped Step N/15 — <Name>` banner with a one-line reason. Do not silently skip past it.
-- **Automated pipeline (Implementation → Internal Review Fix Loop):** Once the human approves the plan at Plan Approving, proceed through Implementation → Validation → Internal Review → Internal Review Fix Loop without pausing for human confirmation. The pipeline exits into a gate: **Code + Test Approval** at the exit of Manual Testing for user-visible changes, or at the exit of Internal Review Fix Loop for non-user-visible changes. Manual Human Testing itself is the user-visible branch of that gate, not a separate checkpoint.
+- **Automated pipeline (Implementation → PR Open):** Once the human approves the plan at Plan Approving, proceed through Implementation → Validation → Internal Review → Internal Review Fix Loop → Manual Human Testing (when user-visible) → PR Open without pausing at a 3-way gate. Manual Human Testing pauses for the human to run the checklist when the change is user-visible, then resumes autonomously once they approve.
 - Agents with terminal capabilities should run CLI commands natively instead of instructing the human to paste them, provided it stays within tool-call approval constraints.
 - During complex debugging, do not pollute the project root with temporary scripts or data dumps. Use the agent's isolated sandbox directory or standard OS temporary directories (`/tmp/`), and clean them up afterward.
 
@@ -155,12 +155,12 @@ Each workflow step emits a single banner when it finishes — a markdown horizon
 | 6 Implementation In Progress | Completed | `Commits: <N>` |
 | 7 Validation Complete | Completed | `/validate passed` |
 | 8 Internal Review | Completed | `Review: <path> — N findings` |
-| 9 Internal Review Fix Loop | Completed \| Gate | `N cycles, clean` (user-visible → Completed → Manual Testing; non-user-visible → Gate: `Code + Test Approval`) |
-| 10 Manual Human Testing | Gate \| Skipped | `Code + Test Approval` (user-visible); skipped when non-user-visible |
-| 11 Manual Testing Fix Loop | Gate | `N fixes applied — Code + Test Approval` |
+| 9 Internal Review Fix Loop | Completed | `N cycles, clean` |
+| 10 Manual Human Testing | Completed \| Skipped | `Checklist approved` (user-visible); skipped when non-user-visible |
+| 11 Manual Testing Fix Loop | Completed | `N fixes applied` |
 | 12 PR Open | Completed | `PR: <url>` |
-| 13 PR Review Comments | Completed \| Gate | `N comments addressed` (fixes needed → Completed → Fix Loop; no actionable comments → Gate: `PR Review Approval`) |
-| 14 PR Review Fix Loop | Gate | `N cycles, clean — PR Review Approval` |
+| 13 PR Review Comments | Gate | `PR Review Approval` |
+| 14 PR Review Fix Loop | Completed | `N cycles, clean` |
 | 15 Merge And Cleanup | Gate → Completed | entry Gate: `Merge Approval`; exit Completed: `Merged, workspace cleaned` |
 
 - Do not send repeated progress updates for every small loop iteration, quick status check, or tightly-coupled follow-up command.
@@ -212,13 +212,13 @@ Each workflow step emits a single banner when it finishes — a markdown horizon
 
 ### Three-Way Approval Gate
 
-Used at the three review-approval points — **Plan Approval**, **Code + Test Approval**, and **PR Review Approval**. Present three options. **Only `approve` advances the workflow.** `challenge` and `revise` keep the agent paused at the same gate — after each runs its course, the gate is re-presented for another decision.
+Used at the two review-approval points — **Plan Approval** and **PR Review Approval**. Present three options. **Only `approve` advances the workflow.** `challenge` and `revise` keep the agent paused at the same gate — after each runs its course, the gate is re-presented for another decision.
 
 | Option | Accept text | Agent behavior | Does it advance? |
 |---|---|---|---|
-| **Approve** | `1`, `approve`, `proceed`, `ok`, `go` | Continue the workflow. **Plan Approval:** lift the Plan Drafting plan-mode read-only constraint and transition to Implementation In Progress. **Code + Test Approval:** transition to PR Open. **PR Review Approval:** transition to Merge Approval. | Yes |
-| **Challenge externally** | `2`, `challenge`, `external` | Pause. Instruct the human to run `/review-plan` (plan gate) or `/code-review` (code or PR review gate) from a fresh context on any provider — a new session on the same provider or any other provider both qualify; the requirement is fresh context, not provider diversity. The fresh-context run appends a new `## Review (<provider>, <ISO>)` block per § `Commands`. The external reviewer is reviewer-only — it never runs the fix loop. On human return signal (`done` or similar), route per **Challenge-return routing** below, then re-present the gate. | No — returns to gate |
-| **Revise manually** | `3`, `revise`, `edit`, `change` | Pause. Accept either manual human edits to the plan/code or natural-language change instructions (apply them directly). After changes land, re-enter the prior review loop (Plan Reviewing for plan gate; Internal Review → Internal Review Fix Loop for code gate; PR Review Comments → PR Review Fix Loop for PR-review gate) once to re-verify — then return to the gate. | No — returns to gate |
+| **Approve** | `1`, `approve`, `proceed`, `ok`, `go` | Continue the workflow. **Plan Approval:** lift the Plan Drafting plan-mode read-only constraint and transition to Implementation In Progress. **PR Review Approval:** run `/address-code-review` to consume and fix GitHub PR comments, cycle through PR Review Fix Loop as needed, then transition to Merge Approval. | Yes |
+| **Challenge externally** | `2`, `challenge`, `external` | Pause. Instruct the human to run `/review-plan` (plan gate) or `/code-review` (PR review gate) from a fresh context on any provider — a new session on the same provider or any other provider both qualify; the requirement is fresh context, not provider diversity. The fresh-context run appends a new `## Review (<provider>, <ISO>)` block per § `Commands`. The external reviewer is reviewer-only — it never runs the fix loop. On human return signal (`done` or similar), route per **Challenge-return routing** below, then re-present the gate. | No — returns to gate |
+| **Revise manually** | `3`, `revise`, `edit`, `change` | Pause. Accept either manual human edits to the plan/code or natural-language change instructions (apply them directly). After changes land, re-enter the prior review loop (Plan Reviewing for plan gate; PR Review Comments → PR Review Fix Loop for PR-review gate) once to re-verify — then return to the gate. | No — returns to gate |
 
 **Challenge-return routing.** On the human's return signal, the main agent inspects the latest appended block in the review file:
 - Latest block has unresolved actionable findings, or its `Recommendation`/`State` is not `ready` → run `/address-plan-review` or `/address-code-review` in the same session, announce the updated state, and re-present the gate. **Do not re-run the internal review loop.** The fresh-context block already covered the artifact; addressing it is sufficient verification, and re-reviewing internally would duplicate the work the user explicitly chose to delegate.
@@ -299,24 +299,22 @@ A fix loop is clean only when the selected validation passes, no unresolved bloc
 - For small incremental fixes the main agent may run `/code-review` inline since it just saw the subagent's findings and has context to verify targeted fixes. For larger fixes — or whenever the rules table says "respawned reviewer subagent" — spawn a fresh reviewer subagent with a new brief rather than reusing the main agent.
 - Cap: 3 cycles. If the loop does not converge to clean after 3 fix-and-re-review cycles, halt and surface the outstanding findings to the human with `needs-user-input` framing.
 - Once the fix loop is clean, automatically commit the resulting review-driven changes. Verify `git status --short` is clean. If no review-driven changes were needed beyond the Validation Complete implementation snapshot commit, note that explicitly instead of creating an empty commit.
-- **Exit routing:**
-  - **User-visible change:** continue autonomously into Manual Human Testing. The Code + Test Approval gate fires later, at the exit of Manual Testing.
-  - **Not user-visible:** fire the **Code + Test Approval** Three-Way Approval Gate here, then skip Manual Testing on approval.
+- **Exit:** Autonomous. For user-visible changes, continue into Manual Human Testing. For non-user-visible changes, skip Manual Testing and continue into PR Open.
 
 ### 10. Manual Human Testing
 
 - **Prerequisite — clean working tree:** Before presenting the testing checklist, verify `git status --short` is empty. Any stray uncommitted changes (including whitespace-only diffs or unrelated `plan.md` edits from prior sessions) must be resolved first — either committed on this branch if they belong to the feature, stashed if they are unrelated, or reverted if they are accidental. The human should test the same state that will be reviewed and merged; untracked drift in the working tree invalidates that guarantee.
-- **Not user-visible** (docs, harness, config, test-only): skipped per Internal Review Fix Loop's exit routing; the Code + Test Approval gate already fired there.
+- **Not user-visible** (docs, harness, config, test-only): skipped per Internal Review Fix Loop's exit; continue autonomously to PR Open.
 - **User-visible change:** Pause and present the testing checklist. Include a concise summary of what changed and how it affects user experience or behavior. Explicitly state whether the human needs to restart Metro, rebuild the app, both, or neither.
 - **Checklist:** Provide inline. For follow-up fixes, provide only incremental retest steps unless the full flow needs re-running. Do not create `ai/local/testing/<branch-slug>.md` unless the human explicitly asks.
 - **Issues reported:** Proceed to Manual Testing Fix Loop.
-- **Approved:** Mark the `plan.md` item `[R]`, then fire the **Code + Test Approval** Three-Way Approval Gate before proceeding to PR Open.
+- **Approved:** Mark the `plan.md` item `[R]` and continue autonomously to PR Open.
 
 ### 11. Manual Testing Fix Loop
 
 - **Entry:** Human reported issues in Manual Human Testing.
 - **Fix loop:** Apply § `Fix Loop Decision Rules`. Request targeted retesting only for the affected behavior.
-- **Exit:** Human explicitly approves the latest changes; mark the `plan.md` item `[R]`, then fire the **Code + Test Approval** Three-Way Approval Gate (same gate as Manual Human Testing's approved-exit).
+- **Exit:** Human explicitly approves the latest changes; mark the `plan.md` item `[R]` and continue autonomously to PR Open.
 
 ### 12. PR Open
 
@@ -325,17 +323,19 @@ A fix loop is clean only when the selected validation passes, no unresolved bloc
 
 ### 13. PR Review Comments
 
-- **Entry:** PR has incoming review comments.
-- **Address:** Execute `/address-code-review` to consume and fix all actionable findings. Each fix is committed and pushed as part of the command.
-- **Issues found:** Proceed to PR Review Fix Loop.
-- **No actionable comments:** Skip PR Review Fix Loop; fire the **PR Review Approval** Three-Way Approval Gate directly.
+- **Entry:** PR is open; this step begins as soon as PR Open completes, regardless of whether comments have arrived yet.
+- **Gate:** Fire the **PR Review Approval** Three-Way Approval Gate at entry. The human chooses:
+  - **Approve** → run `/address-code-review` against the PR. `/address-code-review` consumes GitHub review threads, fixes each actionable finding (committing and pushing per its procedure), and cycles through PR Review Fix Loop as needed.
+  - **Challenge externally** → pause for a fresh-context `/code-review` on the PR (any provider, new session). Returns here once the external block is appended.
+  - **Revise manually** → pause for manual edits or natural-language change instructions, re-verify once, then return to the gate.
+- **No actionable comments:** Approving the gate when `/address-code-review` finds no unresolved threads is valid — the command reports "nothing to address" and flows to Merge Approval without entering PR Review Fix Loop.
 
 ### 14. PR Review Fix Loop
 
 - **Entry:** Actionable review findings from PR Review Comments.
 - **Fix loop:** Apply § `Fix Loop Decision Rules`. Request targeted manual retesting when the fix changes user-visible behavior.
 - **Cap:** Repeat up to 3 cycles. If the review queue is still not clean after 3, surface the remaining findings to the human.
-- **Exit:** Review queue is clean and all replies are posted, then fire the **PR Review Approval** Three-Way Approval Gate before proceeding to Merge And Cleanup.
+- **Exit:** Review queue is clean and all replies are posted; continue autonomously to Merge Approval.
 
 ### 15. Merge And Cleanup
 
@@ -362,7 +362,7 @@ Commands are active procedures for specific, repeatable tasks. They complement s
 
 **Client-specific bridges are optional per-client, mandatory per-command once adopted.** A client may wrap commands as slash-commands, skills, or whatever primitive it supports. Bridges exist purely as ergonomic sugar for the human composing prompts — they must resolve to the same canonical file, and the harness must continue to work when they are absent. Document any such bridge in the matching provider entrypoint file, never here. Do not add a bridge for a client that is not in the user's active rotation. **Once a client's bridge directory exists in the repo, every canonical command must have a matching bridge there — partial coverage is a harness bug.** Active bridge directories in this repo: `.claude/commands/<name>.md` (Claude Code), `.codex/skills/<name>/SKILL.md` (Codex), `.gemini/commands/<name>.toml` (Gemini).
 
-**Review-family commands (`/review-plan`, `/code-review`) append provider-tagged blocks.** Each invocation appends a new `## Review (<provider>, <ISO timestamp>)` block to the review file rather than overwriting. Prior blocks, `/address-*` resolution sections, and cross-provider findings are preserved verbatim. File-level recommendation or state is read from the latest block. This is what enables the challenge path at the three review-approval gates — Plan Approval, Code + Test Approval, PR Review Approval (see § `Three-Way Approval Gate`) — to accumulate reviews across providers without clobbering.
+**Review-family commands (`/review-plan`, `/code-review`) append provider-tagged blocks.** Each invocation appends a new `## Review (<provider>, <ISO timestamp>)` block to the review file rather than overwriting. Prior blocks, `/address-*` resolution sections, and cross-provider findings are preserved verbatim. File-level recommendation or state is read from the latest block. This is what enables the challenge path at the two review-approval gates — Plan Approval and PR Review Approval (see § `Three-Way Approval Gate`) — to accumulate reviews across providers without clobbering.
 
 Enumerate available commands on demand with `ls ai/commands/`; each `COMMAND.md` carries its own `description:` frontmatter.
 
