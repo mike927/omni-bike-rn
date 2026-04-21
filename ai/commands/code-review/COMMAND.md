@@ -78,9 +78,7 @@ State: <ready | needs-changes>
 
 Before writing the final findings, update or create the review file header with `State: needs-review` to reflect that the requested review is now in progress.
 
-Set the final `State` as follows:
-- `ready` — no unresolved actionable findings (bugs, regressions, conventions). Suggestions-only or empty counts as ready.
-- `needs-changes` — one or more unresolved `[ ]` findings of severity bug, regression, or convention.
+Set the final `State` per `AGENTS.md` § `Review File State`: `ready` when no unresolved actionable findings of severity bug, regression, or convention remain (suggestions-only or empty counts as ready), otherwise `needs-changes`.
 
 ### Step 5: Report In Chat
 
@@ -98,15 +96,13 @@ State: <ready | needs-changes>
 Details: ai/local/reviews/<branch-slug>.md
 ```
 
-When running in **specialist reviewer** mode, stop after this summary and artifact path. Do not suggest the next workflow step and do not ask `Proceed to Step <N>?`.
-
-When running in **workflow owner** mode, the surrounding workflow step may add the usual handoff after this review result.
+Close out per the invocation mode rules in `AGENTS.md` § `Agent Roles`: specialist reviewer stops here; workflow owner may add the surrounding step's handoff.
 
 ## Completion Criteria
 
 - Every changed file has been reviewed against the checklist and conventions.
 - Findings are written to `ai/local/reviews/<branch-slug>.md` with `file:line` references.
-- Review state is set and posted in chat following `AGENTS.md` `### Review File State`.
+- Review state is set and posted in chat following `AGENTS.md` § `Review File State`.
 
 ## See Also
 

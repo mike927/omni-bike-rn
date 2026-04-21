@@ -1,39 +1,24 @@
 ---
 name: ios-native
-description: Use this skill for iOS-specific app behavior, native integration, background modes, and Apple platform features in this repo.
+description: Use when working on iOS-specific behavior, Apple platform integrations, background modes, or native project setup in this repo.
 ---
 # iOS Native
 
-Use this skill when the task is specifically about iOS behavior or Apple platform integration.
-
-## Current State
+## Current Constraints
 
 - **Expo SDK 54** with New Architecture (JSI) enforced
 - **expo-router** for file-based navigation
 - iOS is the **primary and only target** for the MVP
+- For `ios/` committing and Watch target rules, see `AGENTS.md` § `Native iOS Constraints`
 
-## Planned Integrations
+## Key Integrations
 
-### Live Activities & Dynamic Island (Phase 2)
+- `react-native-activity-kit` for Live Activities and Dynamic Island surfaces
+- `react-native-health` for completed-session Apple Health export
+- SwiftUI Watch app plus HealthKit and WatchConnectivity for watch-based HR integration
 
-- Package: `react-native-activity-kit`
-- Surface live training metrics (speed, HR, time) on the Lock Screen and Dynamic Island when the app is backgrounded
-- Requires an Activity Attributes definition and a Widget Extension in the native iOS project
+## Platform Notes
 
-### Apple Health Export (Phase 4)
-
-- Package: `react-native-health`
-- Export completed sessions only (not live streaming)
-- Requires HealthKit entitlement and `NSHealthShareUsageDescription` / `NSHealthUpdateUsageDescription` in `Info.plist`
-
-### WatchOS Companion (Phase 3)
-
-- Native SwiftUI app using HealthKit workout sessions
-- Real-time HR streaming via WatchConnectivity framework
-- Requires a Watch target in the Xcode project and shared App Group for data passing
-
-## Known Issues
-
-- `ios/` is managed by Expo prebuild — avoid manual edits unless necessary
-- `app.json` holds iOS-specific settings (bundleId, entitlements)
-- When background recording lands (Phase 3), the app will need `bluetooth-central` and `processing` background modes. BLE connections survive suspension but callbacks may be delayed.
+- Prefer Expo config and incremental prebuild for managed changes; manual Xcode edits are for native-only surfaces.
+- `app.json` holds iOS-specific settings such as bundle ID and entitlements.
+- Background BLE/watch work may need `bluetooth-central` and `processing` modes; suspension can delay callbacks even when connections survive.

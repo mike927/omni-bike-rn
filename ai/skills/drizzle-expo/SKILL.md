@@ -1,10 +1,8 @@
 ---
 name: drizzle-expo
-description: Use this skill for official Drizzle ORM workflow in Expo apps: schema changes, drizzle-kit migration generation, bundled SQL migrations, and Drizzle migrator startup wiring.
+description: Use when changing SQLite schema, generating Drizzle migrations, or wiring the official Drizzle Expo migrator flow.
 ---
 # Drizzle Expo
-
-Use this skill when the task changes SQLite schema, updates generated migrations, or needs the official Drizzle workflow for Expo.
 
 ## Use It Alongside
 
@@ -13,15 +11,11 @@ Use this skill when the task changes SQLite schema, updates generated migrations
 
 ## Workflow Shape
 
-The Drizzle-on-Expo loop is schema-first and codegen-driven:
-
 - `src/services/db/schema.ts` is the schema source of truth.
 - `drizzle.config.ts` points to the schema with `dialect: 'sqlite'` and `driver: 'expo'`.
 - `npm run db:generate` (or `npx drizzle-kit generate`) emits SQL + bookkeeping under `drizzle/`.
 - The generated artifacts (`drizzle/*.sql`, `drizzle/migrations.js`, `drizzle/meta/*`) are committed — they are the deployable migration bundle.
 - Drizzle's Expo migrator (`drizzle-orm/expo-sqlite/migrator`) applies the bundle at app startup.
-
-Any schema change without a regenerate-and-commit pass is broken by definition — the shipped bundle would lag the schema.
 
 ## Required Project Wiring
 
@@ -37,20 +31,10 @@ Any schema change without a regenerate-and-commit pass is broken by definition �
 
 ## Repo Rules
 
-- Treat `src/services/db/schema.ts` as the schema source of truth.
 - Do not hand-edit generated files under `drizzle/`.
-- Keep repositories in `src/services/db/` domain-oriented. Hooks and screens should call repository methods, not generated migration assets.
-- Favor Drizzle-managed migrations over custom `PRAGMA user_version` flows unless a documented Expo limitation forces an exception.
+- Repository contracts and the PRAGMA-exception policy are owned by `ai/skills/sqlite-persistence/SKILL.md`.
 
-## Testing Guidance
+## Testing Notes
 
 - Mock `drizzle-orm/expo-sqlite/migrator` in Jest when testing startup initialization logic.
-- Map `.sql` imports in Jest so generated migration bundles can be imported safely in tests.
-- Keep migration tests focused on init idempotency and startup wiring, not SQL parser behavior.
-
-## Common Mistakes
-
-- Editing the schema without regenerating `drizzle/`.
-- Forgetting the Babel or Metro `.sql` wiring.
-- Calling repository writes before startup migration initialization completes.
-- Replacing domain repositories with table-level writes in UI or feature hooks.
+- Keep migration tests focused on init idempotency and wiring, not SQL parser behavior.

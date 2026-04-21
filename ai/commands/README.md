@@ -27,8 +27,8 @@ Required sections, in this order:
 3. **Completion Criteria** — how the agent knows it succeeded
 4. **See Also** — references to skills or other commands
 
-Optional sections (e.g., **Output Format** — an explicit chat/artifact template) go between `Procedure` and `Completion Criteria` when useful. Do not invent new top-level sections outside this order.
+Optional sections go between `Procedure` and `Completion Criteria`. **Output Format** is only worth adding when it holds a concrete chat or artifact template that `Procedure` steps can't express inline — never as a recap of frontmatter `outputs:`. Do not invent new top-level sections outside this order.
 
 ## Platform Invocation
 
-Commands are agent-agnostic. The logic is ALWAYS hosted here, never duplicated. To expose a command to a specific host, register a thin pointer in that host's command directory (e.g., `.claude/commands/<name>.md`, `.agents/workflows/<name>.md`). The bridge must do nothing more than route to the canonical `ai/commands/<name>/COMMAND.md`.
+Commands are agent-agnostic. The logic is ALWAYS hosted here, never duplicated. To expose a command to a specific host, register a thin pointer in that host's command directory (e.g., `.claude/commands/<name>.md`, `.codex/skills/<name>/SKILL.md`, `.gemini/commands/<name>.toml`). The bridge must do nothing more than route to the canonical `ai/commands/<name>/COMMAND.md`.

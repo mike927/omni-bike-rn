@@ -70,7 +70,7 @@ Classify each item into exactly one outcome:
 | `already-resolved` | The current plan already addresses the point | Do not edit the plan; record where it is already handled |
 | `needs-user-input` | The item depends on a true product or workflow choice that cannot be derived from repo context | Do not invent the answer; record the exact question |
 
-Evaluation criteria — apply the same plan quality standards used in the plan-evaluation step of `ai/commands/review-plan/COMMAND.md`: branch alignment, scope alignment, decision completeness, implementation sequencing, validation coverage, assumptions, and plan-file conventions. Accept only changes that improve alignment with `plan.md` or `AGENTS.md`; reject changes that introduce scope creep or swap one unsupported assumption for another.
+Evaluation criteria — apply the same plan quality standards as `/review-plan` Step 4. Accept only changes that improve alignment with `plan.md` or `AGENTS.md`; reject changes that introduce scope creep or swap one unsupported assumption for another.
 
 When the only review issue is missing `plan.md` linkage:
 - if the work clearly matches an existing `plan.md` item, update the plan to point to that item
@@ -155,13 +155,7 @@ Also append one of these next-step lines based on the recommendation:
 
 - `ready` → "All findings resolved. Re-run `/review-plan` to refresh the review file and confirm the quality gate before proceeding to `Plan Approving`."
 - `revise` → "Re-run `/review-plan` to generate updated findings, then `/address-plan-review` again."
-- `blocked` → "Surface the `Needs User Input` questions to the human. After answers are received, re-run `/review-plan` to re-enter the loop."
-
-## Output Format
-
-- Updated plan: `ai/local/plans/<branch-slug>.md`
-- Updated review log: `ai/local/plans/<branch-slug>.review.md`
-- Chat summary: recommendation plus counts for applied, declined, already-resolved, and user-input items
+- `blocked` → "Surface the `Needs User Input` questions to the human. After answers are received, re-run `/address-plan-review` to fold them into the plan, then `/review-plan` to re-enter the loop."
 
 ## Completion Criteria
 

@@ -32,7 +32,7 @@ Read these in this order before feature work:
 3. `git branch --show-current`
 4. `git worktree list`
 5. Relevant files under `ai/skills/*/SKILL.md`
-6. When the user asks for a specific procedure (next-task, code-review, address-code-review, validate, check-state, start-feature, open-pr, finish-feature), load the matching `ai/commands/*/COMMAND.md`
+6. When the user asks for a procedure documented in `## Commands` below, load the matching `ai/commands/<name>/COMMAND.md`
 7. When the task involves vendor-specific behavior or hardware, check `docs/` for trusted reference material
 
 `plan.md` is the single source of truth for tracked project scope and progress. Some approved ad-hoc branch-local work may proceed without being added there.
@@ -51,9 +51,11 @@ Use these task states consistently:
 
 When using `[?]` or `[-]`, include a short reason in the same task line.
 
+Branch-local work with no matching `plan.md` item skips every state transition in the numbered workflow (`[~]`, `[R]`, `[x]`). Workflow steps still reference these marks; just bypass them when no `plan.md` item applies.
+
 ## Native iOS Constraints
 
-⚠️ **Do not run `expo prebuild --clean`** after the watchOS companion app target has been added to `ios/`. The `--clean` flag wipes the entire `ios/` directory and destroys the Watch target. Use `expo prebuild` (without `--clean`) for incremental config changes. If `--clean` was accidentally run, restore `ios/OmniBikeWatch/` and the Watch target from git.
+Do not run `expo prebuild --clean` after the watchOS companion app target has been added to `ios/`. The `--clean` flag wipes the entire `ios/` directory and destroys the Watch target. Use `expo prebuild` (without `--clean`) for incremental config changes. If `--clean` was accidentally run, restore `ios/OmniBikeWatch/` and the Watch target from git.
 
 - The `ios/` directory is intentionally committed to git (partial eject — watchOS companion app target).
 - The Watch target (`OmniBikeWatch`) and its three Swift files live in `ios/OmniBikeWatch/` and are managed manually in Xcode.
@@ -163,7 +165,7 @@ For unplanned work (e.g., a bug the user reports during a session, a quick chore
 
 ### Workflow Pacing and Discipline
 
-- You must execute the workflow strictly and sequentially. Do not spontaneously skip numbered workflow steps. In particular, (branch creation) must always precede planning — never enter planning mode while still on `main`, because the plan file path `ai/local/plans/<branch-slug>.md` is not valid without a feature branch and planning mode is read-only, so it locks you out of branch creation until you exit.
+- Execute the workflow strictly and sequentially. Do not spontaneously skip numbered workflow steps. Branch creation must precede planning — Step 3 documents the prerequisite and why read-only plan mode makes the order irreversible.
 - Do not chain multiple distinct workflow steps together in a single turn. Pause at the logical end of your current step, report your progress via a Chat Progress Update, and await explicit human instruction before executing the next numbered phase. **Exception:** the automated pipeline (Steps 6–9) — see below.
 - At every human-gated workflow stage boundary, explicitly ask the user whether to proceed to the next step. Use the most interactive confirmation mechanism your host provides; otherwise ask directly in chat. Do not treat a plain status statement like "the next step is X" as sufficient handoff. Before offering that handoff, make sure the current step's required save/validation work is actually complete so the next step begins from the expected repo state.
 - Ask a pending human-decision question once per turn. If an intermediary progress update already asked the blocking question, do not repeat the same question verbatim in the final handoff for that same turn.
@@ -203,7 +205,7 @@ Use this format for all standard stage transitions or turn pauses:
 **Next:** Proceed to Step <N+1>?
 ```
 
-Automated pipeline steps (6–9) post the header and summary but omit the `**Next:**` line — they proceed directly without asking.
+Automated pipeline steps (see `§ Workflow Pacing and Discipline`) post the header and summary but omit the `**Next:**` line.
 
 - Preserve the exact `**Workflow Progress**` header so the message is always visually distinct and scannable in the chat UI.
 
@@ -221,7 +223,7 @@ Automated pipeline steps (6–9) post the header and summary but omit the `**Nex
 ### 3. Plan Drafting
 
 - **Prerequisite:** Feature branch exists (Step 2 complete).
-- **Plan mode:** Activate plan mode now. Use your host's dedicated tool if one is available; otherwise ask the human to enable it and select a reasoning model before continuing. Until approved (Step 5), you may ONLY search/read files and write to `ai/local/plans/<branch-slug>.md`. Do not modify source code or commit changes.
+- **Plan mode:** Activate plan mode now. Use your host's dedicated tool if one is available; otherwise ask the human to enable it and select a reasoning model before continuing. Until approved (Step 5), you may only search/read files and write to `ai/local/plans/<branch-slug>.md`. Do not modify source code or commit changes.
 - **Questions:** Derive technical decisions from the codebase. For product or business decisions, ask interactively (offer 2–4 concrete options plus a free-text escape hatch) or mark the `plan.md` item `[?]` with a reason.
 - **Draft:** Write a detailed, actionable plan to `ai/local/plans/<branch-slug>.md`. If no `plan.md` item applies, record explicit branch-local scope in the plan. The final section must always be `## What Will Be Available After Completion`, focused on user-facing outcomes.
 - **Yield:** Post a `**Workflow Progress: Step 3 Complete**` message and ask whether to proceed to Step 4.
@@ -231,8 +233,9 @@ Automated pipeline steps (6–9) post the header and summary but omit the `**Nex
 - **Prerequisite:** Plan file exists at `ai/local/plans/<branch-slug>.md`.
 - **Review loop:** Run `/review-plan`.
   - `ready` → exit the loop.
-  - `revise` → run `/address-plan-review`, then re-run `/review-plan`.
-  - `blocked` → surface `Needs User Input` questions to the human; await answers; re-run `/review-plan`.
+  - `revise` → run `/address-plan-review`. Then branch on its recommendation:
+    - `ready` or `revise` → re-run `/review-plan`.
+    - `blocked` → surface the `Needs User Input` questions to the human; await answers; re-run `/address-plan-review`, then `/review-plan`.
 - **Exit:** `/review-plan` returns `ready` with no unresolved blocking findings.
 - **Yield:** Post a `**Workflow Progress: Step 4 Complete**` message including the plan path, review path, and state line `reviewed | addressed | ready for human approval`. Ask whether to proceed to Step 5.
 
@@ -245,13 +248,13 @@ When reviewing an ad-hoc branch:
 
 - **Prerequisite:** Step 4 complete; plan state is `reviewed | addressed | ready for human approval`.
 - **Approval:** Wait for the human's explicit approval. Discuss tradeoffs exposed by the plan if needed; technical implementation choices are left to the agent.
-- **On approval:** Lift the Read-Only Mandate. Post a `**Workflow Progress: Step 5 Complete**` message with state line `reviewed | addressed | approved | ready to implement`, then proceed directly into the automated pipeline at Step 6.
+- **On approval:** Lift the plan-mode read-only constraint from Step 3. Post a `**Workflow Progress: Step 5 Complete**` message with state line `reviewed | addressed | approved | ready to implement`, then proceed directly into the automated pipeline at Step 6.
 
 ### 6. Implementation In Progress
 
-- **Prerequisite:** Step 5 complete; Read-Only Mandate lifted.
+- **Prerequisite:** Step 5 complete; plan-mode read-only constraint lifted.
 - **Branch check:** Confirm the working directory is on the correct feature branch (`git branch --show-current`). If not, switch before writing any code.
-- **Track progress:** Mark the relevant `plan.md` item `[~]` when implementation starts if this branch maps to one. For explicit branch-local work with no matching `plan.md` item, skip this update.
+- **Track progress:** Mark the relevant `plan.md` item `[~]` when implementation starts.
 - **Implement:** Work in small, focused sub-tasks. Implement fully — no partial stubs. Keep commits scoped to one meaningful change each.
 - **Re-sync:** Do not update `ai/local/plans/<branch-slug>.md` to track progress — use `git log` and `git status`. Run `/check-state` if context is lost.
 - **Proceed:** Post a `**Workflow Progress: Step 6 Complete**` summary of what was implemented, then proceed directly to Step 7.
@@ -309,18 +312,18 @@ A fix loop is clean only when the selected validation passes, no unresolved bloc
 ### 10. Manual Human Testing
 
 - **Prerequisite — clean working tree:** Before presenting the testing checklist, verify `git status --short` is empty. Any stray uncommitted changes (including whitespace-only diffs or unrelated `plan.md` edits from prior sessions) must be resolved first — either committed on this branch if they belong to the feature, stashed if they are unrelated, or reverted if they are accidental. The human should test the same state that will be reviewed and merged; untracked drift in the working tree invalidates that guarantee.
-- **Not user-visible** (docs, harness, config, test-only): skip per Workflow Pacing skip rules and proceed directly to Step 12.
+- **Not user-visible** (docs, harness, config, test-only): skip per `§ Workflow Pacing and Discipline` and proceed directly to Step 12.
 - **User-visible change:** Pause and present the testing checklist. Include a concise summary of what changed and how it affects user experience or behavior. Explicitly state whether the human needs to restart Metro, rebuild the app, both, or neither.
 - **Checklist:** Provide inline. For follow-up fixes, provide only incremental retest steps unless the full flow needs re-running. Do not create `ai/local/testing/<branch-slug>.md` unless the human explicitly asks.
 - **Issues reported:** Proceed to Step 11.
-- **Approved:** Mark the `plan.md` item `[R]` and proceed to Step 12 when this branch maps to `plan.md`. For explicit branch-local work, skip the `plan.md` update and proceed to Step 12.
+- **Approved:** Mark the `plan.md` item `[R]` and proceed to Step 12.
 
 ### 11. Manual Testing Fix Loop
 
 - **Entry:** Human reported issues in Step 10.
 - **Fix loop:** After each fix, follow the Fix Loop Decision Rules for validation scope and review execution. Request targeted retesting only for the affected behavior.
 - **Exit:** Human explicitly approves the latest changes.
-- **Proceed:** Mark the `plan.md` item `[R]` and proceed to Step 12 when this branch maps to `plan.md`. For explicit branch-local work, skip the `plan.md` update and proceed to Step 12.
+- **Proceed:** Mark the `plan.md` item `[R]` and proceed to Step 12.
 
 ### 12. PR Open
 
@@ -385,7 +388,7 @@ Commands are active procedures for specific, repeatable tasks. They complement s
 
 **Resolution is by file path, not by slash picker.** Slash syntax (`/code-review`, `/validate`, etc.) is ergonomic shorthand used throughout this document. The contract is always `ai/commands/<name>/COMMAND.md` — load that file directly. Do not depend on your client's command picker to surface the command; discoverability varies per client and some clients surface nothing at all. If the canonical file cannot be read, the step is blocked.
 
-**Client-specific bridges are optional.** A client may wrap commands as slash-commands, skills, or whatever primitive it supports. Bridges exist purely as ergonomic sugar for the human composing prompts — they must resolve to the same canonical file, and the harness must continue to work when they are absent. Document any such bridge in the matching provider entrypoint file, never here. Do not add a bridge for a client that is not in the user's active rotation.
+**Client-specific bridges are optional per-client, mandatory per-command once adopted.** A client may wrap commands as slash-commands, skills, or whatever primitive it supports. Bridges exist purely as ergonomic sugar for the human composing prompts — they must resolve to the same canonical file, and the harness must continue to work when they are absent. Document any such bridge in the matching provider entrypoint file, never here. Do not add a bridge for a client that is not in the user's active rotation. **Once a client's bridge directory exists in the repo, every canonical command must have a matching bridge there — partial coverage is a harness bug.** Active bridge directories in this repo: `.claude/commands/<name>.md` (Claude Code), `.codex/skills/<name>/SKILL.md` (Codex), `.gemini/commands/<name>.toml` (Gemini).
 
 Available commands:
 
@@ -406,6 +409,9 @@ Available commands:
 2. Add a `COMMAND.md` file with YAML frontmatter (`name`, `description`, `inputs`, `outputs`).
 3. Write the procedure as numbered steps with clear completion criteria.
 4. Reference it from this section.
+5. Mirror the command as a thin bridge in every active provider directory: `.claude/commands/<name>.md`, `.codex/skills/<name>/SKILL.md`, `.gemini/commands/<name>.toml`. Each bridge is a pointer to `ai/commands/<name>/COMMAND.md` — only the `description` field carries provider-specific picker trigger signal. Partial coverage is a harness bug.
+
+The same mirroring rule applies when renaming or removing a command: update or delete every matching bridge in the same change.
 
 Commands complement skills, not replace them. A command may reference a skill when domain context is needed during execution. See `ai/commands/README.md` for the full file format.
 

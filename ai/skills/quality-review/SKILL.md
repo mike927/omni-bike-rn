@@ -1,10 +1,8 @@
 ---
 name: quality-review
-description: Review checklist and quality standards for code reviews, regression analysis, and test coverage.
+description: Use when reviewing branch diffs for logic regressions, scope drift, mock quality, and test coverage gaps.
 ---
 # Quality Review
-
-Use this skill for the review checklist and quality standards applied during code reviews.
 
 ## Review Checklist
 
@@ -15,3 +13,7 @@ Use this skill for the review checklist and quality standards applied during cod
 - [ ] No stale mock shapes (mock matches current hook return type)
 
 All other conventions (TypeScript, architecture, style, test structure) are in `AGENTS.md` § `Coding Conventions`.
+
+## See Also
+
+- `ai/commands/code-review/COMMAND.md` — the command that runs this checklist against a branch diff

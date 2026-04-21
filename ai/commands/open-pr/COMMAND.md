@@ -124,9 +124,7 @@ Use a HEREDOC for the body to preserve formatting.
 ### Step 7: Record PR State
 
 1. Report the PR URL in chat.
-2. If the branch maps to a `plan.md` item, update it to `[x]` (since opening the PR essentially completes the development phase for this branch), then commit and push that change as a separate `docs:` commit following `AGENTS.md` § `Commit Rules`.
-
-If the branch is branch-local work with no matching `plan.md` item, note that no `plan.md` update is required and skip this sub-step.
+2. If the branch maps to a `plan.md` item, mark it `[x]` and commit the `plan.md` change per `AGENTS.md` § `Commit Rules`, then push. Otherwise note that no `plan.md` update is required and skip this sub-step.
 
 ## Completion Criteria
 
@@ -137,4 +135,5 @@ If the branch is branch-local work with no matching `plan.md` item, note that no
 ## See Also
 
 - `ai/commands/code-review/COMMAND.md` — verify the review file is clean before opening the PR
+- `ai/commands/address-code-review/COMMAND.md` — work through incoming PR review comments
 - `ai/commands/finish-feature/COMMAND.md` — merge and clean up after the PR is approved

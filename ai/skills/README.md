@@ -1,6 +1,6 @@
 # Agent Skills
 
-Skills are **passive domain context** — loaded when a task matches their domain, never invoked as procedures. They strictly complement **commands** (which are active, multi-step procedures). See `ai/skills/harness-authoring/SKILL.md` § `Harness File Map` for the canonical definition.
+Skills are **passive domain context** — loaded when a task matches their domain, never invoked as procedures. They strictly complement **commands** (which are active, multi-step procedures). See `ai/skills/harness-authoring/SKILL.md` § `Core Ownership Map` for the canonical definition.
 
 ## File Format
 
@@ -16,7 +16,7 @@ description: <one-line description of the domain and when to load this skill>
 - `name` — kebab-case identifier matching the folder name.
 - `description` — one line stating the domain and the trigger for loading.
 
-Authoring rules for the body live in `ai/skills/harness-authoring/SKILL.md` § `Rules For SKILL.md`. Do not restate them here.
+Authoring rules for the body live in `ai/skills/harness-authoring/SKILL.md` § `File-Specific Rules`. Do not restate them here.
 
 ## Required Sections
 
@@ -40,7 +40,7 @@ Domain-specific context goes here.
 
 ## What A Skill Should NOT Contain
 
-See `ai/skills/harness-authoring/SKILL.md` § `Rules For SKILL.md` and § `Common Anti-Patterns`. Do not duplicate those rules here.
+See `ai/skills/harness-authoring/SKILL.md` § `File-Specific Rules` and § `Anti-Patterns`. Do not duplicate those rules here.
 
 ## Platform Invocation
 

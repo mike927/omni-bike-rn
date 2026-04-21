@@ -1,0 +1,6 @@
+description = "Analyze local and GitHub branch reality, infer the most likely workflow step, and prompt for next steps."
+prompt = """
+Execute the procedure defined in @{ai/commands/check-state/COMMAND.md}.
+
+{{args}}
+"""

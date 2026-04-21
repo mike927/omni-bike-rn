@@ -70,7 +70,7 @@ If no relevant `plan.md` item can be identified:
 
 ### Step 4: Evaluate The Plan
 
-Review the plan against the requirements in `AGENTS.md` § `Plan Reviewing` and the artifact conventions in `AGENTS.md` § `Workflow Artifacts`. Do not apply generic prose quality standards — only check alignment with repo rules.
+Review the plan against the drafting requirements in `AGENTS.md` § `Plan Drafting` and the artifact conventions in `AGENTS.md` § `Workflow Artifacts`. Do not apply generic prose quality standards — only check alignment with repo rules.
 
 Check each area against the relevant `AGENTS.md` requirement:
 
@@ -176,21 +176,11 @@ Details: ai/local/plans/<branch-slug>.review.md
 
 If the command stopped early because the branch was `main` or the canonical plan file was missing, report that blocker clearly and do not create a review file.
 
-When running in **workflow owner** mode:
-- if the recommendation is `ready`, append:
-  > Plan quality gate passed. Proceed to `Plan Approving` — share the plan with the human for approval.
-- if the recommendation is `revise`, append:
-  > Run `/address-plan-review` to resolve the blocking findings, then re-run `/review-plan`.
+Close out per the invocation mode rules in `AGENTS.md` § `Agent Roles`. In **workflow owner** mode append the workflow handoff:
+- `ready` → "Plan quality gate passed. Proceed to `Plan Approving` — share the plan with the human for approval."
+- `revise` → "Run `/address-plan-review` to resolve the blocking findings, then re-run `/review-plan`."
 
-When running in **specialist reviewer** mode:
-- stop after the summary and review file path
-- do not suggest the next workflow step
-- do not ask `Proceed to Step <N>?`
-
-## Output Format
-
-- Persistent artifact: `ai/local/plans/<branch-slug>.review.md`
-- Chat summary: recommendation plus item counts and the review file path; append workflow handoff text only in workflow owner mode
+In **specialist reviewer** mode stop after the summary and review file path.
 
 ## Completion Criteria
 
