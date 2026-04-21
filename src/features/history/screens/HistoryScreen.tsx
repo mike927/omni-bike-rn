@@ -17,7 +17,7 @@ const HOME_ROUTE = '/';
 
 export function HistoryScreen() {
   const router = useRouter();
-  const { sessions, isLoading, deleteWorkout } = useWorkoutHistory();
+  const { items, isLoading, deleteWorkout } = useWorkoutHistory();
 
   const handlePressSession = (sessionId: string) => {
     router.push(buildTrainingSummaryRoute(sessionId, SAVED_SESSION_TRAINING_SUMMARY_SOURCE, HISTORY_ROUTE));
@@ -40,20 +40,21 @@ export function HistoryScreen() {
         <SectionCard title="Loading Workouts">
           <Text style={styles.bodyText}>Loading your saved sessions.</Text>
         </SectionCard>
-      ) : sessions.length === 0 ? (
+      ) : items.length === 0 ? (
         <SectionCard title="No Workouts Yet">
           <Text style={styles.bodyText}>Your completed cycling sessions will appear here.</Text>
           <ActionButton label="Start Training" onPress={() => router.replace(HOME_ROUTE)} />
         </SectionCard>
       ) : (
         <FlatList
-          data={sessions}
-          keyExtractor={(item) => item.id}
+          data={items}
+          keyExtractor={(item) => item.session.id}
           renderItem={({ item }) => (
             <WorkoutHistoryListItem
-              session={item}
-              onPress={() => handlePressSession(item.id)}
-              onDelete={() => handleDeleteSession(item.id)}
+              session={item.session}
+              uploadedProviderIds={item.uploadedProviderIds}
+              onPress={() => handlePressSession(item.session.id)}
+              onDelete={() => handleDeleteSession(item.session.id)}
             />
           )}
           contentInsetAdjustmentBehavior="automatic"

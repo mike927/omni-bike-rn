@@ -5,8 +5,10 @@ import {
   buildTrainingSummaryRoute,
   SAVED_SESSION_TRAINING_SUMMARY_SOURCE,
 } from '../../../training/navigation/trainingSummaryRoute';
+import { STRAVA_PROVIDER_ID } from '../../../../services/export/providerIds';
 import { HistoryScreen } from '../HistoryScreen';
 import { formatSessionDate } from '../../../../ui/formatters';
+import type { PersistedTrainingSession } from '../../../../types/sessionPersistence';
 
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
@@ -29,11 +31,29 @@ jest.mock('../../hooks/useWorkoutHistory', () => ({
   useWorkoutHistory: () => mockUseWorkoutHistory(),
 }));
 
+function buildSession(id: string): PersistedTrainingSession {
+  return {
+    id,
+    status: 'finished',
+    startedAtMs: 1744200000000,
+    endedAtMs: 1744203600000,
+    elapsedSeconds: 60,
+    totalDistanceMeters: 1000,
+    totalCaloriesKcal: 10,
+    currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: null },
+    savedBikeSnapshot: null,
+    savedHrSnapshot: null,
+    uploadState: 'ready',
+    createdAtMs: 10,
+    updatedAtMs: 20,
+  };
+}
+
 describe('HistoryScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseWorkoutHistory.mockReturnValue({
-      sessions: [],
+      items: [],
       isLoading: false,
       refresh: jest.fn(),
       deleteWorkout: mockDeleteWorkout,
@@ -52,24 +72,10 @@ describe('HistoryScreen', () => {
   });
 
   it('opens a saved workout summary from the list', () => {
-    const session = {
-      id: 'session-7',
-      status: 'finished' as const,
-      startedAtMs: 1744200000000,
-      endedAtMs: 1744203600000,
-      elapsedSeconds: 60,
-      totalDistanceMeters: 1000,
-      totalCaloriesKcal: 10,
-      currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: null },
-      savedBikeSnapshot: null,
-      savedHrSnapshot: null,
-      uploadState: 'ready' as const,
-      createdAtMs: 10,
-      updatedAtMs: 20,
-    };
+    const session = buildSession('session-7');
 
     mockUseWorkoutHistory.mockReturnValue({
-      sessions: [session],
+      items: [{ session, uploadedProviderIds: [] }],
       isLoading: false,
       refresh: jest.fn(),
       deleteWorkout: mockDeleteWorkout,
@@ -84,34 +90,20 @@ describe('HistoryScreen', () => {
   });
 
   it('prompts before deleting a workout from the list', () => {
-    const session = {
-      id: 'session-7',
-      status: 'finished' as const,
-      startedAtMs: 1744200000000,
-      endedAtMs: 1744203600000,
-      elapsedSeconds: 60,
-      totalDistanceMeters: 1000,
-      totalCaloriesKcal: 10,
-      currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: null },
-      savedBikeSnapshot: null,
-      savedHrSnapshot: null,
-      uploadState: 'ready' as const,
-      createdAtMs: 10,
-      updatedAtMs: 20,
-    };
+    const session = buildSession('session-7');
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_, __, buttons) => {
       buttons?.[1]?.onPress?.();
     });
 
     mockUseWorkoutHistory.mockReturnValue({
-      sessions: [session],
+      items: [{ session, uploadedProviderIds: [] }],
       isLoading: false,
       refresh: jest.fn(),
       deleteWorkout: mockDeleteWorkout,
     });
 
-    const { getByText } = render(<HistoryScreen />);
-    fireEvent.press(getByText('Delete'));
+    const { getByLabelText } = render(<HistoryScreen />);
+    fireEvent.press(getByLabelText('Delete workout'));
 
     expect(mockDeleteWorkout).toHaveBeenCalledWith('session-7');
     expect(mockPush).not.toHaveBeenCalled();
@@ -122,5 +114,21 @@ describe('HistoryScreen', () => {
     );
 
     alertSpy.mockRestore();
+  });
+
+  it('shows the provider status icon for an uploaded session', () => {
+    const session = buildSession('session-7');
+
+    mockUseWorkoutHistory.mockReturnValue({
+      items: [{ session, uploadedProviderIds: [STRAVA_PROVIDER_ID] }],
+      isLoading: false,
+      refresh: jest.fn(),
+      deleteWorkout: mockDeleteWorkout,
+    });
+
+    const { getByLabelText } = render(<HistoryScreen />);
+
+    expect(getByLabelText('Exported to Strava')).toBeTruthy();
+    expect(getByLabelText('Delete workout')).toBeTruthy();
   });
 });

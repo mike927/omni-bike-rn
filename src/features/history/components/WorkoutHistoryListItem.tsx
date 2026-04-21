@@ -1,16 +1,19 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
 
-import type { PersistedTrainingSession } from '../../../types/sessionPersistence';
 import { formatDistanceKm, formatDuration, formatSessionDate } from '../../../ui/formatters';
 import { palette } from '../../../ui/theme';
+import { ProviderStatusIcons } from './ProviderStatusIcons';
+import type { WorkoutHistoryListItemProps } from './WorkoutHistoryListItem.types';
 
-interface WorkoutHistoryListItemProps {
-  session: PersistedTrainingSession;
-  onPress: () => void;
-  onDelete: () => void;
-}
+const TRASH_ICON_SIZE = 20;
 
-export function WorkoutHistoryListItem({ session, onPress, onDelete }: Readonly<WorkoutHistoryListItemProps>) {
+export function WorkoutHistoryListItem({
+  session,
+  uploadedProviderIds,
+  onPress,
+  onDelete,
+}: Readonly<WorkoutHistoryListItemProps>) {
   const handleDeletePress = (event?: GestureResponderEvent) => {
     event?.stopPropagation?.();
     onDelete();
@@ -29,14 +32,17 @@ export function WorkoutHistoryListItem({ session, onPress, onDelete }: Readonly<
           {session.totalCaloriesKcal.toFixed(0)} kcal
         </Text>
       </View>
-      <Pressable
-        style={({ pressed }) => [styles.deleteButton, pressed && styles.deleteButtonPressed]}
-        onPress={handleDeletePress}
-        accessibilityRole="button"
-        accessibilityLabel="Delete workout"
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-        <Text style={styles.deleteButtonText}>Delete</Text>
-      </Pressable>
+      <View style={styles.rightColumn}>
+        <ProviderStatusIcons uploadedProviderIds={uploadedProviderIds} />
+        <Pressable
+          style={({ pressed }) => [styles.deleteButton, pressed && styles.deleteButtonPressed]}
+          onPress={handleDeletePress}
+          accessibilityRole="button"
+          accessibilityLabel="Delete workout"
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Ionicons name="trash-outline" size={TRASH_ICON_SIZE} color={palette.danger} />
+        </Pressable>
+      </View>
     </Pressable>
   );
 }
@@ -67,17 +73,15 @@ const styles = StyleSheet.create({
     color: palette.textMuted,
     fontSize: 14,
   },
+  rightColumn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   deleteButton: {
     padding: 8,
-    borderRadius: 8,
-    backgroundColor: palette.surfaceMuted,
   },
   deleteButtonPressed: {
     opacity: 0.5,
-  },
-  deleteButtonText: {
-    color: palette.danger,
-    fontSize: 13,
-    fontWeight: '700',
   },
 });

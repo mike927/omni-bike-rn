@@ -5,6 +5,7 @@ import { Alert, StyleSheet, Text, View } from 'react-native';
 import { POST_FINISH_TRAINING_SUMMARY_SOURCE, type TrainingSummarySource } from '../navigation/trainingSummaryRoute';
 import { deleteSession, getSessionById } from '../../../services/db/trainingSessionRepository';
 import { getProviderUpload } from '../../../services/db/providerUploadRepository';
+import { APPLE_HEALTH_PROVIDER_ID, STRAVA_PROVIDER_ID } from '../../../services/export/providerIds';
 import { uploadSessionToProvider } from '../../../services/export/uploadOrchestrator';
 import { useAppleHealthConnectionStore } from '../../../store/appleHealthConnectionStore';
 import { useStravaConnectionStore } from '../../../store/stravaConnectionStore';
@@ -18,9 +19,7 @@ import { palette } from '../../../ui/theme';
 
 const HOME_ROUTE = '/';
 const SETTINGS_ROUTE = '/(tabs)/settings';
-const STRAVA_PROVIDER_ID = 'strava';
 const STRAVA_PROVIDER_LABEL = 'Strava';
-const APPLE_HEALTH_PROVIDER_ID = 'apple_health';
 const APPLE_HEALTH_PROVIDER_LABEL = 'Apple Health';
 
 interface TrainingSummaryScreenProps {
