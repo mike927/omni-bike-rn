@@ -48,7 +48,7 @@ ai/local/
 # generated native folders
 # NOTE: /ios is intentionally tracked (partial eject — watchOS companion app target).
 # Do NOT run `expo prebuild --clean` after the Watch target has been added.
-# See AGENTS.md § "Native iOS Constraints".
+# See ai/skills/project-context/SKILL.md § "Native iOS Constraints".
 /android
 
 # logs

@@ -1,24 +1,5 @@
 # Agent Instructions
 
-## Project Context
-
-Omni Bike is an iOS indoor cycling companion app. It connects to a BLE stationary bike and optional HR sources, records training sessions, and syncs completed workouts to Strava.
-
-### Tech Stack
-
-- **Framework**: Expo SDK 54 (New Architecture enforced) + `expo-router`
-- **State**: `zustand`
-- **Database**: `expo-sqlite` + `drizzle-orm`
-- **BLE**: `react-native-ble-plx`
-- **iOS Native**: `react-native-activity-kit` (Live Activities), `react-native-health`
-
-### Key Constraints
-
-- **HR source priority**: Watch HR > BLE chest strap HR > Bike-reported pulse. Resolved at merge time in the MetronomeEngine, not in the UI.
-- **1 Hz tick model**: The MetronomeEngine samples all sources at 1 Hz. Higher resolution is unnecessary for the metrics displayed.
-- **Gear persistence before DB**: Saved devices use lightweight key-value storage. The full SQLite schema is introduced only when session recording needs it.
-- **Offline-first**: All session data persists locally. Network failures never block the training flow. Uploads happen post-workout and can be retried.
-
 ## Harness Principles
 
 - **Single Ownership.** Every harness rule, convention, procedure, or state transition has exactly one owner. Every other reference cross-links to that owner rather than restating it.
@@ -29,11 +10,8 @@ Read these in this order before feature work:
 
 1. `plan.md`
 2. This `AGENTS.md` file
-3. `git branch --show-current`
-4. `git worktree list`
-5. Relevant files under `ai/skills/*/SKILL.md`
-6. When the user asks for a procedure documented in `## Commands` below, load the matching `ai/commands/<name>/COMMAND.md`
-7. When the task involves vendor-specific behavior or hardware, check `docs/` for trusted reference material
+3. Relevant files under `ai/skills/*/SKILL.md`
+4. When the user asks for a procedure documented in `## Commands` below, load the matching `ai/commands/<name>/COMMAND.md`
 
 `plan.md` is the single source of truth for tracked project scope and progress. Some approved ad-hoc branch-local work may proceed without being added there.
 `branch-slug` means the branch name with `/` replaced by `-`.
@@ -53,26 +31,12 @@ When using `[?]` or `[-]`, include a short reason in the same task line.
 
 Branch-local work with no matching `plan.md` item skips every state transition in the numbered workflow (`[~]`, `[R]`, `[x]`). Workflow steps still reference these marks; just bypass them when no `plan.md` item applies.
 
-## Native iOS Constraints
-
-Do not run `expo prebuild --clean` after the watchOS companion app target has been added to `ios/`. The `--clean` flag wipes the entire `ios/` directory and destroys the Watch target. Use `expo prebuild` (without `--clean`) for incremental config changes. If `--clean` was accidentally run, restore `ios/OmniBikeWatch/` and the Watch target from git.
-
-- The `ios/` directory is intentionally committed to git (partial eject — watchOS companion app target).
-- The Watch target (`OmniBikeWatch`) and its three Swift files live in `ios/OmniBikeWatch/` and are managed manually in Xcode.
-- The config plugin `plugins/with-watch-extension.js` only adds entitlements and Info.plist keys — it is safe to re-apply at every prebuild run.
-
 ## Branching And Workspace Rules
 
 - Never commit changes directly to `main`.
 - **In-Place Branching**: Standard branches (`git checkout -b <branch>`) directly in the repository root. Default for normal feature work.
 - **Worktree Branching**: Dedicated worktree (`../omni-bike-rn-worktrees/<branch-slug>`) when explicitly requested for parallel isolation.
 - Name branches as `<type>/<kebab-case-description>` using Conventional Commits prefixes (e.g., `feat/`, `fix/`, `docs/`, `refactor/`). Determine the prefix automatically based on task scope.
-
-Examples:
-
-- `feat/ble-metronome-engine`
-- `fix/ftms-status-parser`
-- `../omni-bike-rn-worktrees/feat-ble-metronome-engine`
 
 ## Commit Rules
 
@@ -81,12 +45,6 @@ Examples:
   - `/address-code-review` commits and pushes each fix as part of its procedure — running the command is the explicit instruction.
 - Use Conventional Commits.
 - Make focused commits per meaningful sub-task, not one large commit at the end.
-
-Examples:
-
-- `feat: add BLE metronome engine`
-- `fix: correct FTMS machine status parsing`
-- `docs: update project progress in plan`
 
 ## Workflow Artifacts
 
@@ -135,40 +93,6 @@ Address-family commands (`/address-plan-review`, `/address-code-review`) update 
 - When a review command is reached organically during the numbered workflow by the same agent already running that workflow, stay in **workflow owner** mode.
 - A specialist reviewer must not suggest workflow transitions, must not ask `Proceed to <StepName>?`, must not emit the workflow banner format (uses `**Review**` or the command-specific completion header instead), and must not present itself as the implementation owner.
 - A human acknowledgement ("ok", "proceed", "good") after a specialist review does **not** transfer workflow ownership to the reviewer. The reviewer's job is done; the human directs the next step themselves.
-
-## Coding Conventions
-
-### TypeScript
-
-- Strict mode is enforced. `noUncheckedIndexedAccess` and `noFallthroughCasesInSwitch` are on.
-- Never use `as any`. Use the actual schema or type returned by a given service.
-- Use `type` imports for type-only values. Enforced by ESLint (`consistent-type-imports`).
-- Prefer `interface` for contracts and public API shapes. Use `type` for unions, intersections, and utility types.
-- Interfaces and type aliases use `PascalCase`. Enum members use `UPPER_CASE` or `PascalCase`.
-- Do not declare reusable interfaces or type aliases inside implementation files such as adapters, hooks, screens, or components. Put them in a dedicated sibling file, contract file, or `src/types/` module and import them where needed.
-- Do not use magic values (inline UUIDs, URLs, numeric constants). Define named constants at module scope. If the same value is needed in multiple files, define it once and import it.
-
-### Architecture
-
-- Use the adapter pattern for external integrations. Define a contract interface (e.g., `BikeAdapter`, `HrAdapter`) and implement it per device or provider.
-- Feature logic lives in `src/features/<domain>/`. Service and transport logic lives in `src/services/<domain>/`.
-- Hooks are the public API of a feature. They live in `src/features/<domain>/hooks/`.
-- Parsers are pure functions that live in `src/services/<domain>/parsers/`.
-- Keep layers directional: features → services → parsers. Never import upward.
-
-### Testing
-
-- Use Jest. Test files live in `__tests__/` directories next to the source they test.
-- Name test files `<Module>.test.ts`.
-- Mock external dependencies (e.g., `bleClient`) at the module level using `jest.mock()`.
-- Use `describe` blocks per method or behavior. Use `it` for individual cases.
-
-### Style
-
-- Use tagged logging: `console.error('[ClassName] message')`.
-- Use `unknown` for caught errors, not `any`. Narrow with `instanceof Error`.
-- Prefer `const` and `prefer-const` is enforced.
-- Prettier is integrated via ESLint (120 char width, single quotes, trailing commas).
 
 ## Feature Workflow
 
@@ -407,31 +331,13 @@ A fix loop is clean only when the selected validation passes, no unresolved bloc
 
 ## Skills
 
-Use a skill when the task clearly matches that domain.
-
-Available skills:
-
-- `ai/skills/harness-authoring/SKILL.md` for creating or modifying harness files (`AGENTS.md`, commands, skills, provider bridges)
-- `ai/skills/architecture/SKILL.md` for boundaries, ownership, and structure
-- `ai/skills/ble-hardware/SKILL.md` for BLE, FTMS, bike devices, or heart-rate work
-- `ai/skills/drizzle-expo/SKILL.md` for official Drizzle ORM workflow in Expo: schema changes, drizzle-kit generation, bundled migrations, and startup wiring
-- `ai/skills/expo-ui/SKILL.md` for Expo Router UI, navigation, styling, and components
-- `ai/skills/expo-upgrade/SKILL.md` for Expo SDK upgrades and dependency migrations
-- `ai/skills/ios-native/SKILL.md` for iOS-specific behavior
-- `ai/skills/provider-entrypoints/SKILL.md` for defining lean provider-specific entrypoint files that enrich the shared workflow with provider-native capabilities
-- `ai/skills/quality-review/SKILL.md` for review checklists and quality standards
-- `ai/skills/react-native-perf/SKILL.md` for performance optimization, profiling, and bundle size
-- `ai/skills/sqlite-persistence/SKILL.md` for Expo SQLite, persistence boundaries, session-recording rules, and repository guidance
-- `ai/skills/stitch-design/SKILL.md` for UI design with Google Stitch, MCP integration, and design-to-code conversion
+Use a skill when the task clearly matches that domain. Enumerate available skills on demand with `ls ai/skills/`; each `SKILL.md` carries its own `description:` frontmatter.
 
 ### Adding A New Skill
 
 1. Create a folder at `ai/skills/<skill-name>/`.
 2. Add a `SKILL.md` file with YAML frontmatter (`name`, `description`).
 3. Write domain-specific content: context, key files, patterns, known issues.
-4. Reference it from this section.
-
-Skills are optional helpers. They support this file, not replace it.
 
 ## Commands
 
@@ -445,35 +351,21 @@ Commands are active procedures for specific, repeatable tasks. They complement s
 
 **Review-family commands (`/review-plan`, `/code-review`) append provider-tagged blocks.** Each invocation appends a new `## Review (<provider>, <ISO timestamp>)` block to the review file rather than overwriting. Prior blocks, `/address-*` resolution sections, and cross-provider findings are preserved verbatim. File-level recommendation or state is read from the latest block. This is what enables the Plan Approving / post-Internal Review Fix Loop challenge path (see § `Three-Way Approval Gate`) to accumulate reviews across providers without clobbering.
 
-Available commands:
-
-- `ai/commands/check-state/COMMAND.md` — bootstrap context and analyze branch reality to help decide next steps
-- `ai/commands/next-task/COMMAND.md` — read plan.md, find the next unstarted task, and propose it to the user
-- `ai/commands/start-feature/COMMAND.md` — set up the workspace for a new feature (branch name, workspace strategy, branch creation)
-- `ai/commands/review-plan/COMMAND.md` — review the active branch plan for decision-completeness, workflow alignment, and implementation readiness
-- `ai/commands/address-plan-review/COMMAND.md` — triage plan-review findings, update the plan intentionally, and record applied or declined suggestions
-- `ai/commands/validate/COMMAND.md` — run the full validation suite
-- `ai/commands/code-review/COMMAND.md` — code review of branch diff (local working tree or GitHub PR), persisted to `ai/local/reviews/<branch-slug>.md`
-- `ai/commands/open-pr/COMMAND.md` — open a GitHub PR with the project's standard format
-- `ai/commands/address-code-review/COMMAND.md` — consume code review findings (local file or GitHub PR threads) and fix each actionable item using the Fix Loop Decision Rules
-- `ai/commands/finish-feature/COMMAND.md` — mark plan complete, merge PR via GitHub CLI, clean up branch or worktree
+Enumerate available commands on demand with `ls ai/commands/`; each `COMMAND.md` carries its own `description:` frontmatter.
 
 ### Adding A New Command
 
 1. Create a folder at `ai/commands/<command-name>/`.
 2. Add a `COMMAND.md` file with YAML frontmatter (`name`, `description`, `inputs`, `outputs`).
 3. Write the procedure as numbered steps with clear completion criteria.
-4. Reference it from this section.
-5. Mirror the command as a thin bridge in every active provider directory: `.claude/commands/<name>.md`, `.codex/skills/<name>/SKILL.md`, `.gemini/commands/<name>.toml`. Each bridge is a pointer to `ai/commands/<name>/COMMAND.md` — only the `description` field carries provider-specific picker trigger signal. Partial coverage is a harness bug.
+4. Mirror the command as a thin bridge in every active provider directory: `.claude/commands/<name>.md`, `.codex/skills/<name>/SKILL.md`, `.gemini/commands/<name>.toml`. Each bridge is a pointer to `ai/commands/<name>/COMMAND.md` — only the `description` field carries provider-specific picker trigger signal. Partial coverage is a harness bug.
 
 The same mirroring rule applies when renaming or removing a command: update or delete every matching bridge in the same change.
 
-Commands complement skills, not replace them. A command may reference a skill when domain context is needed during execution. See `ai/commands/README.md` for the full file format.
+See `ai/commands/README.md` for the full file format.
 
 ## Provider-Specific Configuration
 
 This harness is provider-agnostic. All instructions live in plain markdown.
 
 If a specific AI tool requires its own config file, that file should contain only provider-specific configuration and minimal provider-specific execution notes that adapt `AGENTS.md` to that tool. Do not duplicate repository workflow instructions in full.
-- If a provider supports explicit plan/edit mode APIs, use them.
-- If a provider does not support agent-controlled mode switching, the workflow still requires the same plan/edit separation, but the human must perform the mode switch manually.

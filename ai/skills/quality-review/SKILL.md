@@ -12,7 +12,7 @@ description: Use when reviewing branch diffs for logic regressions, scope drift,
 - [ ] Mocks reset in `beforeEach` with `jest.clearAllMocks()`
 - [ ] No stale mock shapes (mock matches current hook return type)
 
-All other conventions (TypeScript, architecture, style, test structure) are in `AGENTS.md` § `Coding Conventions`.
+All other conventions (TypeScript, architecture, style, test structure) are in `ai/skills/project-context/SKILL.md` § `Coding Conventions`.
 
 ## See Also
 

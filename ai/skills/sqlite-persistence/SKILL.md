@@ -11,7 +11,7 @@ For the official Drizzle migration and generation workflow, also use `ai/skills/
 - `src/services/db/` owns database setup, migrations, schema, and repositories.
 - `src/types/` owns reusable persistence interfaces and type aliases.
 - `src/features/training/hooks/` may orchestrate persistence side effects, but should not contain raw SQL or schema definitions.
-- Layer direction follows `AGENTS.md` § `Coding Conventions`.
+- Layer direction follows `ai/skills/project-context/SKILL.md` § `Coding Conventions`.
 
 ## Storage Choice
 

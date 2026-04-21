@@ -4,7 +4,7 @@ description: Use when adding a new feature domain, deciding where a module belon
 ---
 # Architecture
 
-Layer rules, naming, and import direction live in `AGENTS.md` § `Coding Conventions`. This skill adds repo-specific architectural patterns that are not covered there.
+Layer rules, naming, and import direction live in `ai/skills/project-context/SKILL.md` § `Coding Conventions`. This skill adds repo-specific architectural patterns that are not covered there.
 
 ## Ownership Patterns
 
@@ -19,6 +19,6 @@ Layer rules, naming, and import direction live in `AGENTS.md` § `Coding Convent
 
 ## See Also
 
-- `AGENTS.md` § `Coding Conventions` — layer shape, import direction, hooks-as-public-API, contract interfaces
-- `AGENTS.md` § `Key Constraints` — HR priority, 1 Hz tick model, offline-first
+- `ai/skills/project-context/SKILL.md` § `Coding Conventions` — layer shape, import direction, hooks-as-public-API, contract interfaces
+- `ai/skills/project-context/SKILL.md` § `Key Constraints` — HR priority, 1 Hz tick model, offline-first
 - `ai/skills/ble-hardware/SKILL.md` — BLE adapter specifics
