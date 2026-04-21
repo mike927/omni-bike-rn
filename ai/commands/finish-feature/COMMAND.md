@@ -109,7 +109,20 @@ git branch -d <branch-name>
 
 Use `-d` (safe delete) not `-D`. If the safe delete fails, investigate before forcing — it means git believes the branch has unmerged work.
 
-### Step 8: Report Completion
+### Step 8: Clean Up Branch-Scoped Artifacts
+
+Remove any of the four branch-scoped artifacts that exist on disk. Missing files are not errors — branch-local work may never have produced testing notes, an unplanned bug fix may have skipped the plan-review cycle, etc. The files are git-ignored, so deletion leaves no tracked-file residue.
+
+```bash
+rm -f ai/local/plans/<branch-slug>.md \
+      ai/local/plans/<branch-slug>.review.md \
+      ai/local/reviews/<branch-slug>.md \
+      ai/local/testing/<branch-slug>.md
+```
+
+Record which paths actually existed before deletion so Step 9 can list them. If none existed, record `none`.
+
+### Step 9: Report Completion
 
 ```
 **Feature Complete**
@@ -117,6 +130,7 @@ Use `-d` (safe delete) not `-D`. If the safe delete fails, investigate before fo
 - PR: merged at `<pr-url>` (merge commit `<short-oid>`)
 - Branch `<branch-name>`: removed
 - Worktree: removed | N/A (in-place)
+- Artifacts removed: <comma-separated list of deleted paths | none>
 - Active branch: `main`
 ```
 
@@ -127,6 +141,7 @@ Use `-d` (safe delete) not `-D`. If the safe delete fails, investigate before fo
 - No unpushed local-only commits remain on the feature branch.
 - Local branch is removed.
 - Worktree is removed, if applicable.
+- Branch-scoped artifacts in `ai/local/` are removed (plan, plan review, code review, testing notes — whichever existed).
 - Active branch is `main`.
 
 ## See Also
