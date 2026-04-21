@@ -9,7 +9,7 @@ description: Use when working on iOS-specific behavior, Apple platform integrati
 - **Expo SDK 54** with New Architecture (JSI) enforced
 - **expo-router** for file-based navigation
 - iOS is the **primary and only target** for the MVP
-- For `ios/` committing and Watch target rules, see `AGENTS.md` § `Native iOS Constraints`
+- For `ios/` committing and Watch target rules, see `ai/skills/project-context/SKILL.md` § `Native iOS Constraints`
 
 ## Key Integrations
 

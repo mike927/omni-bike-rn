@@ -30,7 +30,6 @@ git branch --show-current
 ```
 
 - If the current branch is `main`, stop and report a blocker. `/review-plan` only reviews an active feature branch plan.
-- Derive `branch-slug` by replacing `/` with `-`.
 - Set:
   - `plan-file` = `ai/local/plans/<branch-slug>.md`
   - `review-file` = `ai/local/plans/<branch-slug>.review.md`
@@ -132,12 +131,7 @@ Relevant plan.md item: <quoted task line | "branch-local work; no plan.md item r
 <1-3 sentences stating whether implementation can proceed safely and why.>
 ```
 
-File-level rules:
-
-- If no prior file exists, create it with a single `# Plan Review: <branch-name>` H1 on line 1, then append the first block below it.
-- If the file exists, append the new `## Review (...)` block at the absolute end of the file (after every prior block and every prior resolution section).
-- File-level Recommendation is read from the **latest** `## Review (...)` block.
-- Never delete, edit, or reorder prior blocks or history sections.
+File-level rules follow `AGENTS.md` § `Review File State` (append-mode contract, latest-block-wins, never overwrite). If no prior file exists, create it with a single `# Plan Review: <branch-name>` H1 on line 1, then append the first block below it.
 
 Block-content rules:
 
@@ -165,11 +159,7 @@ Details: ai/local/plans/<branch-slug>.review.md
 
 If the command stopped early because the branch was `main` or the canonical plan file was missing, report that blocker clearly and do not create a review file.
 
-Close out per the invocation mode rules in `AGENTS.md` § `Agent Roles`. In **workflow owner** mode append the workflow handoff:
-- `ready` → "Plan quality gate passed. Proceed to `Plan Approving` — share the plan with the human for approval."
-- `revise` → "Run `/address-plan-review` to resolve the blocking findings, then re-run `/review-plan`."
-
-In **specialist reviewer** mode stop after the summary and review file path.
+Close out per `AGENTS.md` § `Agent Roles` — workflow owner mode flows into the next step from the enclosing workflow stage; specialist reviewer mode stops here.
 
 ## Completion Criteria
 

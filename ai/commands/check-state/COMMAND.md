@@ -30,7 +30,6 @@ git status --short --branch
 git log --oneline -n 3
 ```
 
-- Derive the `branch-slug` (branch name with `/` replaced by `-`).
 - Note if there are uncommitted files, unstaged changes, or ahead/behind tracking info.
 - Note the last 3 commit subjects to understand what was actually last saved.
 
@@ -138,9 +137,11 @@ Post a highly comprehensive snapshot message in chat using this general format:
 
 Do not collapse the answer to only local file state. PR state must be included when available because it changes the workflow meaning of the same branch.
 
-### Step 7: Await Instructions
+### Step 7: Present Structured Next-Step Gate
 
-Explicitly pause execution and wait for the user to reply with what to do next. Do not spontaneously execute further logic without user consent after a check-state command.
+Per `AGENTS.md` § `Harness Principles` "Structured stops", do not end with a free-text wait. Fire a § `Blocker Gate` with labeled options built from the **Next Steps?** list produced in Step 6 — typically the top 2–3 candidate actions (most likely next workflow step, second plausible path, clarification/other). The gate's host primitive always appends an `Other` free-text escape, so the human can redirect if none of the listed options fit.
+
+Do not spontaneously execute further logic without the human's explicit choice.
 
 ## Completion Criteria
 
@@ -148,7 +149,7 @@ Explicitly pause execution and wait for the user to reply with what to do next. 
 - The PR state has been checked or explicitly marked unknown.
 - The most likely workflow step has been inferred from the available evidence.
 - Discrepancies are highlighted.
-- The human has a formatted snapshot and the agent has yielded control back for a decision.
+- The human has been presented with a structured Blocker Gate for the next move and the agent is paused awaiting the selection.
 
 ## See Also
 

@@ -69,18 +69,9 @@ Only switch to a dedicated worktree at `../omni-bike-rn-worktrees/<branch-slug>`
 - the human passed `workspace: worktree` as an input, or
 - the human explicitly asked for parallel isolation in chat.
 
-Do not prompt the human for a strategy on every run. Announce the chosen mode in the Step 7 summary so they can redirect if needed.
+Do not prompt the human for a strategy on every run. Announce the chosen mode in the Step 6 Report And Continue summary so they can redirect if needed.
 
-### Step 4: Ask Workflow Track
-
-Present the workflow track options using the most interactive mechanism your host provides — a multiple-choice UI prompt when available, otherwise a numbered list in chat. Pause execution and wait for the reply; do not default silently.
-
-- **Option 1:** `Standard Track` — proceed to `Plan Drafting`.
-- **Option 2:** `Fast Track` — skip planning/review; proceed directly to `Implementation In Progress`. Only for ad-hoc bug fixes or minor chores.
-
-### Step 5: Create The Workspace
-
-Derive `branch-slug` = branch name with `/` replaced by `-` (e.g., `feat-ble-metronome-engine`).
+### Step 4: Create The Workspace
 
 Before creating, verify the branch does not already exist:
 
@@ -106,7 +97,7 @@ mkdir -p ../omni-bike-rn-worktrees
 git worktree add ../omni-bike-rn-worktrees/<branch-slug> -b <branch-name>
 ```
 
-### Step 6: Confirm The Workspace
+### Step 5: Confirm The Workspace
 
 ```bash
 git branch --show-current     # for in-place
@@ -116,25 +107,24 @@ git worktree list             # for worktree
 
 Verify the new branch is active in the correct directory.
 
-### Step 7: Report And Continue
+### Step 6: Report And Continue
 
 ```
 **Workspace Preparing**
 - Branch: `<branch-name>`
 - Slug: `<branch-slug>`
 - Mode: in-place | worktree at `../omni-bike-rn-worktrees/<branch-slug>`
-- Track: `<Standard | Fast Track>`
 - Working directory: `<path>`
 ```
 
-Do not emit a `**Next:** Proceed to ...?` confirmation line. The track choice in Step 4 is the real gate; flow directly into the next workflow step (`Plan Drafting` for Standard Track, `Implementation In Progress` for Fast Track) in the same turn.
+Fire the **Scope Clarification** Confirmation Gate per `AGENTS.md` § `Confirmation Gate` before transitioning into Plan Drafting. The gate is the exit of Workspace Preparing — confirm the task scope is understood; accept clarifications from the human and integrate them if requested.
 
 ## Completion Criteria
 
 - The new branch exists and is active.
 - `branch-slug` is printed and available for use in `ai/local/plans/<branch-slug>.md`, `ai/local/reviews/<branch-slug>.md`, and all other artifacts.
 - No plan file has been created yet.
-- The agent continues directly into the next workflow step selected by the chosen track (`Plan Drafting` for Standard Track, `Implementation In Progress` for Fast Track) without a separate confirmation prompt.
+- The Scope Clarification gate was presented and the human's response recorded.
 
 ## See Also
 

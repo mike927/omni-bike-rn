@@ -7,7 +7,7 @@ ai/
   README.md            ← you are here
   screens.md           ← screen inventory, navigation diagrams, phase gates
   local/               ← ignored per-branch runtime state (plans, reviews, testing)
-  commands/            ← active procedures invoked by name (see AGENTS.md § Commands)
+  commands/            ← active procedures invoked by name (see AGENTS.md § Commands for the contract; `ls ai/commands/` for the current inventory)
     check-state/       ← bootstrap/resume session context
     next-task/         ← read plan.md and propose the next logical task to start
     start-feature/     ← workspace setup for a new feature
@@ -26,6 +26,7 @@ ai/
     expo-upgrade/      ← Expo SDK upgrades, dependency migrations (from expo/skills)
     harness-authoring/ ← rules for creating or modifying AGENTS.md, commands, and skills
     ios-native/        ← iOS platform integration
+    project-context/   ← Omni Bike tech stack, key constraints, iOS quirks, coding conventions
     provider-entrypoints/ ← rules for provider-specific bridge and entrypoint files
     quality-review/    ← review checklists and quality standards
     react-native-perf/ ← RN performance, profiling, bundle size (from callstackincubator/agent-skills)

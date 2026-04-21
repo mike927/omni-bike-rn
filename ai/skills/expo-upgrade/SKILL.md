@@ -7,7 +7,7 @@ description: Use when upgrading Expo SDK versions, auditing breaking changes, or
 
 ## Repo-Specific Safety
 
-- For `ios/` commit status, Watch target, and the `expo prebuild --clean` hazard, see `AGENTS.md` § `Native iOS Constraints`.
+- For `ios/` commit status, Watch target, and the `expo prebuild --clean` hazard, see `ai/skills/project-context/SKILL.md` § `Native iOS Constraints`.
 - Use incremental `expo prebuild` only when a native config change actually requires regeneration.
 
 ## Upgrade Loop

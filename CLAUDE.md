@@ -15,4 +15,4 @@
 ## Plan Mode
 
 - **Native tool:** Use `EnterPlanMode` / `ExitPlanMode` for plan drafting. The tool writes to `.claude/plans/`; dual-write to `ai/local/plans/<branch-slug>.md` per Workflow Artifacts.
-- **`ExitPlanMode` = end of plan drafting, not plan approval.** After the user accepts in the Claude Code UI, post `Workflow Progress: Step 3 Complete` and proceed to the review loop. Do not start implementation until the user explicitly approves the plan after review.
+- **`ExitPlanMode` marks the end of Plan Drafting, not Plan Approving** — the rest (banner, autonomous review loop, approval gate) follows AGENTS.md.
