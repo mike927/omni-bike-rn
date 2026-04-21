@@ -148,7 +148,7 @@ Each workflow step emits a single banner when it finishes — a markdown horizon
 | Step | Exit verb | Subtitle |
 |------|-----------|----------|
 | 1 Bootstrapping | Completed | `Branch: <name>` |
-| 2 Workspace Preparing | Gate | `Scope Clarification — ready to draft plan?` |
+| 2 Workspace Preparing | Gate | `Scope Clarification` |
 | 3 Plan Drafting | Completed | `Plan: ai/local/plans/<slug>.md` |
 | 4 Plan Reviewing | Completed | `Review: <path> — ready after N cycles` |
 | 5 Plan Approving | Gate | `Plan Approval` |
@@ -306,7 +306,7 @@ A fix loop is clean only when the selected validation passes, no unresolved bloc
 ### 10. Manual Human Testing
 
 - **Prerequisite — clean working tree:** Before presenting the testing checklist, verify `git status --short` is empty. Any stray uncommitted changes (including whitespace-only diffs or unrelated `plan.md` edits from prior sessions) must be resolved first — either committed on this branch if they belong to the feature, stashed if they are unrelated, or reverted if they are accidental. The human should test the same state that will be reviewed and merged; untracked drift in the working tree invalidates that guarantee.
-- **Not user-visible** (docs, harness, config, test-only): skipped per Step 9's exit routing; the Code + Test Approval gate already fired there.
+- **Not user-visible** (docs, harness, config, test-only): skipped per Internal Review Fix Loop's exit routing; the Code + Test Approval gate already fired there.
 - **User-visible change:** Pause and present the testing checklist. Include a concise summary of what changed and how it affects user experience or behavior. Explicitly state whether the human needs to restart Metro, rebuild the app, both, or neither.
 - **Checklist:** Provide inline. For follow-up fixes, provide only incremental retest steps unless the full flow needs re-running. Do not create `ai/local/testing/<branch-slug>.md` unless the human explicitly asks.
 - **Issues reported:** Proceed to Manual Testing Fix Loop.
@@ -316,7 +316,7 @@ A fix loop is clean only when the selected validation passes, no unresolved bloc
 
 - **Entry:** Human reported issues in Manual Human Testing.
 - **Fix loop:** Apply § `Fix Loop Decision Rules`. Request targeted retesting only for the affected behavior.
-- **Exit:** Human explicitly approves the latest changes; mark the `plan.md` item `[R]`, then fire the **Code + Test Approval** Three-Way Approval Gate (see Step 10).
+- **Exit:** Human explicitly approves the latest changes; mark the `plan.md` item `[R]`, then fire the **Code + Test Approval** Three-Way Approval Gate (same gate as Manual Human Testing's approved-exit).
 
 ### 12. PR Open
 

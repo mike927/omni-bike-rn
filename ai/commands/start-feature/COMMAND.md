@@ -117,14 +117,14 @@ Verify the new branch is active in the correct directory.
 - Working directory: `<path>`
 ```
 
-Do not emit a `**Next:** Proceed to ...?` confirmation line. Flow directly into `Plan Drafting` in the same turn.
+Fire the **Scope Clarification** Confirmation Gate per `AGENTS.md` § `Confirmation Gate` before transitioning into Plan Drafting. The gate is the exit of Workspace Preparing — confirm the task scope is understood; accept clarifications from the human and integrate them if requested.
 
 ## Completion Criteria
 
 - The new branch exists and is active.
 - `branch-slug` is printed and available for use in `ai/local/plans/<branch-slug>.md`, `ai/local/reviews/<branch-slug>.md`, and all other artifacts.
 - No plan file has been created yet.
-- The agent continues directly into `Plan Drafting` without a separate confirmation prompt.
+- The Scope Clarification gate was presented and the human's response recorded.
 
 ## See Also
 
