@@ -1,4 +1,5 @@
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
+import type { ReactElement } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import {
@@ -13,7 +14,7 @@ import type { ProviderStatusIconsProps } from './ProviderStatusIcons.types';
 const STRAVA_BRAND_ORANGE = '#FC4C02';
 const ICON_SIZE = 18;
 
-function renderProviderIcon(providerId: KnownProviderId) {
+function renderProviderIcon(providerId: KnownProviderId): ReactElement {
   switch (providerId) {
     case STRAVA_PROVIDER_ID:
       return (
@@ -37,6 +38,10 @@ function renderProviderIcon(providerId: KnownProviderId) {
           accessibilityLabel="Exported to Apple Health"
         />
       );
+    default: {
+      const _exhaustive: never = providerId;
+      return _exhaustive;
+    }
   }
 }
 
