@@ -38,3 +38,8 @@ description: Use when changing SQLite schema, generating Drizzle migrations, or 
 
 - Mock `drizzle-orm/expo-sqlite/migrator` in Jest when testing startup initialization logic.
 - Keep migration tests focused on init idempotency and wiring, not SQL parser behavior.
+
+## Community Sources
+
+- **Drizzle ORM API surface** — current query builder, schema helpers, and relations via `context7` (library: `drizzle-orm`).
+- **drizzle-kit CLI** — generation, migration, and introspection commands via `context7` (library: `drizzle-kit`).

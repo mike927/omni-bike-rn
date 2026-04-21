@@ -21,3 +21,7 @@ description: Use when upgrading Expo SDK versions, auditing breaking changes, or
 ## Read Next When Needed
 
 - Detailed cache layers, deprecated packages, and audit checklist: [references/expo-upgrade-reference.md](references/expo-upgrade-reference.md)
+
+## Community Sources
+
+- **Generic SDK upgrade procedure** — Claude Code plugin `expo:upgrading-expo` (when available); otherwise see the target SDK's release notes and upgrade guide on the Expo docs site, fetched via `context7` (library: `expo`).

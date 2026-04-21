@@ -34,12 +34,14 @@ Answer each question in order before writing or accepting a new harness rule. St
 | Shared file uses provider-specific wording | Move it to a provider entrypoint |
 | Safety warning bolted into an unrelated file | Keep the warning with its owning domain |
 | New command added without matching provider bridges | Mirror to every active bridge directory per `AGENTS.md` § `Adding A New Command` |
+| Skill restates generic plugin/library docs | Replace with a pointer under `## Community Sources` |
 
 ## File-Specific Rules
 
 - **AGENTS.md** — Workflow rules live here once. Every loop must declare entry, cycle body, exit condition, and post-exit behavior.
 - **COMMAND.md** — Section order is `Prerequisites` → `Procedure` → `Completion Criteria` → `See Also`. Reference workflow by stable stage names, not numbers. State only this command's commit ownership; never restate global commit policy.
 - **SKILL.md** — Passive and reusable across tasks. Domain skills stay declarative — no numbered procedures, no decision trees. Meta skills may carry a decision filter but must not become procedures.
+  - **Community Cross-Reference.** When a custom skill covers a domain that has a reasonable match in an installed Claude Code plugin skill or a library that `context7` indexes, add a `## Community Sources` section listing those pointers. The custom skill keeps *project-specific* rules; the pointer routes readers to fresh authoritative content for the generic portion. This keeps the custom file small and avoids re-authoring community docs. Plugin skills are Claude-Code-only — every pointer must name the concept and fall back to the library's official docs or `context7` so the line stays informative when the plugin is unavailable.
 - **Provider entrypoints** — Only provider-native execution value that cannot live in shared files.
 
 ## Core Ownership Map

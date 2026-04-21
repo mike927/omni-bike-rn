@@ -22,3 +22,8 @@ description: Use when working on iOS-specific behavior, Apple platform integrati
 - Prefer Expo config and incremental prebuild for managed changes; manual Xcode edits are for native-only surfaces.
 - `app.json` holds iOS-specific settings such as bundle ID and entitlements.
 - Background BLE/watch work may need `bluetooth-central` and `processing` modes; suspension can delay callbacks even when connections survive.
+
+## Community Sources
+
+- **Native module authoring** — Claude Code plugin `expo:expo-module` (when available); otherwise see the Expo Modules API docs via `context7` (library: `expo-modules-core`).
+- **SwiftUI-in-Expo** — Claude Code plugin `expo:expo-ui-swift-ui` (when available); otherwise see Apple's SwiftUI documentation and the `@expo/ui` package docs via `context7` (library: `@expo/ui`).
