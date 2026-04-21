@@ -61,7 +61,7 @@ Branch-local work with no matching `plan.md` item skips every state transition i
 - Never overwrite or edit prior blocks. Every run appends to the absolute end of the file, after all previous blocks and any `/address-*` resolution sections.
 - The latest block wins. File-level state, recommendation, and readiness all resolve against the **last** `## Review (...)` block — readers must locate it, not grep for the first match.
 - The review file has no file-level `State:` header. State lives on the `State:` line **inside** the latest block.
-- Prior blocks, cross-provider findings, and `/address-*` resolution sections are preserved verbatim. This is what enables the challenge path at the two human gates (see § `Three-Way Approval Gate`) to accumulate reviews across providers without clobbering.
+- Prior blocks, cross-provider findings, and `/address-*` resolution sections are preserved verbatim. This is what enables the challenge path at the three review-approval gates (see § `Three-Way Approval Gate`) to accumulate reviews across providers without clobbering.
 
 **State values (written inside the latest block):**
 
@@ -362,7 +362,7 @@ Commands are active procedures for specific, repeatable tasks. They complement s
 
 **Client-specific bridges are optional per-client, mandatory per-command once adopted.** A client may wrap commands as slash-commands, skills, or whatever primitive it supports. Bridges exist purely as ergonomic sugar for the human composing prompts — they must resolve to the same canonical file, and the harness must continue to work when they are absent. Document any such bridge in the matching provider entrypoint file, never here. Do not add a bridge for a client that is not in the user's active rotation. **Once a client's bridge directory exists in the repo, every canonical command must have a matching bridge there — partial coverage is a harness bug.** Active bridge directories in this repo: `.claude/commands/<name>.md` (Claude Code), `.codex/skills/<name>/SKILL.md` (Codex), `.gemini/commands/<name>.toml` (Gemini).
 
-**Review-family commands (`/review-plan`, `/code-review`) append provider-tagged blocks.** Each invocation appends a new `## Review (<provider>, <ISO timestamp>)` block to the review file rather than overwriting. Prior blocks, `/address-*` resolution sections, and cross-provider findings are preserved verbatim. File-level recommendation or state is read from the latest block. This is what enables the Plan Approving / post-Internal Review Fix Loop challenge path (see § `Three-Way Approval Gate`) to accumulate reviews across providers without clobbering.
+**Review-family commands (`/review-plan`, `/code-review`) append provider-tagged blocks.** Each invocation appends a new `## Review (<provider>, <ISO timestamp>)` block to the review file rather than overwriting. Prior blocks, `/address-*` resolution sections, and cross-provider findings are preserved verbatim. File-level recommendation or state is read from the latest block. This is what enables the challenge path at the three review-approval gates — Plan Approval, Code + Test Approval, PR Review Approval (see § `Three-Way Approval Gate`) — to accumulate reviews across providers without clobbering.
 
 Enumerate available commands on demand with `ls ai/commands/`; each `COMMAND.md` carries its own `description:` frontmatter.
 
