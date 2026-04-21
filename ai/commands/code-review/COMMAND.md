@@ -53,32 +53,44 @@ For every file in the diff, apply the checklist loaded in Step 2. Flag each find
 - **convention** — violates project standards
 - **suggestion** — improvement that is not blocking
 
-### Step 4: Write Findings
+### Step 4: Append A New Review Block
 
-Write the full review output to `ai/local/reviews/<branch-slug>.md` for **every** run, regardless of source. The review file is the canonical work queue: follow-up agents (internal fix loop, `/address-code-review`, cross-provider handoff) consume it directly. Overwrite or append to the same file on repeat runs.
+Append a fresh `## Review (<provider>, <ISO timestamp>)` block to the end of `ai/local/reviews/<branch-slug>.md` on every run, regardless of source. Every invocation appends; nothing in the file is overwritten. The review file is the canonical work queue — follow-up agents (internal fix loop, `/address-code-review`, cross-provider handoff) consume every block.
 
-Use this structure:
+Values:
+- `<provider>` — the host name (e.g., `Claude`, `Codex`, `Gemini`).
+- `<ISO timestamp>` — UTC ISO-8601, second precision (e.g., `2026-04-21T14:15:00Z`).
+
+Block structure:
 
 ```md
-# Review: <branch-name>
+## Review (<provider>, <ISO timestamp>)
 
-Date: <YYYY-MM-DD>
-Source: <local | gh>
 State: <ready | needs-changes>
+Source: <local | gh>
 
-## Findings
+### Findings
 
 - [ ] `<file-path>:<line>` [<severity>] - <Description of the issue and recommended fix>
 - [ ] ...
 
-## Summary
+### Summary
 
 <2-3 sentences: overall quality assessment and what needs attention>
 ```
 
-Before writing the final findings, update or create the review file header with `State: needs-review` to reflect that the requested review is now in progress.
+File-level rules:
 
-Set the final `State` per `AGENTS.md` § `Review File State`: `ready` when no unresolved actionable findings of severity bug, regression, or convention remain (suggestions-only or empty counts as ready), otherwise `needs-changes`.
+- If no prior file exists, create it with a single `# Review: <branch-name>` H1 on line 1, then append the first block below it.
+- If the file exists, append the new `## Review (...)` block at the absolute end of the file (after every prior block).
+- File-level `State` is read from the **latest** `## Review (...)` block — this is how `AGENTS.md` § `Review File State` and `/open-pr` determine readiness.
+- Never delete, edit, or reorder prior blocks.
+
+Block-content rules:
+
+- If the run may be interrupted (long review, flaky tooling, cross-provider handoff mid-flight), append the block header first with `State: needs-review`, then overwrite just that line when final findings are ready. In a single-pass run, write the final `State:` value directly — the `needs-review` waypoint is a resilience measure, not a requirement.
+- Set the final `State` per `AGENTS.md` § `Review File State`: `ready` when no unresolved actionable findings of severity bug, regression, or convention remain (suggestions-only or empty counts as ready), otherwise `needs-changes`.
+- `/code-review` is the only writer that sets `State: ready`; `/address-code-review` closes out at `needs-review`, never `ready`.
 
 ### Step 5: Report In Chat
 
