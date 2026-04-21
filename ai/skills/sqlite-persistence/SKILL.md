@@ -47,7 +47,3 @@ For the official Drizzle migration and generation workflow, also use `ai/skills/
 - Test migrations separately from repository behavior.
 - Verify ordered sample writes, session status transitions, and discard/finalize behavior explicitly.
 - Keep tests focused on repository contracts and persistence hooks rather than screen rendering.
-
-## Community Sources
-
-- **Expo SQLite API** — current `expo-sqlite` and `expo-sqlite/kv-store` APIs, transactions, and platform notes via `context7` (library: `expo-sqlite`).

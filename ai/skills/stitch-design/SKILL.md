@@ -22,7 +22,3 @@ description: Use when using Google Stitch to explore mobile UI concepts, prepare
 ## Read Next When Needed
 
 - CLI and MCP setup, prompt-writing details, and HTML/CSS conversion notes: [references/stitch-design-reference.md](references/stitch-design-reference.md)
-
-## Community Sources
-
-- **Generic frontend design principles** — Claude Code plugin `frontend-design:frontend-design` (when available); otherwise consult general mobile-UI design references through the human designer loop described above.

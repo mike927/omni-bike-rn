@@ -23,9 +23,3 @@ description: Use when profiling or fixing React Native performance issues such a
 ## Read Next When Needed
 
 - Profiling commands, problem-to-fix mapping, and detailed rules: [references/react-native-perf-reference.md](references/react-native-perf-reference.md)
-
-## Community Sources
-
-- **Native UI / animation fundamentals** — Claude Code plugin `expo:building-native-ui` (when available); otherwise see the React Native docs via `context7` (library: `react-native`).
-- **Reanimated API** — current worklet, shared-value, and animation APIs via `context7` (library: `react-native-reanimated`).
-- **FlashList API** — list virtualization APIs and tuning guidance via `context7` (library: `@shopify/flash-list`).

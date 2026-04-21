@@ -36,8 +36,6 @@ description: Patterns and known issues for the example domain. Load when a task 
 # Example Domain
 
 Domain-specific context goes here.
-
-<!-- ## Community Sources — add when a plugin or context7-indexed library covers the generic portion; omit otherwise -->
 ```
 
 ## What A Skill Should NOT Contain

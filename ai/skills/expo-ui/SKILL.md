@@ -18,7 +18,3 @@ description: Use when building or refining Expo Router screens, navigation, styl
 ## Read Next When Needed
 
 - Detailed routing, styling, and library guidance: [references/expo-ui-reference.md](references/expo-ui-reference.md)
-
-## Community Sources
-
-- **Expo Router / styling / native UI fundamentals** — Claude Code plugin `expo:building-native-ui` (when available); otherwise see the Expo Router and React Native docs via `context7` (libraries: `expo-router`, `react-native`).
