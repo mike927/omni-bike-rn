@@ -342,7 +342,11 @@ A fix loop is clean only when the selected validation passes, no unresolved bloc
 
 ### 13. PR Review Comments
 
-- **Entry:** Event-driven. This step does not auto-enter when PR Open completes. It enters when **either** (a) at least one GitHub review comment has arrived on the PR, **or** (b) the human explicitly invokes the review process (e.g., asks to run `/address-code-review` / `/code-review` on the PR, or reports the external review cycle complete). Silence after `/open-pr` is not a valid entry — an unreviewed PR stays paused between Step 12 and Step 13 until a real review signal arrives.
+- **Entry:** Event-driven, and strictly requires a real review artifact. This step does not auto-enter when PR Open completes. Valid entry signals — at least one must hold before the gate fires:
+  1. At least one GitHub review comment, review, or thread is present on the PR (verifiable via `gh pr view --json reviewThreads,reviews` or `gh pr view --json comments`).
+  2. A fresh external `## Review (...)` block has been appended to `ai/local/reviews/<branch-slug>.md` by an out-of-session `/code-review` run against the PR.
+  3. The human explicitly confirms in chat that an external review cycle has already completed elsewhere (verbal confirmation of a completed review, not an intent to run one).
+- Invoking `/address-code-review` or `/code-review` is **not** a valid entry signal on its own. Those commands are the actions taken **after** the gate fires on the Approve or Challenge path — they do not substitute for a real review artifact. Silence after `/open-pr` (no comments, no external review block, no explicit confirmation) holds the branch paused between Step 12 and Step 13; the agent must wait for one of the three signals above before firing the gate.
 - **Gate:** On entry, fire the **PR Review Approval** Three-Way Approval Gate. The human chooses:
   - **Approve** → run `/address-code-review` against the PR. `/address-code-review` consumes GitHub review threads, fixes each actionable finding (committing and pushing per its procedure), and cycles through PR Review Fix Loop as needed.
   - **Challenge externally** → pause for a fresh-context `/code-review` on the PR (any provider, new session). Returns here once the external block is appended.
