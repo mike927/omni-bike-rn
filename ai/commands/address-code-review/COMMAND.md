@@ -39,8 +39,6 @@ git branch --show-current
 git status
 ```
 
-Derive `branch-slug` (branch name with `/` replaced by `-`).
-
 For `source: gh`, also run `gh auth status` to confirm authentication.
 
 ### Step 2: Load Findings
@@ -103,18 +101,15 @@ For each **intentionally-declined** item: you will append a brief reason inline 
 
 ### Step 5: Update Review File (In-Place)
 
-Update the findings in `ai/local/reviews/<branch-slug>.md` in-place — do not delete items or move them to new sections.
+Update findings in place per `AGENTS.md` § `Review Resolution Format`. Use the following outcome verbs for code-review findings:
 
-For each finding you process, use your text replacement tool to change `[ ]` to `[x]` and append your resolution inline using the `->` symbol.
+| Outcome verb | Use when |
+|---|---|
+| `FIXED: <commit-hash>` | Fix was applied, validated, and committed |
+| `ANSWERED: <brief answer>` | Question finding — no code change, reply text prepared |
+| `DECLINED: <reason>` | Valid finding, explicitly disagreed with |
 
-- After all actionable findings (bug, regression, convention, accepted suggestion) are marked `[x]`, update the `State:` header line to `needs-review` per `AGENTS.md` § `Review File State`. Declined-with-reason items count as resolved for this transition.
-
-**Format:**
-`- [x] <file:line> [<severity>] - <description> -> FIXED: <commit-hash>`
-`- [x] <file:line> [<severity>] - <description> -> ANSWERED: <brief answer>`
-`- [x] <file:line> [<severity>] - <description> -> DECLINED: <reason>`
-
-Edit each finding line in place; do not restructure headers or move items between sections.
+After all actionable findings (bug, regression, convention, accepted suggestion) are marked `[x]`, update the `State:` line **inside the latest `## Review (...)` block** to `needs-review` per `AGENTS.md` § `Review File State`. There is no file-level `State:` header — state lives inside the latest block. Declined-with-reason items count as resolved for this transition.
 
 ### Step 6: Prepare Reply Text (gh source only)
 
@@ -158,11 +153,13 @@ State: needs-review — re-run `/code-review` to confirm fixes.
 
 Append the state line only when at least one actionable finding was processed in this run; if the command stopped early (already-clean queue, no unresolved threads, blocker), omit it.
 
+Close out per `AGENTS.md` § `Agent Roles` — workflow owner mode flows into the next step from the enclosing workflow stage; specialist reviewer mode stops here.
+
 ## Completion Criteria
 
 - Every actionable finding is fixed and committed (pushed when `source: gh`), answered, or explicitly declined with a reason.
 - Each fix passed the `Fix Loop Decision Rules` before the next finding was started.
-- `ai/local/reviews/<branch-slug>.md` reflects the processed state for every finding, with the `State:` header updated per `AGENTS.md` § `Review File State`.
+- `ai/local/reviews/<branch-slug>.md` reflects the processed state for every finding, with the `State:` line inside the latest `## Review (...)` block updated per `AGENTS.md` § `Review File State`.
 - For `source: gh`: reply text exists for every thread.
 
 ## See Also

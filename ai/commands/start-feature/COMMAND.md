@@ -73,8 +73,6 @@ Do not prompt the human for a strategy on every run. Announce the chosen mode in
 
 ### Step 4: Create The Workspace
 
-Derive `branch-slug` = branch name with `/` replaced by `-` (e.g., `feat-ble-metronome-engine`).
-
 Before creating, verify the branch does not already exist:
 
 ```bash

@@ -30,7 +30,6 @@ git status --short --branch
 git log --oneline -n 3
 ```
 
-- Derive the `branch-slug` (branch name with `/` replaced by `-`).
 - Note if there are uncommitted files, unstaged changes, or ahead/behind tracking info.
 - Note the last 3 commit subjects to understand what was actually last saved.
 

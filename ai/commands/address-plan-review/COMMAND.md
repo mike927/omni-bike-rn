@@ -35,7 +35,6 @@ git status --short
 ```
 
 - If the current branch is `main`, stop and report a blocker.
-- Derive `branch-slug` by replacing `/` with `-`.
 - Set:
   - `plan-file` = `ai/local/plans/<branch-slug>.md`
   - `review-file` = `ai/local/plans/<branch-slug>.review.md`
@@ -91,19 +90,16 @@ For every `apply` item:
 
 ### Step 5: Update The Review File (In-Place)
 
-Do NOT delete or move items to new sections. Update the findings in `ai/local/plans/<branch-slug>.review.md` **in-place**.
+Update findings in place per `AGENTS.md` § `Review Resolution Format`. Use the following outcome verbs for plan-review findings:
 
-For each finding you process, use your text replacement tool to change `[ ]` to `[x]` and append your resolution inline using the `->` symbol.
+| Outcome verb | Use when |
+|---|---|
+| `APPLIED: in <plan section>` | Review item was valid and folded into the plan |
+| `DECLINED: <concrete reason>` | Suggestion was weak/incorrect/out of scope — rationale must name it (conflicts with `plan.md`, conflicts with `AGENTS.md`, already handled elsewhere, unnecessary complexity, or unsupported guessing) |
+| `ALREADY RESOLVED: <plan section>` | Current plan already addresses the point |
+| `NEEDS USER INPUT: <exact question>` | Depends on a real user decision — record the exact unresolved question, not a placeholder |
 
-**Format:**
-`- [x] <item summary> -> APPLIED: in <plan section>`
-`- [x] <item summary> -> DECLINED: <concrete reason>`
-`- [x] <item summary> -> NEEDS USER INPUT: <exact question>`
-`- [x] <item summary> -> ALREADY RESOLVED: <plan section>`
-
-Edit each finding line in place; do not restructure headers or move items between sections.
-
-After checking off the processed items, append a brief resolution summary to the bottom of the file (or update the existing `## Resolution Summary` block if present):
+After checking off the processed items, append a brief resolution summary to the bottom of the file (or update the existing `## Resolution Summary` block if present). This trailing `## Resolution Summary` block is owned by `/address-plan-review` only (see `AGENTS.md` § `Review Resolution Format`).
 
 ```md
 ## Resolution Summary
@@ -113,10 +109,7 @@ Recommendation: <ready | revise | blocked>
 <1-3 sentences summarizing what was applied, what was intentionally declined, and whether the plan is now safe to implement.>
 ```
 
-Rules:
-- Declines must use a concrete rationale such as out of scope, conflicts with `plan.md`, conflicts with `AGENTS.md`, already handled elsewhere, unnecessary complexity, or unsupported guessing.
-- `NEEDS USER INPUT` entries must record the exact unresolved question, not a vague placeholder.
-- Missing `plan.md` linkage does not stay blocking once the plan explicitly records approved branch-local scope for work that does not match an existing `plan.md` item.
+Missing `plan.md` linkage does not stay blocking once the plan explicitly records approved branch-local scope for work that does not match an existing `plan.md` item.
 
 ### Step 6: Re-Evaluate Readiness
 
@@ -151,11 +144,7 @@ Details:
 
 If the command stopped early because of `main`, missing files, or unrelated dirty tracked files, report that blocker clearly and do not edit either file.
 
-Also append one of these next-step lines based on the recommendation:
-
-- `ready` → "All findings resolved. Re-run `/review-plan` to refresh the review file and confirm the quality gate before proceeding to `Plan Approving`."
-- `revise` → "Re-run `/review-plan` to generate updated findings, then `/address-plan-review` again."
-- `blocked` → "Surface the `Needs User Input` questions to the human. After answers are received, re-run `/address-plan-review` to fold them into the plan, then `/review-plan` to re-enter the loop."
+Close out per `AGENTS.md` § `Agent Roles` — workflow owner mode flows into the next step from the enclosing workflow stage; specialist reviewer mode stops here.
 
 ## Completion Criteria
 

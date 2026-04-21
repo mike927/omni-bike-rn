@@ -76,7 +76,9 @@ Examples:
 
 ## Commit Rules
 
-- **No Auto-Committing:** Never run `git commit` automatically after writing code or modifying files unless the human explicitly instructed you to do so in their prompt. Always leave the working tree dirty, report the changes made, and wait for the human to review the diff in their IDE and suggest the next action. **Exceptions:** (1) The automated pipeline (Implementation → Internal Review Fix Loop) is pre-approved by the human's Plan Approving approval; commits within that pipeline may run without a separate prompt, including the validated implementation snapshot commit before Internal Review and any review-fix commits in Internal Review Fix Loop. (2) `/address-code-review` always commits and pushes each fix as part of its procedure — the human's decision to run the command is the explicit instruction to commit and push.
+- **No Auto-Committing:** Never run `git commit` automatically after writing code or modifying files unless the human explicitly instructed you to do so. Leave the working tree dirty, report the changes, and wait for the human's next instruction. Exceptions:
+  - The Implementation → Internal Review Fix Loop pipeline is pre-approved by Plan Approving; commits within it (validated snapshot, review-fix commits) run without a separate prompt.
+  - `/address-code-review` commits and pushes each fix as part of its procedure — running the command is the explicit instruction.
 - Use Conventional Commits.
 - Make focused commits per meaningful sub-task, not one large commit at the end.
 
@@ -282,11 +284,6 @@ Every workflow step is bracketed by paired banners — a markdown horizontal rul
   6. **Cap: 3 cycles.** If the loop does not reach `ready` after 3 subagent reviews, halt, surface the remaining findings to the human with `needs-user-input` framing, and wait for direction.
 - **Exit:** Latest review block's `Recommendation:` is `ready` with no unresolved blocking findings.
 
-When reviewing an ad-hoc branch:
-- prefer a real `plan.md` match when one exists
-- if none exists, treat explicit branch-local scope as valid when the human has approved that framing
-- do not block solely because no `plan.md` item matches
-
 ### Three-Way Approval Gate
 
 Used at the two human decision points — Plan Approving and post-Internal Review Fix Loop. Present three options. **Only `approve` advances the workflow.** `challenge` and `revise` keep the agent paused at the same gate — after each runs its course, the gate is re-presented for another decision.
@@ -361,7 +358,7 @@ A fix loop is clean only when the selected validation passes, no unresolved bloc
 ### 9. Internal Review Fix Loop
 
 - If internal review finds issues, fix them before asking the human to test.
-- After each review-driven code change, follow the Fix Loop Decision Rules for validation scope and review execution.
+- After each review-driven code change, apply § `Fix Loop Decision Rules`.
 - For small incremental fixes the main agent may run `/code-review` inline since it just saw the subagent's findings and has context to verify targeted fixes. For larger fixes — or whenever the rules table says "respawned reviewer subagent" — spawn a fresh reviewer subagent with a new brief rather than reusing the main agent.
 - Cap: 3 cycles. If the loop does not converge to clean after 3 fix-and-re-review cycles, halt and surface the outstanding findings to the human with `needs-user-input` framing.
 - Do not proceed to the gate until the fix loop is clean.
@@ -381,7 +378,7 @@ A fix loop is clean only when the selected validation passes, no unresolved bloc
 ### 11. Manual Testing Fix Loop
 
 - **Entry:** Human reported issues in Manual Human Testing.
-- **Fix loop:** After each fix, follow the Fix Loop Decision Rules for validation scope and review execution. Request targeted retesting only for the affected behavior.
+- **Fix loop:** Apply § `Fix Loop Decision Rules`. Request targeted retesting only for the affected behavior.
 - **Exit:** Human explicitly approves the latest changes; mark the `plan.md` item `[R]`.
 
 ### 12. PR Open
@@ -399,7 +396,7 @@ A fix loop is clean only when the selected validation passes, no unresolved bloc
 ### 14. PR Review Fix Loop
 
 - **Entry:** Actionable review findings from PR Review Comments.
-- **Fix loop:** After each fix, follow the Fix Loop Decision Rules for validation scope and review execution. Request targeted manual retesting when the fix changes user-visible behavior.
+- **Fix loop:** Apply § `Fix Loop Decision Rules`. Request targeted manual retesting when the fix changes user-visible behavior.
 - **Cap:** Repeat up to 3 cycles. If the review queue is still not clean after 3, surface the remaining findings to the human.
 - **Exit:** Review queue is clean and all replies are posted.
 
