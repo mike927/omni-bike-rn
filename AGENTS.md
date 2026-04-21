@@ -388,7 +388,7 @@ Commands are active procedures for specific, repeatable tasks. They complement s
 
 **Resolution is by file path, not by slash picker.** Slash syntax (`/code-review`, `/validate`, etc.) is ergonomic shorthand used throughout this document. The contract is always `ai/commands/<name>/COMMAND.md` — load that file directly. Do not depend on your client's command picker to surface the command; discoverability varies per client and some clients surface nothing at all. If the canonical file cannot be read, the step is blocked.
 
-**Client-specific bridges are optional per-client, mandatory per-command once adopted.** A client may wrap commands as slash-commands, skills, or whatever primitive it supports. Bridges exist purely as ergonomic sugar for the human composing prompts — they must resolve to the same canonical file, and the harness must continue to work when they are absent. Document any such bridge in the matching provider entrypoint file, never here. Do not add a bridge for a client that is not in the user's active rotation. **Once a client's bridge directory exists in the repo, every canonical command must have a matching bridge there — partial coverage is a harness bug.** Active bridge directories in this repo: `.claude/commands/<name>.md` (Claude Code), `.agents/skills/<name>/SKILL.md` (Codex), `.gemini/commands/<name>.toml` (Gemini).
+**Client-specific bridges are optional per-client, mandatory per-command once adopted.** A client may wrap commands as slash-commands, skills, or whatever primitive it supports. Bridges exist purely as ergonomic sugar for the human composing prompts — they must resolve to the same canonical file, and the harness must continue to work when they are absent. Document any such bridge in the matching provider entrypoint file, never here. Do not add a bridge for a client that is not in the user's active rotation. **Once a client's bridge directory exists in the repo, every canonical command must have a matching bridge there — partial coverage is a harness bug.** Active bridge directories in this repo: `.claude/commands/<name>.md` (Claude Code), `.codex/skills/<name>/SKILL.md` (Codex), `.gemini/commands/<name>.toml` (Gemini).
 
 Available commands:
 
@@ -409,7 +409,7 @@ Available commands:
 2. Add a `COMMAND.md` file with YAML frontmatter (`name`, `description`, `inputs`, `outputs`).
 3. Write the procedure as numbered steps with clear completion criteria.
 4. Reference it from this section.
-5. Mirror the command as a thin bridge in every active provider directory: `.claude/commands/<name>.md`, `.agents/skills/<name>/SKILL.md`, `.gemini/commands/<name>.toml`. Each bridge is a pointer to `ai/commands/<name>/COMMAND.md` — only the `description` field carries provider-specific picker trigger signal. Partial coverage is a harness bug.
+5. Mirror the command as a thin bridge in every active provider directory: `.claude/commands/<name>.md`, `.codex/skills/<name>/SKILL.md`, `.gemini/commands/<name>.toml`. Each bridge is a pointer to `ai/commands/<name>/COMMAND.md` — only the `description` field carries provider-specific picker trigger signal. Partial coverage is a harness bug.
 
 The same mirroring rule applies when renaming or removing a command: update or delete every matching bridge in the same change.
 

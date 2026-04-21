@@ -46,3 +46,6 @@ yarn-error.*
 
 # Git-ignored AI runtime state
 ai/local/
+
+# Ignore Codex bridges which conflict with Gemini commands
+.agents/
