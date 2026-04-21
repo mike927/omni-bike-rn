@@ -48,4 +48,4 @@ yarn-error.*
 ai/local/
 
 # Ignore Codex bridges which conflict with Gemini commands
-.agents/
+.codex/
