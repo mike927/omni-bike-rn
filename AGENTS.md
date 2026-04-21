@@ -115,34 +115,29 @@ For trivial fixes, the human may explicitly request skipping planning — an esc
 - Do not chain multiple distinct workflow steps together in a single turn. Pause at the logical end of your current step, emit the exit banner (see `### Banner Format` below), and await explicit human instruction before executing the next numbered phase. **Exception:** the Implementation → Internal Review Fix Loop pipeline — see below.
 - Human-gated boundaries are exactly two: **Plan Approving** and **post-Internal Review Fix Loop**. Both fire the Three-Way Approval Gate (see § `Three-Way Approval Gate`). At these gates, the host's interactive primitive is mandatory when available; otherwise ask directly in chat. Every other step boundary is autonomous — flow directly, no "Proceed to <StepName>?" ask. At autonomous boundaries the exit banner IS the handoff. Before yielding at any boundary, make sure the current step's required save/validation work is actually complete so the next step begins from the expected repo state.
 - Ask a pending human-decision question once per turn. If an intermediary progress update already asked the blocking question, do not repeat the same question verbatim in the final handoff for that same turn.
-- If a step is logically irrelevant for a given task (e.g., Manual Human Testing for a pure documentation update), emit a solo `▸ Skipped Step N/15 — <Name>` banner with a one-line reason. Do not silently skip past it.
+- If a step is logically irrelevant for a given task (e.g., Manual Human Testing for a pure documentation update), emit a `▸ Skipped Step N/15 — <Name>` banner with a one-line reason. Do not silently skip past it.
 - **Automated pipeline (Implementation → Internal Review Fix Loop):** Once the human approves the plan at Plan Approving, proceed through Implementation → Validation → Internal Review → Internal Review Fix Loop without pausing for human confirmation. Manual Human Testing is the first conditional checkpoint: pause if the change is user-visible, skip automatically if not.
 - Agents with terminal capabilities should run CLI commands natively instead of instructing the human to paste them, provided it stays within tool-call approval constraints.
 - During complex debugging, do not pollute the project root with temporary scripts or data dumps. Use the agent's isolated sandbox directory or standard OS temporary directories (`/tmp/`), and clean them up afterward.
 
 ### Banner Format
 
-Every workflow step is bracketed by paired banners — a markdown horizontal rule followed by an H3 heading — so the human can see which step is active at a glance:
+Each workflow step emits a single banner when it finishes — a markdown horizontal rule followed by an H3 heading — so the human can see which step just closed and what happens next:
 
 ```
 ---
-### ▸ Started Step <N>/15 — <Step Name>
-
-…work happens here…
-
----
-### ▸ <ExitVerb> Step <N>/15 — <Step Name>
+### ▸ <Verb> Step <N>/15 — <Step Name>
 <one-line subtitle>
 ```
 
-- **Entry banner:** always `Started` when the step begins execution. No subtitle — the step has produced nothing yet.
-- **Exit verb** ∈ `{Completed, Gate, Halted}`:
+- **Verb** ∈ `{Completed, Gate, Halted, Skipped}`:
   - `Completed` — autonomous step completion; subtitle names the primary output.
-  - `Gate` — the two human-gated steps (Plan Approving, post-Internal Review Fix Loop); the interactive primitive fires immediately after the banner. Subtitle optional (state summary if non-trivial), omitted for pure gates.
+  - `Gate` — a human-gated step boundary; the interactive primitive fires immediately after the banner. Subtitle names the question or state summary.
   - `Halted` — a fix-loop cap (3 cycles) blocks progress and surfaces `needs-user-input`; subtitle names the blocking condition.
-- `Skipped` — solo banner variant (no paired `Started`) for steps that never execute; one-line reason as subtitle.
-- `Step N/15` appears **only** inside these banner H3 lines — never in prose. Fixed `/15` denominator.
-- Subtitle shape is uniform across exit banners: exactly one line, the step's primary output or state. No bullet recap — that lives in `git log` / `git status`.
+  - `Skipped` — step never executed; subtitle is the one-line reason.
+- No entry banner. The next tool call + prose IS the start signal; an explicit "Started" banner just doubled every step.
+- `Step N/15` appears **only** inside this banner H3 line — never in prose. Fixed `/15` denominator.
+- Subtitle shape is uniform: exactly one line, the step's primary output or state. No bullet recap — that lives in `git log` / `git status`.
 
 | Step | Exit subtitle |
 |------|---------------|
@@ -163,7 +158,7 @@ Every workflow step is bracketed by paired banners — a markdown horizontal rul
 | 15 Merge And Cleanup | `Merged, workspace cleaned` |
 
 - Do not send repeated progress updates for every small loop iteration, quick status check, or tightly-coupled follow-up command.
-- At session start (Bootstrapping), the explicit `/check-state` snapshot command format takes precedence over the entry banner.
+- At session start (Bootstrapping), the explicit `/check-state` snapshot command format takes precedence over any banner — no step-completion banner fires for the bootstrap load itself.
 
 ### Chat Headers
 
