@@ -3,6 +3,7 @@
 ## Harness Principles
 
 - **Single Ownership.** Every harness rule, convention, procedure, or state transition has exactly one owner. Every other reference cross-links to that owner rather than restating it.
+- **Structured stops.** Whenever the agent yields to the human for a decision, input, or unblock, it fires the host's interactive primitive with labeled options — never a free-text wait. The three gate primitives are § `Three-Way Approval Gate` (review approvals), § `Confirmation Gate` (simple binary choices), and § `Blocker Gate` (fix-loop caps, prereq failures, unresolved questions). "Present something and wait for the human to respond in prose" is not a valid pause.
 
 ## Core Sources
 
@@ -140,7 +141,7 @@ Each workflow step emits a single banner when it finishes — a markdown horizon
 - **Verb** ∈ `{Completed, Gate, Halted, Skipped}`:
   - `Completed` — autonomous step completion; subtitle names the primary output.
   - `Gate` — a human-gated step boundary; the interactive primitive fires immediately after the banner. Subtitle names the question or state summary.
-  - `Halted` — a fix-loop cap (3 cycles) blocks progress and surfaces `needs-user-input`; subtitle names the blocking condition.
+  - `Halted` — a fix-loop cap, prereq failure, or other block; subtitle names the blocking condition. Fires a § `Blocker Gate` immediately after the banner.
   - `Skipped` — step never executed; subtitle is the one-line reason.
 - No entry banner. The next tool call + prose IS the start signal; an explicit "Started" banner just doubled every step.
 - `Step N/15` appears **only** inside this banner H3 line — never in prose. Fixed `/15` denominator.
@@ -182,7 +183,7 @@ Each workflow step emits a single banner when it finishes — a markdown horizon
 ### 1. Bootstrapping
 
 - **Not on `main`:** Treat as a resume. Run `/check-state` to establish branch reality and continue from the logically active step.
-- **On `main`, dirty:** Stop. Ask the human to stash or commit before continuing.
+- **On `main`, dirty:** Emit the `▸ Halted Step 1/15 — Bootstrapping` banner and fire a § `Blocker Gate` (typically `stash` / `commit to a new branch` / `discard` / `abort`).
 - **On `main`, clean:** Treat as a new task. Continue to Workspace Preparing.
 
 ### 2. Workspace Preparing
@@ -195,7 +196,7 @@ Each workflow step emits a single banner when it finishes — a markdown horizon
 
 - **Prerequisite:** Feature branch exists (Workspace Preparing complete).
 - **Plan mode:** Activate plan mode now. Use your host's dedicated tool if one is available; otherwise ask the human to enable it and select a reasoning model before continuing. Until approved at Plan Approving, you may only search/read files and write to `ai/local/plans/<branch-slug>.md`. Do not modify source code or commit changes.
-- **Questions:** Derive technical decisions from the codebase. For product or business decisions, ask interactively (offer 2–4 concrete options plus a free-text escape hatch) or mark the `plan.md` item `[?]` with a reason.
+- **Questions:** Derive technical decisions from the codebase. For product or business decisions, fire a § `Blocker Gate` with 2–4 concrete mutually-exclusive answers to the specific question (the host's primitive always adds an `Other` / free-text escape). If the human defers, mark the `plan.md` item `[?]` with a reason instead of guessing.
 - **Draft:** Write a detailed, actionable plan to `ai/local/plans/<branch-slug>.md`. If no `plan.md` item applies, record explicit branch-local scope in the plan. The final section must always be `## What Will Be Available After Completion`, focused on user-facing outcomes.
 
 ### 4. Plan Reviewing
@@ -208,7 +209,7 @@ Each workflow step emits a single banner when it finishes — a markdown horizon
   3. If `ready` → exit the loop.
   4. If `revise` → main agent runs `/address-plan-review` in the **same session** (asymmetric policy: fresh-context discovery, same-session resolution). If `/address-plan-review` surfaces `Needs User Input`, pause, await human answers, then re-run `/address-plan-review`.
   5. Main agent re-spawns the reviewer subagent for the next cycle.
-  6. **Cap: 3 cycles.** If the loop does not reach `ready` after 3 subagent reviews, halt, surface the remaining findings to the human with `needs-user-input` framing, and wait for direction.
+  6. **Cap: 3 cycles.** If the loop does not reach `ready` after 3 subagent reviews, emit the `▸ Halted Step 4/15 — Plan Reviewing` banner with a one-line subtitle naming the blocking findings, then fire a § `Blocker Gate` with tailored options (typically `retry one more cycle` / `accept partial state and advance to Plan Approving with known gaps` / `abort workflow`).
 - **Exit:** Latest review block's `Recommendation:` is `ready` with no unresolved blocking findings.
 
 ### Three-Way Approval Gate
@@ -240,6 +241,23 @@ Used at the three non-review gates — **Scope Clarification**, **Manual Testing
 | **Merge Approval** | `merge` \| `hold` | Run `/finish-feature`. | Stay at gate; human directs when to merge. |
 
 **Primitive.** Same mandate as § `Three-Way Approval Gate` — host's interactive primitive when available, numbered-list fallback otherwise.
+
+### Blocker Gate
+
+Used whenever the agent cannot proceed and needs the human to unblock — fix-loop caps, unresolved product/business questions during Plan Drafting, prerequisite failures (dirty `main`, missing plan file, auth failures), or any other halt state. The purpose is to convert every "stop and report" into a structured choice.
+
+The options adapt to the blocker. Typical patterns:
+
+| Blocker type | Typical options |
+|---|---|
+| Fix-loop cap reached (3 cycles exhausted) | `retry one more cycle` \| `accept partial state` \| `abort workflow` |
+| Unresolved product/business question during Plan Drafting | 2–4 concrete, mutually-exclusive answers to the specific question |
+| Prerequisite failure (e.g., dirty `main` during Bootstrapping) | `fix and retry` \| `abort workflow` |
+| Missing dependency (e.g., plan file absent when `/address-plan-review` runs) | `create the missing file` \| `point me at an alternate path` \| `abort` |
+
+**Banner pairing.** The `▸ Halted Step N/15 — <Name>` banner names the blocking condition in its subtitle; the Blocker Gate fires immediately after the banner with options tailored to that condition.
+
+**Primitive.** Same mandate as § `Three-Way Approval Gate` — host's interactive primitive when available, numbered-list fallback otherwise. Always include an `abort` / `cancel` / `other` escape so the human is never cornered into choosing something that does not apply.
 
 ### 5. Plan Approving
 
@@ -299,7 +317,7 @@ A fix loop is clean only when the selected validation passes, no unresolved bloc
 - If internal review finds issues, fix them before asking the human to test.
 - After each review-driven code change, apply § `Fix Loop Decision Rules`.
 - For small incremental fixes the main agent may run `/code-review` inline since it just saw the subagent's findings and has context to verify targeted fixes. For larger fixes — or whenever the rules table says "respawned reviewer subagent" — spawn a fresh reviewer subagent with a new brief rather than reusing the main agent.
-- Cap: 3 cycles. If the loop does not converge to clean after 3 fix-and-re-review cycles, halt and surface the outstanding findings to the human with `needs-user-input` framing.
+- Cap: 3 cycles. If the loop does not converge to clean after 3 fix-and-re-review cycles, emit the `▸ Halted Step 9/15 — Internal Review Fix Loop` banner naming the blocking findings, then fire a § `Blocker Gate` (typically `retry one more cycle` / `accept partial state and continue to Manual Testing or PR Open` / `abort workflow`).
 - Once the fix loop is clean, automatically commit the resulting review-driven changes. Verify `git status --short` is clean. If no review-driven changes were needed beyond the Validation Complete implementation snapshot commit, note that explicitly instead of creating an empty commit.
 - **Exit:** Autonomous. For user-visible changes, continue into Manual Human Testing. For non-user-visible changes, skip Manual Testing and continue into PR Open.
 
@@ -335,7 +353,7 @@ A fix loop is clean only when the selected validation passes, no unresolved bloc
 
 - **Entry:** Actionable review findings from PR Review Comments.
 - **Fix loop:** Apply § `Fix Loop Decision Rules`. Request targeted manual retesting when the fix changes user-visible behavior.
-- **Cap:** Repeat up to 3 cycles. If the review queue is still not clean after 3, surface the remaining findings to the human.
+- **Cap:** Repeat up to 3 cycles. If the review queue is still not clean after 3, emit the `▸ Halted Step 14/15 — PR Review Fix Loop` banner and fire a § `Blocker Gate` (typically `retry one more cycle` / `accept partial state and move to Merge Approval` / `abort workflow`).
 - **Exit:** Review queue is clean and all replies are posted; continue autonomously to Merge Approval.
 
 ### 15. Merge And Cleanup
