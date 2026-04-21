@@ -256,7 +256,7 @@ Used at the two human decision points — Step 5 (Plan Approving) and post-Step-
 | Option | Accept text | Agent behavior | Does it advance? |
 |---|---|---|---|
 | **Approve** | `1`, `approve`, `proceed`, `ok`, `go` | Continue the workflow. **Step 5 gate:** lift the Step 3 plan-mode read-only constraint, post `**Workflow Progress: Step 5 Complete**` with state line `reviewed \| addressed \| approved \| ready to implement`, transition to Step 6. **Post-Step-9 gate:** post `**Workflow Progress: Step 9 Complete**`, transition to Step 10 (or skip straight to Step 12 when the change is not user-visible per § `Workflow Pacing and Discipline`). | Yes |
-| **Challenge externally** | `2`, `challenge`, `codex`, `gemini`, `external` | Pause. Instruct the human to run `/review-plan` (plan gate) or `/code-review` (code gate) from an external provider (Codex, Gemini, etc.). External provider appends a new `## Review (<provider>, <ISO>)` block per § `Commands`. External provider is reviewer-only — it never runs the fix loop. On human return signal (`done` or similar), route per **Challenge-return routing** below, then re-present the gate. | No — returns to gate |
+| **Challenge externally** | `2`, `challenge`, `external` | Pause. Instruct the human to run `/review-plan` (plan gate) or `/code-review` (code gate) from a different provider for a fresh-context second opinion. That provider appends a new `## Review (<provider>, <ISO>)` block per § `Commands`. The external reviewer is reviewer-only — it never runs the fix loop. On human return signal (`done` or similar), route per **Challenge-return routing** below, then re-present the gate. | No — returns to gate |
 | **Revise manually** | `3`, `revise`, `edit`, `change` | Pause. Accept either manual human edits to the plan/code or natural-language change instructions (apply them directly). After changes land, re-enter the prior review loop (Step 4 for plan gate; Step 8-9 for code gate) once to re-verify — then return to the gate. | No — returns to gate |
 
 **Challenge-return routing.** On return from the external provider, the main agent inspects the latest appended block in the review file:
@@ -265,7 +265,7 @@ Used at the two human decision points — Step 5 (Plan Approving) and post-Step-
 
 **Why Challenge and Revise differ on re-review.** Challenge ends with a *reviewed* artifact — the external provider's block is itself a fresh-context review that found either nothing or findings that `/address-*` then resolves. The reviewed-ness is preserved. Revise, by contrast, ends with *unreviewed human edits*; nobody has looked at the plan or code after the edits land. Re-entering the internal loop once closes that gap. Both paths return to the same gate, but only Revise pays the cost of re-review because only Revise leaves the artifact in an unreviewed state.
 
-**Primitive.** Use the host's most interactive primitive (`AskUserQuestion` on Claude Code; numbered-list prompt on Codex/Gemini).
+**Primitive.** Use the host's most interactive primitive for presenting the three options; fall back to a numbered list in chat when no interactive primitive is available.
 
 ### 5. Plan Approving
 
