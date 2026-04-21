@@ -88,7 +88,7 @@ File-level rules:
 
 Block-content rules:
 
-- Before writing the final findings, append the block header with `State: needs-review` to reflect that the requested review is now in progress; overwrite just the `State:` line inside the new block when final findings are ready.
+- If the run may be interrupted (long review, flaky tooling, cross-provider handoff mid-flight), append the block header first with `State: needs-review`, then overwrite just that line when final findings are ready. In a single-pass run, write the final `State:` value directly — the `needs-review` waypoint is a resilience measure, not a requirement.
 - Set the final `State` per `AGENTS.md` § `Review File State`: `ready` when no unresolved actionable findings of severity bug, regression, or convention remain (suggestions-only or empty counts as ready), otherwise `needs-changes`.
 - `/code-review` is the only writer that sets `State: ready`; `/address-code-review` closes out at `needs-review`, never `ready`.
 
