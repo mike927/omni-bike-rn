@@ -91,7 +91,7 @@ Output the triage list in chat before fixing anything, so the overall picture is
 For each bug, architecture, convention, and accepted suggestion — in that priority order:
 
 1. Apply the code fix.
-2. Apply the **Fix Loop Decision Rules** (AGENTS.md § Fix Loop Decision Rules) to choose validation scope and review execution.
+2. Apply the **Fix Loop Decision Rules** (`AGENTS.md § Fix Loop Decision Rules`) to choose validation scope and review execution.
 3. Do not move to the next finding until validation and any required review pass.
 4. Commit the fix per the commit rules in `AGENTS.md`. For `source: gh`, push immediately so the PR stays in a recoverable state.
 

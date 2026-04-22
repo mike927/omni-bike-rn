@@ -15,8 +15,7 @@ Read these in this order before feature work:
 3. Relevant files under `ai/skills/*/SKILL.md`
 4. When the user asks for a procedure documented in § `Commands` below, load the matching `ai/commands/<name>/COMMAND.md`
 
-`plan.md` is the single source of truth for tracked project scope and progress. Some approved ad-hoc branch-local work may proceed without being added there.
-`branch-slug` means the branch name with `/` replaced by `-`.
+`plan.md` is the single source of truth for tracked project scope and progress; some approved ad-hoc branch-local work may proceed without being added there. `branch-slug` means the branch name with `/` replaced by `-`.
 
 ## Task States In `plan.md`
 
@@ -45,8 +44,7 @@ Branch-local work with no matching `plan.md` item skips every state transition i
 - **No Auto-Committing:** Never run `git commit` automatically after writing code or modifying files unless the human explicitly instructed you to do so. Leave the working tree dirty, report the changes, and wait for the human's next instruction. Exceptions:
   - The Implementation → Internal Review Fix Loop pipeline is pre-approved by Plan Approving; commits within it (validated snapshot, review-fix commits) run without a separate prompt.
   - `/address-code-review` commits and pushes each fix as part of its procedure — running the command is the explicit instruction.
-- Use Conventional Commits.
-- Make focused commits per meaningful sub-task, not one large commit at the end.
+- Use Conventional Commits; make focused commits per meaningful sub-task, not one large commit at the end.
 
 ## Workflow Artifacts
 
@@ -62,10 +60,8 @@ Review file contract (append-mode, state values, resolution format) lives in `ai
 
 - **Workflow owner**: owns the numbered workflow end-to-end. This agent may announce step completion, suggest the next workflow step, and ask whether to proceed at human-gated boundaries.
 - **Specialist reviewer**: executes only the requested review or validation procedure, writes the required artifact, reports the result, and then stops. This agent does not take over the workflow.
-- When the human directly asks for a review-focused command such as `review-plan`, `code-review`, or another review-only procedure, assume **specialist reviewer** mode unless the human also explicitly asks the same agent to own the workflow.
-- When a review command is reached organically during the numbered workflow by the same agent already running that workflow, stay in **workflow owner** mode.
-- A specialist reviewer must not suggest workflow transitions, must not ask `Proceed to <StepName>?`, must not emit the workflow banner format (uses `**Review**` or the command-specific completion header instead), and must not present itself as the implementation owner.
-- A human acknowledgement ("ok", "proceed", "good") after a specialist review does **not** transfer workflow ownership to the reviewer. The reviewer's job is done; the human directs the next step themselves.
+- When the human directly asks for a review-focused command (`review-plan`, `code-review`, or another review-only procedure), assume **specialist reviewer** mode unless they also explicitly ask the agent to own the workflow. When a review command is reached organically during the numbered workflow by the agent already running it, stay in **workflow owner** mode.
+- A specialist reviewer must not suggest workflow transitions, must not ask `Proceed to <StepName>?`, must not emit the workflow banner format (uses `**Review**` or the command-specific completion header instead), and must not present itself as the implementation owner. A human acknowledgement ("ok", "proceed", "good") after a specialist review does **not** transfer workflow ownership to the reviewer — the reviewer's job is done; the human directs the next step themselves.
 
 ## Feature Workflow
 
@@ -84,11 +80,9 @@ This workflow applies to **all code changes** — features, bug fixes, ad-hoc re
   4. **PR Review Approval** — entry of PR Review Comments, once the PR has incoming review comments (or no actionable comments and the review cycle is trivially clean). Three-Way Approval Gate.
   5. **Merge Approval** — entry of Merge And Cleanup, before `/finish-feature` runs. Confirmation Gate.
 - Internal Review Fix Loop and Manual Testing Fix Loop finish autonomously — no Three-Way Approval Gate fires between internal review and PR Open. The user-visible Manual Testing pause is structured as the Manual Testing Outcome Confirmation Gate above, not a free-text wait.
-- At every gate, the host's interactive primitive is mandatory when available; otherwise ask directly in chat. Every other step boundary is autonomous — flow directly, no "Proceed to <StepName>?" ask. At autonomous boundaries the exit banner IS the handoff. Before yielding at any boundary, make sure the current step's required save/validation work is actually complete so the next step begins from the expected repo state.
-- Ask a pending human-decision question once per turn. If an intermediary progress update already asked the blocking question, do not repeat the same question verbatim in the final handoff for that same turn.
+- At every gate, the host's interactive primitive is mandatory when available; otherwise ask directly in chat. Every other step boundary is autonomous — flow directly, no "Proceed to <StepName>?" ask. At autonomous boundaries the exit banner IS the handoff. Before yielding at any boundary, make sure the current step's required save/validation work is actually complete so the next step begins from the expected repo state. Ask a pending human-decision question once per turn; do not repeat the same blocking question verbatim in the final handoff if an intermediary update already asked it.
 - If a step is logically irrelevant for a given task (e.g., Manual Human Testing for a pure documentation update), emit a `▸ Skipped Step N/15 — <Name>` banner with a one-line reason. Do not silently skip past it.
-- Agents with terminal capabilities should run CLI commands natively instead of instructing the human to paste them, provided it stays within tool-call approval constraints.
-- During complex debugging, do not pollute the project root with temporary scripts or data dumps. Use the agent's isolated sandbox directory or standard OS temporary directories (`/tmp/`), and clean them up afterward.
+- Agents with terminal capabilities should run CLI commands natively instead of instructing the human to paste them, within tool-call approval constraints. During complex debugging, do not pollute the project root with temporary scripts or data dumps — use the agent's isolated sandbox or `/tmp/`, and clean up afterward.
 
 ### Banner Format
 
@@ -121,8 +115,7 @@ Each workflow step emits a single banner when it finishes — a markdown horizon
 | 14 PR Review Fix Loop | Completed | `N cycles, clean` |
 | 15 Merge And Cleanup | Gate → Completed | entry Gate: `Merge Approval`; exit Completed: `Merged, workspace cleaned` |
 
-- Do not send repeated progress updates for every small loop iteration, quick status check, or tightly-coupled follow-up command.
-- At session start (Bootstrapping), the explicit `/check-state` snapshot command format takes precedence over any banner — no step-completion banner fires for the bootstrap load itself.
+- Do not send repeated progress updates for every small loop iteration, quick status check, or tightly-coupled follow-up command. At session start (Bootstrapping), the explicit `/check-state` snapshot command format takes precedence over any banner — no step-completion banner fires for the bootstrap load itself.
 
 ### Chat Headers
 
@@ -143,9 +136,9 @@ A fix loop is clean only when the selected validation passes, no unresolved bloc
 
 ### Workflow Detail Pointers
 
+- **Review file contract** → `ai/workflow/review-file.md`. Load before any `/code-review`, `/address-code-review`, `/address-plan-review`, or `/open-pr` state check.
+- **Gate mechanics** → `ai/workflow/gates.md`. Load before firing any gate.
 - **Step bodies** → `ai/workflow/steps.md`. Load the active step's section when entering or resuming it.
-- **Gate mechanics** (Three-Way Approval Gate, Confirmation Gate, Blocker Gate) → `ai/workflow/gates.md`. Load before firing any gate.
-- **Review file contract** (append-mode, state values, resolution format) → `ai/workflow/review-file.md`. Load before any `/code-review`, `/address-code-review`, `/address-plan-review`, or `/open-pr` state check.
 
 ## Skills
 
