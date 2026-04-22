@@ -139,7 +139,7 @@ Do not collapse the answer to only local file state. PR state must be included w
 
 ### Step 7: Present Structured Next-Step Gate
 
-Per `AGENTS.md` § `Harness Principles` "Structured stops", do not end with a free-text wait. Fire a § `Blocker Gate` with labeled options built from the **Next Steps?** list produced in Step 6 — typically the top 2–3 candidate actions (most likely next workflow step, second plausible path, clarification/other). The gate's host primitive always appends an `Other` free-text escape, so the human can redirect if none of the listed options fit.
+Per `AGENTS.md § Harness Principles` "Structured stops", do not end with a free-text wait. Fire a `Blocker Gate` (see `ai/workflow/gates.md § Blocker Gate`) with labeled options built from the **Next Steps?** list produced in Step 6 — typically the top 2–3 candidate actions (most likely next workflow step, second plausible path, clarification/other). The gate's host primitive always appends an `Other` free-text escape, so the human can redirect if none of the listed options fit.
 
 Do not spontaneously execute further logic without the human's explicit choice.
 

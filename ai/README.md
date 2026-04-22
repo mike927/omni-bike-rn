@@ -7,6 +7,10 @@ ai/
   README.md            ← you are here
   screens.md           ← screen inventory, navigation diagrams, phase gates
   local/               ← ignored per-branch runtime state (plans, reviews, testing)
+  workflow/            ← chunked continuations of AGENTS.md loaded on demand
+    gates.md           ← Three-Way Approval, Confirmation, and Blocker Gate mechanics
+    steps.md           ← bodies of the 15 workflow steps
+    review-file.md     ← review-file append-mode contract and resolution format
   commands/            ← active procedures invoked by name (see AGENTS.md § Commands for the contract; `ls ai/commands/` for the current inventory)
     check-state/       ← bootstrap/resume session context
     next-task/         ← read plan.md and propose the next logical task to start

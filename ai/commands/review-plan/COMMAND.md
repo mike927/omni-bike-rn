@@ -69,13 +69,13 @@ If no relevant `plan.md` item can be identified:
 
 ### Step 4: Evaluate The Plan
 
-Review the plan against the drafting requirements in `AGENTS.md` § `Plan Drafting` and the artifact conventions in `AGENTS.md` § `Workflow Artifacts`. Do not apply generic prose quality standards — only check alignment with repo rules.
+Review the plan against the drafting requirements in `ai/workflow/steps.md § 3. Plan Drafting` and the artifact conventions in `AGENTS.md § Workflow Artifacts`. Do not apply generic prose quality standards — only check alignment with repo rules.
 
-Check each area against the relevant `AGENTS.md` requirement:
+Check each area against the relevant requirement:
 
 1. **Branch alignment** — the plan matches the active branch purpose and does not describe unrelated work.
 2. **Scope alignment** — covers the intended `plan.md` task, or explicitly records approved branch-local scope when no `plan.md` match exists. No drift, omissions, or scope creep.
-3. **Decision completeness** — the implementer would not need to make product, workflow, or architecture decisions during implementation (per `AGENTS.md` § `Plan Drafting`, which requires the plan to be specific enough to execute without further design decisions).
+3. **Decision completeness** — the implementer would not need to make product, workflow, or architecture decisions during implementation (per `ai/workflow/steps.md § 3. Plan Drafting`, which requires the plan to be specific enough to execute without further design decisions).
 4. **Implementation sequencing** — steps and dependencies are ordered clearly enough to execute without re-planning.
 5. **Validation and testing** — validation commands, manual checks, and acceptance scenarios are present and proportional to the change.
 6. **Assumptions and tradeoffs** — important defaults, constraints, and out-of-scope choices are stated explicitly.
@@ -131,7 +131,7 @@ Relevant plan.md item: <quoted task line | "branch-local work; no plan.md item r
 <1-3 sentences stating whether implementation can proceed safely and why.>
 ```
 
-File-level rules follow `AGENTS.md` § `Review File State` (append-mode contract, latest-block-wins, never overwrite). If no prior file exists, create it with a single `# Plan Review: <branch-name>` H1 on line 1, then append the first block below it.
+File-level rules follow `ai/workflow/review-file.md § Review File State` (append-mode contract, latest-block-wins, never overwrite). If no prior file exists, create it with a single `# Plan Review: <branch-name>` H1 on line 1, then append the first block below it.
 
 Block-content rules:
 

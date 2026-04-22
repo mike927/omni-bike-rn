@@ -19,7 +19,7 @@ Close out a completed feature: ensure `plan.md` is marked `[x]` when applicable,
 
 ## Prerequisites
 
-- The `Merge And Cleanup` stage of `AGENTS.md` has been reached: PR is approved and the human has confirmed merging should proceed.
+- The `Merge And Cleanup` stage (see `ai/workflow/steps.md § 15. Merge And Cleanup`) has been reached: PR is approved and the human has confirmed merging should proceed.
 - Current branch is the feature branch (not `main`).
 - `gh` CLI is authenticated (`gh auth status`).
 

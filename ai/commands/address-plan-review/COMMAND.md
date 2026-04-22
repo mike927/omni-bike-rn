@@ -90,7 +90,7 @@ For every `apply` item:
 
 ### Step 5: Update The Review File (In-Place)
 
-Update findings in place per `AGENTS.md` § `Review Resolution Format`. Use the following outcome verbs for plan-review findings:
+Update findings in place per `ai/workflow/review-file.md § Review Resolution Format`. Use the following outcome verbs for plan-review findings:
 
 | Outcome verb | Use when |
 |---|---|
@@ -99,7 +99,7 @@ Update findings in place per `AGENTS.md` § `Review Resolution Format`. Use the 
 | `ALREADY RESOLVED: <plan section>` | Current plan already addresses the point |
 | `NEEDS USER INPUT: <exact question>` | Depends on a real user decision — record the exact unresolved question, not a placeholder |
 
-After checking off the processed items, append a brief resolution summary to the bottom of the file (or update the existing `## Resolution Summary` block if present). This trailing `## Resolution Summary` block is owned by `/address-plan-review` only (see `AGENTS.md` § `Review Resolution Format`).
+After checking off the processed items, append a brief resolution summary to the bottom of the file (or update the existing `## Resolution Summary` block if present). This trailing `## Resolution Summary` block is owned by `/address-plan-review` only (see `ai/workflow/review-file.md § Review Resolution Format`).
 
 ```md
 ## Resolution Summary

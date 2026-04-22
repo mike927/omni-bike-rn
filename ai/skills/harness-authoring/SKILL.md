@@ -33,11 +33,11 @@ Answer each question in order before writing or accepting a new harness rule. St
 | Command procedure is a flat numbered list | Use `### Step N: <Title>` subsections to match siblings |
 | Shared file uses provider-specific wording | Move it to a provider entrypoint |
 | Safety warning bolted into an unrelated file | Keep the warning with its owning domain |
-| New command added without matching provider bridges | Mirror to every active bridge directory per `AGENTS.md` § `Adding A New Command` |
+| New command added without matching provider bridges | Mirror to every active bridge directory per `ai/commands/README.md § Platform Invocation` |
 
 ## File-Specific Rules
 
-- **AGENTS.md** — Workflow rules live here once. Every loop must declare entry, cycle body, exit condition, and post-exit behavior.
+- **AGENTS.md** (spine) + **`ai/workflow/*.md`** (chunked detail) — Workflow rules live across these files with one owner each: the spine carries principles, the 5-gate list, the 15-row banner table, Fix Loop Decision Rules, and pointers; `ai/workflow/gates.md`, `ai/workflow/steps.md`, and `ai/workflow/review-file.md` own the rest. Every loop must declare entry, cycle body, exit condition, and post-exit behavior.
 - **COMMAND.md** — Section order is `Prerequisites` → `Procedure` → `Completion Criteria` → `See Also`. Reference workflow by stable stage names, not numbers. State only this command's commit ownership; never restate global commit policy.
 - **SKILL.md** — Passive and reusable across tasks. Domain skills stay declarative — no numbered procedures, no decision trees. Meta skills may carry a decision filter but must not become procedures.
 - **Provider entrypoints** — Only provider-native execution value that cannot live in shared files.
@@ -46,7 +46,7 @@ Answer each question in order before writing or accepting a new harness rule. St
 
 | File | Role |
 |---|---|
-| `AGENTS.md` | Single source of truth for workflow, conventions, and project rules |
+| `AGENTS.md` (spine) + `ai/workflow/*.md` | Single source of truth for workflow, conventions, and project rules |
 | `ai/commands/*/COMMAND.md` | Active procedures invoked by name |
 | `ai/skills/*/SKILL.md` | Passive domain context loaded when relevant |
 | Provider bridges | Thin pointers to canonical shared files |

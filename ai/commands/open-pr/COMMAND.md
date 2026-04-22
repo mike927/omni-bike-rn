@@ -39,7 +39,7 @@ Confirm:
 - Working tree is clean (no uncommitted changes).
 - There are commits to include in the PR.
 
-Check the internal review state. Read `ai/local/reviews/<branch-slug>.md` (if it exists) and apply the gate defined in `AGENTS.md` § `Review File State`:
+Check the internal review state. Read `ai/local/reviews/<branch-slug>.md` (if it exists) and apply the gate defined in `ai/workflow/review-file.md § Review File State`:
 - `State: ready` — proceed.
 - Any other state — stop. Report the state and the remediation (re-run `/code-review` when `needs-review`, run `/address-code-review` when `needs-changes`).
 - File missing — proceed (no review was run; allowed for trivial changes).

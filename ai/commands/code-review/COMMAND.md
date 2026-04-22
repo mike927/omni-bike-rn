@@ -79,12 +79,12 @@ Source: <local | gh>
 <2-3 sentences: overall quality assessment and what needs attention>
 ```
 
-File-level rules follow `AGENTS.md` § `Review File State` (append-mode contract, latest-block-wins, never overwrite). If no prior file exists, create it with a single `# Review: <branch-name>` H1 on line 1, then append the first block below it.
+File-level rules follow `ai/workflow/review-file.md § Review File State` (append-mode contract, latest-block-wins, never overwrite). If no prior file exists, create it with a single `# Review: <branch-name>` H1 on line 1, then append the first block below it.
 
 Block-content rules:
 
 - If the run may be interrupted (long review, flaky tooling, cross-provider handoff mid-flight), append the block header first with `State: needs-review`, then overwrite just that line when final findings are ready. In a single-pass run, write the final `State:` value directly — the `needs-review` waypoint is a resilience measure, not a requirement.
-- Set the final `State` per `AGENTS.md` § `Review File State`: `ready` when no unresolved actionable findings of severity bug, regression, or convention remain (suggestions-only or empty counts as ready), otherwise `needs-changes`.
+- Set the final `State` per `ai/workflow/review-file.md § Review File State`: `ready` when no unresolved actionable findings of severity bug, regression, or convention remain (suggestions-only or empty counts as ready), otherwise `needs-changes`.
 
 ### Step 5: Report In Chat
 
@@ -108,7 +108,7 @@ Close out per `AGENTS.md` § `Agent Roles` — workflow owner mode flows into th
 
 - Every changed file has been reviewed against the checklist and conventions.
 - Findings are written to `ai/local/reviews/<branch-slug>.md` with `file:line` references.
-- Review state is set and posted in chat following `AGENTS.md` § `Review File State`.
+- Review state is set and posted in chat following `ai/workflow/review-file.md § Review File State`.
 
 ## See Also
 
