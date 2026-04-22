@@ -91,7 +91,7 @@ Output the triage list in chat before fixing anything, so the overall picture is
 For each bug, architecture, convention, and accepted suggestion — in that priority order:
 
 1. Apply the code fix.
-2. Apply the **Fix Loop Decision Rules** (AGENTS.md § Fix Loop Decision Rules) to choose validation scope and review execution.
+2. Apply the **Fix Loop Decision Rules** (`AGENTS.md § Fix Loop Decision Rules`) to choose validation scope and review execution.
 3. Do not move to the next finding until validation and any required review pass.
 4. Commit the fix per the commit rules in `AGENTS.md`. For `source: gh`, push immediately so the PR stays in a recoverable state.
 
@@ -101,7 +101,7 @@ For each **intentionally-declined** item: you will append a brief reason inline 
 
 ### Step 5: Update Review File (In-Place)
 
-Update findings in place per `AGENTS.md` § `Review Resolution Format`. Use the following outcome verbs for code-review findings:
+Update findings in place per `ai/workflow/review-file.md § Review Resolution Format`. Use the following outcome verbs for code-review findings:
 
 | Outcome verb | Use when |
 |---|---|
@@ -109,7 +109,7 @@ Update findings in place per `AGENTS.md` § `Review Resolution Format`. Use the 
 | `ANSWERED: <brief answer>` | Question finding — no code change, reply text prepared |
 | `DECLINED: <reason>` | Valid finding, explicitly disagreed with |
 
-After all actionable findings (bug, regression, convention, accepted suggestion) are marked `[x]`, update the `State:` line **inside the latest `## Review (...)` block** to `needs-review` per `AGENTS.md` § `Review File State`. There is no file-level `State:` header — state lives inside the latest block. Declined-with-reason items count as resolved for this transition.
+After all actionable findings (bug, regression, convention, accepted suggestion) are marked `[x]`, update the `State:` line **inside the latest `## Review (...)` block** to `needs-review` per `ai/workflow/review-file.md § Review File State`. There is no file-level `State:` header — state lives inside the latest block. Declined-with-reason items count as resolved for this transition.
 
 ### Step 6: Prepare Reply Text (gh source only)
 
@@ -159,7 +159,7 @@ Close out per `AGENTS.md` § `Agent Roles` — workflow owner mode flows into th
 
 - Every actionable finding is fixed and committed (pushed when `source: gh`), answered, or explicitly declined with a reason.
 - Each fix passed the `Fix Loop Decision Rules` before the next finding was started.
-- `ai/local/reviews/<branch-slug>.md` reflects the processed state for every finding, with the `State:` line inside the latest `## Review (...)` block updated per `AGENTS.md` § `Review File State`.
+- `ai/local/reviews/<branch-slug>.md` reflects the processed state for every finding, with the `State:` line inside the latest `## Review (...)` block updated per `ai/workflow/review-file.md § Review File State`.
 - For `source: gh`: reply text exists for every thread.
 
 ## See Also

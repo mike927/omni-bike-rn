@@ -117,7 +117,7 @@ Verify the new branch is active in the correct directory.
 - Working directory: `<path>`
 ```
 
-Fire the **Scope Clarification** Confirmation Gate per `AGENTS.md` § `Confirmation Gate` before transitioning into Plan Drafting. The gate is the exit of Workspace Preparing — confirm the task scope is understood; accept clarifications from the human and integrate them if requested.
+Fire the **Scope Clarification** Confirmation Gate per `ai/workflow/gates.md § Confirmation Gate` before transitioning into Plan Drafting. The gate is the exit of Workspace Preparing — confirm the task scope is understood; accept clarifications from the human and integrate them if requested.
 
 ## Completion Criteria
 
