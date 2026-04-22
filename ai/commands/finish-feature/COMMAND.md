@@ -111,13 +111,12 @@ Use `-d` (safe delete) not `-D`. If the safe delete fails, investigate before fo
 
 ### Step 8: Clean Up Branch-Scoped Artifacts
 
-Remove any of the four branch-scoped artifacts that exist on disk. Missing files are not errors — branch-local work may never have produced testing notes, an unplanned bug fix may have skipped the plan-review cycle, etc. The files are git-ignored, so deletion leaves no tracked-file residue.
+Remove any of the three branch-scoped artifacts that exist on disk. Missing files are not errors — an unplanned bug fix may have skipped the plan-review cycle, a trivial change may have had no review findings, etc. The files are git-ignored, so deletion leaves no tracked-file residue.
 
 ```bash
 rm -f ai/local/plans/<branch-slug>.md \
       ai/local/plans/<branch-slug>.review.md \
-      ai/local/reviews/<branch-slug>.md \
-      ai/local/testing/<branch-slug>.md
+      ai/local/reviews/<branch-slug>.md
 ```
 
 Record which paths actually existed before deletion so Step 9 can list them. If none existed, record `none`.
@@ -141,7 +140,7 @@ Record which paths actually existed before deletion so Step 9 can list them. If 
 - No unpushed local-only commits remain on the feature branch.
 - Local branch is removed.
 - Worktree is removed, if applicable.
-- Branch-scoped artifacts in `ai/local/` are removed (plan, plan review, code review, testing notes — whichever existed).
+- Branch-scoped artifacts in `ai/local/` are removed (plan, plan review, code review — whichever existed).
 - Active branch is `main`.
 
 ## See Also

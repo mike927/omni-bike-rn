@@ -99,7 +99,7 @@ Internal review has two phases: a self-pass by the main agent, then a delegated 
 - **Prerequisite — clean working tree:** Before presenting the testing checklist, verify `git status --short` is empty. Any stray uncommitted changes (including whitespace-only diffs or unrelated `plan.md` edits from prior sessions) must be resolved first — either committed on this branch if they belong to the feature, stashed if they are unrelated, or reverted if they are accidental. The human should test the same state that will be reviewed and merged; untracked drift in the working tree invalidates that guarantee.
 - **Not user-visible** (docs, harness, config, test-only): skipped per Internal Review Fix Loop's exit; continue autonomously to PR Open. The Manual Testing Outcome gate does not fire.
 - **User-visible change:** Present the testing checklist. Include a concise summary of what changed and how it affects user experience or behavior. Explicitly state whether the human needs to restart Metro, rebuild the app, both, or neither.
-- **Checklist:** Provide inline. For follow-up fixes, provide only incremental retest steps unless the full flow needs re-running. Do not create `ai/local/testing/<branch-slug>.md` unless the human explicitly asks.
+- **Checklist:** Provide inline. For follow-up fixes, provide only incremental retest steps unless the full flow needs re-running.
 - **Gate:** Once the checklist is presented and the human has had a chance to run it, fire the **Manual Testing Outcome** Confirmation Gate (see `ai/workflow/gates.md § Confirmation Gate`). Options: `proceed` (mark `[R]`, continue to PR Open) or `address issues` (enter Manual Testing Fix Loop).
 
 ## 11. Manual Testing Fix Loop
