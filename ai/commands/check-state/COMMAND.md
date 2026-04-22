@@ -41,7 +41,6 @@ Load the workflow artifacts that should exist for an active branch.
 2. If the current branch is not `main`, inspect these branch-scoped files when present:
    - `ai/local/plans/<branch-slug>.md`
    - `ai/local/reviews/<branch-slug>.md`
-   - `ai/local/testing/<branch-slug>.md`
 3. Record whether each file exists and, if it does, read only enough to identify its role in the workflow.
 
 Important:

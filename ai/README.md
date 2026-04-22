@@ -43,6 +43,5 @@ Tracked docs and templates stay under `ai/`.
 Per-branch runtime files live under `ai/local/` and are ignored by git:
 - `ai/local/plans/<branch-slug>.md`
 - `ai/local/reviews/<branch-slug>.md`
-- `ai/local/testing/<branch-slug>.md`
 
 Use the subfolder README or template only for folder-specific structure. For naming rules, required fields, step definitions, and cleanup policy, follow `AGENTS.md`.
