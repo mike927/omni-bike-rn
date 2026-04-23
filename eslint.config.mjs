@@ -15,6 +15,9 @@ const compat = new FlatCompat({
 });
 
 export default [
+  // ── Ignored paths (transient inputs not part of the app) ──
+  { ignores: ['design_handoff_*/**'] },
+
   // ── Layer 1: Expo defaults (React, React Native, TypeScript, import rules) ──
   ...compat.extends('expo'),
 

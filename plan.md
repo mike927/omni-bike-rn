@@ -94,7 +94,7 @@ Lightweight, modern onboarding shown only on first launch. 2-3 swipeable intro s
 
 - [x] First-launch detection and persistence (show once, remember dismissal) — addressed in Screen Logic Revision
 - [x] Swipeable onboarding screen with 2-3 pages (connect bike → optional HR → start training) — addressed in Screen Logic Revision
-- [ ] Modern, visually polished design (animations, illustrations, smooth transitions) — deferred to Phase 9
+- [~] Modern, visually polished design (animations, illustrations, smooth transitions)
 - [x] Skip and Done actions — addressed in Screen Logic Revision
 
 ## Phase 6: Integrations & External Provider Sync
