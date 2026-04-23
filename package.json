@@ -21,6 +21,7 @@
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-masked-view/masked-view": "0.3.2",
     "apple-health-workout": "file:modules/apple-health-workout",
     "buffer": "^6.0.3",
     "drizzle-orm": "^0.45.2",

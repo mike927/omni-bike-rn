@@ -1,4 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons';
+import MaskedView from '@react-native-masked-view/masked-view';
 import { LinearGradient } from 'expo-linear-gradient';
 import { type ComponentProps } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -12,10 +13,25 @@ interface IconCardProps {
   readonly testID?: string;
 }
 
+const ICON_SIZE = 64;
+
 export function IconCard({ icon, testID }: IconCardProps) {
   return (
     <View style={styles.card} testID={testID}>
-      <MaterialIcons name={icon} size={64} color={gradient.cool[1]} />
+      <MaskedView
+        style={styles.iconMask}
+        maskElement={
+          <View style={styles.maskWrapper}>
+            <MaterialIcons name={icon} size={ICON_SIZE} color="#000" />
+          </View>
+        }>
+        <LinearGradient
+          colors={[...gradient.cool]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.iconGradient}
+        />
+      </MaskedView>
       <LinearGradient
         colors={[`${palette.primary}00`, `${palette.primary}10`]}
         start={{ x: 0, y: 0 }}
@@ -42,5 +58,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 2,
     shadowOffset: { width: 0, height: 1 },
+  },
+  iconMask: {
+    width: ICON_SIZE,
+    height: ICON_SIZE,
+  },
+  maskWrapper: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconGradient: {
+    flex: 1,
   },
 });
