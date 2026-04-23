@@ -173,7 +173,7 @@ Three-part initiative to align our calorie numbers with Apple Fitness and Strava
 - [ ] Refine dashboard information hierarchy, spacing, and responsiveness
 - [ ] Polish empty, loading, error, paused, and finished states
 - [ ] Add motion, typography, theming, and interaction polish
-- [ ] Wire onboarding pairing CTAs to real pairing flow — `Search for Bike` and `Pair Device` currently just advance the carousel. Likely shape: modal-present `GearSetupScreen` on top of onboarding so dismiss returns to the same step. Decide between (a) modal, (b) deeplink + back, (c) inline mini-pairing UI before implementation.
+- [~] Wire onboarding pairing CTAs to real pairing flow — `Search for Bike` and `Pair Device` currently just advance the carousel. Likely shape: modal-present `GearSetupScreen` on top of onboarding so dismiss returns to the same step. Decide between (a) modal, (b) deeplink + back, (c) inline mini-pairing UI before implementation.
 - [ ] Final cross-screen QA for portrait and iOS live surfaces
 
 ## Android Parity (Deferred)
