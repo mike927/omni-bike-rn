@@ -232,14 +232,12 @@ const styles = StyleSheet.create({
   },
   page: {
     paddingHorizontal: 24,
-    paddingTop: 32,
     flex: 1,
     alignItems: 'center',
   },
   textBlock: {
     alignItems: 'center',
     gap: 16,
-    marginBottom: 32,
     width: '100%',
     maxWidth: 448,
   },

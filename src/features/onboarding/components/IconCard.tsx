@@ -14,6 +14,7 @@ interface IconCardProps {
 }
 
 const ICON_SIZE = 64;
+const MASK_SIZE = 96; // larger than icon line so translateY nudge doesn't clip
 
 export function IconCard({ icon, testID }: IconCardProps) {
   return (
@@ -60,8 +61,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
   },
   iconMask: {
-    width: ICON_SIZE,
-    height: ICON_SIZE,
+    width: MASK_SIZE,
+    height: MASK_SIZE,
   },
   maskWrapper: {
     flex: 1,
@@ -74,9 +75,9 @@ const styles = StyleSheet.create({
     height: ICON_SIZE,
     textAlignVertical: 'center',
     includeFontPadding: false,
-    // MaterialIcons glyphs sit below their em-box center; translate up
-    // (transforms don't affect layout, so the mask still aligns).
-    transform: [{ translateY: -10 }],
+    // MaterialIcons glyphs sit ~6px below their em-box center; small
+    // translate to optically center. Mask is 96 so this never clips.
+    transform: [{ translateY: -6 }],
   },
   iconGradient: {
     flex: 1,
