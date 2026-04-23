@@ -40,7 +40,7 @@ const ONBOARDING_PAGES: readonly OnboardingPage[] = [
     illustrationTestID: 'onboarding-illustration-bike',
     primaryLabel: 'Search for Bike',
     secondaryLabel: 'Skip',
-    bottomPadding: 80,
+    bottomPadding: 24,
   },
   {
     headline: 'Train to your heart rate',
@@ -50,7 +50,7 @@ const ONBOARDING_PAGES: readonly OnboardingPage[] = [
     illustrationTestID: 'onboarding-illustration-hr',
     primaryLabel: 'Pair Device',
     secondaryLabel: 'Skip',
-    bottomPadding: 80,
+    bottomPadding: 24,
   },
   {
     headline: "One tap and you're riding",
@@ -59,7 +59,7 @@ const ONBOARDING_PAGES: readonly OnboardingPage[] = [
     illustrationTestID: 'onboarding-illustration-start',
     primaryLabel: 'Finish',
     secondaryLabel: null,
-    bottomPadding: 80,
+    bottomPadding: 24,
   },
 ];
 
