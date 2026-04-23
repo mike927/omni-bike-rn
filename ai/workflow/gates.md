@@ -2,51 +2,61 @@
 
 This file is a chunked continuation of `AGENTS.md`. The spine owns the anchor; do not add new workflow policy here without adding its trigger to the spine.
 
-Anchors in spine: `AGENTS.md § Workflow Pacing and Discipline` lists the 5 gate points in workflow order. Load this file before firing any gate.
+Anchor in spine: `AGENTS.md § Phases` lists the two human-gated boundaries — **Plan Approval** (end of Plan phase) and **Manual Testing Outcome** (end of Manual Test phase for user-visible changes). Load this file before firing any gate.
 
 ## Three-Way Approval Gate
 
-Used at the two review-approval points — **Plan Approval** and **PR Review Approval**. Present three options. **Only `approve` advances the workflow.** `challenge` and `revise` keep the agent paused at the same gate — after each runs its course, the gate is re-presented for another decision.
+Used only at **Plan Approval**. Present three options. **Only `approve` advances the workflow.** `challenge` and `revise` keep the agent paused at the same gate — after each runs its course, the gate is re-presented.
 
 | Option | Accept text | Agent behavior | Does it advance? |
 |---|---|---|---|
-| **Approve** | `1`, `approve`, `proceed`, `ok`, `go` | Continue the workflow. **Plan Approval:** lift the Plan Drafting plan-mode read-only constraint and transition to Implementation In Progress. **PR Review Approval:** run `/address-code-review` to consume and fix GitHub PR comments, cycle through PR Review Fix Loop as needed, then transition to Merge Approval. | Yes |
-| **Challenge externally** | `2`, `challenge`, `external` | Pause. Instruct the human to run `/review-plan` (plan gate) or `/code-review` (PR review gate) from a fresh context on any provider — a new session on the same provider or any other provider both qualify; the requirement is fresh context, not provider diversity. The fresh-context run appends a new `## Review (<provider>, <ISO>)` block per `AGENTS.md § Commands`. The external reviewer is reviewer-only — it never runs the fix loop. On human return signal (`done` or similar), route per **Challenge-return routing** below, then re-present the gate. | No — returns to gate |
-| **Revise manually** | `3`, `revise`, `edit`, `change` | Pause. Accept either manual human edits to the plan/code or natural-language change instructions (apply them directly). After changes land, re-enter the prior review loop (Plan Reviewing for plan gate; PR Review Comments → PR Review Fix Loop for PR-review gate) once to re-verify — then return to the gate. | No — returns to gate |
+| **Approve** | `1`, `approve`, `proceed`, `ok`, `go` | Lift the Plan phase plan-mode read-only constraint and transition to Implement. | Yes |
+| **Challenge externally** | `2`, `challenge`, `external` | Pause. Instruct the human to run `/review-plan` from a fresh context on any provider — a new session on the same provider or any other provider both qualify; the requirement is fresh context, not provider diversity. The fresh-context run appends a new `## Review (<provider>, <ISO>)` block per `ai/workflow/review-file.md`. On human return signal (`done` or similar), route per **Challenge-return routing** below, then re-present the gate. | No — returns to gate |
+| **Revise manually** | `3`, `revise`, `edit`, `change` | Pause. Accept manual edits to the plan or natural-language change instructions (apply them directly). After changes land, re-run `/review-plan` inline once to re-verify, then return to the gate. | No — returns to gate |
 
 **Challenge-return routing.** On the human's return signal, the main agent inspects the latest appended block in the review file:
-- Latest block has unresolved actionable findings, or its `Recommendation`/`State` is not `ready` → run `/address-plan-review` or `/address-code-review` in the same session, announce the updated state, and re-present the gate. **Do not re-run the internal review loop.** The fresh-context block already covered the artifact; addressing it is sufficient verification, and re-reviewing internally would duplicate the work the user explicitly chose to delegate.
-- Latest block is clean (`ready`, no unchecked findings) → skip the address pass, announce "external review clean", and re-present the gate. The human can approve immediately without a pointless empty address run.
 
-**Why Challenge and Revise differ on re-review.** Revise leaves the artifact unreviewed, so it re-enters the review loop once; Challenge ends with a fresh-context review block, so it doesn't.
+- Latest block is `ready`, no unchecked findings → skip the address pass, announce "external review clean", re-present the gate.
+- Latest block has unresolved findings or `Recommendation: revise` → run `/address-plan-review` in the same session, announce the updated state, re-present the gate. **Do not re-run the internal review loop.** The fresh-context block covered the artifact; addressing it is sufficient verification.
 
-**Primitive.** Use the host's interactive primitive (e.g., `AskUserQuestion`) — mandatory when available. Fall back to a numbered list in chat only when no interactive primitive exists.
+**Why Challenge and Revise differ on re-review.** Revise leaves the artifact unreviewed, so it re-enters the review path once; Challenge ends with a fresh-context review block, so it doesn't.
+
+**Primitive.** Use the host's interactive primitive (e.g., `AskUserQuestion`) — mandatory when available. Fall back to a numbered list in chat only when no interactive primitive exists. All options must be presented alongside the universal `Rewind` / `Abort` escapes (see § `Rewind`).
 
 ## Confirmation Gate
 
-Used at the three non-review gates — **Scope Clarification**, **Manual Testing Outcome**, and **Merge Approval**. A simple two-option prompt; the alternative is not "reject" but "pause for input" or "route to a fix loop".
+Used only at **Manual Testing Outcome** for user-visible changes.
 
 | Gate | Options | Advance behavior | Other-option behavior |
 |---|---|---|---|
-| **Scope Clarification** | `proceed` \| `clarify` | Enter Plan Drafting. | Human supplies additional scope or corrections; agent integrates the clarification, then re-presents the gate. |
-| **Manual Testing Outcome** | `proceed` \| `address issues` | Mark `plan.md` item `[R]`; continue to PR Open. | Enter Manual Testing Fix Loop; fix the reported issues, then re-present the gate after the human re-tests. |
-| **Merge Approval** | `merge` \| `hold` | Run `/finish-feature`. | Stay at gate; human directs when to merge. |
+| **Manual Testing Outcome** | `proceed` \| `address issues` | Mark `plan.md` item `[R]`; flow to PR. | Enter the Manual Test fix loop; fix the reported issues; re-present this gate after the human re-tests. |
 
-**Primitive.** Same mandate as § `Three-Way Approval Gate` — host's interactive primitive when available, numbered-list fallback otherwise.
+**Primitive.** Same mandate as § `Three-Way Approval Gate` — host's interactive primitive when available, numbered-list fallback otherwise. Universal `Rewind` / `Abort` escapes must be offered alongside the two primary options.
 
 ## Blocker Gate
 
-Used whenever the agent cannot proceed and needs the human to unblock — fix-loop caps, unresolved product/business questions during Plan Drafting, prerequisite failures (dirty `main`, missing plan file, auth failures), or any other halt state. The purpose is to convert every "stop and report" into a structured choice.
+Used whenever the agent cannot proceed and needs the human to unblock — non-converging fix loops, unresolved product/business questions during Plan, prerequisite failures (dirty `main`, missing plan file, auth failures), or any other halt state. Converts every "stop and report" into a structured choice.
 
-The options adapt to the blocker. Typical patterns:
+Options adapt to the blocker. Typical patterns:
 
 | Blocker type | Typical options |
 |---|---|
-| Fix-loop cap reached (3 cycles exhausted) | `retry one more cycle` \| `accept partial state` \| `abort workflow` |
-| Unresolved product/business question during Plan Drafting | 2–4 concrete, mutually-exclusive answers to the specific question |
-| Prerequisite failure (e.g., dirty `main` during Bootstrapping) | `fix and retry` \| `abort workflow` |
+| Non-converging fix loop (Review, Manual Test, or PR) | `retry one more cycle` \| `accept partial state` \| `rewind to <phase>` \| `abort workflow` |
+| Unresolved product/business question during Plan | 2–4 concrete mutually-exclusive answers to the specific question, plus `Other` / free-text escape |
+| Prerequisite failure (e.g., dirty `main` during Bootstrap) | `fix and retry` \| `abort workflow` |
 | Missing dependency (e.g., plan file absent when `/address-plan-review` runs) | `create the missing file` \| `point me at an alternate path` \| `abort` |
 
-**Banner pairing.** The `▸ Halted Step N/15 — <Name>` banner names the blocking condition in its subtitle; the Blocker Gate fires immediately after the banner with options tailored to that condition.
+**Banner pairing.** The `▸ Halted <Phase> — <condition>` banner names the blocking condition in its subtitle; the Blocker Gate fires immediately after the banner with options tailored to that condition.
 
-**Primitive.** Same mandate as § `Three-Way Approval Gate` — host's interactive primitive when available, numbered-list fallback otherwise. Always include an `abort` / `cancel` / `other` escape so the human is never cornered into choosing something that does not apply.
+**Primitive.** Same mandate as above. Always include `abort` / `cancel` / `other` so the human is never cornered.
+
+## Rewind
+
+Every gate accepts a universal `rewind to <phase>` escape alongside its primary options. Use it when:
+
+- The current phase produced something that needs undoing (e.g., manual testing revealed the wrong feature was built → rewind to Plan or Implement).
+- A scope change emerged and rolling forward doesn't make sense.
+
+Rewinding does not discard work — commits stay, artifacts stay. It just re-enters an earlier phase so the agent can draft a correction path from there. For scope changes specifically, prefer invoking `/amend-plan` (which records the reason) over a bare `rewind`.
+
+`Abort workflow` is always available too — it stops the agent without making further changes. The human decides what to do with the uncommitted or partially-done work manually.

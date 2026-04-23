@@ -1,139 +1,120 @@
-# Workflow Step Bodies
+# Phase Bodies
 
 This file is a chunked continuation of `AGENTS.md`. The spine owns the anchor; do not add new workflow policy here without adding its trigger to the spine.
 
-Anchor in spine: `AGENTS.md § Banner Format` carries the 15-row exit-verb table — the canonical index of which step fires which banner. Load the relevant section of this file when entering or resuming a specific step.
+Anchor in spine: `AGENTS.md § Phases` owns the 7-phase table and the two human gates. This file expands each phase into its concrete prerequisites, actions, and exit conditions.
 
 ## Banner Verbs
 
-`Verb` ∈ `{Completed, Gate, Halted, Skipped}`:
+`Verb` ∈ `{Gate, Halted, Completed}`:
 
-- `Completed` — autonomous step completion; subtitle names the primary output.
-- `Gate` — a human-gated step boundary; the interactive primitive fires immediately after the banner. Subtitle names the question or state summary.
-- `Halted` — a fix-loop cap, prereq failure, or other block; subtitle names the blocking condition. Fires a `Blocker Gate` (see `ai/workflow/gates.md § Blocker Gate`) immediately after the banner.
-- `Skipped` — step never executed; subtitle is the one-line reason.
+- `Gate` — a human-gated boundary; the interactive primitive fires immediately after the banner. Subtitle names the gate.
+- `Halted` — a blocker or non-converging loop; fires a Blocker Gate immediately after the banner. Subtitle names the blocking condition.
+- `Completed` — reserved for terminal feature completion (`Merge`) or explicit on-demand summaries.
 
-## 1. Bootstrapping
+Autonomous phase transitions do not emit banners — the next tool call + prose IS the handoff.
 
-- **Not on `main`:** Treat as a resume. Run `/check-state` to establish branch reality and continue from the logically active step.
-- **On `main`, dirty:** Emit the `▸ Halted Step 1/15 — Bootstrapping` banner and fire a `Blocker Gate` (see `ai/workflow/gates.md § Blocker Gate`) — typically `stash` / `commit to a new branch` / `discard` / `abort`.
-- **On `main`, clean:** Treat as a new task. Continue to Workspace Preparing.
+## 1. Bootstrap
 
-## 2. Workspace Preparing
+Consolidates the old Bootstrapping + Workspace Preparing steps.
 
-- **Resuming:** Branch already exists — skip to the active step.
-- **New task:** Run `/start-feature` to create the branch or worktree. Do not plan on `main`.
-- **Gate:** Exit with the **Scope Clarification** Confirmation Gate (see `ai/workflow/gates.md § Confirmation Gate`). Confirm the task scope is understood before investing in plan drafting; accept clarifications from the human and integrate them if requested.
+- **Not on `main`:** Treat as a resume. Run `/check-state` to establish branch reality and continue from the logically active phase.
+- **On `main`, dirty:** Fire a Blocker Gate (see `ai/workflow/gates.md § Blocker Gate`) — typically `stash` / `commit to a new branch` / `discard` / `abort`.
+- **On `main`, clean, new task:** Run `/start-feature` to create the branch (or worktree when explicitly requested). Do not plan on `main`.
+- **Exit:** Autonomous. Flow directly into Plan. No banner; no gate at this boundary.
 
-## 3. Plan Drafting
+## 2. Plan
 
-- **Prerequisite:** Feature branch exists (Workspace Preparing complete).
-- **Plan mode:** Activate plan mode now. Use your host's dedicated tool if one is available; otherwise ask the human to enable it and select a reasoning model before continuing. Until approved at Plan Approving, you may only search/read files and write to `ai/local/plans/<branch-slug>.md`. Do not modify source code or commit changes.
-- **Questions:** Derive technical decisions from the codebase. For product or business decisions, fire a `Blocker Gate` (see `ai/workflow/gates.md § Blocker Gate`) with 2–4 concrete mutually-exclusive answers to the specific question (the host's primitive always adds an `Other` / free-text escape). If the human defers, mark the `plan.md` item `[?]` with a reason instead of guessing.
-- **Draft:** Write a detailed, actionable plan to `ai/local/plans/<branch-slug>.md`. If no `plan.md` item applies, record explicit branch-local scope in the plan. The final section must always be `## What Will Be Available After Completion`, focused on user-facing outcomes.
+Consolidates the old Plan Drafting + Plan Reviewing + Plan Approving steps. One phase, one gate at the exit.
 
-## 4. Plan Reviewing
+- **Prerequisite:** Feature branch exists.
+- **Plan mode:** Activate plan mode now. Use the host's dedicated tool if available; otherwise explicitly constrain yourself to search/read + writing `ai/local/plans/<branch-slug>.md`. Do not modify source code until the gate releases.
+- **Trivial changes escape hatch:** If the task is under ~50 LOC affecting ≤2 files with an obvious solution, skip this phase entirely — no plan file, no gate — and flow directly to Implement. The human may also explicitly request skipping.
+- **Draft:** Write an actionable plan to `ai/local/plans/<branch-slug>.md`. If no `plan.md` item applies, record explicit branch-local scope. The final section must always be `## What Will Be Available After Completion`.
+- **Questions:** For technical decisions, derive from the codebase. For product/business decisions, fire a Blocker Gate with 2–4 concrete mutually-exclusive options. If the human defers, mark the `plan.md` item `[?]` instead of guessing.
+- **Review (conditional):** If the plan touches the native layer, DB migrations, routing, or shared contracts (see `AGENTS.md § Plan Review Subagent Threshold`), spawn a fresh-context reviewer subagent to run `/review-plan`. Read its `Recommendation:` and run `/address-plan-review` in the same session if it returns `revise`. Otherwise skip — the main agent self-reviews the plan inline before presenting it.
+- **No hard cycle cap.** If address → re-review doesn't converge after 2–3 iterations, fire a Blocker Gate asking the human what to do.
+- **Gate:** Present the **Plan Approval** Three-Way Approval Gate (see `ai/workflow/gates.md § Three-Way Approval Gate`).
+  - `Approve` → lift plan-mode read-only constraint; flow to Implement.
+  - `Challenge externally` → pause for a fresh-context `/review-plan` on any provider, then return to the gate.
+  - `Revise manually` → accept edits or NL instructions; re-verify; return to the gate.
 
-- **Prerequisite:** Plan file exists at `ai/local/plans/<branch-slug>.md`.
-- **Delegation mandate:** The review must run in a fresh-context reviewer subagent — `plan-reviewer` if defined under `.claude/agents/`, otherwise `general-purpose`. The main agent does **not** run `/review-plan` inline during Plan Reviewing; the point of delegation is fresh context and independence from the drafting path (mirror of Internal Review Phase B for code review). If the provider has no subagent primitive at all, fall back to main-agent inline execution and note it in the exit banner subtitle.
-- **Autonomous loop:** The loop runs without per-iteration human handoff.
-  1. Main agent spawns the reviewer subagent with a short brief (plan intent, scope framing, branch-slug). Subagent executes `/review-plan` end-to-end and appends a new block to `ai/local/plans/<branch-slug>.review.md`.
-  2. Main agent reads the latest block's `Recommendation:`.
-  3. If `ready` → exit the loop.
-  4. If `revise` → main agent runs `/address-plan-review` in the **same session** (asymmetric policy: fresh-context discovery, same-session resolution). If `/address-plan-review` surfaces `Needs User Input`, pause, await human answers, then re-run `/address-plan-review`.
-  5. Main agent re-spawns the reviewer subagent for the next cycle.
-  6. **Cap: 3 cycles.** If the loop does not reach `ready` after 3 subagent reviews, emit the `▸ Halted Step 4/15 — Plan Reviewing` banner with a one-line subtitle naming the blocking findings, then fire a `Blocker Gate` (see `ai/workflow/gates.md § Blocker Gate`) with tailored options (typically `retry one more cycle` / `accept partial state and advance to Plan Approving with known gaps` / `abort workflow`).
-- **Exit:** Latest review block's `Recommendation:` is `ready` with no unresolved blocking findings.
+## 3. Implement
 
-## 5. Plan Approving
+Consolidates the old Implementation In Progress + Validation Complete steps.
 
-- **Prerequisite:** Plan Reviewing complete; plan state is `reviewed | addressed | ready for human approval`.
-- **Gate:** Present the **Plan Approval** Three-Way Approval Gate (see `ai/workflow/gates.md § Three-Way Approval Gate`). Discuss plan tradeoffs with the human if they raise them; technical implementation choices remain with the agent.
-- **Outcome:** Handle per `ai/workflow/gates.md § Three-Way Approval Gate`.
+- **Prerequisite:** Plan Approval complete (or plan phase skipped per trivial-change rule); plan-mode read-only lifted.
+- **Branch check:** Confirm `git branch --show-current` is the feature branch. Switch first if not.
+- **Track progress:** Mark the matching `plan.md` item `[~]` when implementation starts (skip for branch-local work).
+- **Implement:** Work in small, focused sub-tasks. No partial stubs. Commits scoped to one meaningful change each.
+- **Do not edit the plan** to track progress — use `git log` and `git status`. Run `/check-state` if context is lost.
+- **Inline discoveries:** small corrections within existing scope go into the implementation, not into the plan.
+- **Scope change mid-implementation:** if a genuine scope change emerges, invoke `/amend-plan`. It updates the plan with a scope-change reason and returns either to Implement (minor) or to Plan (major).
+- **Validate:** Run `/validate` once implementation is substantively complete. Fix blocking issues and re-run until it passes.
+- **Commit the validated snapshot.** Review starts from a clean working tree.
+- **Exit:** Autonomous. Flow to Review.
 
-## 6. Implementation In Progress
+## 4. Review
 
-- **Prerequisite:** Plan Approving complete; plan-mode read-only constraint lifted.
-- **Branch check:** Confirm the working directory is on the correct feature branch (`git branch --show-current`). If not, switch before writing any code.
-- **Track progress:** Mark the relevant `plan.md` item `[~]` when implementation starts.
-- **Implement:** Work in small, focused sub-tasks. Implement fully — no partial stubs. Keep commits scoped to one meaningful change each.
-- **Re-sync:** Do not update `ai/local/plans/<branch-slug>.md` to track progress — use `git log` and `git status`. Run `/check-state` if context is lost.
+Consolidates the old Internal Review + Internal Review Fix Loop steps.
 
-## 7. Validation Complete
-
-- **Validate:** Execute `/validate`.
-- **On failure:** Fix blocking issues and re-run `/validate`. Repeat until it passes.
-- **Commit before review:** Once validation passes, commit the validated implementation snapshot before proceeding to Internal Review. Internal review and any later review-fix command must start from a clean working tree that reflects the current implementation state.
-
-## 8. Internal Review
-
-Internal review has two phases: a self-pass by the main agent, then a delegated deep review by a dedicated reviewer subagent with fresh context. The main agent's context is biased toward the path it already took, so self-review alone is not sufficient for logic changes.
-
-- **Prerequisite:** Validation Complete, the validated implementation snapshot is committed, and the working tree is clean before review begins.
+- **Prerequisite:** Validate passed; validated implementation committed; working tree clean.
 
 **Phase A — Self-pass (main agent).**
 
 - Run a code quality pass on the branch diff: duplication, efficiency, unnecessary nesting. Fix what you find inline.
-- This pass is cheap and benefits from full main-agent context, so it is the right place to catch obvious smells before delegating.
+- Cheap, benefits from full main-agent context, catches obvious smells before delegating.
 
-**Phase B — Deep review (preferred: subagent delegation; fallback: main agent inline).**
+**Phase B — Deep review (subagent preferred; main-agent inline fallback).**
 
-- **Path decision:** If the provider supports subagent delegation, spawn a dedicated reviewer subagent with fresh context (preferred). If not, run `/code-review` inline as the main agent and note this in the exit banner subtitle.
-- **Brief (both paths):** Write a short review brief (2–5 sentences) covering: the intent of the change, what is explicitly out of scope, any tradeoffs already agreed with the human, and a pointer to the relevant `plan.md` item or `ai/local/plans/<branch-slug>.md`. The brief is the single biggest lever for review quality — without one the review produces generic noise.
-- **Delegated path:** Pass the brief plus the `/code-review` command logic to the subagent. The subagent owns `/code-review` end-to-end, including writing findings to `ai/local/reviews/<branch-slug>.md`. Default source is `local`; use `gh` only when you want to review what is actually in the open PR rather than local HEAD. **Verification:** before emitting the exit banner, confirm that `ai/local/reviews/<branch-slug>.md` exists on disk and was updated in this run — if not, the subagent did not execute `/code-review` and the step must be re-run.
-- **Inline path:** Run `/code-review` directly as the main agent using the brief as context. Findings land in `ai/local/reviews/<branch-slug>.md` as usual.
-- All review findings — internal and PR — must persist in this file so follow-up agents across providers can act on them without re-running the review.
-- Map any provider-native subagent primitives (dedicated reviewer subagent types, isolated sub-task spawning) in the provider-specific entrypoint file, not here.
+- **Path decision:** If the provider supports subagent delegation, spawn a dedicated reviewer subagent with fresh context (preferred). If not, run `/code-review` inline as the main agent.
+- **Brief (both paths):** Write a short review brief (2–5 sentences): intent of the change, explicit out-of-scope items, tradeoffs already agreed with the human, pointer to the relevant `plan.md` item or plan file. Without a brief the review produces generic noise.
+- **Delegated path:** Pass the brief + `/code-review` command logic to the subagent. Subagent writes findings to `ai/local/reviews/<branch-slug>.md`. Verify the file was updated before continuing.
+- **Inline path:** Run `/code-review` directly with the brief as context. Findings land in the same file.
 
-## 9. Internal Review Fix Loop
+**Fix loop.**
 
-- If internal review finds issues, fix them before asking the human to test.
-- After each review-driven code change, apply `AGENTS.md § Fix Loop Decision Rules`.
-- For small incremental fixes the main agent may run `/code-review` inline since it just saw the subagent's findings and has context to verify targeted fixes. For larger fixes — or whenever the rules table says "respawned reviewer subagent" — spawn a fresh reviewer subagent with a new brief rather than reusing the main agent.
-- Cap: 3 cycles. If the loop does not converge to clean after 3 fix-and-re-review cycles, emit the `▸ Halted Step 9/15 — Internal Review Fix Loop` banner naming the blocking findings, then fire a `Blocker Gate` (see `ai/workflow/gates.md § Blocker Gate`) — typically `retry one more cycle` / `accept partial state and continue to Manual Testing or PR Open` / `abort workflow`.
-- Once the fix loop is clean, automatically commit the resulting review-driven changes. Verify `git status --short` is clean. If no review-driven changes were needed beyond the Validation Complete implementation snapshot commit, note that explicitly instead of creating an empty commit.
-- **Exit:** Autonomous. For user-visible changes, continue into Manual Human Testing. For non-user-visible changes, skip Manual Testing and continue into PR Open.
+- For each finding, apply `AGENTS.md § Fix Loop Decision Rules` (validate scope, who re-reviews, retest required).
+- Small incremental fixes: main agent re-runs `/code-review` inline. Larger fixes or architecture-touching: respawn the reviewer subagent with a fresh brief.
+- **No hard cycle cap.** If the loop isn't converging after 2–3 cycles, emit `▸ Halted Review` and fire a Blocker Gate — typically `retry one more cycle` / `accept partial state and continue` / `abort workflow`.
+- Once clean, automatically commit the review-driven changes. If no review-driven changes were needed beyond the validation snapshot, note that explicitly instead of creating an empty commit.
+- **Exit:** Autonomous. For user-visible changes, flow to Manual Test. For non-user-visible changes, skip Manual Test and flow directly to PR.
 
-## 10. Manual Human Testing
+## 5. Manual Test
 
-- **Prerequisite — clean working tree:** Before presenting the testing checklist, verify `git status --short` is empty. Any stray uncommitted changes (including whitespace-only diffs or unrelated `plan.md` edits from prior sessions) must be resolved first — either committed on this branch if they belong to the feature, stashed if they are unrelated, or reverted if they are accidental. The human should test the same state that will be reviewed and merged; untracked drift in the working tree invalidates that guarantee.
-- **Not user-visible** (docs, harness, config, test-only): skipped per Internal Review Fix Loop's exit; continue autonomously to PR Open. The Manual Testing Outcome gate does not fire.
-- **User-visible change:** Present the testing checklist. Include a concise summary of what changed and how it affects user experience or behavior. Explicitly state whether the human needs to restart Metro, rebuild the app, both, or neither.
-- **Checklist:** Provide inline. For follow-up fixes, provide only incremental retest steps unless the full flow needs re-running.
-- **Gate:** Once the checklist is presented and the human has had a chance to run it, fire the **Manual Testing Outcome** Confirmation Gate (see `ai/workflow/gates.md § Confirmation Gate`). Options: `proceed` (mark `[R]`, continue to PR Open) or `address issues` (enter Manual Testing Fix Loop).
+Consolidates the old Manual Human Testing + Manual Testing Fix Loop steps. Only fires for user-visible changes.
 
-## 11. Manual Testing Fix Loop
+- **Prerequisite — clean working tree:** `git status --short` must be empty before presenting the checklist. Stray uncommitted changes (whitespace, unrelated `plan.md` edits) must be resolved first. The human should test the same state that will be reviewed and merged.
+- **Not user-visible:** skipped; continue to PR.
+- **Present the checklist:** include a concise summary of what changed and how it affects UX. Explicitly state whether Metro restart, rebuild, both, or neither is required. Provide only incremental retest steps on fix re-entries.
+- **Gate:** Fire the **Manual Testing Outcome** Confirmation Gate (see `ai/workflow/gates.md § Confirmation Gate`).
+  - `proceed` → mark `plan.md` item `[R]`; flow to PR.
+  - `address issues` → enter the fix loop; apply `AGENTS.md § Fix Loop Decision Rules`; after the fix lands and the human re-tests, re-present this same gate.
 
-- **Entry:** Human selected `address issues` at the Manual Testing Outcome gate.
-- **Fix loop:** Apply `AGENTS.md § Fix Loop Decision Rules`. Request targeted retesting only for the affected behavior.
-- **Exit:** After the fix lands and the human re-tests, re-present the **Manual Testing Outcome** Confirmation Gate (same gate as Manual Human Testing). On `proceed`, mark the `plan.md` item `[R]` and continue autonomously to PR Open.
+## 6. PR
 
-## 12. PR Open
+Consolidates the old PR Open + PR Review Comments + PR Review Fix Loop steps.
 
-- **Prerequisite:** Manual Human Testing or Manual Testing Fix Loop complete; the matching `plan.md` item is marked `[R]` when this branch maps to one.
-- **Open:** Execute `/open-pr`. The command owns the `plan.md [x]` commit and push when a matching `plan.md` item exists.
+- **Prerequisite:** Manual Test complete (or skipped); `plan.md` item marked `[R]` when applicable.
+- **Open:** Run `/open-pr`. The command owns the `plan.md [x]` commit and push when a matching item exists.
+- **Incoming review comments:** when GitHub review comments arrive (or a fresh external review block is appended to `ai/local/reviews/<branch-slug>.md`), run `/address-code-review` autonomously. It consumes review threads, fixes each actionable finding, commits, pushes, and cycles through the fix loop until the review queue is clean.
+- **No PR review gate.** The PR phase is autonomous by design (solo workflow); the human can always interject in chat or directly on GitHub to redirect.
+- **No hard cycle cap.** If `/address-code-review` isn't converging, emit `▸ Halted PR` and fire a Blocker Gate.
+- **Exit:** Autonomous. Flow to Merge when the review queue is clean and CI is green.
 
-## 13. PR Review Comments
+## 7. Merge
 
-- **Entry:** Event-driven, and strictly requires a real review artifact. This step does not auto-enter when PR Open completes. Valid entry signals — at least one must hold before the gate fires:
-  1. At least one GitHub review comment, review, or thread is present on the PR (verifiable via `gh pr view --json reviewThreads,reviews` or `gh pr view --json comments`).
-  2. A fresh external `## Review (...)` block has been appended to `ai/local/reviews/<branch-slug>.md` by an out-of-session `/code-review` run against the PR.
-  3. The human explicitly confirms in chat that an external review cycle has already completed elsewhere (verbal confirmation of a completed review, not an intent to run one).
-- Invoking `/address-code-review` or `/code-review` is **not** a valid entry signal on its own. Those commands are the actions taken **after** the gate fires on the Approve or Challenge path — they do not substitute for a real review artifact. Silence after `/open-pr` (no comments, no external review block, no explicit confirmation) holds the branch paused between Step 12 and Step 13; the agent must wait for one of the three signals above before firing the gate.
-- **Gate:** On entry, fire the **PR Review Approval** Three-Way Approval Gate (see `ai/workflow/gates.md § Three-Way Approval Gate`). The human chooses:
-  - **Approve** → run `/address-code-review` against the PR. `/address-code-review` consumes GitHub review threads, fixes each actionable finding (committing and pushing per its procedure), and cycles through PR Review Fix Loop as needed.
-  - **Challenge externally** → pause for a fresh-context `/code-review` on the PR (any provider, new session). Returns here once the external block is appended.
-  - **Revise manually** → pause for manual edits or natural-language change instructions, re-verify once, then return to the gate.
-- **No actionable threads after `/address-code-review`:** If the human approved the gate *and* `/address-code-review` legitimately finds no unresolved GitHub threads (because reviewers posted questions-only, non-blocking suggestions, or the threads were already resolved on GitHub), the command reports "nothing to address" and flows to Merge Approval without entering PR Review Fix Loop. This shortcut is only available after the gate has actually fired and `/address-code-review` has actually run — it is never reached by auto-approving a freshly-opened PR with no comments.
+Consolidates the old Merge And Cleanup step.
 
-## 14. PR Review Fix Loop
+- **Prerequisite:** PR is approved on GitHub, CI is green, working tree clean.
+- **Merge:** Run `/finish-feature`. The command merges via `gh`, safety-checks the workspace, removes the branch or worktree, and returns to `main`.
+- **Exit:** Emit a single `▸ Completed Merge — <PR URL>` banner when the command finishes successfully. This is the only `Completed` banner in the normal flow.
 
-- **Entry:** Actionable review findings from PR Review Comments.
-- **Fix loop:** Apply `AGENTS.md § Fix Loop Decision Rules`. Request targeted manual retesting when the fix changes user-visible behavior.
-- **Cap:** Repeat up to 3 cycles. If the review queue is still not clean after 3, emit the `▸ Halted Step 14/15 — PR Review Fix Loop` banner and fire a `Blocker Gate` (see `ai/workflow/gates.md § Blocker Gate`) — typically `retry one more cycle` / `accept partial state and move to Merge Approval` / `abort workflow`.
-- **Exit:** Review queue is clean and all replies are posted; continue autonomously to Merge Approval.
+## Rewind Between Phases
 
-## 15. Merge And Cleanup
+Rewinds are legal moves, not errors. Two mechanisms:
 
-- **Gate:** Fire the **Merge Approval** Confirmation Gate (see `ai/workflow/gates.md § Confirmation Gate`) at the start of this step. The human confirms the PR is approved on GitHub and merging should proceed now.
-- **Merge:** On approval, execute `/finish-feature`. The command merges via GitHub CLI, safety-checks the workspace, removes the branch or worktree, and returns to `main`.
+- **`/amend-plan`** — from any phase post-Plan, invoke this command to update the plan file with a scope-change entry and return to Implement (minor change) or Plan (major change). See `ai/commands/amend-plan/COMMAND.md`.
+- **Gate `rewind` option** — at Plan Approval or Manual Testing Outcome, the human can choose `rewind to <phase>` instead of the standard options. See `ai/workflow/gates.md § Rewind`.
+
+Prefer `/amend-plan` when the issue is that the plan was wrong. Prefer the gate `rewind` when the phase itself produced something that needs undoing (e.g., tests revealed the wrong feature was built).
