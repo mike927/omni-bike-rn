@@ -38,6 +38,9 @@ yarn-error.*
 !.codex/skills/**
 ai/local/
 
+# Harness quarantine (temporary — evaluating alternative plugin)
+.harness-archive/
+
 # Claude Design handoff bundles (transient inputs — extract then archive locally)
 design_handoff_*/
 

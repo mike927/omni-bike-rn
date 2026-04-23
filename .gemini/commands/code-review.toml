@@ -1,6 +1,0 @@
-description = "Run a code review against the branch diff (local working tree or GitHub PR) and persist findings to the local review file."
-prompt = """
-Execute the procedure defined in @{ai/commands/code-review/COMMAND.md}.
-
-{{args}}
-"""
