@@ -28,7 +28,7 @@ interface ProgressPillProps {
 
 function ProgressPill({ index, scrollX, pageWidth }: ProgressPillProps) {
   const fillStyle = useAnimatedStyle(() => {
-    const distance = pageWidth > 0 ? Math.abs(scrollX.value / pageWidth - index) : 0;
+    const distance = Math.abs(scrollX.value / pageWidth - index);
     return { opacity: interpolate(distance, [0, 1], [1, 0], 'clamp') };
   });
 

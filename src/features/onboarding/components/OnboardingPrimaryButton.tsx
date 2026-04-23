@@ -18,6 +18,10 @@ export function OnboardingPrimaryButton({ label, onPress, testID }: OnboardingPr
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
+  // Press scale is driven by Pressable's onPressIn/onPressOut (not touch
+  // handlers on a parent View) so the gesture lifecycle composes with the
+  // ScrollView's pan responder — no stuck-pressed state on Android when a
+  // horizontal swipe begins on top of the button.
   return (
     <Animated.View style={animatedStyle}>
       <Pressable

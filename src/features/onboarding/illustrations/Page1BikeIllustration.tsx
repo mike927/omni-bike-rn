@@ -1,16 +1,15 @@
-import { StyleSheet, View, type ViewStyle } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { BluetoothConnector } from '../components/BluetoothConnector';
 import { IconCard } from '../components/IconCard';
 
 interface Page1BikeIllustrationProps {
-  readonly style?: ViewStyle;
   readonly testID?: string;
 }
 
-export function Page1BikeIllustration({ style, testID }: Page1BikeIllustrationProps) {
+export function Page1BikeIllustration({ testID }: Page1BikeIllustrationProps) {
   return (
-    <View style={[styles.row, style]} testID={testID}>
+    <View style={styles.row} testID={testID}>
       <IconCard icon="vibration" />
       <BluetoothConnector />
       <IconCard icon="directions-bike" />

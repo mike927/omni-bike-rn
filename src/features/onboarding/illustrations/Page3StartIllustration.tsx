@@ -1,15 +1,14 @@
-import { StyleSheet, View, type ViewStyle } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { IconCard } from '../components/IconCard';
 
 interface Page3StartIllustrationProps {
-  readonly style?: ViewStyle;
   readonly testID?: string;
 }
 
-export function Page3StartIllustration({ style, testID }: Page3StartIllustrationProps) {
+export function Page3StartIllustration({ testID }: Page3StartIllustrationProps) {
   return (
-    <View style={[styles.row, style]} testID={testID}>
+    <View style={styles.row} testID={testID}>
       <IconCard icon="bolt" />
     </View>
   );

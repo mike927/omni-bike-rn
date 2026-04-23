@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useRef, useState, type ComponentType } from 'react';
-import { StyleSheet, Text, View, useWindowDimensions, type ViewStyle } from 'react-native';
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -20,7 +20,7 @@ import { Page1BikeIllustration } from '../illustrations/Page1BikeIllustration';
 import { Page2HrIllustration } from '../illustrations/Page2HrIllustration';
 import { Page3StartIllustration } from '../illustrations/Page3StartIllustration';
 
-type IllustrationComponent = ComponentType<{ readonly style?: ViewStyle; readonly testID?: string }>;
+type IllustrationComponent = ComponentType<{ readonly testID?: string }>;
 
 interface OnboardingPage {
   readonly headline: string;
@@ -29,8 +29,9 @@ interface OnboardingPage {
   readonly illustrationTestID: string;
   readonly primaryLabel: string;
   readonly secondaryLabel: string | null;
-  readonly bottomPadding: number;
 }
+
+const BOTTOM_PADDING = 24;
 
 const ONBOARDING_PAGES: readonly OnboardingPage[] = [
   {
@@ -40,7 +41,6 @@ const ONBOARDING_PAGES: readonly OnboardingPage[] = [
     illustrationTestID: 'onboarding-illustration-bike',
     primaryLabel: 'Search for Bike',
     secondaryLabel: 'Skip',
-    bottomPadding: 24,
   },
   {
     headline: 'Train to your heart rate',
@@ -50,7 +50,6 @@ const ONBOARDING_PAGES: readonly OnboardingPage[] = [
     illustrationTestID: 'onboarding-illustration-hr',
     primaryLabel: 'Pair Device',
     secondaryLabel: 'Skip',
-    bottomPadding: 24,
   },
   {
     headline: "One tap and you're riding",
@@ -59,7 +58,6 @@ const ONBOARDING_PAGES: readonly OnboardingPage[] = [
     illustrationTestID: 'onboarding-illustration-start',
     primaryLabel: 'Finish',
     secondaryLabel: null,
-    bottomPadding: 24,
   },
 ];
 
@@ -146,7 +144,7 @@ export function OnboardingScreen() {
         ))}
       </Animated.ScrollView>
 
-      <View style={[styles.bottomActions, { paddingBottom: currentPage.bottomPadding }]}>
+      <View style={[styles.bottomActions, { paddingBottom: BOTTOM_PADDING }]}>
         <OnboardingPrimaryButton label={currentPage.primaryLabel} onPress={handlePrimaryAction} />
         {currentPage.secondaryLabel ? (
           <OnboardingSecondaryButton label={currentPage.secondaryLabel} onPress={handleSecondaryAction} />
@@ -167,7 +165,7 @@ interface OnboardingPageContentProps {
 
 function OnboardingPageContent({ page, index, scrollX, pageWidth }: OnboardingPageContentProps) {
   const illustrationStyle = useAnimatedStyle(() => {
-    const distance = pageWidth > 0 ? Math.abs(scrollX.value / pageWidth - index) : 0;
+    const distance = Math.abs(scrollX.value / pageWidth - index);
     return {
       opacity: interpolate(distance, [0, 1], [1, 0], Extrapolation.CLAMP),
       transform: [{ scale: interpolate(distance, [0, 1], [1, 0.96], Extrapolation.CLAMP) }],
@@ -176,7 +174,7 @@ function OnboardingPageContent({ page, index, scrollX, pageWidth }: OnboardingPa
 
   // Tighter input range than the illustration so text "trails" into focus.
   const textStyle = useAnimatedStyle(() => {
-    const distance = pageWidth > 0 ? Math.abs(scrollX.value / pageWidth - index) : 0;
+    const distance = Math.abs(scrollX.value / pageWidth - index);
     return {
       opacity: interpolate(distance, [0, 0.5], [1, 0], Extrapolation.CLAMP),
       transform: [{ translateY: interpolate(distance, [0, 0.5], [0, 16], Extrapolation.CLAMP) }],
