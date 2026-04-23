@@ -38,6 +38,9 @@ yarn-error.*
 !.codex/skills/**
 ai/local/
 
+# Claude Design handoff bundles (transient inputs — extract then archive locally)
+design_handoff_*/
+
 # local env files
 .env
 .env*.local

@@ -94,7 +94,7 @@ Lightweight, modern onboarding shown only on first launch. 2-3 swipeable intro s
 
 - [x] First-launch detection and persistence (show once, remember dismissal) — addressed in Screen Logic Revision
 - [x] Swipeable onboarding screen with 2-3 pages (connect bike → optional HR → start training) — addressed in Screen Logic Revision
-- [ ] Modern, visually polished design (animations, illustrations, smooth transitions) — deferred to Phase 9
+- [x] Modern, visually polished design (animations, illustrations, smooth transitions)
 - [x] Skip and Done actions — addressed in Screen Logic Revision
 
 ## Phase 6: Integrations & External Provider Sync
@@ -173,6 +173,7 @@ Three-part initiative to align our calorie numbers with Apple Fitness and Strava
 - [ ] Refine dashboard information hierarchy, spacing, and responsiveness
 - [ ] Polish empty, loading, error, paused, and finished states
 - [ ] Add motion, typography, theming, and interaction polish
+- [ ] Wire onboarding pairing CTAs to real pairing flow — `Search for Bike` and `Pair Device` currently just advance the carousel. Likely shape: modal-present `GearSetupScreen` on top of onboarding so dismiss returns to the same step. Decide between (a) modal, (b) deeplink + back, (c) inline mini-pairing UI before implementation.
 - [ ] Final cross-screen QA for portrait and iOS live surfaces
 
 ## Android Parity (Deferred)

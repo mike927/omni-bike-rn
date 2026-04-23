@@ -1,38 +1,68 @@
 import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useRef, useState, type ComponentType } from 'react';
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import Animated, {
+  Extrapolation,
+  interpolate,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+  type SharedValue,
+} from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAppPreferencesStore } from '../../../store/appPreferencesStore';
-import { ActionButton } from '../../../ui/components/ActionButton';
-import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
+import { OnboardingPrimaryButton } from '../components/OnboardingPrimaryButton';
+import { OnboardingProgressBar } from '../components/OnboardingProgressBar';
+import { OnboardingSecondaryButton } from '../components/OnboardingSecondaryButton';
+import { Page1BikeIllustration } from '../illustrations/Page1BikeIllustration';
+import { Page2HrIllustration } from '../illustrations/Page2HrIllustration';
+import { Page3StartIllustration } from '../illustrations/Page3StartIllustration';
+
+type IllustrationComponent = ComponentType<{ readonly testID?: string }>;
 
 interface OnboardingPage {
-  title: string;
-  description: string;
-  eyebrow: string;
+  readonly headline: string;
+  readonly subtitle: string;
+  readonly Illustration: IllustrationComponent;
+  readonly illustrationTestID: string;
+  readonly primaryLabel: string;
+  readonly secondaryLabel: string | null;
 }
 
-const ONBOARDING_PAGES: OnboardingPage[] = [
+const BOTTOM_PADDING = 24;
+
+const ONBOARDING_PAGES: readonly OnboardingPage[] = [
   {
-    eyebrow: 'Step 1',
-    title: 'Connect your bike',
-    description: 'Pair your FTMS indoor bike to unlock live speed, power, cadence, and distance tracking.',
+    headline: 'See your ride in real time',
+    subtitle: 'Pair your FTMS bike to stream live speed, power, cadence, and distance.',
+    Illustration: Page1BikeIllustration,
+    illustrationTestID: 'onboarding-illustration-bike',
+    primaryLabel: 'Search for Bike',
+    secondaryLabel: 'Skip',
   },
   {
-    eyebrow: 'Step 2',
-    title: 'Add heart rate if you want it',
-    description: 'A Bluetooth chest strap or compatible watch can join the ride, but it is completely optional.',
+    headline: 'Train to your heart rate',
+    subtitle:
+      'Connect a Bluetooth chest strap, Apple Watch, or other compatible watch. Optional — you can add one anytime.',
+    Illustration: Page2HrIllustration,
+    illustrationTestID: 'onboarding-illustration-hr',
+    primaryLabel: 'Pair Device',
+    secondaryLabel: 'Skip',
   },
   {
-    eyebrow: 'Step 3',
-    title: 'Start training fast',
-    description: 'Saved gear reconnects automatically so your next ride can start from Home with one tap.',
+    headline: "One tap and you're riding",
+    subtitle: 'Saved gear reconnects automatically, so your next workout starts from Home.',
+    Illustration: Page3StartIllustration,
+    illustrationTestID: 'onboarding-illustration-start',
+    primaryLabel: 'Finish',
+    secondaryLabel: null,
   },
 ];
 
 export function getOnboardingPageWidth(windowWidth: number): number {
-  return Math.max(windowWidth - 40, 280);
+  return Math.max(windowWidth, 320);
 }
 
 export function getOnboardingPageIndex(offsetX: number, pageWidth: number): number {
@@ -41,13 +71,30 @@ export function getOnboardingPageIndex(offsetX: number, pageWidth: number): numb
 
 export function OnboardingScreen() {
   const router = useRouter();
-  const scrollViewRef = useRef<ScrollView | null>(null);
+  const scrollViewRef = useRef<Animated.ScrollView | null>(null);
   const { width } = useWindowDimensions();
   const completeOnboarding = useAppPreferencesStore((s) => s.completeOnboarding);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const pageWidth = getOnboardingPageWidth(width);
 
+  const scrollX = useSharedValue(0);
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollX.value = event.contentOffset.x;
+    },
+  });
+
   const isLastPage = currentPageIndex === ONBOARDING_PAGES.length - 1;
+  const currentPage = ONBOARDING_PAGES[currentPageIndex] ?? ONBOARDING_PAGES[0];
+  if (!currentPage) {
+    return null;
+  }
+
+  // Equality guard dedupes writes from programmatic scrollTo + onMomentumScrollEnd.
+  const goToPage = (nextPageIndex: number) => {
+    scrollViewRef.current?.scrollTo({ x: nextPageIndex * pageWidth, animated: true });
+    setCurrentPageIndex((current) => (current === nextPageIndex ? current : nextPageIndex));
+  };
 
   const handleDone = async () => {
     await completeOnboarding();
@@ -59,120 +106,156 @@ export function OnboardingScreen() {
       void handleDone();
       return;
     }
+    goToPage(currentPageIndex + 1);
+  };
 
-    const nextPageIndex = currentPageIndex + 1;
-    scrollViewRef.current?.scrollTo({ x: nextPageIndex * pageWidth, animated: true });
-    setCurrentPageIndex(nextPageIndex);
+  const handleSecondaryAction = () => {
+    if (isLastPage) return;
+    goToPage(currentPageIndex + 1);
   };
 
   return (
-    <AppScreen
-      title="Welcome to Omni Bike"
-      subtitle="A quick intro before you land on Home for the first time."
-      contentContainerStyle={styles.screenContent}>
-      <View style={styles.content}>
-        <ScrollView
-          ref={scrollViewRef}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={(event) => {
-            const nextPageIndex = getOnboardingPageIndex(event.nativeEvent.contentOffset.x, pageWidth);
-            setCurrentPageIndex(nextPageIndex);
-          }}>
-          {ONBOARDING_PAGES.map((page) => (
-            <View key={page.title} style={[styles.page, { width: pageWidth }]}>
-              <View style={styles.hero}>
-                <Text style={styles.eyebrow}>{page.eyebrow}</Text>
-                <Text style={styles.pageTitle}>{page.title}</Text>
-                <Text style={styles.pageDescription}>{page.description}</Text>
-              </View>
-            </View>
-          ))}
-        </ScrollView>
-
-        <View style={styles.dotsRow}>
-          {ONBOARDING_PAGES.map((page, index) => (
-            <Pressable
-              key={page.title}
-              accessibilityRole="button"
-              accessibilityLabel={`Go to onboarding page ${index + 1}`}
-              onPress={() => {
-                scrollViewRef.current?.scrollTo({ x: index * pageWidth, animated: true });
-                setCurrentPageIndex(index);
-              }}
-              style={[styles.dot, index === currentPageIndex ? styles.dotActive : null]}
-            />
-          ))}
-        </View>
-
-        <View style={styles.actionRow}>
-          <ActionButton label="Skip" onPress={() => void handleDone()} variant="ghost" />
-          <ActionButton label={isLastPage ? 'Done' : 'Next'} onPress={handlePrimaryAction} />
-        </View>
+    <SafeAreaView edges={['top', 'left', 'right', 'bottom']} style={styles.safeArea}>
+      <View style={styles.topBar}>
+        <OnboardingProgressBar total={ONBOARDING_PAGES.length} scrollX={scrollX} pageWidth={pageWidth} />
       </View>
-    </AppScreen>
+
+      <Animated.ScrollView
+        ref={scrollViewRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        onMomentumScrollEnd={(event) => {
+          const nextPageIndex = getOnboardingPageIndex(event.nativeEvent.contentOffset.x, pageWidth);
+          setCurrentPageIndex((current) => (current === nextPageIndex ? current : nextPageIndex));
+        }}
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}>
+        {ONBOARDING_PAGES.map((page, index) => (
+          <OnboardingPageContent
+            key={page.headline}
+            page={page}
+            index={index}
+            scrollX={scrollX}
+            pageWidth={pageWidth}
+          />
+        ))}
+      </Animated.ScrollView>
+
+      <View style={[styles.bottomActions, { paddingBottom: BOTTOM_PADDING }]}>
+        <OnboardingPrimaryButton label={currentPage.primaryLabel} onPress={handlePrimaryAction} />
+        {currentPage.secondaryLabel ? (
+          <OnboardingSecondaryButton label={currentPage.secondaryLabel} onPress={handleSecondaryAction} />
+        ) : (
+          <View style={styles.secondarySlotSpacer} />
+        )}
+      </View>
+    </SafeAreaView>
+  );
+}
+
+interface OnboardingPageContentProps {
+  readonly page: OnboardingPage;
+  readonly index: number;
+  readonly scrollX: SharedValue<number>;
+  readonly pageWidth: number;
+}
+
+function OnboardingPageContent({ page, index, scrollX, pageWidth }: OnboardingPageContentProps) {
+  const illustrationStyle = useAnimatedStyle(() => {
+    const distance = Math.abs(scrollX.value / pageWidth - index);
+    return {
+      opacity: interpolate(distance, [0, 1], [1, 0], Extrapolation.CLAMP),
+      transform: [{ scale: interpolate(distance, [0, 1], [1, 0.96], Extrapolation.CLAMP) }],
+    };
+  });
+
+  // Tighter input range than the illustration so text "trails" into focus.
+  const textStyle = useAnimatedStyle(() => {
+    const distance = Math.abs(scrollX.value / pageWidth - index);
+    return {
+      opacity: interpolate(distance, [0, 0.5], [1, 0], Extrapolation.CLAMP),
+      transform: [{ translateY: interpolate(distance, [0, 0.5], [0, 16], Extrapolation.CLAMP) }],
+    };
+  });
+
+  return (
+    <View style={[styles.page, { width: pageWidth }]}>
+      <Animated.View style={[styles.textBlock, textStyle]}>
+        <Text style={styles.headline} numberOfLines={2}>
+          {page.headline}
+        </Text>
+        <Text style={styles.subtitle} numberOfLines={3}>
+          {page.subtitle}
+        </Text>
+      </Animated.View>
+      <Animated.View style={[styles.illustration, illustrationStyle]}>
+        <page.Illustration testID={page.illustrationTestID} />
+      </Animated.View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screenContent: {
-    flexGrow: 1,
-  },
-  content: {
+  safeArea: {
     flex: 1,
-    justifyContent: 'space-between',
-    gap: 16,
+    backgroundColor: palette.surface,
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 16,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    alignItems: 'stretch',
   },
   page: {
-    paddingRight: 12,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    flex: 1,
+    alignItems: 'center',
   },
-  hero: {
-    minHeight: 280,
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: palette.border,
-    backgroundColor: palette.surface,
-    padding: 24,
-    justifyContent: 'flex-end',
-    gap: 12,
+  textBlock: {
+    alignItems: 'center',
+    gap: 16,
+    width: '100%',
+    maxWidth: 448,
   },
-  eyebrow: {
-    color: palette.primary,
-    fontSize: 13,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  pageTitle: {
+  headline: {
     color: palette.text,
-    fontSize: 28,
-    fontWeight: '800',
-    lineHeight: 34,
+    fontSize: 30,
+    fontWeight: '700',
+    lineHeight: 36,
+    letterSpacing: -0.6,
+    textAlign: 'center',
+    minHeight: 72,
   },
-  pageDescription: {
+  subtitle: {
     color: palette.textMuted,
     fontSize: 16,
-    lineHeight: 24,
+    lineHeight: 26,
+    textAlign: 'center',
+    minHeight: 78,
   },
-  dotsRow: {
-    flexDirection: 'row',
+  illustration: {
+    flex: 1,
+    width: '100%',
+    alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
   },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 999,
-    backgroundColor: palette.border,
+  bottomActions: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    gap: 12,
   },
-  dotActive: {
-    width: 28,
-    backgroundColor: palette.primary,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 24,
+  secondarySlotSpacer: {
+    height: 56,
   },
 });
