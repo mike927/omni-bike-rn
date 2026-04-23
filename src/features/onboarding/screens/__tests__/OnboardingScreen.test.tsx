@@ -73,4 +73,32 @@ describe('OnboardingScreen', () => {
     expect(pageWidth).toBe(360);
     expect(getOnboardingPageIndex(560, pageWidth)).toBe(2);
   });
+
+  it('renders each per-page hero illustration', () => {
+    render(<OnboardingScreen />);
+
+    expect(screen.getByTestId('onboarding-illustration-bike')).toBeTruthy();
+    expect(screen.getByTestId('onboarding-illustration-hr')).toBeTruthy();
+    expect(screen.getByTestId('onboarding-illustration-start')).toBeTruthy();
+  });
+
+  it('navigates to the requested page when a dot is pressed', () => {
+    render(<OnboardingScreen />);
+
+    fireEvent.press(screen.getByLabelText('Go to onboarding page 2'));
+
+    expect(screen.getByText('Add heart rate if you want it')).toBeTruthy();
+    expect(screen.getByText('Next')).toBeTruthy();
+  });
+
+  it('triggers onPress when the OnboardingActionButton primary is pressed', async () => {
+    render(<OnboardingScreen />);
+
+    fireEvent.press(screen.getByLabelText('Go to onboarding page 3'));
+    fireEvent.press(screen.getByText('Done'));
+
+    await waitFor(() => {
+      expect(mockCompleteOnboarding).toHaveBeenCalledTimes(1);
+    });
+  });
 });
