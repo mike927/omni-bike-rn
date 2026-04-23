@@ -74,9 +74,9 @@ const styles = StyleSheet.create({
     height: ICON_SIZE,
     textAlignVertical: 'center',
     includeFontPadding: false,
-    // MaterialIcons glyphs sit ~6px below their em-box center; nudge up
-    // so the visible glyph lands at the geometric center of the card.
-    marginTop: -6,
+    // MaterialIcons glyphs sit below their em-box center; translate up
+    // (transforms don't affect layout, so the mask still aligns).
+    transform: [{ translateY: -10 }],
   },
   iconGradient: {
     flex: 1,
