@@ -50,7 +50,7 @@ Read the `source` input. Default is `local`.
 | `local` | Read `ai/local/reviews/<branch-slug>.md`. If missing or empty, stop and report — nothing to address.          |
 | `gh`    | Fetch unresolved PR review threads, append them to `ai/local/reviews/<branch-slug>.md`, then load the file.  |
 
-If the review file already has `State: ready` and there are no unresolved actionable `[ ]` findings, report that the review queue is already clean and stop.
+If the latest block in the review file already has `Recommendation: ready` and there are no unresolved actionable `[ ]` findings, report that the review queue is already clean and stop.
 
 For `source: gh`, fetch PR review threads with:
 
@@ -101,7 +101,7 @@ For each **intentionally-declined** item: you will append a brief reason inline 
 
 ### Step 5: Update Review File (In-Place)
 
-Update findings in place per `ai/workflow/review-file.md § Review Resolution Format`. Use the following outcome verbs for code-review findings:
+Update findings in place per `ai/workflow/review-file.md § Resolution Format`. Use the following outcome verbs for code-review findings:
 
 | Outcome verb | Use when |
 |---|---|
@@ -109,7 +109,7 @@ Update findings in place per `ai/workflow/review-file.md § Review Resolution Fo
 | `ANSWERED: <brief answer>` | Question finding — no code change, reply text prepared |
 | `DECLINED: <reason>` | Valid finding, explicitly disagreed with |
 
-After all actionable findings (bug, regression, convention, accepted suggestion) are marked `[x]`, update the `State:` line **inside the latest `## Review (...)` block** to `needs-review` per `ai/workflow/review-file.md § Review File State`. There is no file-level `State:` header — state lives inside the latest block. Declined-with-reason items count as resolved for this transition.
+After all actionable findings (bug, regression, convention, accepted suggestion) are marked `[x]`, append (or update) a trailing `## Resolution Summary` section with `Recommendation: ready` when the queue is clean, or `Recommendation: revise` if any blocking finding was not resolved. Declined-with-reason items count as resolved. `/open-pr` reads this summary's `Recommendation:` as the authoritative state per `ai/workflow/review-file.md § Resolution Format`.
 
 ### Step 6: Prepare Reply Text (gh source only)
 
@@ -148,18 +148,16 @@ Otherwise output the paste-ready text from Step 6 for the human to post manually
 - Replies ready: <all threads | n/a for local source>
 
 Details: ai/local/reviews/<branch-slug>.md
-State: needs-review — re-run `/code-review` to confirm fixes.
+Recommendation: <ready | revise> — re-run `/code-review` to re-verify.
 ```
 
-Append the state line only when at least one actionable finding was processed in this run; if the command stopped early (already-clean queue, no unresolved threads, blocker), omit it.
-
-Close out per `AGENTS.md` § `Agent Roles` — workflow owner mode flows into the next step from the enclosing workflow stage; specialist reviewer mode stops here.
+Close out per `AGENTS.md` § `Agent Roles` — workflow owner mode flows into the next phase from the enclosing workflow stage; specialist reviewer mode stops here.
 
 ## Completion Criteria
 
 - Every actionable finding is fixed and committed (pushed when `source: gh`), answered, or explicitly declined with a reason.
 - Each fix passed the `Fix Loop Decision Rules` before the next finding was started.
-- `ai/local/reviews/<branch-slug>.md` reflects the processed state for every finding, with the `State:` line inside the latest `## Review (...)` block updated per `ai/workflow/review-file.md § Review File State`.
+- `ai/local/reviews/<branch-slug>.md` reflects the processed state for every finding, with a trailing `## Resolution Summary` `Recommendation:` line updated per `ai/workflow/review-file.md § Resolution Format`.
 - For `source: gh`: reply text exists for every thread.
 
 ## See Also

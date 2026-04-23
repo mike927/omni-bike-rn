@@ -1,17 +1,17 @@
 ---
 name: check-state
 description: >-
-  Analyze local and GitHub branch reality, infer the most likely workflow step,
+  Analyze local and GitHub branch reality, infer the most likely workflow phase,
   and prompt for next steps.
 inputs: []
 outputs:
   - name: formatted-snapshot
-    description: 'A comprehensive chat message outlining Git state, local artifacts, PR state, inferred workflow step, discrepancies, and actionable next steps.'
+    description: 'A comprehensive chat message outlining Git state, local artifacts, PR state, inferred workflow phase, discrepancies, and actionable next steps.'
 ---
 
 # Check-State
 
-Assess current context by taking a deep-dive snapshot of reality, infer the most likely active workflow step from `AGENTS.md`, show the evidence to the human, and await instructions on what to do next.
+Assess current context by taking a deep-dive snapshot of reality, infer the most likely active workflow phase from `AGENTS.md § Phases`, show the evidence to the human, and await instructions on what to do next.
 
 ## Prerequisites
 
@@ -62,24 +62,23 @@ If `gh` is not authenticated or no PR exists, report that PR state is `unknown` 
 
 If a PR exists:
 - Record the PR number, URL, open/closed state, draft state, and review decision when available.
-- Treat an open PR as evidence that the branch is at least at the `PR Open` stage of `AGENTS.md`, even if local plan artifacts are missing.
-- If the PR is open and review feedback is requested or actionable review comments are already known from local context, infer `PR Review Comments` or `PR Review Fix Loop` instead of `PR Open`.
+- Treat an open PR as evidence that the branch is at least at the `PR` phase of `AGENTS.md`, even if local plan artifacts are missing.
+- If the PR is open and review comments exist, the `PR` phase is mid-address-loop rather than freshly opened.
 
-### Step 4: Infer The Most Likely Workflow Step
+### Step 4: Infer The Most Likely Workflow Phase
 
-Cross-reference local state, local artifacts, and PR state. Infer the most likely active workflow step from `AGENTS.md`, and include a short confidence note.
+Cross-reference local state, local artifacts, and PR state. Infer the most likely active phase from `AGENTS.md § Phases`, and include a short confidence note.
 
 Use these rules in order:
 
-1. If the current branch is `main` and dirty, report `Bootstrapping` blocked.
-2. If the current branch is `main` and clean, report `Bootstrapping` complete and ready for `Workspace Preparing`.
-3. If the current branch is not `main` and there is an open PR:
-   - Default to `PR Open` when no review activity is visible.
-   - Report `PR Review Comments` when review feedback is present and not yet addressed.
-   - Report `PR Review Fix Loop` when review feedback exists and the branch has follow-up edits or commits that appear to be addressing it.
+1. If the current branch is `main` and dirty, report `Bootstrap` blocked.
+2. If the current branch is `main` and clean, report `Bootstrap` complete and ready to start a new feature (`/start-feature`).
+3. If the current branch is not `main` and there is an open PR, report the `PR` phase. If incoming review comments exist, note that `/address-code-review` is the active sub-step.
 4. If the current branch is not `main` and there is no PR:
-   - Use branch-scoped plan and review artifacts to distinguish the planning stages (`Plan Drafting` / `Plan Reviewing` / `Plan Approving`) from the implementation-through-testing stages (`Implementation In Progress` through `Manual Testing Fix Loop`).
-   - If evidence is mixed, report a bounded range such as `between Implementation In Progress and Internal Review Fix Loop` instead of a false precise claim.
+   - Plan file exists, review file absent or incomplete → `Plan` phase.
+   - Plan file + at least one implementation commit, no review file → `Implement` phase.
+   - Plan file + review file present → `Review` or `Manual Test` phase depending on review state and whether the change is user-visible.
+   - If evidence is mixed, report a bounded range (e.g., `between Implement and Review`) instead of a false precise claim.
 5. If `plan.md` does not mention the branch task, describe that as `branch-local work` or `plan drift`, not automatically as a fresh start.
 
 When evidence is incomplete, report a bounded range with a confidence note rather than forcing a single precise step.
@@ -118,8 +117,8 @@ Post a highly comprehensive snapshot message in chat using this general format:
 - PR URL: `<url, if any>`
 - Review Decision: `<approved | changes requested | review required | unknown>`
 
-**Likely Active Step**:
-- `<Step name from AGENTS.md>`
+**Likely Active Phase**:
+- `<Phase name from AGENTS.md § Phases>`
 - Confidence: `<high | medium | low>`
 - Why:
   - `<strongest signal>`
@@ -138,7 +137,7 @@ Do not collapse the answer to only local file state. PR state must be included w
 
 ### Step 7: Present Structured Next-Step Gate
 
-Per `AGENTS.md § Harness Principles` "Structured stops", do not end with a free-text wait. Fire a `Blocker Gate` (see `ai/workflow/gates.md § Blocker Gate`) with labeled options built from the **Next Steps?** list produced in Step 6 — typically the top 2–3 candidate actions (most likely next workflow step, second plausible path, clarification/other). The gate's host primitive always appends an `Other` free-text escape, so the human can redirect if none of the listed options fit.
+Per `AGENTS.md § Harness Principles` "Structured stops", do not end with a free-text wait. Fire a `Blocker Gate` (see `ai/workflow/gates.md § Blocker Gate`) with labeled options built from the **Next Steps?** list produced in Step 6 — typically the top 2–3 candidate actions (most likely next workflow phase, second plausible path, clarification/other). The gate's host primitive always appends an `Other` free-text escape, so the human can redirect if none of the listed options fit.
 
 Do not spontaneously execute further logic without the human's explicit choice.
 
@@ -146,12 +145,12 @@ Do not spontaneously execute further logic without the human's explicit choice.
 
 - The local reality check is complete.
 - The PR state has been checked or explicitly marked unknown.
-- The most likely workflow step has been inferred from the available evidence.
+- The most likely workflow phase has been inferred from the available evidence.
 - Discrepancies are highlighted.
 - The human has been presented with a structured Blocker Gate for the next move and the agent is paused awaiting the selection.
 
 ## See Also
 
-- `AGENTS.md` — workflow step definitions and stage boundaries
+- `AGENTS.md § Phases` — phase definitions and gate boundaries
 - `ai/commands/open-pr/COMMAND.md` — PR creation and existing-PR handling
 - `ai/commands/address-code-review/COMMAND.md` — PR review comment triage and fix loop

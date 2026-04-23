@@ -10,8 +10,8 @@ inputs:
 outputs:
   - name: review-file
     description: 'Findings written to ai/local/reviews/<branch-slug>.md'
-  - name: state
-    description: 'Review state written to the review file: ready or needs-changes (needs-review is written only as an in-progress marker during the run)'
+  - name: recommendation
+    description: 'Review recommendation written to the review file: ready or revise'
 ---
 
 # Code Review
@@ -66,7 +66,7 @@ Block structure:
 ```md
 ## Review (<provider>, <ISO timestamp>)
 
-State: <ready | needs-changes>
+Recommendation: <ready | revise>
 Source: <local | gh>
 
 ### Findings
@@ -79,12 +79,11 @@ Source: <local | gh>
 <2-3 sentences: overall quality assessment and what needs attention>
 ```
 
-File-level rules follow `ai/workflow/review-file.md § Review File State` (append-mode contract, latest-block-wins, never overwrite). If no prior file exists, create it with a single `# Review: <branch-name>` H1 on line 1, then append the first block below it.
+File-level rules follow `ai/workflow/review-file.md § Format` (append-mode contract, latest-block-wins, never overwrite). If no prior file exists, create it with a single `# Review: <branch-name>` H1 on line 1, then append the first block below it.
 
 Block-content rules:
 
-- If the run may be interrupted (long review, flaky tooling, cross-provider handoff mid-flight), append the block header first with `State: needs-review`, then overwrite just that line when final findings are ready. In a single-pass run, write the final `State:` value directly — the `needs-review` waypoint is a resilience measure, not a requirement.
-- Set the final `State` per `ai/workflow/review-file.md § Review File State`: `ready` when no unresolved actionable findings of severity bug, regression, or convention remain (suggestions-only or empty counts as ready), otherwise `needs-changes`.
+- Set the final `Recommendation` per `ai/workflow/review-file.md § Latest Block Header`: `ready` when no unresolved actionable findings of severity bug, regression, or convention remain (suggestions-only or empty counts as ready), otherwise `revise`.
 
 ### Step 5: Report In Chat
 
@@ -92,23 +91,23 @@ Post a summary in chat:
 
 ```md
 **Review Complete** (<source>)
-State: <ready | needs-changes>
+Recommendation: <ready | revise>
 
-- 🐛 Bugs: <count>
-- ⚠️ Regressions: <count>
-- 📏 Conventions: <count>
-- 💡 Suggestions: <count>
+- Bugs: <count>
+- Regressions: <count>
+- Conventions: <count>
+- Suggestions: <count>
 
 Details: ai/local/reviews/<branch-slug>.md
 ```
 
-Close out per `AGENTS.md` § `Agent Roles` — workflow owner mode flows into the next step from the enclosing workflow stage; specialist reviewer mode stops here.
+Close out per `AGENTS.md` § `Agent Roles` — workflow owner mode flows into the next phase from the enclosing workflow stage; specialist reviewer mode stops here.
 
 ## Completion Criteria
 
 - Every changed file has been reviewed against the checklist and conventions.
 - Findings are written to `ai/local/reviews/<branch-slug>.md` with `file:line` references.
-- Review state is set and posted in chat following `ai/workflow/review-file.md § Review File State`.
+- Review recommendation is set and posted in chat following `ai/workflow/review-file.md § Latest Block Header`.
 
 ## See Also
 

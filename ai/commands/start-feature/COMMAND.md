@@ -110,21 +110,21 @@ Verify the new branch is active in the correct directory.
 ### Step 6: Report And Continue
 
 ```
-**Workspace Preparing**
+**Bootstrap Complete**
 - Branch: `<branch-name>`
 - Slug: `<branch-slug>`
 - Mode: in-place | worktree at `../omni-bike-rn-worktrees/<branch-slug>`
 - Working directory: `<path>`
 ```
 
-Fire the **Scope Clarification** Confirmation Gate per `ai/workflow/gates.md § Confirmation Gate` before transitioning into Plan Drafting. The gate is the exit of Workspace Preparing — confirm the task scope is understood; accept clarifications from the human and integrate them if requested.
+Flow directly into the Plan phase (`ai/workflow/steps.md § 2. Plan`). No gate fires at this boundary — confirm the task scope is understood by stating it briefly in the report; if the human needs to redirect, they will.
 
 ## Completion Criteria
 
 - The new branch exists and is active.
 - `branch-slug` is printed and available for use in `ai/local/plans/<branch-slug>.md`, `ai/local/reviews/<branch-slug>.md`, and all other artifacts.
 - No plan file has been created yet.
-- The Scope Clarification gate was presented and the human's response recorded.
+- Task scope was briefly stated in the report so the human can redirect if needed.
 
 ## See Also
 
