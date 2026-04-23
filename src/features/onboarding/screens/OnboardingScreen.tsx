@@ -60,7 +60,7 @@ const ONBOARDING_PAGES: readonly OnboardingPage[] = [
     illustrationTestID: 'onboarding-illustration-start',
     primaryLabel: 'Finish',
     secondaryLabel: null,
-    bottomPadding: 152,
+    bottomPadding: 80,
   },
 ];
 
