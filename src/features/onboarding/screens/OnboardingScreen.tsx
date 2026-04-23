@@ -13,7 +13,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAppPreferencesStore } from '../../../store/appPreferencesStore';
 import { palette } from '../../../ui/theme';
-import { OnboardingBackChevron } from '../components/OnboardingBackChevron';
 import { OnboardingPrimaryButton } from '../components/OnboardingPrimaryButton';
 import { OnboardingProgressBar } from '../components/OnboardingProgressBar';
 import { OnboardingSecondaryButton } from '../components/OnboardingSecondaryButton';
@@ -117,17 +116,10 @@ export function OnboardingScreen() {
     goToPage(currentPageIndex + 1);
   };
 
-  const handleBack = () => {
-    if (currentPageIndex === 0) return;
-    goToPage(currentPageIndex - 1);
-  };
-
   return (
     <SafeAreaView edges={['top', 'left', 'right', 'bottom']} style={styles.safeArea}>
       <View style={styles.topBar}>
-        <OnboardingBackChevron visible={currentPageIndex > 0} onPress={handleBack} />
         <OnboardingProgressBar total={ONBOARDING_PAGES.length} scrollX={scrollX} pageWidth={pageWidth} />
-        <View style={styles.topBarSpacer} />
       </View>
 
       <Animated.ScrollView
@@ -216,13 +208,9 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
     paddingHorizontal: 24,
     paddingTop: 16,
     paddingBottom: 16,
-  },
-  topBarSpacer: {
-    width: 36,
   },
   scroll: {
     flex: 1,
@@ -232,6 +220,7 @@ const styles = StyleSheet.create({
   },
   page: {
     paddingHorizontal: 24,
+    paddingTop: 24,
     flex: 1,
     alignItems: 'center',
   },

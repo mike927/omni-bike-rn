@@ -88,15 +88,4 @@ describe('OnboardingScreen', () => {
     expect(screen.getByText('Pair Device')).toBeTruthy();
     expect(screen.getByText('Train to your heart rate')).toBeTruthy();
   });
-
-  it('returns to the previous page when the back chevron is pressed', () => {
-    render(<OnboardingScreen />);
-
-    fireEvent.press(screen.getByText('Search for Bike'));
-    expect(screen.getByText('Pair Device')).toBeTruthy();
-
-    fireEvent.press(screen.getByLabelText('Back'));
-
-    expect(screen.getByText('Search for Bike')).toBeTruthy();
-  });
 });
