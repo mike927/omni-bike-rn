@@ -22,14 +22,17 @@ import { useInterruptedSessionRecovery } from '../src/features/training/hooks/us
 import { useKeepAwakeDuringTraining } from '../src/features/training/hooks/useKeepAwakeDuringTraining';
 import { useTrainingSessionPersistence } from '../src/features/training/hooks/useTrainingSessionPersistence';
 
-export function getOnboardingGateRedirect(segments: readonly string[], onboardingCompleted: boolean): string | null {
-  const isOnboardingRoute = segments[0] === 'onboarding';
+const ONBOARDING_ROUTE_SEGMENTS: ReadonlySet<string> = new Set(['onboarding', 'onboarding-gear-setup']);
 
-  if (!onboardingCompleted && !isOnboardingRoute) {
+export function getOnboardingGateRedirect(segments: readonly string[], onboardingCompleted: boolean): string | null {
+  const segment = segments[0] ?? '';
+  const isOnboardingSegment = ONBOARDING_ROUTE_SEGMENTS.has(segment);
+
+  if (!onboardingCompleted && !isOnboardingSegment) {
     return '/onboarding';
   }
 
-  if (onboardingCompleted && isOnboardingRoute) {
+  if (onboardingCompleted && segment === 'onboarding') {
     return '/';
   }
 
@@ -173,6 +176,7 @@ export default function RootLayout() {
         <Stack.Screen name="training" options={{ title: 'Training' }} />
         <Stack.Screen name="summary" options={{ title: 'Summary' }} />
         <Stack.Screen name="gear-setup" options={{ title: 'Select Device' }} />
+        <Stack.Screen name="onboarding-gear-setup" options={{ presentation: 'modal', title: 'Select Device' }} />
         <Stack.Screen
           name="provider-gear-link"
           options={{

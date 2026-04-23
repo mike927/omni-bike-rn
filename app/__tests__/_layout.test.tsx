@@ -150,4 +150,12 @@ describe('RootLayout onboarding gate', () => {
   it('does not redirect completed users who are already inside tabs', () => {
     expect(getOnboardingGateRedirect(['(tabs)'], true)).toBeNull();
   });
+
+  it('allows the onboarding-gear-setup modal route during onboarding', () => {
+    expect(getOnboardingGateRedirect(['onboarding-gear-setup'], false)).toBeNull();
+  });
+
+  it('does not bounce completed users who hit the onboarding-gear-setup route', () => {
+    expect(getOnboardingGateRedirect(['onboarding-gear-setup'], true)).toBeNull();
+  });
 });
