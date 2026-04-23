@@ -158,7 +158,9 @@ export function OnboardingScreen() {
         <OnboardingPrimaryButton label={currentPage.primaryLabel} onPress={handlePrimaryAction} />
         {currentPage.secondaryLabel ? (
           <OnboardingSecondaryButton label={currentPage.secondaryLabel} onPress={handleSecondaryAction} />
-        ) : null}
+        ) : (
+          <View style={styles.secondarySlotSpacer} />
+        )}
       </View>
     </SafeAreaView>
   );
@@ -267,5 +269,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 16,
     gap: 12,
+  },
+  secondarySlotSpacer: {
+    height: 56,
   },
 });
