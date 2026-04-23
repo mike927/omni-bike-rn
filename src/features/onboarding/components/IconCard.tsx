@@ -74,6 +74,9 @@ const styles = StyleSheet.create({
     height: ICON_SIZE,
     textAlignVertical: 'center',
     includeFontPadding: false,
+    // MaterialIcons glyphs sit ~6px below their em-box center; nudge up
+    // so the visible glyph lands at the geometric center of the card.
+    marginTop: -6,
   },
   iconGradient: {
     flex: 1,
