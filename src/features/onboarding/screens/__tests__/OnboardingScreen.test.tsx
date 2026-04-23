@@ -32,11 +32,9 @@ describe('OnboardingScreen', () => {
   const mockCompleteOnboarding = jest.fn().mockResolvedValue(undefined);
   let useWindowDimensionsSpy: jest.SpyInstance;
   let savedGearState: { savedBike: unknown; savedHrSource: unknown };
-  let focusCallback: (() => void | (() => void)) | null;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    focusCallback = null;
     savedGearState = { savedBike: null, savedHrSource: null };
     useWindowDimensionsSpy = jest.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({
       width: 400,
@@ -52,7 +50,6 @@ describe('OnboardingScreen', () => {
       selector(savedGearState),
     );
     (useFocusEffect as jest.Mock).mockImplementation((callback: () => void) => {
-      focusCallback = callback;
       callback();
     });
   });
@@ -108,14 +105,24 @@ describe('OnboardingScreen', () => {
 
     savedGearState.savedBike = { id: 'dev-1', name: 'Zipro' } as unknown;
     rerender(<OnboardingScreen />);
-    focusCallback?.();
 
     expect(screen.getByText('Train to your heart rate')).toBeTruthy();
   });
 
+  it('auto-advances from HR page to the finish page after a new HR source is paired', () => {
+    const { rerender } = render(<OnboardingScreen />);
+
+    fireEvent.press(screen.getByText('Skip'));
+    expect(screen.getByText('Train to your heart rate')).toBeTruthy();
+
+    savedGearState.savedHrSource = { id: 'dev-2', name: 'HR Strap' } as unknown;
+    rerender(<OnboardingScreen />);
+
+    expect(screen.getByText("One tap and you're riding")).toBeTruthy();
+  });
+
   it('does not advance when focus returns without saving a bike', () => {
     render(<OnboardingScreen />);
-    focusCallback?.();
 
     expect(screen.getByText('See your ride in real time')).toBeTruthy();
   });
