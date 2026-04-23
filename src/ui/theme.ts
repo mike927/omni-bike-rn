@@ -20,3 +20,8 @@ export const palette = {
   accent: MINT_TEAL,
   tabInactive: '#7b8794',
 } as const;
+
+export const gradient = {
+  aurora: ['#2e3dff', '#8b5cf6', '#10b5a4'] as const,
+  cool: ['#10b5a4', '#2e3dff'] as const,
+} as const;

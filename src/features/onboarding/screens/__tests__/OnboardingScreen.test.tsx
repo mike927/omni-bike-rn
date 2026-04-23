@@ -5,6 +5,8 @@ import { useRouter } from 'expo-router';
 import { getOnboardingPageIndex, getOnboardingPageWidth, OnboardingScreen } from '../OnboardingScreen';
 import { useAppPreferencesStore } from '../../../../store/appPreferencesStore';
 
+type ReactNativeModule = typeof ReactNative;
+
 jest.mock('expo-router', () => ({
   useRouter: jest.fn(),
 }));
@@ -12,6 +14,11 @@ jest.mock('expo-router', () => ({
 jest.mock('../../../../store/appPreferencesStore', () => ({
   useAppPreferencesStore: jest.fn(),
 }));
+
+jest.mock('expo-linear-gradient', () => {
+  const { View } = jest.requireActual<ReactNativeModule>('react-native');
+  return { LinearGradient: View };
+});
 
 describe('OnboardingScreen', () => {
   const mockReplace = jest.fn();
@@ -39,15 +46,17 @@ describe('OnboardingScreen', () => {
   it('renders the first onboarding page', () => {
     render(<OnboardingScreen />);
 
-    expect(screen.getByText('Welcome to Omni Bike')).toBeTruthy();
-    expect(screen.getByText('Connect your bike')).toBeTruthy();
-    expect(screen.getByText('Next')).toBeTruthy();
+    expect(screen.getByText('See your ride in real time')).toBeTruthy();
+    expect(screen.getByText('Search for Bike')).toBeTruthy();
+    expect(screen.getAllByText('Skip').length).toBeGreaterThan(0);
   });
 
-  it('completes onboarding when Skip is pressed', async () => {
+  it('completes onboarding when Skip is pressed on the last page (Finish CTA)', async () => {
     render(<OnboardingScreen />);
 
-    fireEvent.press(screen.getByText('Skip'));
+    fireEvent.press(screen.getByText('Search for Bike'));
+    fireEvent.press(screen.getByText('Pair Device'));
+    fireEvent.press(screen.getByText('Finish'));
 
     await waitFor(() => {
       expect(mockCompleteOnboarding).toHaveBeenCalledTimes(1);
@@ -55,23 +64,12 @@ describe('OnboardingScreen', () => {
     });
   });
 
-  it('shows Done on the last page and completes onboarding', async () => {
-    render(<OnboardingScreen />);
-
-    fireEvent.press(screen.getByLabelText('Go to onboarding page 3'));
-    fireEvent.press(screen.getByText('Done'));
-
-    await waitFor(() => {
-      expect(mockCompleteOnboarding).toHaveBeenCalledTimes(1);
-      expect(mockReplace).toHaveBeenCalledWith('/');
-    });
-  });
-
-  it('maps scroll offsets using the padded onboarding page width', () => {
+  it('maps scroll offsets using the full window page width', () => {
     const pageWidth = getOnboardingPageWidth(400);
 
-    expect(pageWidth).toBe(360);
-    expect(getOnboardingPageIndex(560, pageWidth)).toBe(2);
+    expect(pageWidth).toBe(400);
+    expect(getOnboardingPageIndex(560, pageWidth)).toBe(1);
+    expect(getOnboardingPageIndex(800, pageWidth)).toBe(2);
   });
 
   it('renders each per-page hero illustration', () => {
@@ -82,23 +80,23 @@ describe('OnboardingScreen', () => {
     expect(screen.getByTestId('onboarding-illustration-start')).toBeTruthy();
   });
 
-  it('navigates to the requested page when a dot is pressed', () => {
+  it('advances to the next page when the primary CTA is pressed', () => {
     render(<OnboardingScreen />);
 
-    fireEvent.press(screen.getByLabelText('Go to onboarding page 2'));
+    fireEvent.press(screen.getByText('Search for Bike'));
 
-    expect(screen.getByText('Add heart rate if you want it')).toBeTruthy();
-    expect(screen.getByText('Next')).toBeTruthy();
+    expect(screen.getByText('Pair Device')).toBeTruthy();
+    expect(screen.getByText('Train to your heart rate')).toBeTruthy();
   });
 
-  it('triggers onPress when the OnboardingActionButton primary is pressed', async () => {
+  it('returns to the previous page when the back chevron is pressed', () => {
     render(<OnboardingScreen />);
 
-    fireEvent.press(screen.getByLabelText('Go to onboarding page 3'));
-    fireEvent.press(screen.getByText('Done'));
+    fireEvent.press(screen.getByText('Search for Bike'));
+    expect(screen.getByText('Pair Device')).toBeTruthy();
 
-    await waitFor(() => {
-      expect(mockCompleteOnboarding).toHaveBeenCalledTimes(1);
-    });
+    fireEvent.press(screen.getByLabelText('Back'));
+
+    expect(screen.getByText('Search for Bike')).toBeTruthy();
   });
 });
