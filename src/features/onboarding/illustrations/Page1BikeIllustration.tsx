@@ -1,24 +1,12 @@
-import { type ViewStyle } from 'react-native';
-import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
 
 import { palette } from '../../../ui/theme';
-
-interface IllustrationProps {
-  readonly style?: ViewStyle;
-  readonly testID?: string;
-}
+import { IllustrationBackdrop, type IllustrationProps } from './IllustrationBackdrop';
 
 export function Page1BikeIllustration({ style, testID }: IllustrationProps) {
   return (
     <Svg viewBox="0 0 400 400" style={style} testID={testID}>
-      <Defs>
-        <LinearGradient id="page1Backdrop" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={palette.primarySubtle} stopOpacity="1" />
-          <Stop offset="1" stopColor={palette.surface} stopOpacity="1" />
-        </LinearGradient>
-      </Defs>
-
-      <Circle cx="200" cy="200" r="170" fill="url(#page1Backdrop)" />
+      <IllustrationBackdrop />
 
       <Circle cx="135" cy="270" r="58" fill="none" stroke={palette.primary} strokeWidth="8" />
       <Circle cx="135" cy="270" r="6" fill={palette.primary} />

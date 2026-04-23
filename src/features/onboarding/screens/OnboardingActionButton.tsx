@@ -1,5 +1,4 @@
 import { type ComponentProps } from 'react';
-import { View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { ActionButton } from '../../../ui/components/ActionButton';
@@ -14,20 +13,19 @@ export function OnboardingActionButton(props: OnboardingActionButtonProps) {
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
+  const release = () => {
+    scale.value = withTiming(1, { duration: RELEASE_DURATION, easing: Easing.out(Easing.quad) });
+  };
+
   return (
-    <View
+    <Animated.View
+      style={animatedStyle}
       onTouchStart={() => {
         scale.value = withTiming(PRESS_SCALE, { duration: PRESS_DURATION, easing: Easing.out(Easing.quad) });
       }}
-      onTouchEnd={() => {
-        scale.value = withTiming(1, { duration: RELEASE_DURATION, easing: Easing.out(Easing.quad) });
-      }}
-      onTouchCancel={() => {
-        scale.value = withTiming(1, { duration: RELEASE_DURATION, easing: Easing.out(Easing.quad) });
-      }}>
-      <Animated.View style={animatedStyle}>
-        <ActionButton {...props} />
-      </Animated.View>
-    </View>
+      onTouchEnd={release}
+      onTouchCancel={release}>
+      <ActionButton {...props} />
+    </Animated.View>
   );
 }

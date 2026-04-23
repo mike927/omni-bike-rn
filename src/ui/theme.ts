@@ -1,3 +1,5 @@
+const MINT_TEAL = '#10b5a4';
+
 export const palette = {
   background: '#f4f7fb',
   surface: '#ffffff',
@@ -8,18 +10,13 @@ export const palette = {
   textSoft: '#3a4550',
   primary: '#2e3dff',
   primarySubtle: '#dbeafe',
-  secondary: '#10b5a4',
+  secondary: MINT_TEAL,
   tertiary: '#8b5cf6',
-  success: '#10b5a4',
+  success: MINT_TEAL,
   warning: '#f5a524',
   danger: '#ef4b5c',
   dangerBg: '#ffe5e8',
   dangerBorder: '#f7b5bd',
-  accent: '#10b5a4',
+  accent: MINT_TEAL,
   tabInactive: '#7b8794',
-} as const;
-
-export const gradient = {
-  aurora: ['#2e3dff', '#8b5cf6', '#10b5a4'] as const,
-  cool: ['#10b5a4', '#2e3dff'] as const,
 } as const;

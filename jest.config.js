@@ -3,7 +3,7 @@ module.exports = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   clearMocks: true,
   transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native(-[a-z-]+)?|@react-native(-community)?|expo(-[a-z-]+)?|@expo(-[a-z-]+)?/)/)',
+    'node_modules/(?!((jest-)?react-native|react-native-(reanimated|svg|worklets|safe-area-context|screens|gesture-handler)|@react-native(-community)?|expo(-[a-z-]+)?|@expo(-[a-z-]+)?/)/)',
   ],
   moduleNameMapper: {
     '^react-native-ble-plx$': '<rootDir>/src/__mocks__/react-native-ble-plx.ts',

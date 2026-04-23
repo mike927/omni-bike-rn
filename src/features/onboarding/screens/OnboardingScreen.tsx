@@ -85,6 +85,11 @@ export function OnboardingScreen() {
 
   const isLastPage = currentPageIndex === ONBOARDING_PAGES.length - 1;
 
+  const goToPage = (nextPageIndex: number) => {
+    scrollViewRef.current?.scrollTo({ x: nextPageIndex * pageWidth, animated: true });
+    setCurrentPageIndex((current) => (current === nextPageIndex ? current : nextPageIndex));
+  };
+
   const handleDone = async () => {
     await completeOnboarding();
     router.replace('/');
@@ -95,10 +100,7 @@ export function OnboardingScreen() {
       void handleDone();
       return;
     }
-
-    const nextPageIndex = currentPageIndex + 1;
-    scrollViewRef.current?.scrollTo({ x: nextPageIndex * pageWidth, animated: true });
-    setCurrentPageIndex(nextPageIndex);
+    goToPage(currentPageIndex + 1);
   };
 
   return (
@@ -117,7 +119,7 @@ export function OnboardingScreen() {
           scrollEventThrottle={16}
           onMomentumScrollEnd={(event) => {
             const nextPageIndex = getOnboardingPageIndex(event.nativeEvent.contentOffset.x, pageWidth);
-            setCurrentPageIndex(nextPageIndex);
+            setCurrentPageIndex((current) => (current === nextPageIndex ? current : nextPageIndex));
           }}>
           {ONBOARDING_PAGES.map((page, index) => (
             <OnboardingPageContent
@@ -131,17 +133,13 @@ export function OnboardingScreen() {
 
         <View style={styles.dotsRow}>
           {ONBOARDING_PAGES.map((page, index) => (
-            <Pressable
+            <OnboardingDot
               key={page.title}
-              accessibilityRole="button"
-              accessibilityLabel={`Go to onboarding page ${index + 1}`}
-              hitSlop={8}
-              onPress={() => {
-                scrollViewRef.current?.scrollTo({ x: index * pageWidth, animated: true });
-                setCurrentPageIndex(index);
-              }}>
-              <DotIndicator index={index} scrollX={scrollX} pageWidth={pageWidth} />
-            </Pressable>
+              index={index}
+              scrollX={scrollX}
+              pageWidth={pageWidth}
+              onPress={() => goToPage(index)}
+            />
           ))}
         </View>
 
@@ -161,40 +159,36 @@ interface OnboardingPageContentProps {
 }
 
 function OnboardingPageContent({ page, isActive, pageWidth }: OnboardingPageContentProps) {
-  const illustrationOpacity = useSharedValue(isActive ? 1 : 0);
-  const illustrationScale = useSharedValue(isActive ? 1 : 0.96);
-  const textOpacity = useSharedValue(isActive ? 1 : 0);
-  const textTranslateY = useSharedValue(isActive ? 0 : 16);
+  const progress = useSharedValue(isActive ? 1 : 0);
 
   useEffect(() => {
     if (!isActive) {
-      illustrationOpacity.value = 0;
-      illustrationScale.value = 0.96;
-      textOpacity.value = 0;
-      textTranslateY.value = 16;
+      progress.value = 0;
       return;
     }
+    progress.value = withTiming(1, { duration: ENTRANCE_DURATION, easing: ENTRANCE_EASING });
+  }, [isActive, progress]);
 
-    illustrationOpacity.value = withTiming(1, { duration: ENTRANCE_DURATION, easing: ENTRANCE_EASING });
-    illustrationScale.value = withTiming(1, { duration: ENTRANCE_DURATION, easing: ENTRANCE_EASING });
-    textOpacity.value = withDelay(
+  const illustrationStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{ scale: 0.96 + 0.04 * progress.value }],
+  }));
+
+  const textProgress = useSharedValue(isActive ? 1 : 0);
+  useEffect(() => {
+    if (!isActive) {
+      textProgress.value = 0;
+      return;
+    }
+    textProgress.value = withDelay(
       TEXT_STAGGER,
       withTiming(1, { duration: ENTRANCE_DURATION, easing: ENTRANCE_EASING }),
     );
-    textTranslateY.value = withDelay(
-      TEXT_STAGGER,
-      withTiming(0, { duration: ENTRANCE_DURATION, easing: ENTRANCE_EASING }),
-    );
-  }, [isActive, illustrationOpacity, illustrationScale, textOpacity, textTranslateY]);
-
-  const illustrationStyle = useAnimatedStyle(() => ({
-    opacity: illustrationOpacity.value,
-    transform: [{ scale: illustrationScale.value }],
-  }));
+  }, [isActive, textProgress]);
 
   const textStyle = useAnimatedStyle(() => ({
-    opacity: textOpacity.value,
-    transform: [{ translateY: textTranslateY.value }],
+    opacity: textProgress.value,
+    transform: [{ translateY: 16 * (1 - textProgress.value) }],
   }));
 
   return (
@@ -211,13 +205,14 @@ function OnboardingPageContent({ page, isActive, pageWidth }: OnboardingPageCont
   );
 }
 
-interface DotIndicatorProps {
+interface OnboardingDotProps {
   readonly index: number;
   readonly scrollX: SharedValue<number>;
   readonly pageWidth: number;
+  readonly onPress: () => void;
 }
 
-function DotIndicator({ index, scrollX, pageWidth }: DotIndicatorProps) {
+function OnboardingDot({ index, scrollX, pageWidth, onPress }: OnboardingDotProps) {
   const dotStyle = useAnimatedStyle(() => {
     const position = pageWidth > 0 ? scrollX.value / pageWidth : 0;
     const distance = Math.abs(position - index);
@@ -226,7 +221,15 @@ function DotIndicator({ index, scrollX, pageWidth }: DotIndicatorProps) {
     return { width: dotWidth, backgroundColor };
   });
 
-  return <Animated.View style={[styles.dot, dotStyle]} />;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Go to onboarding page ${index + 1}`}
+      hitSlop={8}
+      onPress={onPress}>
+      <Animated.View style={[styles.dot, dotStyle]} />
+    </Pressable>
+  );
 }
 
 const styles = StyleSheet.create({
