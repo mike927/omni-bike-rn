@@ -15,12 +15,12 @@ outputs:
 
 # Address Plan Review
 
-Consume the active branch's plan-review findings, decide which items are worth applying, decline weak or incorrect suggestions with explicit reasons, and update the canonical plan without turning it into a review scrapbook. This command is the resolution pass of the plan-quality gate for the `Plan Reviewing` stage in `AGENTS.md`.
+Consume the active branch's plan-review findings, decide which items are worth applying, decline weak or incorrect suggestions with explicit reasons, and update the canonical plan without turning it into a review scrapbook. This command is the resolution pass inside the Plan phase in `AGENTS.md § Phases`.
 
 ## Prerequisites
 
 - Current branch is a feature branch, not `main`.
-- The feature workflow is in the `Plan Drafting`, `Plan Reviewing`, or `Plan Approving` stage of `AGENTS.md` — i.e., the plan has not yet been approved for implementation.
+- The feature workflow is inside the Plan phase (see `AGENTS.md § Phases`) — i.e., the plan has not yet been approved for implementation.
 - The canonical plan file exists at `ai/local/plans/<branch-slug>.md`.
 - The canonical review file exists at `ai/local/plans/<branch-slug>.review.md`.
 - The working tree is clean apart from the current branch's plan and plan-review artifacts. If unrelated tracked files are dirty, stop and report the blocker.

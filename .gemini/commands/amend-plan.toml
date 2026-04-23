@@ -1,0 +1,6 @@
+description = "Record a mid-flight scope change in the active branch's plan. Edits the canonical plan file, appends a dated scope-change entry, and routes back to Implement (minor) or Plan with re-approval (major)."
+prompt = """
+Execute the procedure defined in @{ai/commands/amend-plan/COMMAND.md}.
+
+{{args}}
+"""
