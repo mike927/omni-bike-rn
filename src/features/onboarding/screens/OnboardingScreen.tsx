@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router';
-import { useRef, useState, type ComponentType } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useRef, useState, type ComponentType } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Animated, {
   Extrapolation,
@@ -12,6 +12,7 @@ import Animated, {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAppPreferencesStore } from '../../../store/appPreferencesStore';
+import { useSavedGearStore } from '../../../store/savedGearStore';
 import { palette } from '../../../ui/theme';
 import { OnboardingPrimaryButton } from '../components/OnboardingPrimaryButton';
 import { OnboardingProgressBar } from '../components/OnboardingProgressBar';
@@ -74,7 +75,10 @@ export function OnboardingScreen() {
   const scrollViewRef = useRef<Animated.ScrollView | null>(null);
   const { width } = useWindowDimensions();
   const completeOnboarding = useAppPreferencesStore((s) => s.completeOnboarding);
+  const savedBike = useSavedGearStore((s) => s.savedBike);
+  const savedHrSource = useSavedGearStore((s) => s.savedHrSource);
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const previousGearRef = useRef({ bike: savedBike, hr: savedHrSource });
   const pageWidth = getOnboardingPageWidth(width);
 
   const scrollX = useSharedValue(0);
@@ -84,17 +88,32 @@ export function OnboardingScreen() {
     },
   });
 
+  // Equality guard dedupes writes from programmatic scrollTo + onMomentumScrollEnd.
+  const goToPage = useCallback(
+    (nextPageIndex: number) => {
+      scrollViewRef.current?.scrollTo({ x: nextPageIndex * pageWidth, animated: true });
+      setCurrentPageIndex((current) => (current === nextPageIndex ? current : nextPageIndex));
+    },
+    [pageWidth],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      const prev = previousGearRef.current;
+      if (currentPageIndex === 0 && !prev.bike && savedBike) {
+        goToPage(1);
+      } else if (currentPageIndex === 1 && !prev.hr && savedHrSource) {
+        goToPage(2);
+      }
+      previousGearRef.current = { bike: savedBike, hr: savedHrSource };
+    }, [currentPageIndex, savedBike, savedHrSource, goToPage]),
+  );
+
   const isLastPage = currentPageIndex === ONBOARDING_PAGES.length - 1;
   const currentPage = ONBOARDING_PAGES[currentPageIndex] ?? ONBOARDING_PAGES[0];
   if (!currentPage) {
     return null;
   }
-
-  // Equality guard dedupes writes from programmatic scrollTo + onMomentumScrollEnd.
-  const goToPage = (nextPageIndex: number) => {
-    scrollViewRef.current?.scrollTo({ x: nextPageIndex * pageWidth, animated: true });
-    setCurrentPageIndex((current) => (current === nextPageIndex ? current : nextPageIndex));
-  };
 
   const handleDone = async () => {
     await completeOnboarding();
@@ -102,11 +121,15 @@ export function OnboardingScreen() {
   };
 
   const handlePrimaryAction = () => {
-    if (isLastPage) {
-      void handleDone();
+    if (currentPageIndex === 0) {
+      router.push('/onboarding-gear-setup?target=bike');
       return;
     }
-    goToPage(currentPageIndex + 1);
+    if (currentPageIndex === 1) {
+      router.push('/onboarding-gear-setup?target=hr');
+      return;
+    }
+    void handleDone();
   };
 
   const handleSecondaryAction = () => {
