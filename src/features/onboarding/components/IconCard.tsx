@@ -22,7 +22,7 @@ export function IconCard({ icon, testID }: IconCardProps) {
         style={styles.iconMask}
         maskElement={
           <View style={styles.maskWrapper}>
-            <MaterialIcons name={icon} size={ICON_SIZE} color="#000" />
+            <MaterialIcons name={icon} size={ICON_SIZE} color="#000" style={styles.iconGlyph} />
           </View>
         }>
         <LinearGradient
@@ -68,6 +68,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  iconGlyph: {
+    lineHeight: ICON_SIZE,
+    height: ICON_SIZE,
+    textAlignVertical: 'center',
+    includeFontPadding: false,
   },
   iconGradient: {
     flex: 1,
