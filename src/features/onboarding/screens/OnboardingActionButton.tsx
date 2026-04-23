@@ -17,6 +17,11 @@ export function OnboardingActionButton(props: OnboardingActionButtonProps) {
     scale.value = withTiming(1, { duration: RELEASE_DURATION, easing: Easing.out(Easing.quad) });
   };
 
+  // Touch handlers (rather than Pressable's onPressIn/Out) wrap ActionButton
+  // without modifying the global component. Tradeoff: on Android the inner
+  // Pressable can claim the responder mid-gesture and swallow onTouchEnd —
+  // onTouchCancel covers that path so scale always returns to 1. Phase 10
+  // will move press-scale into ActionButton itself via the pressed flag.
   return (
     <Animated.View
       style={animatedStyle}

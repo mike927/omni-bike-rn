@@ -1,16 +1,13 @@
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState, type ComponentType } from 'react';
+import { useRef, useState, type ComponentType } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions, type ViewStyle } from 'react-native';
 import Animated, {
-  Easing,
   Extrapolation,
   interpolate,
   interpolateColor,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
-  withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
 
@@ -56,10 +53,6 @@ const ONBOARDING_PAGES: readonly OnboardingPage[] = [
   },
 ];
 
-const ENTRANCE_DURATION = 280;
-const TEXT_STAGGER = 60;
-const ENTRANCE_EASING = Easing.out(Easing.cubic);
-
 export function getOnboardingPageWidth(windowWidth: number): number {
   return Math.max(windowWidth - 40, 280);
 }
@@ -85,6 +78,9 @@ export function OnboardingScreen() {
 
   const isLastPage = currentPageIndex === ONBOARDING_PAGES.length - 1;
 
+  // The equality guards on setCurrentPageIndex deliberately dedupe writes when
+  // a programmatic scroll (goToPage) and the subsequent onMomentumScrollEnd
+  // both target the same index — without them iOS double-renders every step.
   const goToPage = (nextPageIndex: number) => {
     scrollViewRef.current?.scrollTo({ x: nextPageIndex * pageWidth, animated: true });
     setCurrentPageIndex((current) => (current === nextPageIndex ? current : nextPageIndex));
@@ -122,12 +118,7 @@ export function OnboardingScreen() {
             setCurrentPageIndex((current) => (current === nextPageIndex ? current : nextPageIndex));
           }}>
           {ONBOARDING_PAGES.map((page, index) => (
-            <OnboardingPageContent
-              key={page.title}
-              page={page}
-              isActive={index === currentPageIndex}
-              pageWidth={pageWidth}
-            />
+            <OnboardingPageContent key={page.title} page={page} index={index} scrollX={scrollX} pageWidth={pageWidth} />
           ))}
         </Animated.ScrollView>
 
@@ -154,42 +145,30 @@ export function OnboardingScreen() {
 
 interface OnboardingPageContentProps {
   readonly page: OnboardingPage;
-  readonly isActive: boolean;
+  readonly index: number;
+  readonly scrollX: SharedValue<number>;
   readonly pageWidth: number;
 }
 
-function OnboardingPageContent({ page, isActive, pageWidth }: OnboardingPageContentProps) {
-  const progress = useSharedValue(isActive ? 1 : 0);
+function OnboardingPageContent({ page, index, scrollX, pageWidth }: OnboardingPageContentProps) {
+  const illustrationStyle = useAnimatedStyle(() => {
+    const distance = pageWidth > 0 ? Math.abs(scrollX.value / pageWidth - index) : 0;
+    return {
+      opacity: interpolate(distance, [0, 1], [1, 0], Extrapolation.CLAMP),
+      transform: [{ scale: interpolate(distance, [0, 1], [1, 0.96], Extrapolation.CLAMP) }],
+    };
+  });
 
-  useEffect(() => {
-    if (!isActive) {
-      progress.value = 0;
-      return;
-    }
-    progress.value = withTiming(1, { duration: ENTRANCE_DURATION, easing: ENTRANCE_EASING });
-  }, [isActive, progress]);
-
-  const illustrationStyle = useAnimatedStyle(() => ({
-    opacity: progress.value,
-    transform: [{ scale: 0.96 + 0.04 * progress.value }],
-  }));
-
-  const textProgress = useSharedValue(isActive ? 1 : 0);
-  useEffect(() => {
-    if (!isActive) {
-      textProgress.value = 0;
-      return;
-    }
-    textProgress.value = withDelay(
-      TEXT_STAGGER,
-      withTiming(1, { duration: ENTRANCE_DURATION, easing: ENTRANCE_EASING }),
-    );
-  }, [isActive, textProgress]);
-
-  const textStyle = useAnimatedStyle(() => ({
-    opacity: textProgress.value,
-    transform: [{ translateY: 16 * (1 - textProgress.value) }],
-  }));
+  // Text reveals over a tighter range than the illustration so it visually
+  // "trails" the illustration into focus — the stagger is implicit in the
+  // input-range delta rather than a withDelay() on a separate timer.
+  const textStyle = useAnimatedStyle(() => {
+    const distance = pageWidth > 0 ? Math.abs(scrollX.value / pageWidth - index) : 0;
+    return {
+      opacity: interpolate(distance, [0, 0.5], [1, 0], Extrapolation.CLAMP),
+      transform: [{ translateY: interpolate(distance, [0, 0.5], [0, 16], Extrapolation.CLAMP) }],
+    };
+  });
 
   return (
     <View style={[styles.page, { width: pageWidth }]}>
@@ -214,11 +193,11 @@ interface OnboardingDotProps {
 
 function OnboardingDot({ index, scrollX, pageWidth, onPress }: OnboardingDotProps) {
   const dotStyle = useAnimatedStyle(() => {
-    const position = pageWidth > 0 ? scrollX.value / pageWidth : 0;
-    const distance = Math.abs(position - index);
-    const dotWidth = interpolate(distance, [0, 1], [28, 10], Extrapolation.CLAMP);
-    const backgroundColor = interpolateColor(distance, [0, 1], [palette.primary, palette.border]);
-    return { width: dotWidth, backgroundColor };
+    const distance = pageWidth > 0 ? Math.abs(scrollX.value / pageWidth - index) : 0;
+    return {
+      width: interpolate(distance, [0, 1], [28, 10], Extrapolation.CLAMP),
+      backgroundColor: interpolateColor(distance, [0, 1], [palette.primary, palette.border]),
+    };
   });
 
   return (
