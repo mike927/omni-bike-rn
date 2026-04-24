@@ -62,7 +62,7 @@ Contents:
 
 Target length: 30–60 lines.
 
-**Other tool overlays** (`CODEX.md`, `GEMINI.md`): not created in v1. Add when those tools are actually used on this project.
+**Other tool overlays** (`CODEX.md`, `GEMINI.md`): created as empty placeholder files. They serve as a signal-of-intent that the harness is tool-neutral and that per-tool overrides have a designated home when needed. Tools that follow the `AGENTS.md` convention will still read `AGENTS.md`; tools that only read their own conventional file will find nothing until the placeholder is filled (trade-off accepted for v1 — flip to `See AGENTS.md.` pointers if a real tool hits this gap).
 
 ### Layer 3 — Plugin & Permission Configuration
 
@@ -153,14 +153,15 @@ This is a configuration and documentation change — no runtime tests. Verificat
 
 1. `AGENTS.md` exists and covers the listed sections.
 2. `CLAUDE.md` is trimmed and references `AGENTS.md`.
-3. `ROADMAP.md` exists; `plan.md` no longer exists.
-4. `docs/superpowers/README.md` exists and is ~100 lines.
-5. `.gitignore` no longer blocks `.claude/*`; it blocks only `.claude/settings.local.json`.
-6. `.claude/settings.json` exists, is committed, contains 5 enabled plugins + cleaned permissions + deny list.
-7. `.claude/settings.local.json` exists, is gitignored, is empty (or near-empty).
-8. `~/.claude/settings.json` has `enabledPlugins` removed.
-9. Running Claude Code in a fresh clone (or after clearing the plugin cache) auto-enables the 5 plugins on first launch.
-10. `npm run ci:gate` still passes after all changes.
+3. `CODEX.md` and `GEMINI.md` exist as empty placeholder files.
+4. `ROADMAP.md` exists; `plan.md` no longer exists.
+5. `docs/superpowers/README.md` exists and is ~100 lines.
+6. `.gitignore` no longer blocks `.claude/*`; it blocks only `.claude/settings.local.json`.
+7. `.claude/settings.json` exists, is committed, contains 5 enabled plugins + cleaned permissions + deny list.
+8. `.claude/settings.local.json` exists, is gitignored, is empty (or near-empty).
+9. `~/.claude/settings.json` has `enabledPlugins` removed.
+10. Running Claude Code in a fresh clone (or after clearing the plugin cache) auto-enables the 5 plugins on first launch.
+11. `npm run ci:gate` still passes after all changes.
 
 ## Out of Scope for v1 (Explicitly Deferred)
 
@@ -171,7 +172,7 @@ This is a configuration and documentation change — no runtime tests. Verificat
 - **Pre-push `ci:gate` hook.** Pre-commit already covers lint + typecheck; full `ci:gate` on every push is overkill for a solo project.
 - **PR template / CI drift check scripts.** Not until the team grows beyond solo.
 - **Third-party marketplace plugin adoption.** If one is added later, `extraKnownMarketplaces` moves to project scope at that time.
-- **`CODEX.md` / `GEMINI.md`.** Add when those tools are actually used here.
+- **Filled content for `CODEX.md` / `GEMINI.md`.** Files exist as empty placeholders; populate only when those tools are actually used here.
 
 ## Success Criteria
 
