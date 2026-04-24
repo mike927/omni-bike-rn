@@ -36,7 +36,6 @@ Canonical scripts (invoke via `npm run <name>`):
 
 - **Never commit directly to `main`.** Before any commit, confirm the current branch is not `main`; if it is, create a feature branch first (e.g. `feat/…`, `fix/…`, `chore/…`, `docs/…`).
 - Never bypass hooks with `--no-verify`. If the pre-commit hook fails, fix the root cause and create a new commit (do not `--amend`).
-- Prefer small, focused commits. Never `git add -A` / `git add .` — stage files explicitly.
 
 ## Error recovery playbook
 
