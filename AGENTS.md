@@ -32,28 +32,6 @@ Canonical scripts (invoke via `npm run <name>`):
 | `db:generate` | Generate Drizzle migration from schema changes |
 | `db:check` | Verify Drizzle migrations are clean |
 
-## Autonomy rules
-
-Try → diagnose → auto-fix trivial → retry → escalate real issues.
-
-### Auto (do without asking)
-
-- `pod install`, `npx expo prebuild` (incl. `--clean` when needed)
-- Kill stale port 8081, restart Metro, clear Metro cache (`expo start -c`)
-- Nuke `node_modules` + `package-lock.json` and reinstall on dep weirdness
-- `npm run lint:fix` before staging changes
-- Add obvious missing imports when TS errors clearly point to them
-- `npx expo install <pkg>` for Expo-managed deps (prefer over plain `npm install`)
-- Modify `app.config.ts`, `Info.plist`, or other native config
-- Delete files
-- Start long operations (>2 min) without asking
-
-### Always ask first
-
-- `git commit` and `git push`
-- Anything touching `.env` or credentials
-- Database migrations (`db:generate`, drizzle schema changes)
-
 ## Git workflow
 
 - **Never commit directly to `main`.** Before any commit, confirm the current branch is not `main`; if it is, create a feature branch first (e.g. `feat/…`, `fix/…`, `chore/…`, `docs/…`).
