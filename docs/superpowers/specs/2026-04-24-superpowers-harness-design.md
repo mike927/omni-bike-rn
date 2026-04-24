@@ -89,19 +89,23 @@ Contains:
 
 ### Layer 4 — Living Plan
 
-**`ROADMAP.md`** — renamed from `plan.md`. Unified 4-state tracking:
+**`ROADMAP.md`** — renamed from `plan.md`. Two sections:
 
-| State | Meaning |
-|---|---|
-| `[ ]` | Not started |
-| `[~]` | In progress |
-| `[x]` | Done |
-| `[-]` | Dropped / deferred |
+1. **Active roadmap** (main body) — unified 4-state tracking:
+
+   | State | Meaning |
+   |---|---|
+   | `[ ]` | Not started |
+   | `[~]` | In progress |
+   | `[x]` | Done |
+   | `[-]` | Dropped / deferred |
+
+2. **Future Considerations** (bottom of file) — parking lot for exploratory items and open questions that aren't committed work yet. Items here don't use the 4-state system — they're undecided by design. When one becomes actual work, it moves up into the active roadmap with state `[ ]`.
 
 Migration rules:
-- Existing `[ ]` → `[ ]`.
-- Existing `[x]` → `[x]`.
-- Existing `[?]` (the wake-on-start watch item) → re-classified as `[ ]` with a note, or `[-]` if no longer in scope. (Decision during execution, flagged for user.)
+- Existing `[ ]` → `[ ]` in active roadmap.
+- Existing `[x]` → `[x]` in active roadmap.
+- Existing `[?]` (the wake-on-start watch item) → moved to **Future Considerations** with its original note preserved. No premature decision forced.
 - References to non-existent `PROJECT.md` and `ai/screens.md` are removed. The `AGENTS.md` identity paragraph replaces the `PROJECT.md` reference. `ai/screens.md` is simply dropped — if screen specs are needed later, they can be added.
 
 ### Layer 5 — Harness Documentation
@@ -168,10 +172,6 @@ This is a configuration and documentation change — no runtime tests. Verificat
 - **PR template / CI drift check scripts.** Not until the team grows beyond solo.
 - **Third-party marketplace plugin adoption.** If one is added later, `extraKnownMarketplaces` moves to project scope at that time.
 - **`CODEX.md` / `GEMINI.md`.** Add when those tools are actually used here.
-
-## Open Questions
-
-1. **The single `[?]` item in `plan.md`** (wake-on-start watch issue): `[ ]` or `[-]` in the migrated `ROADMAP.md`? Decide during migration pass with user sign-off.
 
 ## Success Criteria
 
