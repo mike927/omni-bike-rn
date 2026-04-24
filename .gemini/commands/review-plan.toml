@@ -1,6 +1,0 @@
-description = "Review the active branch's canonical implementation plan and persist a plan-quality report alongside it."
-prompt = """
-Execute the procedure defined in @{ai/commands/review-plan/COMMAND.md}.
-
-{{args}}
-"""

@@ -1,6 +1,0 @@
-description = "Open a GitHub PR with a standardized summary built from the branch diff and task context."
-prompt = """
-Execute the procedure defined in @{ai/commands/open-pr/COMMAND.md}.
-
-{{args}}
-"""

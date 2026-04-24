@@ -30,13 +30,13 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# AI tooling (agent-agnostic repo)
+# AI tooling
 .claude/*
-!.claude/commands/
 .codex/*
-!.codex/skills/
-!.codex/skills/**
 ai/local/
+
+# Harness quarantine (temporary — evaluating alternative plugin)
+.harness-archive/
 
 # Claude Design handoff bundles (transient inputs — extract then archive locally)
 design_handoff_*/
@@ -51,7 +51,6 @@ design_handoff_*/
 # generated native folders
 # NOTE: /ios is intentionally tracked (partial eject — watchOS companion app target).
 # Do NOT run `expo prebuild --clean` after the Watch target has been added.
-# See ai/skills/project-context/SKILL.md § "Native iOS Constraints".
 /android
 
 # logs

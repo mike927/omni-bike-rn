@@ -21,7 +21,7 @@ export default [
   // ── Layer 1: Expo defaults (React, React Native, TypeScript, import rules) ──
   ...compat.extends('expo'),
 
-  // ── Layer 2: Strict TypeScript rules (aligned with AGENTS.md) ──
+  // ── Layer 2: Strict TypeScript rules ──
   {
     files: ['**/*.ts', '**/*.tsx'],
     plugins: {
@@ -34,7 +34,7 @@ export default [
       },
     },
     rules: {
-      // ── Type Safety (AGENTS.md Rule 2: no casting, strict types) ──
+      // ── Type Safety (no casting, strict types) ──
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-non-null-assertion': 'warn',
       '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
