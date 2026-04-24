@@ -41,7 +41,7 @@ Three layers, each with a clear owner:
 Contents (scaled to complexity, not padded):
 
 - **Project identity.** One paragraph: "Indoor cycling companion app. React Native / Expo, TypeScript, Drizzle + expo-sqlite, BLE FTMS, Apple Health, Apple Watch companion."
-- **Workflow.** One paragraph: "Use the superpowers plugin's workflow end-to-end: brainstorm → writing-plans → executing-plans → verification → code-review → finishing-branch. Do not invent parallel flows."
+- **Workflow.** One line: "superpowers is the workflow core — don't invent parallel flows."
 - **Roadmap pointer.** One line: "Active work tracked in `ROADMAP.md`. Update states as work progresses."
 - **Dev loop.** Brief list of the canonical scripts and what they do (start, ios, ios:sim, android, lint, lint:fix, typecheck, test, ci:gate).
 - **Autonomy rules.** What the agent may do without asking vs. must ask for first. Imported verbatim from the existing `CLAUDE.md` autonomy section — generalized where phrasing was Claude-specific.
@@ -171,8 +171,7 @@ This is a configuration and documentation change — no runtime tests. Verificat
 
 ## Open Questions
 
-1. **Remove `superpowers`'s local-scope install?** Currently installed at local scope tied to this project. Functionally identical to user scope. Leave as-is for zero risk, or normalize to user scope during the cleanup pass. Decide during implementation; not blocking.
-2. **The single `[?]` item in `plan.md`** (wake-on-start watch issue): `[ ]` or `[-]` in the migrated `ROADMAP.md`? Decide during migration pass with user sign-off.
+1. **The single `[?]` item in `plan.md`** (wake-on-start watch issue): `[ ]` or `[-]` in the migrated `ROADMAP.md`? Decide during migration pass with user sign-off.
 
 ## Success Criteria
 
