@@ -27,10 +27,20 @@ Default to `npm run ios` (device build) when an iPhone is detected via `xcrun de
 - **Never commit directly to `main`.** Before any commit, confirm the current branch is not `main`; if it is, create a feature branch first (e.g. `feat/…`, `fix/…`, `chore/…`, `docs/…`).
 - Never bypass hooks with `--no-verify`. If the pre-commit hook fails, fix the root cause and create a new commit (do not `--amend`).
 
-## Platform notes
+## Domain model
 
-- **Bluetooth**: iOS Simulator does not support Bluetooth. Real BLE testing requires a physical device. Simulator can still exercise permission-request code paths.
-- **Native modules**: `modules/apple-health-workout` and `modules/watch-connectivity` are local Expo modules. Changes to their native code require a rebuild.
+- **HR source priority:** Watch → BLE HR monitor → bike pulse.
+- **Calorie source priority:** Watch-computed → HR + profile (Keytel) → power-based → bike-reported.
+- **Provider adapter contract:** external upload providers (Strava today, Garmin next) share one interface for save-and-upload. New providers slot into that contract — don't build parallel paths.
+- **Gear model:** one main bike + optional HR source. Extensible to other FTMS equipment types later, but bike-first today.
+
+## Runtime
+
+- Requires a **custom dev client** — not Expo Go. BLE, HealthKit, and the watch-connectivity native module need native code.
+- **Bluetooth:** iOS Simulator cannot do BLE. Real BLE testing requires a physical device. Simulator still exercises permission-request code paths.
+- **Native modules:** `modules/apple-health-workout` and `modules/watch-connectivity` are local Expo modules. Native-code changes require a rebuild.
+- **Never run `expo prebuild --clean`.** The watchOS companion app target lives inside `ios/`; a clean prebuild wipes it.
+- **Secrets:** Strava client ID and secret live in `.env` (gitignored). Never read or print them.
 
 ## Harness non-goals
 
