@@ -32,7 +32,8 @@ Run scripts via `npm run <name>` — see `package.json` for the full list. The o
 
 Explicitly rejected to keep the harness minimal:
 
-- **Custom project skills / slash commands** — rely on plugins until a real gap appears.
 - **Pre-push `ci:gate` hook** — pre-commit already covers lint + typecheck.
 - **PR template / CI drift check** — wait until the team grows beyond solo.
 - **Filled `CODEX.md` / `GEMINI.md`** — placeholders only; populate when those tools are actually used.
+
+Custom project skills and slash commands are welcome if a real gap appears that no marketplace plugin fills — the harness supports them.
