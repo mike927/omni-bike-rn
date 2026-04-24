@@ -24,26 +24,5 @@ Primary contract is `AGENTS.md`. This file covers Claude Code specifics only.
 
 ## Permissions and plugins
 
-- Project plugin enablement and durable permission grants: `.claude/settings.json` (committed).
-- Per-machine / evolving permission grants: `.claude/settings.local.json` (gitignored). Create it if missing.
-
-## Autonomy
-
-Try → diagnose → auto-fix trivial → retry → escalate real issues. The mechanical allow list lives in `.claude/settings.local.json`; this section covers posture.
-
-### Act without asking
-
-- Dev-loop scripts (`lint`, `lint:fix`, `typecheck`, `test`, `ci:gate`)
-- Native/Expo maintenance (`pod install`, `npx expo prebuild --clean`, `npx expo install <pkg>`)
-- Kill stale port 8081, restart Metro, clear Metro cache (`expo start -c`)
-- Nuke `node_modules` + `package-lock.json` and reinstall on dep weirdness
-- Add obvious missing imports when TS errors clearly point to them
-- Modify `app.config.ts`, `Info.plist`, or other app-level native config
-- Delete files
-- Start long operations (>2 min) — run in background and tail
-
-### Always ask first
-
-- `git commit` and `git push`
-- Anything touching `.env` or credentials
-- Database migrations (`db:generate`, drizzle schema changes)
+- Project plugin enablement: `.claude/settings.json` (committed).
+- Permission grants (allow / ask / deny): `.claude/settings.local.json` (gitignored, per-machine). Create it if missing. This is the single source of truth for autonomy — what may run without asking, what must always prompt, and what is forbidden.
