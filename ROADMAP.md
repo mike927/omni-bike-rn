@@ -1,15 +1,14 @@
-# Omni Bike - Project Plan
+# ROADMAP — omni-bike-rn
 
-See `PROJECT.md` for business requirements, functional requirements, and technology stack.
+Active development roadmap. Update states as work progresses.
 
-## Task State Legend
+**States:**
+- `[ ]` — Not started
+- `[~]` — In progress
+- `[x]` — Done
+- `[-]` — Dropped / deferred
 
-- `[ ]` not started
-- `[~]` in progress
-- `[?]` blocked or needs clarification
-- `[R]` implemented and in review / approved / waiting for merge
-- `[x]` merged and completed
-- `[-]` intentionally skipped or deferred
+Exploratory items that aren't committed work yet live in the **Future Considerations** section at the bottom. They move up into the active roadmap with state `[ ]` when they become real work.
 
 ## Product Flow Notes
 
@@ -19,7 +18,9 @@ See `PROJECT.md` for business requirements, functional requirements, and technol
 - Manual in-app pause takes precedence over automatic bike-driven resume. Bike-reported stop should freeze the workout and prompt the user to finish rather than auto-completing immediately.
 - Completed workouts should use simple upload states: `ready to upload`, `uploading`, `uploaded`, `failed`.
 
-## Current Priority: Screen Logic Revision
+---
+
+## Screen Logic Revision
 
 Consolidates remaining Phase 3 finish flow and Phase 5 onboarding into a single revision that simplifies the screen flow end-to-end. Branch: `feature/screen-logic-revision`.
 
@@ -27,10 +28,10 @@ Consolidates remaining Phase 3 finish flow and Phase 5 onboarding into a single 
 - [x] Streamlined finish flow (single Finish action: complete + disconnect + auto-navigate to Summary)
 - [x] DB-driven Summary screen with Discard / Save actions
 - [x] Simplified Home screen (Quick Start button, bike tile, HR tile, latest workout card)
-- [x] Screen architecture diagram update (`ai/screens.md`)
+- [x] Screen architecture diagram update
 - [x] Unit tests for new flows
 
-## Phase 1: Foundation & BLE Core
+## Phase 1 — Foundation & BLE Core
 
 - [x] Expo project scaffold, TypeScript, ESLint, Prettier (Enforce New Architecture/JSI)
 - [x] CI pipeline (GitHub Actions: lint, typecheck, test)
@@ -40,7 +41,7 @@ Consolidates remaining Phase 3 finish flow and Phase 5 onboarding into a single 
 - [x] BLE HR monitor support (standard HR Service `0x180D`)
 - [x] Add comprehensive unit tests covering various test cases
 
-## Phase 2: App Shell, Onboarding & Gear Setup
+## Phase 2 — App Shell, Onboarding & Gear Setup
 
 Functional UI only in this phase: focus on usable layouts, controls, and required page elements; defer visual polish to the final phase.
 Bike-first product UX in this phase: support a single main bike for now, while keeping the gear model extensible for future FTMS equipment types such as treadmills.
@@ -67,7 +68,7 @@ Bike-first product UX in this phase: support a single main bike for now, while k
 - [x] Just-in-time permission UX for Bluetooth scanning / connection
 - [x] Add comprehensive unit tests covering various test cases
 
-## Phase 3: Core Training UX & Persistence
+## Phase 3 — Core Training UX & Persistence
 
 - [x] Zustand store + Metronome engine (1 Hz sampling, JSI optimized)
 - [x] Training state machine (Idle → Active → Paused → Finished)
@@ -81,14 +82,14 @@ Bike-first product UX in this phase: support a single main bike for now, while k
 - [x] Parse and use bike-reported calories from FTMS Energy field (Zipro Rave Bit 10) as an alternative calorie source
 - [x] Crash recovery / interrupted session restore
 
-## Phase 4: Workout History & Management
+## Phase 4 — Workout History & Management
 
 - [x] Functional session history list + detail view with summary statistics
 - [x] Session deletion
 - [x] Minimal UI elements needed for history flows
 - [x] Add comprehensive unit tests covering various test cases
 
-## Phase 5: First-Launch Onboarding
+## Phase 5 — First-Launch Onboarding
 
 Lightweight, modern onboarding shown only on first launch. 2-3 swipeable intro screens that explain the app setup flow (connect bike, optional HR source, start training). No interactive walkthrough — just clear, visual guidance so the user knows what to expect before landing on the Home screen.
 
@@ -97,7 +98,7 @@ Lightweight, modern onboarding shown only on first launch. 2-3 swipeable intro s
 - [x] Modern, visually polished design (animations, illustrations, smooth transitions)
 - [x] Skip and Done actions — addressed in Screen Logic Revision
 
-## Phase 6: Integrations & External Provider Sync
+## Phase 6 — Integrations & External Provider Sync
 
 - [x] External training provider contract / adapter architecture for finished session uploads
 - [x] First provider integration: Strava OAuth + finished session upload
@@ -113,13 +114,13 @@ Lightweight, modern onboarding shown only on first launch. 2-3 swipeable intro s
 - [x] Minimal UI elements needed for integrations, export, and provider sync flows
 - [x] Strava webhook is not working for "localhost" once oauth is agreed - it hangs on "accounts.google.com"
 
-## Phase 7: Extras & Platform Features
+## Phase 7 — Extras & Platform Features
 
 - [ ] Live Activities & Dynamic Island integration (`react-native-activity-kit`)
 - [x] Apple Health export via `react-native-health` (completed sessions only)
 - [ ] Raw `.FIT` binary file export generation
 
-## Phase 8: Advanced HR Sources & Watch Integration
+## Phase 8 — Advanced HR Sources & Watch Integration
 
 Standard Bluetooth HR sensors are expected to work via the BLE HR flow before this phase. Broadcast-capable watches such as Garmin or Polar stay on that same Bluetooth HR path when they expose the standard BLE HR service. Apple Watch is a separate native integration and must only be surfaced on iPhone, never on Android. During this phase the app remains the owner of the workout session; watches act as HR sensors unless a later native watch integration explicitly says otherwise.
 
@@ -131,12 +132,11 @@ Standard Bluetooth HR sensors are expected to work via the BLE HR flow before th
 - [x] Native WatchOS companion app (SwiftUI + HealthKit workout session)
 - [x] Real-time HR streaming via WatchConnectivity
 - [x] HR source priority logic (Watch > BLE HR monitor > Bike pulse)
-- [?] Programmatic Watch app wake-on-start from iPhone (`HKHealthStore.startWatchApp` + `workoutSessionMirroringStartHandler`) — canonical WWDC23 flow implemented but Watch never wakes on our sideload install; leading suspect is the free-account `devicectl` install path bypassing HealthKit's wake broker. Current UX requires the user to open the Watch app manually before training. Full findings and next experiments: `docs/apple-watch/wake-on-start.md`
 - [ ] Background recording with BLE + Watch
 - [~] Just-in-time permission UX for watch / health integrations
 - [~] Minimal UI elements needed for watch status and source visibility
 
-## Phase 9: Calorie Accuracy & User Profile
+## Phase 9 — Calorie Accuracy & User Profile
 
 Three-part initiative to align our calorie numbers with Apple Fitness and Strava, and make the app accurate for users outside Apple's ecosystem.
 
@@ -167,7 +167,7 @@ Three-part initiative to align our calorie numbers with Apple Fitness and Strava
 - [x] Final source priority: Watch > HR + profile (Keytel) > power-based > bike-reported
 - [x] Graceful degradation: missing profile never blocks calorie calculation
 
-## Phase 10: UX & Visual Design Polish
+## Phase 10 — UX & Visual Design Polish
 
 - [ ] Visual design pass across training, history, and sync screens
 - [ ] Refine dashboard information hierarchy, spacing, and responsiveness
@@ -182,7 +182,10 @@ Android is not actively supported today — the product is iOS-first (watchOS co
 
 - [ ] Strava OAuth on Android: `WebBrowser.openBrowserAsync` resolves with `{ type: 'opened' }` immediately on Android (the runtime cannot observe the Chrome Custom Tab close), so the iOS-focused fix in PR [#56](https://github.com/mike927/omni-bike-rn/pull/56) rejects the auth flow before the deep link can arrive. Fix: add a `Platform.OS` split — keep the new `openBrowserAsync` + `Linking` flow on iOS, restore `openAuthSessionAsync` on Android.
 
+---
+
 ## Future Considerations
 
-- [ ] Move Strava OAuth token exchange and refresh behind a backend or other secure server-side flow so the client app no longer ships the Strava client secret
-- [ ] Align the Strava OAuth callback route with the configurable callback host. The expo-router handler added in PR [#56](https://github.com/mike927/omni-bike-rn/pull/56) is hardcoded at `app/localhost/oauth/callback.tsx`, but `STRAVA_REDIRECT_URI` uses the configurable `stravaCallbackDomain` from `app.config.ts` (env: `STRAVA_CALLBACK_DOMAIN`). In any environment that overrides the domain, expo-router will fall back to `+not-found`. Fix: either hardcode `localhost` everywhere (remove the env override) or switch to a dynamic segment (`app/[callbackDomain]/oauth/callback.tsx`). No immediate action needed — `localhost` is the only domain in use.
+- Move Strava OAuth token exchange and refresh behind a backend or other secure server-side flow so the client app no longer ships the Strava client secret.
+- Align the Strava OAuth callback route with the configurable callback host. The expo-router handler added in PR [#56](https://github.com/mike927/omni-bike-rn/pull/56) is hardcoded at `app/localhost/oauth/callback.tsx`, but `STRAVA_REDIRECT_URI` uses the configurable `stravaCallbackDomain` from `app.config.ts` (env: `STRAVA_CALLBACK_DOMAIN`). In any environment that overrides the domain, expo-router will fall back to `+not-found`. Fix: either hardcode `localhost` everywhere (remove the env override) or switch to a dynamic segment (`app/[callbackDomain]/oauth/callback.tsx`). No immediate action needed — `localhost` is the only domain in use.
+- Programmatic Watch app wake-on-start from iPhone (`HKHealthStore.startWatchApp` + `workoutSessionMirroringStartHandler`) — canonical WWDC23 flow implemented but Watch never wakes on our sideload install; leading suspect is the free-account `devicectl` install path bypassing HealthKit's wake broker. Current UX requires the user to open the Watch app manually before training. Full findings and next experiments: `docs/apple-watch/wake-on-start.md`.
