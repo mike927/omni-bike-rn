@@ -28,7 +28,7 @@ Give any AI coding agent (Claude Code primarily, but tool-neutral by default) en
 - `.claude/settings.local.json` — ~105 permission allow entries accumulated from ad-hoc sessions, plus `enabledPlugins.superpowers` set locally.
 - `.gitignore` — currently blocks `.claude/*` entirely (line 34), meaning no Claude config is tracked.
 - `~/.claude/settings.json` (user scope) — model: opus, effortLevel: high, enabledPlugins for 4 plugins, extraKnownMarketplaces for superpowers-marketplace, solid deny list.
-- `~/.claude/plugins/installed_plugins.json` — 5 real plugins installed: `superpowers` (local scope, tied to this project), plus `expo`, `swift-lsp`, `frontend-design`, `context7` (user scope).
+- `~/.claude/plugins/installed_plugins.json` — 5 real plugins installed on this machine. `superpowers` is currently at **local scope** (tied to this project) as a quirk of initial install; the other 4 (`expo`, `swift-lsp`, `frontend-design`, `context7`) are at **user scope**. The harness migration normalizes all of them to user scope install + project scope enable (see Layer 3).
 
 ## Architecture
 
@@ -65,6 +65,8 @@ Target length: 30–60 lines.
 **Other tool overlays** (`CODEX.md`, `GEMINI.md`): not created in v1. Add when those tools are actually used on this project.
 
 ### Layer 3 — Plugin & Permission Configuration
+
+**Mental model:** think Rails `Gemfile`. The project declares which plugins it depends on by listing them in a committed config file; the plugin code itself lives in the user's Claude Code installation (`~/.claude/plugins/…`), not in the repo. A teammate cloning the project gets the declaration; Claude Code resolves and installs any missing plugins from the marketplace on first launch. We do not lock versions — whatever the marketplace's current version is, that's what gets used. Reproducibility is at the "which plugins" level, not the "which version" level.
 
 **`.claude/settings.json`** — committed. The project's declared Claude Code configuration.
 
