@@ -522,10 +522,12 @@ points, and what's intentionally not in the harness.
 
 ---
 
-## Task 7: Create committed `.claude/settings.json`
+## Task 7: Create committed `.claude/settings.json` (plugins only)
 
 **Files:**
 - Create: `.claude/settings.json`
+
+Per user preference, this file contains **only** `enabledPlugins`. Permission allow/deny lists are per-user concerns and live in the gitignored `.claude/settings.local.json` (see Task 8). Teammates cloning get the project's plugin dependencies but none of anyone else's permission grants; their user-level `~/.claude/settings.json` deny list serves as their own safety floor.
 
 - [ ] **Step 1: Write the file**
 
@@ -534,6 +536,59 @@ Create `.claude/settings.json` with this exact content:
 ```json
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true,
+    "expo@claude-plugins-official": true,
+    "swift-lsp@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": true,
+    "context7@claude-plugins-official": true
+  }
+}
+```
+
+- [ ] **Step 2: Verify JSON is valid**
+
+Run: `python3 -c "import json; json.load(open('.claude/settings.json')); print('OK')"`
+Expected: `OK`
+
+- [ ] **Step 3: Verify plugins are all present and no permissions block leaked in**
+
+Run: `python3 -c "import json; d=json.load(open('.claude/settings.json')); assert sorted(d['enabledPlugins']) == ['context7@claude-plugins-official', 'expo@claude-plugins-official', 'frontend-design@claude-plugins-official', 'superpowers@claude-plugins-official', 'swift-lsp@claude-plugins-official']; assert 'permissions' not in d, 'permissions should live in settings.local.json, not here'; print('OK')"`
+Expected: `OK`
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add .claude/settings.json
+git commit -m "feat(harness): commit .claude/settings.json with plugin enablement
+
+Project-scoped plugin declaration (5 plugins: superpowers, expo,
+swift-lsp, frontend-design, context7) via Gemfile-style reference —
+plugin code stays in ~/.claude/plugins/, the repo only declares what's
+required. Permission allow/deny lists remain per-user concerns and
+live in .claude/settings.local.json (gitignored)."
+```
+
+---
+
+## Task 8: Refresh `.claude/settings.local.json` (all permissions live here)
+
+**Files:**
+- Modify: `.claude/settings.local.json` (gitignored)
+
+Goal: replace the accumulated ad-hoc entries with a curated allow list + a safety-floor deny list. Per user preference, all permission data — both allow and deny — lives here (gitignored, per-machine). The committed `.claude/settings.json` holds only plugin enablement.
+
+Drop-reasons for entries currently in the file that don't migrate over:
+- MCP perms for integrations no longer in use (`stitch`, `Claude_Preview`).
+- One-off session permissions (`gpg --list-secret-keys …`, `pbcopy`, `Bash(git config *)` unconstrained).
+- `enabledPlugins.superpowers` entry — superseded by committed `settings.json`.
+
+- [ ] **Step 1: Replace file contents**
+
+Overwrite `.claude/settings.local.json` with:
+
+```json
+{
   "permissions": {
     "allow": [
       "Bash(ls:*)",
@@ -590,7 +645,12 @@ Create `.claude/settings.json` with this exact content:
       "Bash(gh auth:*)",
       "mcp__iterm-mcp__read_terminal_output",
       "mcp__iterm-mcp__write_to_terminal",
-      "mcp__iterm-mcp__send_control_character"
+      "mcp__iterm-mcp__send_control_character",
+      "WebSearch",
+      "WebFetch(domain:developers.openai.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:claude.com)"
     ],
     "deny": [
       "Read(**/.env)",
@@ -611,79 +671,9 @@ Create `.claude/settings.json` with this exact content:
       "Bash(npm publish:*)",
       "Bash(npm install -g:*)"
     ]
-  },
-  "enabledPlugins": {
-    "superpowers@claude-plugins-official": true,
-    "expo@claude-plugins-official": true,
-    "swift-lsp@claude-plugins-official": true,
-    "frontend-design@claude-plugins-official": true,
-    "context7@claude-plugins-official": true
   }
 }
 ```
-
-- [ ] **Step 2: Verify JSON is valid**
-
-Run: `python3 -c "import json; json.load(open('.claude/settings.json')); print('OK')"`
-Expected: `OK`
-
-- [ ] **Step 3: Verify it lists all 5 plugins**
-
-Run: `python3 -c "import json; d=json.load(open('.claude/settings.json')); print(sorted(d['enabledPlugins']))"`
-Expected: a list with exactly these 5 keys:
-`['context7@claude-plugins-official', 'expo@claude-plugins-official', 'frontend-design@claude-plugins-official', 'superpowers@claude-plugins-official', 'swift-lsp@claude-plugins-official']`
-
-- [ ] **Step 4: Verify deny list blocks the hook-bypass + gpg-bypass patterns**
-
-Run: `python3 -c "import json; d=json.load(open('.claude/settings.json')); deny = d['permissions']['deny']; assert any('--no-verify' in x for x in deny), 'no-verify not denied'; assert any('gpgsign=false' in x for x in deny), 'gpg bypass not denied'; print('OK')"`
-Expected: `OK`
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add .claude/settings.json
-git commit -m "feat(harness): commit .claude/settings.json with plugin + permission config
-
-Project-scoped plugin enablement (5 plugins: superpowers, expo, swift-lsp,
-frontend-design, context7) via Gemfile-style declaration. Curated allow
-list replaces ~55 ad-hoc entries from settings.local.json. Deny list
-blocks --no-verify, gpg-bypass, destructive git commands, env reads,
-sudo, and piped network installs.
-"
-```
-
----
-
-## Task 8: Clean `.claude/settings.local.json`
-
-**Files:**
-- Modify: `.claude/settings.local.json`
-
-Goal: strip entries now covered by committed `settings.json`, drop unused MCP integrations (stitch, preview) the user confirmed are no longer in use, keep only truly per-machine or transient overrides.
-
-- [ ] **Step 1: Replace file contents**
-
-Overwrite `.claude/settings.local.json` with:
-
-```json
-{
-  "permissions": {
-    "allow": [
-      "WebSearch",
-      "WebFetch(domain:developers.openai.com)",
-      "WebFetch(domain:github.com)",
-      "WebFetch(domain:raw.githubusercontent.com)",
-      "WebFetch(domain:claude.com)"
-    ]
-  }
-}
-```
-
-Everything else was either:
-- Moved into committed `settings.json` (git/npm/expo/xcrun/iterm-mcp tool globs).
-- Stale MCP perms for integrations no longer in use (`stitch`, `Claude_Preview`, `Claude_in_Chrome`).
-- One-off session permissions (`gpg --list-secret-keys …`, `pbcopy`, `Bash(git config *)` unconstrained).
-- `enabledPlugins.superpowers` entry — superseded by committed `settings.json`.
 
 - [ ] **Step 2: Verify JSON is valid**
 
@@ -695,17 +685,22 @@ Expected: `OK`
 Run: `python3 -c "import json; d=json.load(open('.claude/settings.local.json')); assert 'enabledPlugins' not in d, 'enabledPlugins should be in committed settings.json'; print('OK')"`
 Expected: `OK`
 
-- [ ] **Step 4: Verify gitignore still excludes this file**
+- [ ] **Step 4: Verify deny list blocks the hook-bypass + gpg-bypass patterns**
+
+Run: `python3 -c "import json; d=json.load(open('.claude/settings.local.json')); deny = d['permissions']['deny']; assert any('--no-verify' in x for x in deny), 'no-verify not denied'; assert any('gpgsign=false' in x for x in deny), 'gpg bypass not denied'; print('OK')"`
+Expected: `OK`
+
+- [ ] **Step 5: Verify gitignore still excludes this file**
 
 Run: `git check-ignore -v .claude/settings.local.json`
 Expected output contains: `.gitignore:35:.claude/settings.local.json`
 
 No commit required — file is gitignored.
 
-- [ ] **Step 5: Sanity-check with git status**
+- [ ] **Step 6: Sanity-check with git status**
 
 Run: `git status --short .claude/`
-Expected: `settings.local.json` does not appear (gitignored), `settings.json` was committed in Task 7 and is clean.
+Expected: `settings.local.json` does not appear (gitignored); `settings.json` was committed in Task 7 and is clean.
 
 ---
 
@@ -842,8 +837,8 @@ Execute each of these and confirm the expected outcome:
 | 4 | `ROADMAP.md` exists, `plan.md` does not | `test -f ROADMAP.md && ! test -f plan.md && echo OK` | `OK` |
 | 5 | `docs/superpowers/README.md` exists, ~100 lines | `wc -l docs/superpowers/README.md` | 80–110 |
 | 6 | `.gitignore` blocks `settings.local.json` only (not `.claude/*` wildcard) | `grep -E '^\.claude' .gitignore` | shows `launch.json` and `settings.local.json` entries; no wildcard |
-| 7 | `.claude/settings.json` committed, 5 plugins + cleaned permissions + deny list | `python3 -c "import json; d=json.load(open('.claude/settings.json')); print(len(d['enabledPlugins']), len(d['permissions']['allow']), len(d['permissions']['deny']))"` | 3 space-separated counts: `5` / `40–60` / `≥10`. (Spec target was 30–50 allow entries; actual landed slightly over because the recovery playbook requires a broad git + expo + xcrun surface. Acceptable deviation — still a ~50% reduction from 105.) |
-| 8 | `.claude/settings.local.json` gitignored and near-empty | `git check-ignore .claude/settings.local.json && wc -l .claude/settings.local.json` | ignored; ≤ 15 lines |
+| 7 | `.claude/settings.json` committed, plugin enablement only (no permissions block) | `python3 -c "import json; d=json.load(open('.claude/settings.json')); print(len(d['enabledPlugins']), 'permissions' in d)"` | `5 False` (5 plugins, no permissions key) |
+| 8 | `.claude/settings.local.json` gitignored, holds both allow and deny lists | `git check-ignore .claude/settings.local.json && python3 -c "import json; d=json.load(open('.claude/settings.local.json')); print(len(d['permissions']['allow']), len(d['permissions']['deny']))"` | ignored; allow count in 40–65 range; deny count ≥10 |
 | 9 | `~/.claude/settings.json` has no `enabledPlugins` block | `python3 -c "import json, pathlib; d = json.loads((pathlib.Path.home() / '.claude' / 'settings.json').read_text()); assert 'enabledPlugins' not in d; print('OK')"` | `OK` |
 | 10 | Fresh-clone plugin auto-resolution | (manual — performed on next session open) | all 5 plugins listed in `installed_plugins.json` at user scope, no `projectPath` |
 | 11 | `npm run ci:gate` passes | `npm run ci:gate` | exit 0 |

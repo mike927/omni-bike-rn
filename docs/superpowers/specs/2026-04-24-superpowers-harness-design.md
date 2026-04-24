@@ -68,7 +68,7 @@ Target length: 30–60 lines.
 
 **Mental model:** think Rails `Gemfile`. The project declares which plugins it depends on by listing them in a committed config file; the plugin code itself lives in the user's Claude Code installation (`~/.claude/plugins/…`), not in the repo. A teammate cloning the project gets the declaration; Claude Code resolves and installs any missing plugins from the marketplace on first launch. We do not lock versions — whatever the marketplace's current version is, that's what gets used. Reproducibility is at the "which plugins" level, not the "which version" level.
 
-**`.claude/settings.json`** — committed. The project's declared Claude Code configuration.
+**`.claude/settings.json`** — committed. Plugin enablement only.
 
 Contains:
 - `enabledPlugins`: all 5 plugins that power this project.
@@ -77,11 +77,10 @@ Contains:
   - `swift-lsp@claude-plugins-official` — iOS native support.
   - `frontend-design@claude-plugins-official` — UI work support.
   - `context7@claude-plugins-official` — up-to-date library docs.
-- `permissions.allow`: the curated, durable subset of what's currently in `settings.local.json`. Globs over individual invocations. Target size: 30–50 entries (down from ~105).
-- `permissions.deny`: mirror the user-level deny list (env reads, ssh, sudo, curl|sh, destructive git, etc.) so project defaults are safe even if user settings are missing.
+- No `permissions` block. Allow and deny lists are per-user, per-machine concerns — they live in `.claude/settings.local.json` (see below).
 - No `model` or `effortLevel` — those remain user preferences.
 
-**`.claude/settings.local.json`** — gitignored. Per-machine overrides and evolving permission grants. Starts empty (or near-empty) after v1 cleanup.
+**`.claude/settings.local.json`** — gitignored. Holds both the curated allow list (per-user workflow grants) and a deny list (per-user safety floor). Teammates cloning get the project's plugin dependencies but none of anyone else's permission grants; they accumulate their own over time. Their user-level `~/.claude/settings.json` deny list serves as their own baseline safety net until they build up project-local denies.
 
 **User-scope `~/.claude/settings.json`** — the `enabledPlugins` block is removed. No more global plugin enablement; each project decides for itself. Deny list and marketplace config stay.
 
@@ -157,8 +156,8 @@ This is a configuration and documentation change — no runtime tests. Verificat
 4. `ROADMAP.md` exists; `plan.md` no longer exists.
 5. `docs/superpowers/README.md` exists and is ~100 lines.
 6. `.gitignore` no longer blocks `.claude/*`; it blocks only `.claude/settings.local.json`.
-7. `.claude/settings.json` exists, is committed, contains 5 enabled plugins + cleaned permissions + deny list.
-8. `.claude/settings.local.json` exists, is gitignored, is empty (or near-empty).
+7. `.claude/settings.json` exists, is committed, contains `enabledPlugins` for the 5 plugins and nothing else (no permissions block).
+8. `.claude/settings.local.json` exists, is gitignored, contains a curated allow list and a deny-list safety floor.
 9. `~/.claude/settings.json` has `enabledPlugins` removed.
 10. Running Claude Code in a fresh clone (or after clearing the plugin cache) auto-enables the 5 plugins on first launch.
 11. `npm run ci:gate` still passes after all changes.
