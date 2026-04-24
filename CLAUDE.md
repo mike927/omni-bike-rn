@@ -18,9 +18,7 @@ Primary contract is `AGENTS.md`. This file covers Claude Code specifics only.
 
 ## Builds
 
-- Default to `npm run ios` (device build) when an iPhone is detected via `xcrun devicectl list devices`. Otherwise fall back to `npm run ios:sim`.
 - Run builds in Bash with `run_in_background: true`, tail the log, report completion or errors.
-- Expo detects the running Metro on port 8081 and reuses it — no Metro restart needed between rebuilds.
 
 ## Permissions and plugins
 

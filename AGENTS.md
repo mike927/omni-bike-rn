@@ -18,6 +18,10 @@ Active work tracked in `ROADMAP.md`. Update states (`[ ] [~] [x] [-]`) as work p
 
 Run scripts via `npm run <name>` — see `package.json` for the full list. The ones worth knowing by name: `ci:gate` (lint + typecheck + tests, the pre-ship gate) and `db:generate` / `db:check` (Drizzle migrations).
 
+## Builds
+
+Default to `npm run ios` (device build) when an iPhone is detected via `xcrun devicectl list devices`. Otherwise fall back to `npm run ios:sim`.
+
 ## Git workflow
 
 - **Never commit directly to `main`.** Before any commit, confirm the current branch is not `main`; if it is, create a feature branch first (e.g. `feat/…`, `fix/…`, `chore/…`, `docs/…`).
