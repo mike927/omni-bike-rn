@@ -34,6 +34,7 @@ yarn-error.*
 .claude/launch.json
 .claude/settings.local.json
 ai/local/
+docs/superpowers/
 
 # Harness quarantine (temporary — evaluating alternative plugin)
 .harness-archive/

@@ -26,3 +26,7 @@ Primary contract is `AGENTS.md`. This file covers Claude Code specifics only.
 
 - Project plugin enablement: `.claude/settings.json` (committed).
 - Permission grants (allow / ask / deny): `.claude/settings.local.json` (gitignored, per-machine). Create it if missing. This is the single source of truth for autonomy — what may run without asking, what must always prompt, and what is forbidden.
+
+## Plugin model
+
+Plugins are declared in `.claude/settings.json → enabledPlugins`; plugin code lives outside the repo (`~/.claude/plugins/…`) and is resolved from the marketplace on first session. No version pinning — reproducibility is at the "which plugins" level, not "which version."
