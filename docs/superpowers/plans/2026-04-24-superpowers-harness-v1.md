@@ -64,8 +64,7 @@ git commit -m "chore: switch husky pre-commit to lint:fix
 
 Run autofix before staging so formatting/import-order drift is corrected
 automatically instead of failing the hook.
-
-Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
+"
 ```
 
 Expected: commit succeeds; pre-commit hook itself runs `lint:fix` + `typecheck` and passes.
@@ -190,8 +189,7 @@ Tool-neutral operating contract (project identity, workflow, dev loop,
 autonomy rules, git workflow, platform notes). Consumed by any agent
 respecting the AGENTS.md convention. Per-tool overlays (CLAUDE.md etc.)
 cover tool-specific quirks only.
-
-Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
+"
 ```
 
 ---
@@ -253,8 +251,7 @@ git commit -m "docs: add CLAUDE.md as thin Claude Code overlay
 Covers Claude Code specifics only (iTerm + iterm-mcp workflow,
 run_in_background for long builds, pointers to .claude/settings.json
 and settings.local.json). Primary contract remains AGENTS.md.
-
-Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
+"
 ```
 
 ---
@@ -287,8 +284,7 @@ git commit -m "docs: add empty CODEX.md and GEMINI.md placeholders
 Signal-of-intent that the harness is tool-neutral and per-tool overrides
 have a designated home. Empty for v1; populate only when those tools are
 actually used on this project.
-
-Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
+"
 ```
 
 ---
@@ -396,8 +392,7 @@ git commit -m "docs: migrate plan.md to ROADMAP.md with unified state system
 - Move the single legacy [?] item (wake-on-start watch issue) into
   Future Considerations with its note preserved
 - Strip references to non-existent PROJECT.md and ai/screens.md
-
-Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
+"
 ```
 
 ---
@@ -522,8 +517,7 @@ git commit -m "docs: add superpowers harness guide
 Explains the layered harness (AGENTS.md + tool overlays + project-scoped
 plugin enablement), the Gemfile-style plugin model, workflow entry
 points, and what's intentionally not in the harness.
-
-Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
+"
 ```
 
 ---
@@ -655,8 +649,7 @@ frontend-design, context7) via Gemfile-style declaration. Curated allow
 list replaces ~55 ad-hoc entries from settings.local.json. Deny list
 blocks --no-verify, gpg-bypass, destructive git commands, env reads,
 sudo, and piped network installs.
-
-Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
+"
 ```
 
 ---
