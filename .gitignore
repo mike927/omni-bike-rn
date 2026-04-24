@@ -31,8 +31,8 @@ yarn-error.*
 *.pem
 
 # AI tooling
-.claude/*
-.codex/*
+.claude/launch.json
+.claude/settings.local.json
 ai/local/
 
 # Harness quarantine (temporary — evaluating alternative plugin)
