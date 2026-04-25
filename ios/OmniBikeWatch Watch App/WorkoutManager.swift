@@ -43,7 +43,6 @@ enum WatchSessionStatePayload {
 }
 
 fileprivate enum WatchCommand {
-    static let start = "start"
     static let stop = "stop"
 }
 
@@ -432,11 +431,6 @@ extension WorkoutManager: WCSessionDelegate {
         guard let cmd = payload["cmd"] as? String else { return }
         wcLog("[WC-Watch] handleCommand cmd=\(cmd) source=\(source)")
         switch cmd {
-        case WatchCommand.start:
-            let configuration = HKWorkoutConfiguration()
-            configuration.activityType = .cycling
-            configuration.locationType = .indoor
-            requestAuthorization(starting: configuration)
         case WatchCommand.stop:
             stopWorkout()
         default:
