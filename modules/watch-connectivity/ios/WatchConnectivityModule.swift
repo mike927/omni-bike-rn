@@ -43,6 +43,7 @@ fileprivate enum PayloadKey {
 }
 
 fileprivate enum WatchCommand {
+  static let start = "start"
   static let stop = "stop"
 }
 
@@ -51,6 +52,7 @@ public class WatchConnectivityModule: Module {
   fileprivate var activationPromises: [Promise] = []
   private let healthStore = HKHealthStore()
   private lazy var sessionDelegate: SessionDelegateProxy = SessionDelegateProxy(module: self)
+  fileprivate var pendingStart: Bool = false
   private var mirroredSession: HKWorkoutSession?
 
   public func definition() -> ModuleDefinition {
@@ -115,18 +117,22 @@ public class WatchConnectivityModule: Module {
       wcLog("[WC-iPhone] startWatchApp: WC state=\(wcSession.activationState.rawValue) paired=\(wcSession.isPaired) installed=\(wcSession.isWatchAppInstalled) reachable=\(wcSession.isReachable)")
 
       wcLog("[WC-iPhone] startWatchApp: invoking HKHealthStore.startWatchApp")
+      self.pendingStart = true
       self.healthStore.startWatchApp(with: configuration) { success, error in
         if let error {
           wcLog("[WC-iPhone] startWatchApp: FAILED with error: \(error.localizedDescription)")
+          self.pendingStart = false
           promise.reject("ERR_START_WATCH_APP_FAILED", error.localizedDescription)
           return
         }
         guard success else {
           wcLog("[WC-iPhone] startWatchApp: FAILED success=false")
+          self.pendingStart = false
           promise.reject("ERR_START_WATCH_APP_FAILED", "HealthKit could not launch the Watch app")
           return
         }
-        wcLog("[WC-iPhone] startWatchApp: SUCCESS — waiting for Watch handle(_:) + mirrored session")
+        wcLog("[WC-iPhone] startWatchApp: SUCCESS — scheduling start cmd")
+        self.flushPendingStart()
         promise.resolve()
       }
     }
@@ -136,6 +142,14 @@ public class WatchConnectivityModule: Module {
     // it can call `session.end()`.
     AsyncFunction("endMirroredWorkout") { (promise: Promise) in
       wcLog("[WC-iPhone] endMirroredWorkout() called")
+      // Clear any queued start. Without this, a user flow of "tap Start on
+      // iPhone while Watch is unreachable → cancel before Watch wakes" leaks a
+      // stale start cmd the next time reachability flips true, auto-launching a
+      // workout the user never asked for.
+      if self.pendingStart {
+        wcLog("[WC-iPhone] endMirroredWorkout: clearing pendingStart")
+        self.pendingStart = false
+      }
       let session = WCSession.default
       guard session.activationState == .activated else {
         wcLog("[WC-iPhone] endMirroredWorkout: dropping — WC not activated")
@@ -180,6 +194,20 @@ public class WatchConnectivityModule: Module {
       emitReachability(WCSession.default.isReachable)
       promises.forEach { $0.resolve() }
     }
+  }
+
+  fileprivate func flushPendingStart() {
+    guard pendingStart else { return }
+    let session = WCSession.default
+    guard session.activationState == .activated, session.isReachable else {
+      wcLog("[WC-iPhone] flushPendingStart: not reachable yet (reachable=\(session.isReachable)) — will retry on reachability change")
+      return
+    }
+    wcLog("[WC-iPhone] flushPendingStart: sending start cmd")
+    session.sendMessage([PayloadKey.command: WatchCommand.start], replyHandler: nil) { error in
+      wcLog("[WC-iPhone] flushPendingStart: sendMessage error=\(error.localizedDescription)")
+    }
+    pendingStart = false
   }
 
   fileprivate func emitHr(_ hr: Int) {
@@ -284,6 +312,9 @@ private class SessionDelegateProxy: NSObject, WCSessionDelegate, HKWorkoutSessio
   func sessionReachabilityDidChange(_ session: WCSession) {
     wcLog("[WC-iPhone] sessionReachabilityDidChange reachable=\(session.isReachable)")
     module?.emitReachability(session.isReachable)
+    if session.isReachable {
+      module?.flushPendingStart()
+    }
   }
 
   func workoutSession(
