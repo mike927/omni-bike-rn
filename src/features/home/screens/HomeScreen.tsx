@@ -4,6 +4,8 @@ import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
+import { useWatchHrControls } from '../../gear/hooks/useWatchHrControls';
+import { resolveWatchHrDisplayState, watchHrDisplayLabel } from '../../../services/hr/hrStatus';
 import { InterruptedSessionCard } from '../components/InterruptedSessionCard';
 import { useLatestWorkout } from '../../training/hooks/useLatestWorkout';
 import { useInterruptedSession } from '../../training/hooks/useInterruptedSession';
@@ -107,7 +109,9 @@ export function HomeScreen() {
   const router = useRouter();
   const session = useTrainingSession();
   const { interruptedSession, resumeInterruptedSession, discardInterruptedSession } = useInterruptedSession();
-  const { bikeConnected, hrConnected } = useDeviceConnection();
+  const { bikeConnected, hrConnected, watchAvailability } = useDeviceConnection();
+  const { watchAvailable, watchHrEnabled } = useWatchHrControls();
+  const watchHrDisplayState = resolveWatchHrDisplayState(watchHrEnabled, watchAvailability ?? 'unavailable');
   const { savedBike, savedHrSource, forgetBike, forgetHr } = useSavedGear();
   const { bikeReconnectState, hrReconnectState, retryBike, retryHr } = useAutoReconnect();
   const latestWorkout = useLatestWorkout();
@@ -196,6 +200,9 @@ export function HomeScreen() {
             : 'No Bluetooth HR source saved. Chest straps and broadcast watches are optional.'
         }>
         <Text style={styles.statusText}>Status: {hrConnected ? 'Connected' : reconnectLabel(hrReconnectState)}</Text>
+        {watchAvailable ? (
+          <Text style={styles.statusText}>Apple Watch: {watchHrDisplayLabel(watchHrDisplayState)}</Text>
+        ) : null}
         <View style={styles.actionRow}>
           {renderSavedGearActions(
             savedHrSource !== null,

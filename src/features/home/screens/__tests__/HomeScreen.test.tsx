@@ -44,6 +44,15 @@ const mockConnection = {
   hrConnected: false,
   latestBikeMetrics: null,
   latestBluetoothHr: null,
+  latestAppleWatchHr: null,
+  watchAvailability: 'unavailable',
+};
+
+const mockWatchHrControls = {
+  watchAvailable: true,
+  watchHrEnabled: false,
+  enableWatchHr: jest.fn(),
+  disableWatchHr: jest.fn(),
 };
 
 const mockSavedGear = {
@@ -87,6 +96,10 @@ jest.mock('../../../training/hooks/useInterruptedSession', () => ({
   useInterruptedSession: () => mockInterruptedSessionHook(),
 }));
 
+jest.mock('../../../gear/hooks/useWatchHrControls', () => ({
+  useWatchHrControls: () => mockWatchHrControls,
+}));
+
 describe('HomeScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -97,6 +110,12 @@ describe('HomeScreen', () => {
       bikeConnected: false,
       hrConnected: false,
       latestBluetoothHr: null,
+      latestAppleWatchHr: null,
+      watchAvailability: 'unavailable',
+    });
+    Object.assign(mockWatchHrControls, {
+      watchAvailable: true,
+      watchHrEnabled: false,
     });
     Object.assign(mockSavedGear, {
       savedBike: null,
@@ -232,5 +251,33 @@ describe('HomeScreen', () => {
     const { getByText } = render(<HomeScreen />);
 
     expect(getByText('Complete a ride to see your latest workout summary here.')).toBeTruthy();
+  });
+
+  describe('Apple Watch HR status line', () => {
+    it('shows the Apple Watch status line when the Watch is available', () => {
+      Object.assign(mockConnection, { watchAvailability: 'idle' });
+      Object.assign(mockWatchHrControls, { watchAvailable: true, watchHrEnabled: true });
+
+      const { getByText } = render(<HomeScreen />);
+
+      expect(getByText('Apple Watch: Idle')).toBeTruthy();
+    });
+
+    it('shows Disabled on the line when Watch HR is turned off', () => {
+      Object.assign(mockConnection, { watchAvailability: 'idle' });
+      Object.assign(mockWatchHrControls, { watchAvailable: true, watchHrEnabled: false });
+
+      const { getByText } = render(<HomeScreen />);
+
+      expect(getByText('Apple Watch: Disabled')).toBeTruthy();
+    });
+
+    it('omits the Apple Watch line entirely when the Watch is not available', () => {
+      Object.assign(mockWatchHrControls, { watchAvailable: false, watchHrEnabled: false });
+
+      const { queryByText } = render(<HomeScreen />);
+
+      expect(queryByText(/^Apple Watch:/)).toBeNull();
+    });
   });
 });
