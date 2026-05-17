@@ -239,6 +239,13 @@ describe('SettingsScreen', () => {
       expect(getByText('In Progress · 72 bpm')).toBeTruthy();
     });
 
+    it('shows plain In Progress (no bpm) when streaming has not delivered a value yet', () => {
+      Object.assign(mockWatchHr, { watchAvailable: true, watchHrEnabled: true });
+      Object.assign(mockConnection, { latestAppleWatchHr: null, watchAvailability: 'in_progress' });
+      const { getByText } = render(<SettingsScreen />);
+      expect(getByText('In Progress')).toBeTruthy();
+    });
+
     it('shows Disabled status when Watch HR is disabled', () => {
       Object.assign(mockWatchHr, { watchAvailable: true, watchHrEnabled: false });
       const { getByText } = render(<SettingsScreen />);

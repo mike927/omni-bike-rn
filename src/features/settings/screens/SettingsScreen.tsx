@@ -14,6 +14,11 @@ import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
 import type { UserProfile } from '../../../types/userProfile';
 import type { WatchAvailability } from '../../../types/watch';
+import {
+  resolveWatchHrDisplayState,
+  watchHrDisplayLabel,
+  WATCH_HR_UNAVAILABLE_HINT,
+} from '../../../services/hr/hrStatus';
 
 interface WatchHrRowProps {
   readonly watchHrEnabled: boolean;
@@ -23,38 +28,20 @@ interface WatchHrRowProps {
   readonly onDisable: () => void;
 }
 
-const WATCH_HR_INSTALL_HINT =
-  'Open the Omni Bike app on your Apple Watch. If it is not installed yet, add it from the iPhone Watch app.';
-
-function getWatchHrStatusLabel(
-  watchHrEnabled: boolean,
-  watchAvailability: WatchAvailability,
-  latestAppleWatchHr: number | null,
-): string {
-  if (!watchHrEnabled) return 'Disabled';
-  if (watchAvailability === 'unavailable') return 'Unavailable';
-  if (watchAvailability === 'idle') return 'Idle';
-  return latestAppleWatchHr === null ? 'In Progress' : `In Progress · ${latestAppleWatchHr} bpm`;
-}
-
-function getWatchHrHint(watchHrEnabled: boolean, watchAvailability: WatchAvailability): string | null {
-  if (!watchHrEnabled || watchAvailability !== 'unavailable') {
-    return null;
-  }
-
-  return WATCH_HR_INSTALL_HINT;
-}
-
 function WatchHrRow({ watchHrEnabled, watchAvailability, latestAppleWatchHr, onEnable, onDisable }: WatchHrRowProps) {
-  const watchHrHint = getWatchHrHint(watchHrEnabled, watchAvailability);
+  const displayState = resolveWatchHrDisplayState(watchHrEnabled, watchAvailability);
+  const baseLabel = watchHrDisplayLabel(displayState);
+  const statusLabel =
+    displayState === 'in_progress' && latestAppleWatchHr !== null
+      ? `${baseLabel} · ${latestAppleWatchHr} bpm`
+      : baseLabel;
+  const watchHrHint = displayState === 'unavailable' ? WATCH_HR_UNAVAILABLE_HINT : null;
 
   return (
     <View style={styles.gearRow}>
       <View style={styles.gearInfo}>
         <Text style={styles.gearLabel}>Apple Watch HR</Text>
-        <Text style={styles.gearName}>
-          {getWatchHrStatusLabel(watchHrEnabled, watchAvailability, latestAppleWatchHr)}
-        </Text>
+        <Text style={styles.gearName}>{statusLabel}</Text>
         {watchHrHint ? <Text style={styles.gearHint}>{watchHrHint}</Text> : null}
       </View>
       <View style={styles.gearActions}>
