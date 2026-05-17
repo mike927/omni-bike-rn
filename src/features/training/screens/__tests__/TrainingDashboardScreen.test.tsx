@@ -25,6 +25,15 @@ const mockDeviceConnection = {
   hrConnected: false,
   latestBikeMetrics: null,
   latestBluetoothHr: null,
+  latestAppleWatchHr: null,
+  watchAvailability: 'unavailable',
+};
+
+const mockWatchHrControls = {
+  watchAvailable: true,
+  watchHrEnabled: false,
+  enableWatchHr: jest.fn(),
+  disableWatchHr: jest.fn(),
 };
 
 jest.mock('expo-router', () => ({
@@ -47,6 +56,10 @@ jest.mock('../../hooks/useDeviceConnection', () => ({
   useDeviceConnection: () => mockDeviceConnection,
 }));
 
+jest.mock('../../../gear/hooks/useWatchHrControls', () => ({
+  useWatchHrControls: () => mockWatchHrControls,
+}));
+
 describe('TrainingDashboardScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -63,6 +76,12 @@ describe('TrainingDashboardScreen', () => {
       hrConnected: false,
       latestBikeMetrics: null,
       latestBluetoothHr: null,
+      latestAppleWatchHr: null,
+      watchAvailability: 'unavailable',
+    });
+    Object.assign(mockWatchHrControls, {
+      watchAvailable: true,
+      watchHrEnabled: false,
     });
   });
 
@@ -209,5 +228,61 @@ describe('TrainingDashboardScreen', () => {
     const { getByText } = render(<TrainingDashboardScreen />);
 
     expect(getByText('142 bpm')).toBeTruthy();
+  });
+
+  it('attributes HR to the bike pulse when no Watch or Bluetooth source is present', () => {
+    Object.assign(mockSession, {
+      phase: 'active',
+      currentMetrics: { speed: 26, cadence: 80, power: 190, heartRate: 128, resistance: 4, distance: 800 },
+    });
+    Object.assign(mockDeviceConnection, { bikeConnected: true });
+
+    const { getByText } = render(<TrainingDashboardScreen />);
+
+    expect(getByText('Heart rate source: Bike pulse')).toBeTruthy();
+  });
+
+  it('reports the Apple Watch as the active source when Watch HR is enabled and streaming', () => {
+    Object.assign(mockSession, {
+      phase: 'active',
+      currentMetrics: { speed: 30, cadence: 90, power: 220, heartRate: 150, resistance: 6, distance: 1100 },
+    });
+    Object.assign(mockDeviceConnection, {
+      bikeConnected: true,
+      latestAppleWatchHr: 150,
+      watchAvailability: 'in_progress',
+    });
+    Object.assign(mockWatchHrControls, { watchHrEnabled: true });
+
+    const { getByText } = render(<TrainingDashboardScreen />);
+
+    expect(getByText('Heart rate source: Apple Watch')).toBeTruthy();
+  });
+
+  it('shows the Watch HR pill as Disabled when the user has turned Watch HR off', () => {
+    Object.assign(mockDeviceConnection, { watchAvailability: 'idle' });
+    Object.assign(mockWatchHrControls, { watchAvailable: true, watchHrEnabled: false });
+
+    const { getByText } = render(<TrainingDashboardScreen />);
+
+    expect(getByText('Disabled')).toBeTruthy();
+  });
+
+  it('surfaces the just-in-time Watch guidance when Watch HR is enabled but unreachable', () => {
+    Object.assign(mockDeviceConnection, { watchAvailability: 'unavailable' });
+    Object.assign(mockWatchHrControls, { watchAvailable: true, watchHrEnabled: true });
+
+    const { getByText } = render(<TrainingDashboardScreen />);
+
+    expect(getByText(/Open the Omni Bike app on your Apple Watch/)).toBeTruthy();
+  });
+
+  it('does not show the Watch guidance when Watch HR is disabled', () => {
+    Object.assign(mockDeviceConnection, { watchAvailability: 'unavailable' });
+    Object.assign(mockWatchHrControls, { watchAvailable: true, watchHrEnabled: false });
+
+    const { queryByText } = render(<TrainingDashboardScreen />);
+
+    expect(queryByText(/Open the Omni Bike app on your Apple Watch/)).toBeNull();
   });
 });
