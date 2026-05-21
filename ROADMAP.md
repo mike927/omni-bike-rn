@@ -134,7 +134,7 @@ Standard Bluetooth HR sensors are expected to work via the BLE HR flow before th
 - [x] HR source priority logic (Watch > BLE HR monitor > Bike pulse)
 - [ ] Background recording with BLE + Watch
 - [~] Just-in-time permission UX for watch / health integrations
-- [~] Minimal UI elements needed for watch status and source visibility
+- [x] Minimal UI elements needed for watch status and source visibility
 
 ## Phase 9 — Calorie Accuracy & User Profile
 
