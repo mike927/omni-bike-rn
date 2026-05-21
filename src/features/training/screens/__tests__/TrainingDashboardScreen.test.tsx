@@ -26,6 +26,7 @@ const mockDeviceConnection = {
   latestBikeMetrics: null,
   latestBluetoothHr: null,
   latestAppleWatchHr: null,
+  lastAppleWatchSampleAtMs: null,
   watchAvailability: 'unavailable',
 };
 
@@ -77,6 +78,7 @@ describe('TrainingDashboardScreen', () => {
       latestBikeMetrics: null,
       latestBluetoothHr: null,
       latestAppleWatchHr: null,
+      lastAppleWatchSampleAtMs: null,
       watchAvailability: 'unavailable',
     });
     Object.assign(mockWatchHrControls, {
@@ -250,6 +252,7 @@ describe('TrainingDashboardScreen', () => {
     Object.assign(mockDeviceConnection, {
       bikeConnected: true,
       latestAppleWatchHr: 150,
+      lastAppleWatchSampleAtMs: Date.now(),
       watchAvailability: 'in_progress',
     });
     Object.assign(mockWatchHrControls, { watchHrEnabled: true });
@@ -257,6 +260,49 @@ describe('TrainingDashboardScreen', () => {
     const { getByText } = render(<TrainingDashboardScreen />);
 
     expect(getByText('Heart rate source: Apple Watch')).toBeTruthy();
+  });
+
+  it('reports Bluetooth as the active source when the Watch sample has gone stale mid-ride', () => {
+    Object.assign(mockSession, {
+      phase: 'active',
+      // Engine has already dropped the stale Watch HR and fallen back to BLE.
+      currentMetrics: { speed: 30, cadence: 90, power: 220, heartRate: 142, resistance: 6, distance: 1100 },
+    });
+    Object.assign(mockDeviceConnection, {
+      bikeConnected: true,
+      hrConnected: true,
+      latestBluetoothHr: 142,
+      latestAppleWatchHr: 150, // retained across reachability loss
+      lastAppleWatchSampleAtMs: Date.now() - 10_000, // but no fresh sample for >5s
+      watchAvailability: 'in_progress',
+    });
+    Object.assign(mockWatchHrControls, { watchHrEnabled: true });
+
+    const { getByText, queryByText } = render(<TrainingDashboardScreen />);
+
+    expect(getByText('Heart rate source: Bluetooth HR')).toBeTruthy();
+    expect(queryByText('Heart rate source: Apple Watch')).toBeNull();
+  });
+
+  it('ignores a retained Watch HR in the pre-start preview when Watch HR is disabled', () => {
+    Object.assign(mockSession, {
+      phase: 'idle',
+      currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: null },
+    });
+    Object.assign(mockDeviceConnection, {
+      bikeConnected: true,
+      latestBluetoothHr: 140,
+      latestAppleWatchHr: 150, // left in the store from a prior enabled session
+      lastAppleWatchSampleAtMs: Date.now(),
+      watchAvailability: 'idle',
+    });
+    Object.assign(mockWatchHrControls, { watchAvailable: true, watchHrEnabled: false });
+
+    const { getByText, queryByText } = render(<TrainingDashboardScreen />);
+
+    expect(getByText('140 bpm')).toBeTruthy();
+    expect(queryByText('150 bpm')).toBeNull();
+    expect(getByText('Heart rate source: Bluetooth HR')).toBeTruthy();
   });
 
   it('shows the Watch HR pill as Disabled when the user has turned Watch HR off', () => {

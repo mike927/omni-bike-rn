@@ -13,6 +13,7 @@ import {
   watchHrDisplayLabel,
   WATCH_HR_UNAVAILABLE_HINT,
 } from '../../../services/hr/hrStatus';
+import { resolveEffectiveWatchHr } from '../../../services/hr/watchSampleFreshness';
 import { TrainingPhase } from '../../../types/training';
 import { ActionButton } from '../../../ui/components/ActionButton';
 import { MetricTile } from '../../../ui/components/MetricTile';
@@ -46,16 +47,30 @@ function getDisconnectedCalloutBody(phase: TrainingPhase): string {
 export function TrainingDashboardScreen() {
   const router = useRouter();
   const session = useTrainingSession();
-  const { bikeConnected, hrConnected, latestBluetoothHr, latestAppleWatchHr, watchAvailability } =
-    useDeviceConnection();
+  const {
+    bikeConnected,
+    hrConnected,
+    latestBluetoothHr,
+    latestAppleWatchHr,
+    lastAppleWatchSampleAtMs,
+    watchAvailability,
+  } = useDeviceConnection();
   const { watchAvailable, watchHrEnabled } = useWatchHrControls();
   const [isFinishing, setIsFinishing] = useState(false);
+  // Mirror MetronomeEngine's staleness gate so the surfaced source never claims
+  // the Watch while a retained-but-stale sample is being ignored by the engine.
+  const effectiveWatchHr = resolveEffectiveWatchHr(
+    latestAppleWatchHr ?? null,
+    lastAppleWatchSampleAtMs ?? null,
+    Date.now(),
+  );
   // Idle-state fallback: session HR (from MetronomeEngine, which already applies full priority)
-  // takes precedence; Watch HR and Bluetooth HR are pre-start previews in priority order.
-  const resolvedHeartRate = session.currentMetrics.heartRate ?? latestAppleWatchHr ?? latestBluetoothHr;
+  // takes precedence; Watch HR (only when enabled + fresh) and Bluetooth HR are pre-start previews.
+  const resolvedHeartRate =
+    session.currentMetrics.heartRate ?? (watchHrEnabled ? effectiveWatchHr : null) ?? latestBluetoothHr;
   const activeHrSource = resolveActiveHrSource({
     watchHrEnabled,
-    latestAppleWatchHr: latestAppleWatchHr ?? null,
+    latestAppleWatchHr: effectiveWatchHr,
     latestBluetoothHr: latestBluetoothHr ?? null,
     sessionHeartRate: session.currentMetrics.heartRate ?? null,
   });

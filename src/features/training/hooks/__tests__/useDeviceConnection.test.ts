@@ -43,6 +43,17 @@ describe('useDeviceConnection', () => {
     });
   });
 
+  it('exposes the latest Apple Watch sample timestamp from the store', () => {
+    act(() => {
+      useDeviceConnectionStore.getState().updateAppleWatchHr(148);
+    });
+    const sampledAt = useDeviceConnectionStore.getState().lastAppleWatchSampleAtMs;
+
+    const { result } = renderHook(() => useDeviceConnection());
+
+    expect(result.current.lastAppleWatchSampleAtMs).toBe(sampledAt);
+  });
+
   it('should disconnect the previous bike before reconnecting', async () => {
     const firstBikeSubscription = { remove: jest.fn() };
     const secondBikeSubscription = { remove: jest.fn() };
