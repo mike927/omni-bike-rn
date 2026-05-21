@@ -24,7 +24,8 @@ Default to `npm run ios` (device build) when an iPhone is detected via `xcrun de
 
 ## Git workflow
 
-- **Never commit directly to `main`.** Before any commit, confirm the current branch is not `main`; if it is, create a feature branch first (e.g. `feat/…`, `fix/…`, `chore/…`, `docs/…`).
+- **Create a feature branch before starting any new feature or change.** Before touching code for new work, confirm the current branch is not `main`; if it is, create a branch first (e.g. `feat/…`, `fix/…`, `chore/…`, `docs/…`). Do not begin edits on `main` and defer branching until commit time.
+- **Never commit directly to `main`.** Before any commit, re-confirm the current branch is not `main`.
 - Never bypass hooks with `--no-verify`. If the pre-commit hook fails, fix the root cause and create a new commit (do not `--amend`).
 
 ## Domain model
