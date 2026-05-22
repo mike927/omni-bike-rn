@@ -34,4 +34,45 @@ describe('HeartRateSourceTile', () => {
     fireEvent.press(getByText('Heart Rate Source'));
     expect(getByText('Bluetooth HR')).toBeTruthy();
   });
+
+  it('hides the Apple Watch row when no Watch is available', () => {
+    const { getByText, queryByText } = renderTile({ watchAvailable: false });
+    fireEvent.press(getByText('Heart Rate Source'));
+    expect(queryByText('Apple Watch')).toBeNull();
+    expect(getByText('Bluetooth HR')).toBeTruthy();
+  });
+
+  it('shows the Apple Watch row with an Enable button when Watch HR is off', () => {
+    const onEnableWatch = jest.fn();
+    const { getByText } = renderTile({ watchAvailable: true, watchHrEnabled: false, onEnableWatch });
+    fireEvent.press(getByText('Heart Rate Source'));
+    expect(getByText('Apple Watch')).toBeTruthy();
+    fireEvent.press(getByText('Enable'));
+    expect(onEnableWatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a Disable button that fires the disable callback when Watch HR is on', () => {
+    const onDisableWatch = jest.fn();
+    const { getByText } = renderTile({ watchAvailable: true, watchHrEnabled: true, onDisableWatch });
+    fireEvent.press(getByText('Heart Rate Source'));
+    fireEvent.press(getByText('Disable'));
+    expect(onDisableWatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('appends the live bpm to the Watch status only when in progress', () => {
+    const { getByText } = renderTile({
+      watchAvailable: true,
+      watchHrEnabled: true,
+      watchHrDisplayState: 'in_progress',
+      latestAppleWatchHr: 132,
+    });
+    fireEvent.press(getByText('Heart Rate Source'));
+    expect(getByText('In Progress · 132 bpm')).toBeTruthy();
+  });
+
+  it('reports the Bluetooth connection state in the detail panel', () => {
+    const { getByText } = renderTile({ bluetoothConnected: true });
+    fireEvent.press(getByText('Heart Rate Source'));
+    expect(getByText('Connected')).toBeTruthy();
+  });
 });
