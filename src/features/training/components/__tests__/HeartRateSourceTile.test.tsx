@@ -94,4 +94,15 @@ describe('HeartRateSourceTile', () => {
     });
     expect(queryByText(/Open the Omni Bike app on your Apple Watch/)).toBeNull();
   });
+
+  it('shows both the unavailable hint and the Watch row status when expanded', () => {
+    const { getByText } = renderTile({
+      watchAvailable: true,
+      watchHrEnabled: true,
+      watchHrDisplayState: 'unavailable',
+    });
+    fireEvent.press(getByText('Heart Rate Source'));
+    expect(getByText(/Open the Omni Bike app on your Apple Watch/)).toBeTruthy();
+    expect(getByText('Unavailable')).toBeTruthy();
+  });
 });

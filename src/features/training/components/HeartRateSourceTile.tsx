@@ -16,10 +16,41 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
+interface WatchSourceRowProps {
+  readonly activeHrSource: ActiveHrSource;
+  readonly watchHrEnabled: boolean;
+  readonly watchStatusLabel: string;
+  readonly onEnableWatch: () => void;
+  readonly onDisableWatch: () => void;
+}
+
+function WatchSourceRow({
+  activeHrSource,
+  watchHrEnabled,
+  watchStatusLabel,
+  onEnableWatch,
+  onDisableWatch,
+}: WatchSourceRowProps) {
+  return (
+    <View style={styles.sourceRow}>
+      <View style={styles.sourceInfo}>
+        <Text style={[styles.sourceName, activeHrSource === 'watch' ? styles.activeSource : null]}>Apple Watch</Text>
+        <Text style={styles.sourceStatus}>{watchStatusLabel}</Text>
+      </View>
+      <ActionButton
+        label={watchHrEnabled ? 'Disable' : 'Enable'}
+        onPress={watchHrEnabled ? onDisableWatch : onEnableWatch}
+        variant={watchHrEnabled ? 'danger' : 'secondary'}
+      />
+    </View>
+  );
+}
+
 export interface HeartRateSourceTileProps {
   readonly activeHrSource: ActiveHrSource;
   readonly watchAvailable: boolean;
   readonly watchHrEnabled: boolean;
+  /** Pre-resolved by the caller via `resolveWatchHrDisplayState` (collapses to 'disabled' when Watch HR is off). */
   readonly watchHrDisplayState: WatchHrDisplayState;
   readonly latestAppleWatchHr: number | null;
   readonly bluetoothConnected: boolean;
@@ -67,19 +98,13 @@ export function HeartRateSourceTile({
       {expanded ? (
         <View style={styles.detail}>
           {watchAvailable ? (
-            <View style={styles.sourceRow}>
-              <View style={styles.sourceInfo}>
-                <Text style={[styles.sourceName, activeHrSource === 'watch' ? styles.activeSource : null]}>
-                  Apple Watch
-                </Text>
-                <Text style={styles.sourceStatus}>{watchStatusLabel}</Text>
-              </View>
-              <ActionButton
-                label={watchHrEnabled ? 'Disable' : 'Enable'}
-                onPress={watchHrEnabled ? onDisableWatch : onEnableWatch}
-                variant={watchHrEnabled ? 'danger' : 'secondary'}
-              />
-            </View>
+            <WatchSourceRow
+              activeHrSource={activeHrSource}
+              watchHrEnabled={watchHrEnabled}
+              watchStatusLabel={watchStatusLabel}
+              onEnableWatch={onEnableWatch}
+              onDisableWatch={onDisableWatch}
+            />
           ) : null}
 
           <View style={styles.sourceRow}>
