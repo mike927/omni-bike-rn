@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { palette } from '../theme';
 
@@ -16,7 +17,7 @@ export function SectionCard({ title, description, children, onPress }: Readonly<
       <View style={styles.header}>
         <View style={styles.titleRow}>
           <Text style={styles.title}>{title}</Text>
-          {onPress ? <Text style={styles.chevron}>›</Text> : null}
+          {onPress ? <Ionicons name="settings-outline" size={20} color={palette.textMuted} /> : null}
         </View>
         {description ? <Text style={styles.description}>{description}</Text> : null}
       </View>
@@ -55,11 +56,6 @@ const styles = StyleSheet.create({
   title: {
     color: palette.text,
     fontSize: 20,
-    fontWeight: '700',
-  },
-  chevron: {
-    color: palette.textMuted,
-    fontSize: 22,
     fontWeight: '700',
   },
   description: {
