@@ -241,7 +241,7 @@ describe('TrainingDashboardScreen', () => {
 
     const { getByText } = render(<TrainingDashboardScreen />);
 
-    expect(getByText('Heart rate source: Bike pulse')).toBeTruthy();
+    expect(getByText('Bike pulse')).toBeTruthy();
   });
 
   it('reports the Apple Watch as the active source when Watch HR is enabled and streaming', () => {
@@ -259,7 +259,7 @@ describe('TrainingDashboardScreen', () => {
 
     const { getByText } = render(<TrainingDashboardScreen />);
 
-    expect(getByText('Heart rate source: Apple Watch')).toBeTruthy();
+    expect(getByText('Apple Watch')).toBeTruthy();
   });
 
   it('reports Bluetooth as the active source when the Watch sample has gone stale mid-ride', () => {
@@ -280,8 +280,8 @@ describe('TrainingDashboardScreen', () => {
 
     const { getByText, queryByText } = render(<TrainingDashboardScreen />);
 
-    expect(getByText('Heart rate source: Bluetooth HR')).toBeTruthy();
-    expect(queryByText('Heart rate source: Apple Watch')).toBeNull();
+    expect(getByText('Bluetooth HR')).toBeTruthy();
+    expect(queryByText('Apple Watch')).toBeNull();
   });
 
   it('ignores a retained Watch HR in the pre-start preview when Watch HR is disabled', () => {
@@ -302,15 +302,16 @@ describe('TrainingDashboardScreen', () => {
 
     expect(getByText('140 bpm')).toBeTruthy();
     expect(queryByText('150 bpm')).toBeNull();
-    expect(getByText('Heart rate source: Bluetooth HR')).toBeTruthy();
+    expect(getByText('Bluetooth HR')).toBeTruthy();
   });
 
-  it('shows the Watch HR pill as Disabled when the user has turned Watch HR off', () => {
+  it('shows the Watch HR status as Disabled when the user has turned Watch HR off', () => {
     Object.assign(mockDeviceConnection, { watchAvailability: 'idle' });
     Object.assign(mockWatchHrControls, { watchAvailable: true, watchHrEnabled: false });
 
     const { getByText } = render(<TrainingDashboardScreen />);
 
+    fireEvent.press(getByText('Heart Rate Source'));
     expect(getByText('Disabled')).toBeTruthy();
   });
 

@@ -6,17 +6,12 @@ import { useDeviceConnection } from '../hooks/useDeviceConnection';
 import { useTrainingSession } from '../hooks/useTrainingSession';
 import { useWatchHrControls } from '../../gear/hooks/useWatchHrControls';
 import { buildTrainingSummaryRoute, POST_FINISH_TRAINING_SUMMARY_SOURCE } from '../navigation/trainingSummaryRoute';
-import {
-  activeHrSourceLabel,
-  resolveActiveHrSource,
-  resolveWatchHrDisplayState,
-  watchHrDisplayLabel,
-  WATCH_HR_UNAVAILABLE_HINT,
-} from '../../../services/hr/hrStatus';
+import { resolveActiveHrSource, resolveWatchHrDisplayState } from '../../../services/hr/hrStatus';
 import { resolveEffectiveWatchHr } from '../../../services/hr/watchSampleFreshness';
 import { TrainingPhase } from '../../../types/training';
 import { ActionButton } from '../../../ui/components/ActionButton';
 import { MetricTile } from '../../../ui/components/MetricTile';
+import { HeartRateSourceTile } from '../components/HeartRateSourceTile';
 import { formatDistanceKm, formatDuration, formatMetricValue } from '../../../ui/formatters';
 import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
@@ -55,7 +50,7 @@ export function TrainingDashboardScreen() {
     lastAppleWatchSampleAtMs,
     watchAvailability,
   } = useDeviceConnection();
-  const { watchAvailable, watchHrEnabled } = useWatchHrControls();
+  const { watchAvailable, watchHrEnabled, enableWatchHr, disableWatchHr } = useWatchHrControls();
   const [isFinishing, setIsFinishing] = useState(false);
   // Mirror MetronomeEngine's staleness gate so the surfaced source never claims
   // the Watch while a retained-but-stale sample is being ignored by the engine.
@@ -75,7 +70,6 @@ export function TrainingDashboardScreen() {
     sessionHeartRate: session.currentMetrics.heartRate ?? null,
   });
   const watchHrDisplayState = resolveWatchHrDisplayState(watchHrEnabled, watchAvailability ?? 'unavailable');
-  const showWatchUnavailableHint = watchAvailable && watchHrEnabled && watchHrDisplayState === 'unavailable';
   const showDisconnectedState =
     !bikeConnected && (session.phase === TrainingPhase.Idle || session.phase === TrainingPhase.Paused);
 
@@ -129,34 +123,23 @@ export function TrainingDashboardScreen() {
           />
         </View>
 
-        <Text style={styles.hrSourceCaption}>
-          {activeHrSource === 'none'
-            ? 'No heart-rate source connected'
-            : `Heart rate source: ${activeHrSourceLabel(activeHrSource)}`}
-        </Text>
-
         <View style={styles.connectionRow}>
           <View style={styles.connectionPill}>
             <Text style={styles.connectionLabel}>Bike</Text>
             <Text style={styles.connectionValue}>{bikeConnected ? 'Connected' : 'Disconnected'}</Text>
           </View>
-          <View style={styles.connectionPill}>
-            <Text style={styles.connectionLabel}>Bluetooth HR</Text>
-            <Text style={styles.connectionValue}>{hrConnected ? 'Connected' : 'Disconnected'}</Text>
-          </View>
-          {watchAvailable ? (
-            <View style={styles.connectionPill}>
-              <Text style={styles.connectionLabel}>Watch HR</Text>
-              <Text style={styles.connectionValue}>{watchHrDisplayLabel(watchHrDisplayState)}</Text>
-            </View>
-          ) : null}
         </View>
 
-        {showWatchUnavailableHint ? (
-          <View style={styles.watchHint}>
-            <Text style={styles.watchHintText}>{WATCH_HR_UNAVAILABLE_HINT}</Text>
-          </View>
-        ) : null}
+        <HeartRateSourceTile
+          activeHrSource={activeHrSource}
+          watchAvailable={watchAvailable}
+          watchHrEnabled={watchHrEnabled}
+          watchHrDisplayState={watchHrDisplayState}
+          latestAppleWatchHr={effectiveWatchHr}
+          bluetoothConnected={hrConnected}
+          onEnableWatch={() => void enableWatchHr()}
+          onDisableWatch={() => void disableWatchHr()}
+        />
 
         <View style={styles.controlsCard}>
           <View style={styles.actionRow}>
@@ -236,28 +219,10 @@ const styles = StyleSheet.create({
     minWidth: 150,
     flexBasis: 150,
   },
-  hrSourceCaption: {
-    marginTop: -6,
-    color: palette.textMuted,
-    fontSize: 13,
-    fontWeight: '600',
-  },
   connectionRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
-  },
-  watchHint: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: palette.border,
-    backgroundColor: palette.surfaceMuted,
-    padding: 14,
-  },
-  watchHintText: {
-    color: palette.textMuted,
-    fontSize: 14,
-    lineHeight: 22,
   },
   connectionPill: {
     flex: 1,
