@@ -4,6 +4,8 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { useDeviceConnection } from '../hooks/useDeviceConnection';
 import { useTrainingSession } from '../hooks/useTrainingSession';
+import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
+import { reconnectLabel } from '../../gear/reconnectLabel';
 import { useWatchHrControls } from '../../gear/hooks/useWatchHrControls';
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { buildTrainingSummaryRoute, POST_FINISH_TRAINING_SUMMARY_SOURCE } from '../navigation/trainingSummaryRoute';
@@ -53,6 +55,7 @@ export function TrainingDashboardScreen() {
   } = useDeviceConnection();
   const { watchAvailable, watchHrEnabled } = useWatchHrControls();
   const { savedHrSource } = useSavedGear();
+  const { bikeReconnectState } = useAutoReconnect();
   const [isFinishing, setIsFinishing] = useState(false);
   // Mirror MetronomeEngine's staleness gate so the surfaced source never claims
   // the Watch while a retained-but-stale sample is being ignored by the engine.
@@ -131,7 +134,9 @@ export function TrainingDashboardScreen() {
         <View style={styles.connectionRow}>
           <View style={styles.connectionPill}>
             <Text style={styles.connectionLabel}>Bike</Text>
-            <Text style={styles.connectionValue}>{bikeConnected ? 'Connected' : 'Disconnected'}</Text>
+            <Text style={styles.connectionValue}>
+              {bikeConnected ? 'Connected' : reconnectLabel(bikeReconnectState)}
+            </Text>
           </View>
         </View>
 

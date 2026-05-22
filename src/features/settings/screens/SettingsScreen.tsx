@@ -2,6 +2,8 @@ import { useRouter } from 'expo-router';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
+import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
+import { reconnectLabel } from '../../gear/reconnectLabel';
 import { useProviderBikeLinking } from '../../integrations/hooks/useProviderBikeLinking';
 import { useDeviceConnection } from '../../training/hooks/useDeviceConnection';
 import { useAppleHealthConnection } from '../../integrations/hooks/useAppleHealthConnection';
@@ -69,7 +71,8 @@ function summarizeProfile(profile: UserProfile): string {
 export function SettingsScreen() {
   const router = useRouter();
   const userProfile = useUserProfileStore((s) => s.profile);
-  const { latestAppleWatchHr, watchAvailability } = useDeviceConnection();
+  const { bikeConnected, hrConnected, latestAppleWatchHr, watchAvailability } = useDeviceConnection();
+  const { bikeReconnectState, hrReconnectState } = useAutoReconnect();
   const { watchAvailable, watchHrEnabled, enableWatchHr, disableWatchHr } = useWatchHrControls();
   const { savedBike, savedHrSource, forgetBike, forgetHr } = useSavedGear();
   const {
@@ -166,7 +169,11 @@ export function SettingsScreen() {
         <View style={styles.gearRow}>
           <View style={styles.gearInfo}>
             <Text style={styles.gearLabel}>Bike</Text>
-            <Text style={styles.gearName}>{savedBike ? savedBike.name : 'Not set'}</Text>
+            <Text style={styles.gearName}>
+              {savedBike
+                ? `${savedBike.name} · ${bikeConnected ? 'Connected' : reconnectLabel(bikeReconnectState)}`
+                : 'Not set'}
+            </Text>
           </View>
           <View style={styles.gearActions}>
             <ActionButton
@@ -183,7 +190,11 @@ export function SettingsScreen() {
         <View style={styles.gearRow}>
           <View style={styles.gearInfo}>
             <Text style={styles.gearLabel}>Bluetooth HR</Text>
-            <Text style={styles.gearName}>{savedHrSource ? savedHrSource.name : 'Not set'}</Text>
+            <Text style={styles.gearName}>
+              {savedHrSource
+                ? `${savedHrSource.name} · ${hrConnected ? 'Connected' : reconnectLabel(hrReconnectState)}`
+                : 'Not set'}
+            </Text>
           </View>
           <View style={styles.gearActions}>
             <ActionButton

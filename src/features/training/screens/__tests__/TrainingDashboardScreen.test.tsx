@@ -50,6 +50,13 @@ const mockSavedGear: { savedBike: SavedDevice | null; savedHrSource: SavedDevice
   savedHrSource: null,
 };
 
+const mockAutoReconnect = {
+  bikeReconnectState: 'idle' as const,
+  hrReconnectState: 'idle' as const,
+  retryBike: jest.fn(),
+  retryHr: jest.fn(),
+};
+
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: mockReplace }),
 }));
@@ -76,6 +83,10 @@ jest.mock('../../../gear/hooks/useWatchHrControls', () => ({
 
 jest.mock('../../../gear/hooks/useSavedGear', () => ({
   useSavedGear: () => mockSavedGear,
+}));
+
+jest.mock('../../../gear/hooks/useAutoReconnect', () => ({
+  useAutoReconnect: () => mockAutoReconnect,
 }));
 
 describe('TrainingDashboardScreen', () => {
@@ -111,6 +122,10 @@ describe('TrainingDashboardScreen', () => {
     });
     mockSavedGear.savedBike = null;
     mockSavedGear.savedHrSource = null;
+    Object.assign(mockAutoReconnect, {
+      bikeReconnectState: 'idle',
+      hrReconnectState: 'idle',
+    });
   });
 
   it('renders without crashing', () => {

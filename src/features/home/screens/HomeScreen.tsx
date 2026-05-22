@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
+import { reconnectLabel } from '../../gear/reconnectLabel';
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { useWatchHrControls } from '../../gear/hooks/useWatchHrControls';
 import { resolveWatchHrDisplayState, watchHrDisplayLabel } from '../../../services/hr/hrStatus';
@@ -21,7 +22,6 @@ import { SectionCard } from '../../../ui/components/SectionCard';
 import { formatDistanceKm, formatDuration } from '../../../ui/formatters';
 import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
-import type { ReconnectState } from '../../../types/gear';
 import type { PersistedTrainingSession } from '../../../types/sessionPersistence';
 
 const TRAINING_ROUTE = '/training';
@@ -37,14 +37,6 @@ function getTrainingButtonLabel(phase: TrainingPhase): string {
 
 function canOpenTraining(phase: TrainingPhase, bikeConnected: boolean): boolean {
   return bikeConnected && phase !== TrainingPhase.Finished;
-}
-
-function reconnectLabel(state: ReconnectState): string {
-  if (state === 'connecting') return 'Connecting...';
-  if (state === 'connected') return 'Connected';
-  if (state === 'failed') return 'Connection failed';
-  if (state === 'disconnected') return 'Not connected';
-  return 'Not connected';
 }
 
 function renderLatestWorkoutContent(

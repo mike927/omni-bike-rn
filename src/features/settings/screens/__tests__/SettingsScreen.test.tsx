@@ -47,6 +47,13 @@ const mockConnection = {
   disconnectAll: jest.fn(),
 };
 
+const mockAutoReconnect = {
+  bikeReconnectState: 'idle' as const,
+  hrReconnectState: 'idle' as const,
+  retryBike: jest.fn(),
+  retryHr: jest.fn(),
+};
+
 const mockWatchHr = {
   watchAvailable: false,
   watchHrEnabled: false,
@@ -82,6 +89,10 @@ jest.mock('../../../gear/hooks/useWatchHrControls', () => ({
   useWatchHrControls: () => mockWatchHr,
 }));
 
+jest.mock('../../../gear/hooks/useAutoReconnect', () => ({
+  useAutoReconnect: () => mockAutoReconnect,
+}));
+
 describe('SettingsScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -106,6 +117,10 @@ describe('SettingsScreen', () => {
       errorMessage: null,
       openProviderGearManagement: jest.fn(),
     });
+    Object.assign(mockAutoReconnect, {
+      bikeReconnectState: 'idle',
+      hrReconnectState: 'idle',
+    });
     useSavedGearStore.setState({ bikeReconnectState: 'idle', hrReconnectState: 'idle' });
   });
 
@@ -124,10 +139,17 @@ describe('SettingsScreen', () => {
     expect(getAllByText('Not set').length).toBeGreaterThan(0);
   });
 
-  it('shows saved bike name when bike is saved', () => {
+  it('shows saved bike name with connection status when bike is saved', () => {
     Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
     const { getByText } = render(<SettingsScreen />);
-    expect(getByText('Zipro Rave')).toBeTruthy();
+    expect(getByText('Zipro Rave · Disconnected')).toBeTruthy();
+  });
+
+  it('shows saved bike name with Connected status when bike is connected', () => {
+    Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
+    Object.assign(mockConnection, { bikeConnected: true });
+    const { getByText } = render(<SettingsScreen />);
+    expect(getByText('Zipro Rave · Connected')).toBeTruthy();
   });
 
   it('shows Replace and Forget buttons when bike is saved', () => {
@@ -154,6 +176,19 @@ describe('SettingsScreen', () => {
     const { getAllByText } = render(<SettingsScreen />);
     fireEvent.press(getAllByText('Forget')[0]);
     expect(mockSavedGear.forgetBike).toHaveBeenCalled();
+  });
+
+  it('shows saved HR source name with Disconnected status when hr is not connected', () => {
+    Object.assign(mockSavedGear, { savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' } });
+    const { getByText } = render(<SettingsScreen />);
+    expect(getByText('Polar H10 · Disconnected')).toBeTruthy();
+  });
+
+  it('shows saved HR source name with Connected status when hr is connected', () => {
+    Object.assign(mockSavedGear, { savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' } });
+    Object.assign(mockConnection, { hrConnected: true });
+    const { getByText } = render(<SettingsScreen />);
+    expect(getByText('Polar H10 · Connected')).toBeTruthy();
   });
 
   it('does not render the Disconnect Active Gear button', () => {
