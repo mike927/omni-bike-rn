@@ -194,6 +194,9 @@ describe('HomeScreen', () => {
   });
 
   it('shows Not set for Bluetooth HR when no source is saved', () => {
+    // Give the bike a name so the only "Not set" is the Bluetooth HR row.
+    Object.assign(mockSavedGear, { savedBike: { id: 'bike-1', name: 'Zipro Rave', type: 'bike' } });
+
     const { getByText } = render(<HomeScreen />);
 
     expect(getByText('Not set')).toBeTruthy();
