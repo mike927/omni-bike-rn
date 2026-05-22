@@ -458,6 +458,38 @@ describe('useWatchHr', () => {
       expect(useDeviceConnectionStore.getState().latestAppleWatchHr).toBe(72);
     });
 
+    it('upgrades availability to idle when the Watch becomes reachable from unavailable', () => {
+      useDeviceConnectionStore.setState({ watchAvailability: 'unavailable' });
+      renderHook(() => useWatchHr());
+
+      const wc = getWatchConnectivityMock();
+      const reachabilityCallback = wc.addListener.mock.calls.find(
+        ([eventName]: [string]) => eventName === 'onReachabilityChange',
+      )?.[1] as ((payload: { reachable: boolean }) => void) | undefined;
+
+      act(() => {
+        reachabilityCallback?.({ reachable: true });
+      });
+
+      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('idle');
+    });
+
+    it('does not clobber an in-progress workout when reachability returns true', () => {
+      useDeviceConnectionStore.setState({ watchAvailability: 'in_progress' });
+      renderHook(() => useWatchHr());
+
+      const wc = getWatchConnectivityMock();
+      const reachabilityCallback = wc.addListener.mock.calls.find(
+        ([eventName]: [string]) => eventName === 'onReachabilityChange',
+      )?.[1] as ((payload: { reachable: boolean }) => void) | undefined;
+
+      act(() => {
+        reachabilityCallback?.({ reachable: true });
+      });
+
+      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('in_progress');
+    });
+
     it('registers a companion-state listener on mount', () => {
       renderHook(() => useWatchHr());
       expect(getWatchConnectivityMock().addListener).toHaveBeenCalledWith(

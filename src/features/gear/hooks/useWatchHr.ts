@@ -185,10 +185,15 @@ export function useWatchHr(): void {
       },
     );
 
-    // Reachability is the live message link, not the Watch's existence. It must
-    // never downgrade availability (a dimmed Watch is still paired + installed).
-    // Its only job here is to retry the HR stream once the link returns mid-ride.
+    // Reachability is the live message link, not the Watch's existence. It may
+    // UPGRADE availability (unavailable → idle: a reachable Watch is unambiguously
+    // present, so opening the Watch app refreshes a stuck "unavailable"), but it
+    // must never DOWNGRADE (a dimmed Watch drops reachability yet is still paired +
+    // installed). It also retries the HR stream once the link returns mid-ride.
     const reachabilitySub = WatchConnectivity.addListener('onReachabilityChange', ({ reachable }) => {
+      if (reachable && useDeviceConnectionStore.getState().watchAvailability === 'unavailable') {
+        setWatchAvailability('idle');
+      }
       if (
         reachable &&
         watchHrEnabledRef.current &&
