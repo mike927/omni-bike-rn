@@ -1,122 +1,17 @@
-import { useState } from 'react';
-import { LayoutAnimation, Platform, Pressable, StyleSheet, Text, UIManager, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
-import {
-  activeHrSourceLabel,
-  watchHrDisplayLabel,
-  WATCH_HR_UNAVAILABLE_HINT,
-  type ActiveHrSource,
-  type WatchHrDisplayState,
-} from '../../../services/hr/hrStatus';
-import { ActionButton } from '../../../ui/components/ActionButton';
 import { palette } from '../../../ui/theme';
 
-// LayoutAnimation requires an explicit opt-in on Android (no-op on iOS).
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
-
-interface WatchSourceRowProps {
-  readonly activeHrSource: ActiveHrSource;
-  readonly watchHrEnabled: boolean;
-  readonly watchStatusLabel: string;
-  readonly onEnableWatch: () => void;
-  readonly onDisableWatch: () => void;
-}
-
-function WatchSourceRow({
-  activeHrSource,
-  watchHrEnabled,
-  watchStatusLabel,
-  onEnableWatch,
-  onDisableWatch,
-}: WatchSourceRowProps) {
-  return (
-    <View style={styles.sourceRow}>
-      <View style={styles.sourceInfo}>
-        <Text style={[styles.sourceName, activeHrSource === 'watch' ? styles.activeSource : null]}>Apple Watch</Text>
-        <Text style={styles.sourceStatus}>{watchStatusLabel}</Text>
-      </View>
-      <ActionButton
-        label={watchHrEnabled ? 'Disable' : 'Enable'}
-        onPress={watchHrEnabled ? onDisableWatch : onEnableWatch}
-        variant={watchHrEnabled ? 'danger' : 'secondary'}
-      />
-    </View>
-  );
-}
-
 export interface HeartRateSourceTileProps {
-  readonly activeHrSource: ActiveHrSource;
-  readonly watchAvailable: boolean;
-  readonly watchHrEnabled: boolean;
-  /** Pre-resolved by the caller via `resolveWatchHrDisplayState` (collapses to 'disabled' when Watch HR is off). */
-  readonly watchHrDisplayState: WatchHrDisplayState;
-  readonly latestAppleWatchHr: number | null;
-  readonly bluetoothConnected: boolean;
-  readonly onEnableWatch: () => void;
-  readonly onDisableWatch: () => void;
+  readonly name: string;
+  readonly state: string | null;
 }
 
-export function HeartRateSourceTile({
-  activeHrSource,
-  watchAvailable,
-  watchHrEnabled,
-  watchHrDisplayState,
-  latestAppleWatchHr,
-  bluetoothConnected,
-  onEnableWatch,
-  onDisableWatch,
-}: HeartRateSourceTileProps) {
-  const [expanded, setExpanded] = useState(false);
-
-  const toggle = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setExpanded((value) => !value);
-  };
-
-  const watchBaseLabel = watchHrDisplayLabel(watchHrDisplayState);
-  const watchStatusLabel =
-    watchHrDisplayState === 'in_progress' && latestAppleWatchHr !== null
-      ? `${watchBaseLabel} · ${latestAppleWatchHr} bpm`
-      : watchBaseLabel;
-
-  const showUnavailableHint = watchAvailable && watchHrEnabled && watchHrDisplayState === 'unavailable';
-
+export function HeartRateSourceTile({ name, state }: HeartRateSourceTileProps) {
   return (
     <View style={styles.card}>
-      <Pressable accessibilityRole="button" accessibilityState={{ expanded }} onPress={toggle} style={styles.header}>
-        <Text style={styles.label}>Heart Rate Source</Text>
-        <View style={styles.headerRight}>
-          <Text style={styles.value}>{activeHrSourceLabel(activeHrSource)}</Text>
-          <Text style={styles.chevron}>{expanded ? '▾' : '▸'}</Text>
-        </View>
-      </Pressable>
-
-      {showUnavailableHint ? <Text style={styles.hint}>{WATCH_HR_UNAVAILABLE_HINT}</Text> : null}
-
-      {expanded ? (
-        <View style={styles.detail}>
-          {watchAvailable ? (
-            <WatchSourceRow
-              activeHrSource={activeHrSource}
-              watchHrEnabled={watchHrEnabled}
-              watchStatusLabel={watchStatusLabel}
-              onEnableWatch={onEnableWatch}
-              onDisableWatch={onDisableWatch}
-            />
-          ) : null}
-
-          <View style={styles.sourceRow}>
-            <View style={styles.sourceInfo}>
-              <Text style={[styles.sourceName, activeHrSource === 'bluetooth' ? styles.activeSource : null]}>
-                Bluetooth HR
-              </Text>
-              <Text style={styles.sourceStatus}>{bluetoothConnected ? 'Connected' : 'Disconnected'}</Text>
-            </View>
-          </View>
-        </View>
-      ) : null}
+      <Text style={styles.label}>Heart Rate Source</Text>
+      <Text style={styles.value}>{state === null ? name : `${name} · ${state}`}</Text>
     </View>
   );
 }
@@ -129,18 +24,7 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surfaceMuted,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    gap: 10,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    gap: 4,
   },
   label: {
     color: palette.textMuted,
@@ -153,44 +37,5 @@ const styles = StyleSheet.create({
     color: palette.text,
     fontSize: 15,
     fontWeight: '700',
-  },
-  chevron: {
-    color: palette.textMuted,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  detail: {
-    gap: 12,
-    borderTopWidth: 1,
-    borderTopColor: palette.border,
-    paddingTop: 12,
-  },
-  sourceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
-  },
-  sourceInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  sourceName: {
-    color: palette.text,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  activeSource: {
-    color: palette.primary,
-  },
-  sourceStatus: {
-    color: palette.textMuted,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  hint: {
-    color: palette.textMuted,
-    fontSize: 13,
-    lineHeight: 20,
   },
 });

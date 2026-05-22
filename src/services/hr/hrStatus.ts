@@ -63,3 +63,49 @@ export function watchHrDisplayLabel(state: WatchHrDisplayState): string {
 
 export const WATCH_HR_UNAVAILABLE_HINT =
   'Open the Omni Bike app on your Apple Watch. If it is not installed yet, add it from the iPhone Watch app.';
+
+export interface HrSourceSummaryInput {
+  readonly watchHrEnabled: boolean;
+  readonly watchHasFreshSample: boolean;
+  readonly watchAvailable: boolean;
+  readonly watchAvailability: WatchAvailability;
+  readonly hrConnected: boolean;
+  readonly savedHrName: string | null;
+}
+
+export interface HrSourceSummary {
+  readonly name: string;
+  readonly state: string | null;
+}
+
+/**
+ * Read-only summary for the Training dashboard HR tile: which HR device/source
+ * to display and its connection state. Watch counts as "Streaming" only when its
+ * sample is fresh (staleness-gated by the caller), so a stale Watch falls through
+ * to the connected/saved Bluetooth strap — no contradictory state.
+ */
+export function resolveHrSourceSummary({
+  watchHrEnabled,
+  watchHasFreshSample,
+  watchAvailable,
+  watchAvailability,
+  hrConnected,
+  savedHrName,
+}: HrSourceSummaryInput): HrSourceSummary {
+  if (watchHrEnabled && watchHasFreshSample) {
+    return { name: 'Apple Watch', state: 'Streaming' };
+  }
+  if (hrConnected) {
+    return { name: savedHrName ?? 'Bluetooth HR', state: 'Connected' };
+  }
+  if (savedHrName !== null) {
+    return { name: savedHrName, state: 'Disconnected' };
+  }
+  if (watchHrEnabled && watchAvailable) {
+    return {
+      name: 'Apple Watch',
+      state: watchHrDisplayLabel(resolveWatchHrDisplayState(watchHrEnabled, watchAvailability)),
+    };
+  }
+  return { name: 'No HR source', state: null };
+}

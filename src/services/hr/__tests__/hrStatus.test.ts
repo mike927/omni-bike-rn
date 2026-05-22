@@ -2,6 +2,7 @@ import {
   WATCH_HR_UNAVAILABLE_HINT,
   activeHrSourceLabel,
   resolveActiveHrSource,
+  resolveHrSourceSummary,
   resolveWatchHrDisplayState,
   watchHrDisplayLabel,
 } from '../hrStatus';
@@ -95,5 +96,68 @@ describe('label helpers', () => {
     expect(WATCH_HR_UNAVAILABLE_HINT).toBe(
       'Open the Omni Bike app on your Apple Watch. If it is not installed yet, add it from the iPhone Watch app.',
     );
+  });
+});
+
+describe('resolveHrSourceSummary', () => {
+  const base = {
+    watchHrEnabled: false,
+    watchHasFreshSample: false,
+    watchAvailable: false,
+    watchAvailability: 'unavailable' as const,
+    hrConnected: false,
+    savedHrName: null,
+  };
+
+  it('(1) watch streaming — returns Apple Watch · Streaming', () => {
+    expect(
+      resolveHrSourceSummary({
+        ...base,
+        watchHrEnabled: true,
+        watchHasFreshSample: true,
+      }),
+    ).toEqual({ name: 'Apple Watch', state: 'Streaming' });
+  });
+
+  it('(2) BLE connected with saved name — uses saved name + Connected', () => {
+    expect(
+      resolveHrSourceSummary({
+        ...base,
+        hrConnected: true,
+        savedHrName: 'Polar H10',
+      }),
+    ).toEqual({ name: 'Polar H10', state: 'Connected' });
+  });
+
+  it('(2b) BLE connected with null savedHrName — falls back to Bluetooth HR', () => {
+    expect(resolveHrSourceSummary({ ...base, hrConnected: true, savedHrName: null })).toEqual({
+      name: 'Bluetooth HR',
+      state: 'Connected',
+    });
+  });
+
+  it('(3) saved BLE not connected, watch not streaming — Disconnected', () => {
+    expect(resolveHrSourceSummary({ ...base, savedHrName: 'Polar H10' })).toEqual({
+      name: 'Polar H10',
+      state: 'Disconnected',
+    });
+  });
+
+  it('(4) no BLE saved, watch enabled+available, watchAvailability unavailable — Unavailable', () => {
+    expect(
+      resolveHrSourceSummary({
+        ...base,
+        watchHrEnabled: true,
+        watchAvailable: true,
+        watchAvailability: 'unavailable',
+      }),
+    ).toEqual({ name: 'Apple Watch', state: 'Unavailable' });
+  });
+
+  it('(5) nothing — No HR source with null state', () => {
+    expect(resolveHrSourceSummary(base)).toEqual({
+      name: 'No HR source',
+      state: null,
+    });
   });
 });

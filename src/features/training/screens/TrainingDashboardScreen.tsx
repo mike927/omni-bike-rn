@@ -5,8 +5,9 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useDeviceConnection } from '../hooks/useDeviceConnection';
 import { useTrainingSession } from '../hooks/useTrainingSession';
 import { useWatchHrControls } from '../../gear/hooks/useWatchHrControls';
+import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { buildTrainingSummaryRoute, POST_FINISH_TRAINING_SUMMARY_SOURCE } from '../navigation/trainingSummaryRoute';
-import { resolveActiveHrSource, resolveWatchHrDisplayState } from '../../../services/hr/hrStatus';
+import { resolveHrSourceSummary } from '../../../services/hr/hrStatus';
 import { resolveEffectiveWatchHr } from '../../../services/hr/watchSampleFreshness';
 import { TrainingPhase } from '../../../types/training';
 import { ActionButton } from '../../../ui/components/ActionButton';
@@ -50,7 +51,8 @@ export function TrainingDashboardScreen() {
     lastAppleWatchSampleAtMs,
     watchAvailability,
   } = useDeviceConnection();
-  const { watchAvailable, watchHrEnabled, enableWatchHr, disableWatchHr } = useWatchHrControls();
+  const { watchAvailable, watchHrEnabled } = useWatchHrControls();
+  const { savedHrSource } = useSavedGear();
   const [isFinishing, setIsFinishing] = useState(false);
   // Mirror MetronomeEngine's staleness gate so the surfaced source never claims
   // the Watch while a retained-but-stale sample is being ignored by the engine.
@@ -63,13 +65,16 @@ export function TrainingDashboardScreen() {
   // takes precedence; Watch HR (only when enabled + fresh) and Bluetooth HR are pre-start previews.
   const resolvedHeartRate =
     session.currentMetrics.heartRate ?? (watchHrEnabled ? effectiveWatchHr : null) ?? latestBluetoothHr;
-  const activeHrSource = resolveActiveHrSource({
+
+  const hrSummary = resolveHrSourceSummary({
     watchHrEnabled,
-    latestAppleWatchHr: effectiveWatchHr,
-    latestBluetoothHr: latestBluetoothHr ?? null,
-    sessionHeartRate: session.currentMetrics.heartRate ?? null,
+    watchHasFreshSample: effectiveWatchHr !== null,
+    watchAvailable,
+    watchAvailability: watchAvailability ?? 'unavailable',
+    hrConnected,
+    savedHrName: savedHrSource?.name ?? null,
   });
-  const watchHrDisplayState = resolveWatchHrDisplayState(watchHrEnabled, watchAvailability ?? 'unavailable');
+
   const showDisconnectedState =
     !bikeConnected && (session.phase === TrainingPhase.Idle || session.phase === TrainingPhase.Paused);
 
@@ -130,16 +135,7 @@ export function TrainingDashboardScreen() {
           </View>
         </View>
 
-        <HeartRateSourceTile
-          activeHrSource={activeHrSource}
-          watchAvailable={watchAvailable}
-          watchHrEnabled={watchHrEnabled}
-          watchHrDisplayState={watchHrDisplayState}
-          latestAppleWatchHr={effectiveWatchHr}
-          bluetoothConnected={hrConnected}
-          onEnableWatch={() => void enableWatchHr()}
-          onDisableWatch={() => void disableWatchHr()}
-        />
+        <HeartRateSourceTile name={hrSummary.name} state={hrSummary.state} />
 
         <View style={styles.controlsCard}>
           <View style={styles.actionRow}>
