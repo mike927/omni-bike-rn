@@ -139,13 +139,11 @@ export function HomeScreen() {
         )}
       </SectionCard>
 
-      <SectionCard
-        title="Bike"
-        description={savedBike ? savedBike.name : 'No bike saved yet.'}
-        onPress={() => router.push(SETTINGS_ROUTE)}>
-        <Text style={styles.statusText}>
-          Status: {bikeConnected ? 'Connected' : reconnectLabel(bikeReconnectState)}
-        </Text>
+      <SectionCard title="Bike" onPress={() => router.push(SETTINGS_ROUTE)}>
+        <View style={styles.sourceRow}>
+          <Text style={styles.sourceLabel}>{savedBike ? savedBike.name : 'Not set'}</Text>
+          <Text style={styles.sourceValue}>{bikeConnected ? 'Connected' : reconnectLabel(bikeReconnectState)}</Text>
+        </View>
       </SectionCard>
 
       <SectionCard title="Heart Rate" onPress={() => router.push(SETTINGS_ROUTE)}>
@@ -185,11 +183,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   sourceValue: {
-    color: palette.text,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  statusText: {
     color: palette.text,
     fontSize: 15,
     fontWeight: '600',

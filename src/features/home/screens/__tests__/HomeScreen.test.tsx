@@ -178,7 +178,8 @@ describe('HomeScreen', () => {
 
     const { getByText } = render(<HomeScreen />);
 
-    expect(getByText('Status: Connected')).toBeTruthy();
+    expect(getByText('Zipro Rave')).toBeTruthy();
+    expect(getByText('Connected')).toBeTruthy();
   });
 
   it('shows the Bluetooth HR source name and connection status when saved and connected', () => {
