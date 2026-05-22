@@ -14,7 +14,7 @@ describe('HeartRateSourceTile', () => {
   });
 
   it('renders the "Heart Rate Source" label', () => {
-    const { getByText } = render(<HeartRateSourceTile name="Apple Watch" state="Streaming" />);
+    const { getByText } = render(<HeartRateSourceTile name="Apple Watch" state="Connected" />);
     expect(getByText('Heart Rate Source')).toBeTruthy();
   });
 });

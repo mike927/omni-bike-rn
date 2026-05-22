@@ -207,18 +207,18 @@ describe('SettingsScreen', () => {
       expect(getByText('Idle')).toBeTruthy();
     });
 
-    it('shows In Progress status with HR value when receiving data', () => {
+    it('shows Connected status with HR value when receiving data', () => {
       Object.assign(mockWatchHr, { watchAvailable: true, watchHrEnabled: true });
       Object.assign(mockConnection, { latestAppleWatchHr: 72, watchAvailability: 'in_progress' });
       const { getByText } = render(<SettingsScreen />);
-      expect(getByText('In Progress · 72 bpm')).toBeTruthy();
+      expect(getByText('Connected · 72 bpm')).toBeTruthy();
     });
 
-    it('shows plain In Progress (no bpm) when streaming has not delivered a value yet', () => {
+    it('shows plain Connected (no bpm) when streaming has not delivered a value yet', () => {
       Object.assign(mockWatchHr, { watchAvailable: true, watchHrEnabled: true });
       Object.assign(mockConnection, { latestAppleWatchHr: null, watchAvailability: 'in_progress' });
       const { getByText } = render(<SettingsScreen />);
-      expect(getByText('In Progress')).toBeTruthy();
+      expect(getByText('Connected')).toBeTruthy();
     });
 
     it('shows Disabled status when Watch HR is disabled', () => {

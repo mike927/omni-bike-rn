@@ -89,7 +89,7 @@ describe('label helpers', () => {
     expect(watchHrDisplayLabel('disabled')).toBe('Disabled');
     expect(watchHrDisplayLabel('unavailable')).toBe('Unavailable');
     expect(watchHrDisplayLabel('idle')).toBe('Idle');
-    expect(watchHrDisplayLabel('in_progress')).toBe('In Progress');
+    expect(watchHrDisplayLabel('in_progress')).toBe('Connected');
   });
 
   it('exposes the canonical Watch-unavailable hint copy', () => {
@@ -109,14 +109,14 @@ describe('resolveHrSourceSummary', () => {
     savedHrName: null,
   };
 
-  it('(1) watch streaming — returns Apple Watch · Streaming', () => {
+  it('(1) watch connected — returns Apple Watch · Connected', () => {
     expect(
       resolveHrSourceSummary({
         ...base,
         watchHrEnabled: true,
         watchHasFreshSample: true,
       }),
-    ).toEqual({ name: 'Apple Watch', state: 'Streaming' });
+    ).toEqual({ name: 'Apple Watch', state: 'Connected' });
   });
 
   it('(2) BLE connected with saved name — uses saved name + Connected', () => {

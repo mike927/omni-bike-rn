@@ -54,7 +54,7 @@ const WATCH_HR_DISPLAY_LABELS: Record<WatchHrDisplayState, string> = {
   disabled: 'Disabled',
   unavailable: 'Unavailable',
   idle: 'Idle',
-  in_progress: 'In Progress',
+  in_progress: 'Connected',
 };
 
 export function watchHrDisplayLabel(state: WatchHrDisplayState): string {
@@ -80,7 +80,7 @@ export interface HrSourceSummary {
 
 /**
  * Read-only summary for the Training dashboard HR tile: which HR device/source
- * to display and its connection state. Watch counts as "Streaming" only when its
+ * to display and its connection state. Watch counts as "Connected" only when its
  * sample is fresh (staleness-gated by the caller), so a stale Watch falls through
  * to the connected/saved Bluetooth strap — no contradictory state.
  */
@@ -93,7 +93,7 @@ export function resolveHrSourceSummary({
   savedHrName,
 }: HrSourceSummaryInput): HrSourceSummary {
   if (watchHrEnabled && watchHasFreshSample) {
-    return { name: 'Apple Watch', state: 'Streaming' };
+    return { name: 'Apple Watch', state: 'Connected' };
   }
   if (hrConnected) {
     return { name: savedHrName ?? 'Bluetooth HR', state: 'Connected' };

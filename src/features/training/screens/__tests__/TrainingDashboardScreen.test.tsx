@@ -280,7 +280,7 @@ describe('TrainingDashboardScreen', () => {
   });
 
   // HR tile read-only tests
-  it('shows "Apple Watch · Streaming" when Watch HR is enabled and sample is fresh', () => {
+  it('shows "Apple Watch · Connected" when Watch HR is enabled and sample is fresh', () => {
     Object.assign(mockSession, {
       phase: 'active',
       currentMetrics: {
@@ -302,7 +302,7 @@ describe('TrainingDashboardScreen', () => {
 
     const { getByText } = render(<TrainingDashboardScreen />);
 
-    expect(getByText('Apple Watch · Streaming')).toBeTruthy();
+    expect(getByText('Apple Watch · Connected')).toBeTruthy();
   });
 
   it('shows "Polar H10 · Connected" when BLE is connected with a saved HR name', () => {
