@@ -75,4 +75,23 @@ describe('HeartRateSourceTile', () => {
     fireEvent.press(getByText('Heart Rate Source'));
     expect(getByText('Connected')).toBeTruthy();
   });
+
+  it('shows the unavailable hint without expanding when Watch HR is enabled but unreachable', () => {
+    const { getByText, queryByText } = renderTile({
+      watchAvailable: true,
+      watchHrEnabled: true,
+      watchHrDisplayState: 'unavailable',
+    });
+    expect(queryByText('Bluetooth HR')).toBeNull();
+    expect(getByText(/Open the Omni Bike app on your Apple Watch/)).toBeTruthy();
+  });
+
+  it('hides the unavailable hint when Watch HR is disabled', () => {
+    const { queryByText } = renderTile({
+      watchAvailable: true,
+      watchHrEnabled: false,
+      watchHrDisplayState: 'unavailable',
+    });
+    expect(queryByText(/Open the Omni Bike app on your Apple Watch/)).toBeNull();
+  });
 });

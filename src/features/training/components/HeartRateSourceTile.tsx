@@ -4,6 +4,7 @@ import { LayoutAnimation, Platform, Pressable, StyleSheet, Text, UIManager, View
 import {
   activeHrSourceLabel,
   watchHrDisplayLabel,
+  WATCH_HR_UNAVAILABLE_HINT,
   type ActiveHrSource,
   type WatchHrDisplayState,
 } from '../../../services/hr/hrStatus';
@@ -49,6 +50,8 @@ export function HeartRateSourceTile({
       ? `${watchBaseLabel} · ${latestAppleWatchHr} bpm`
       : watchBaseLabel;
 
+  const showUnavailableHint = watchAvailable && watchHrEnabled && watchHrDisplayState === 'unavailable';
+
   return (
     <View style={styles.card}>
       <Pressable accessibilityRole="button" onPress={toggle} style={styles.header}>
@@ -58,6 +61,8 @@ export function HeartRateSourceTile({
           <Text style={styles.chevron}>{expanded ? '▾' : '▸'}</Text>
         </View>
       </Pressable>
+
+      {showUnavailableHint ? <Text style={styles.hint}>{WATCH_HR_UNAVAILABLE_HINT}</Text> : null}
 
       {expanded ? (
         <View style={styles.detail}>
