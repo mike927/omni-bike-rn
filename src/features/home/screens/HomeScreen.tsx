@@ -25,8 +25,7 @@ import type { ReconnectState } from '../../../types/gear';
 import type { PersistedTrainingSession } from '../../../types/sessionPersistence';
 
 const TRAINING_ROUTE = '/training';
-const BIKE_SETUP_ROUTE = '/gear-setup?target=bike';
-const HR_SETUP_ROUTE = '/gear-setup?target=hr';
+const SETTINGS_ROUTE = '/(tabs)/settings';
 
 function getTrainingButtonLabel(phase: TrainingPhase): string {
   if (phase === TrainingPhase.Active || phase === TrainingPhase.Paused) {
@@ -46,41 +45,6 @@ function reconnectLabel(state: ReconnectState): string {
   if (state === 'failed') return 'Connection failed';
   if (state === 'disconnected') return 'Not connected';
   return 'Not connected';
-}
-
-function renderSavedGearActions(
-  hasSavedGear: boolean,
-  reconnectState: ReconnectState,
-  setupLabel: string,
-  setupRoute: string,
-  retry: () => void,
-  forget: () => void,
-  onNavigate: (route: string) => void,
-): ReactNode {
-  if (!hasSavedGear) {
-    return <ActionButton label={setupLabel} onPress={() => onNavigate(setupRoute)} variant="secondary" />;
-  }
-
-  if (reconnectState === 'connecting') {
-    return (
-      <>
-        <ActionButton label="Reconnecting..." onPress={retry} variant="secondary" disabled />
-        <ActionButton label="Forget" onPress={forget} variant="danger" />
-      </>
-    );
-  }
-
-  if (reconnectState === 'failed' || reconnectState === 'disconnected') {
-    return (
-      <>
-        <ActionButton label="Retry" onPress={retry} variant="secondary" />
-        <ActionButton label="Choose Another" onPress={() => onNavigate(setupRoute)} variant="secondary" />
-        <ActionButton label="Forget" onPress={forget} variant="danger" />
-      </>
-    );
-  }
-
-  return null;
 }
 
 function renderLatestWorkoutContent(
@@ -112,8 +76,8 @@ export function HomeScreen() {
   const { bikeConnected, hrConnected, watchAvailability } = useDeviceConnection();
   const { watchAvailable, watchHrEnabled } = useWatchHrControls();
   const watchHrDisplayState = resolveWatchHrDisplayState(watchHrEnabled, watchAvailability ?? 'unavailable');
-  const { savedBike, savedHrSource, forgetBike, forgetHr } = useSavedGear();
-  const { bikeReconnectState, hrReconnectState, retryBike, retryHr } = useAutoReconnect();
+  const { savedBike, savedHrSource } = useSavedGear();
+  const { bikeReconnectState, hrReconnectState } = useAutoReconnect();
   const latestWorkout = useLatestWorkout();
 
   const isTrainingEnabled = canOpenTraining(session.phase, bikeConnected);
@@ -175,45 +139,30 @@ export function HomeScreen() {
         )}
       </SectionCard>
 
-      <SectionCard title="Bike" description={savedBike ? savedBike.name : 'No bike saved yet.'}>
+      <SectionCard
+        title="Bike"
+        description={savedBike ? savedBike.name : 'No bike saved yet.'}
+        onPress={() => router.push(SETTINGS_ROUTE)}>
         <Text style={styles.statusText}>
           Status: {bikeConnected ? 'Connected' : reconnectLabel(bikeReconnectState)}
         </Text>
-        <View style={styles.actionRow}>
-          {renderSavedGearActions(
-            savedBike !== null,
-            bikeReconnectState,
-            'Set Up Bike',
-            BIKE_SETUP_ROUTE,
-            retryBike,
-            () => void forgetBike(),
-            router.push,
-          )}
-        </View>
       </SectionCard>
 
-      <SectionCard
-        title="HR Source"
-        description={
-          savedHrSource
-            ? savedHrSource.name
-            : 'No Bluetooth HR source saved. Chest straps and broadcast watches are optional.'
-        }>
-        <Text style={styles.statusText}>Status: {hrConnected ? 'Connected' : reconnectLabel(hrReconnectState)}</Text>
-        {watchAvailable ? (
-          <Text style={styles.statusText}>Apple Watch: {watchHrDisplayLabel(watchHrDisplayState)}</Text>
-        ) : null}
-        <View style={styles.actionRow}>
-          {renderSavedGearActions(
-            savedHrSource !== null,
-            hrReconnectState,
-            'Add Bluetooth HR',
-            HR_SETUP_ROUTE,
-            retryHr,
-            () => void forgetHr(),
-            router.push,
-          )}
+      <SectionCard title="Heart Rate" onPress={() => router.push(SETTINGS_ROUTE)}>
+        <View style={styles.sourceRow}>
+          <Text style={styles.sourceLabel}>Bluetooth HR</Text>
+          <Text style={styles.sourceValue}>
+            {savedHrSource
+              ? `${savedHrSource.name} · ${hrConnected ? 'Connected' : reconnectLabel(hrReconnectState)}`
+              : 'Not set'}
+          </Text>
         </View>
+        {watchAvailable ? (
+          <View style={styles.sourceRow}>
+            <Text style={styles.sourceLabel}>Apple Watch</Text>
+            <Text style={styles.sourceValue}>{watchHrDisplayLabel(watchHrDisplayState)}</Text>
+          </View>
+        ) : null}
       </SectionCard>
 
       <SectionCard title="Latest Workout">
@@ -224,10 +173,21 @@ export function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  actionRow: {
+  sourceRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     gap: 12,
+  },
+  sourceLabel: {
+    color: palette.textMuted,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  sourceValue: {
+    color: palette.text,
+    fontSize: 15,
+    fontWeight: '600',
   },
   statusText: {
     color: palette.text,

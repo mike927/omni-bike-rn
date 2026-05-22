@@ -133,18 +133,69 @@ describe('HomeScreen', () => {
     });
   });
 
-  it('renders the simplified home sections', () => {
+  it('renders the home sections', () => {
     const { getByText, queryByText } = render(<HomeScreen />);
 
     expect(getByText('Quick Start')).toBeTruthy();
     expect(getByText('Bike')).toBeTruthy();
-    expect(getByText('HR Source')).toBeTruthy();
+    expect(getByText('Heart Rate')).toBeTruthy();
     expect(getByText('Latest Workout')).toBeTruthy();
     expect(queryByText(/Latest reading:/)).toBeNull();
     expect(queryByText(/Current training state:/)).toBeNull();
     expect(queryByText('Interrupted Session')).toBeNull();
     expect(queryByText('History')).toBeNull();
-    expect(queryByText('Settings')).toBeNull();
+  });
+
+  it('does not render gear management buttons on the Bike or HR cards', () => {
+    const { queryByText } = render(<HomeScreen />);
+
+    expect(queryByText('Set Up Bike')).toBeNull();
+    expect(queryByText('Add Bluetooth HR')).toBeNull();
+    expect(queryByText('Forget')).toBeNull();
+    expect(queryByText('Retry')).toBeNull();
+    expect(queryByText('Choose Another')).toBeNull();
+  });
+
+  it('navigates to Settings when the Bike card is pressed', () => {
+    const { getByText } = render(<HomeScreen />);
+
+    fireEvent.press(getByText('Bike'));
+    expect(mockPush).toHaveBeenCalledWith('/(tabs)/settings');
+  });
+
+  it('navigates to Settings when the Heart Rate card is pressed', () => {
+    const { getByText } = render(<HomeScreen />);
+
+    fireEvent.press(getByText('Heart Rate'));
+    expect(mockPush).toHaveBeenCalledWith('/(tabs)/settings');
+  });
+
+  it('shows the bike connection status', () => {
+    Object.assign(mockSavedGear, {
+      savedBike: { id: 'bike-1', name: 'Zipro Rave', type: 'bike' },
+    });
+    Object.assign(mockConnection, { bikeConnected: true });
+
+    const { getByText } = render(<HomeScreen />);
+
+    expect(getByText('Status: Connected')).toBeTruthy();
+  });
+
+  it('shows the Bluetooth HR source name and connection status when saved and connected', () => {
+    Object.assign(mockSavedGear, {
+      savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' },
+    });
+    Object.assign(mockConnection, { hrConnected: true });
+
+    const { getByText } = render(<HomeScreen />);
+
+    expect(getByText('Polar H10 · Connected')).toBeTruthy();
+  });
+
+  it('shows Not set for Bluetooth HR when no source is saved', () => {
+    const { getByText } = render(<HomeScreen />);
+
+    expect(getByText('Not set')).toBeTruthy();
   });
 
   it('renders and resumes an interrupted session from Home', () => {
@@ -200,26 +251,6 @@ describe('HomeScreen', () => {
     expect(getByText('Resume Training')).toBeTruthy();
   });
 
-  it('shows setup actions when no bike or HR source is saved', () => {
-    const { getByText } = render(<HomeScreen />);
-
-    expect(getByText('Set Up Bike')).toBeTruthy();
-    expect(getByText('Add Bluetooth HR')).toBeTruthy();
-  });
-
-  it('shows reconnect actions when the saved bike reconnect failed', () => {
-    Object.assign(mockSavedGear, {
-      savedBike: { id: 'bike-1', name: 'Zipro Rave', type: 'bike' },
-    });
-    Object.assign(mockAutoReconnect, { bikeReconnectState: 'failed' });
-
-    const { getByText } = render(<HomeScreen />);
-
-    expect(getByText('Retry')).toBeTruthy();
-    expect(getByText('Choose Another')).toBeTruthy();
-    expect(getByText('Forget')).toBeTruthy();
-  });
-
   it('shows the latest workout card and routes to its summary', () => {
     mockLatestWorkoutHook.mockReturnValue({
       id: 'session-42',
@@ -260,7 +291,7 @@ describe('HomeScreen', () => {
 
       const { getByText } = render(<HomeScreen />);
 
-      expect(getByText('Apple Watch: Idle')).toBeTruthy();
+      expect(getByText('Idle')).toBeTruthy();
     });
 
     it('shows Disabled on the line when Watch HR is turned off', () => {
@@ -269,15 +300,15 @@ describe('HomeScreen', () => {
 
       const { getByText } = render(<HomeScreen />);
 
-      expect(getByText('Apple Watch: Disabled')).toBeTruthy();
+      expect(getByText('Disabled')).toBeTruthy();
     });
 
-    it('omits the Apple Watch line entirely when the Watch is not available', () => {
+    it('omits the Apple Watch row entirely when the Watch is not available', () => {
       Object.assign(mockWatchHrControls, { watchAvailable: false, watchHrEnabled: false });
 
       const { queryByText } = render(<HomeScreen />);
 
-      expect(queryByText(/^Apple Watch:/)).toBeNull();
+      expect(queryByText('Apple Watch')).toBeNull();
     });
   });
 });
