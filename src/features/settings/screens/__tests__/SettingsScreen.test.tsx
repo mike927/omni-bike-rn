@@ -1,5 +1,4 @@
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { Alert } from 'react-native';
+import { render, fireEvent } from '@testing-library/react-native';
 
 import { SettingsScreen } from '../SettingsScreen';
 import { useSavedGearStore } from '../../../../store/savedGearStore';
@@ -157,33 +156,9 @@ describe('SettingsScreen', () => {
     expect(mockSavedGear.forgetBike).toHaveBeenCalled();
   });
 
-  it('Disconnect Active Gear is disabled when nothing is connected', () => {
-    const { getByText } = render(<SettingsScreen />);
-    const btn = getByText('Disconnect Active Gear');
-    expect(btn).toBeTruthy();
-  });
-
-  it('marks saved gear as disconnected after manual disconnect', async () => {
-    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
-    Object.assign(mockConnection, { bikeConnected: true, hrConnected: true });
-    Object.assign(mockSavedGear, {
-      savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' },
-      savedHrSource: { id: 'hr', name: 'Garmin HRM', type: 'hr' },
-    });
-    mockConnection.disconnectAll.mockImplementation(async () => {
-      useSavedGearStore.getState().setBikeReconnectState('disconnected');
-      useSavedGearStore.getState().setHrReconnectState('disconnected');
-    });
-
-    const { getByText } = render(<SettingsScreen />);
-    fireEvent.press(getByText('Disconnect Active Gear'));
-
-    await waitFor(() => {
-      expect(mockConnection.disconnectAll).toHaveBeenCalledWith({ suppressAutoReconnect: true });
-      expect(useSavedGearStore.getState().bikeReconnectState).toBe('disconnected');
-      expect(useSavedGearStore.getState().hrReconnectState).toBe('disconnected');
-      expect(alertSpy).toHaveBeenCalledWith('Disconnected', 'Cleared the active bike and heart-rate connections.');
-    });
+  it('does not render the Disconnect Active Gear button', () => {
+    const { queryByText } = render(<SettingsScreen />);
+    expect(queryByText('Disconnect Active Gear')).toBeNull();
   });
 
   describe('Apple Watch HR row', () => {

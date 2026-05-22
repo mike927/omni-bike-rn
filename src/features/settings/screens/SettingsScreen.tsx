@@ -69,7 +69,7 @@ function summarizeProfile(profile: UserProfile): string {
 export function SettingsScreen() {
   const router = useRouter();
   const userProfile = useUserProfileStore((s) => s.profile);
-  const { bikeConnected, hrConnected, latestAppleWatchHr, watchAvailability, disconnectAll } = useDeviceConnection();
+  const { latestAppleWatchHr, watchAvailability } = useDeviceConnection();
   const { watchAvailable, watchHrEnabled, enableWatchHr, disableWatchHr } = useWatchHrControls();
   const { savedBike, savedHrSource, forgetBike, forgetHr } = useSavedGear();
   const {
@@ -160,16 +160,6 @@ export function SettingsScreen() {
     );
   };
 
-  const handleDisconnect = async () => {
-    try {
-      await disconnectAll({ suppressAutoReconnect: true });
-      Alert.alert('Disconnected', 'Cleared the active bike and heart-rate connections.');
-    } catch (err: unknown) {
-      console.error('[SettingsScreen] Disconnect error:', err);
-      Alert.alert('Disconnect Failed', err instanceof Error ? err.message : String(err));
-    }
-  };
-
   return (
     <AppScreen title="Settings" subtitle="Manage your saved gear and active connections.">
       <SectionCard title="My Gear">
@@ -217,13 +207,6 @@ export function SettingsScreen() {
             />
           </>
         ) : null}
-
-        <ActionButton
-          label="Disconnect Active Gear"
-          onPress={() => void handleDisconnect()}
-          variant="danger"
-          disabled={!bikeConnected && !hrConnected}
-        />
       </SectionCard>
 
       <SectionCard title="Personal">
