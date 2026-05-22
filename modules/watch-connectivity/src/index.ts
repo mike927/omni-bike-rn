@@ -4,12 +4,15 @@ export type WatchHrPayload = { hr: number };
 export type WatchActiveKcalPayload = { activeKcal: number };
 export type WatchReachabilityPayload = { reachable: boolean };
 export type WatchSessionStatePayload = { state: 'started' | 'ended' | 'failed'; sentAtMs: number };
+/** Stable presence of the companion: the Watch is paired and the app is installed. */
+export type WatchCompanionStatePayload = { available: boolean };
 
 type WatchConnectivityModuleEvents = {
   onWatchHr: (payload: WatchHrPayload) => void;
   onWatchActiveKcal: (payload: WatchActiveKcalPayload) => void;
   onReachabilityChange: (payload: WatchReachabilityPayload) => void;
   onWatchSessionState: (payload: WatchSessionStatePayload) => void;
+  onWatchCompanionStateChange: (payload: WatchCompanionStatePayload) => void;
 };
 
 declare class WatchConnectivityNativeModule extends NativeModule<WatchConnectivityModuleEvents> {

@@ -406,20 +406,21 @@ describe('useWatchHr', () => {
       expect(getWatchConnectivityMock().addListener).toHaveBeenCalledWith('onReachabilityChange', expect.any(Function));
     });
 
-    it('clears latestAppleWatchHr when the Watch goes out of range', () => {
-      useDeviceConnectionStore.setState({ latestAppleWatchHr: 72 });
+    it('keeps availability idle when reachability drops pre-workout (Watch dimmed, not gone)', () => {
+      useDeviceConnectionStore.setState({ watchAvailability: 'idle' });
       renderHook(() => useWatchHr());
 
       const wc = getWatchConnectivityMock();
-      const reachabilityCallback = wc.addListener.mock.calls[0]?.[1] as
-        | ((payload: { reachable: boolean }) => void)
-        | undefined;
+      const reachabilityCallback = wc.addListener.mock.calls.find(
+        ([eventName]: [string]) => eventName === 'onReachabilityChange',
+      )?.[1] as ((payload: { reachable: boolean }) => void) | undefined;
 
       act(() => {
         reachabilityCallback?.({ reachable: false });
       });
 
-      expect(useDeviceConnectionStore.getState().latestAppleWatchHr).toBeNull();
+      // isReachable is foreground-only; a dimmed Watch must not read as unavailable.
+      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('idle');
     });
 
     it('preserves the active watch stream when reachability drops mid-workout', () => {
@@ -446,21 +447,6 @@ describe('useWatchHr', () => {
       renderHook(() => useWatchHr());
 
       const wc = getWatchConnectivityMock();
-      const reachabilityCallback = wc.addListener.mock.calls[0]?.[1] as
-        | ((payload: { reachable: boolean }) => void)
-        | undefined;
-
-      act(() => {
-        reachabilityCallback?.({ reachable: true });
-      });
-
-      expect(useDeviceConnectionStore.getState().latestAppleWatchHr).toBe(72);
-    });
-
-    it('flips availability to idle when the Watch becomes reachable from unavailable', () => {
-      renderHook(() => useWatchHr());
-
-      const wc = getWatchConnectivityMock();
       const reachabilityCallback = wc.addListener.mock.calls.find(
         ([eventName]: [string]) => eventName === 'onReachabilityChange',
       )?.[1] as ((payload: { reachable: boolean }) => void) | undefined;
@@ -469,7 +455,53 @@ describe('useWatchHr', () => {
         reachabilityCallback?.({ reachable: true });
       });
 
+      expect(useDeviceConnectionStore.getState().latestAppleWatchHr).toBe(72);
+    });
+
+    it('registers a companion-state listener on mount', () => {
+      renderHook(() => useWatchHr());
+      expect(getWatchConnectivityMock().addListener).toHaveBeenCalledWith(
+        'onWatchCompanionStateChange',
+        expect.any(Function),
+      );
+    });
+
+    function getCompanionCallback() {
+      return getWatchConnectivityMock().addListener.mock.calls.find(
+        ([eventName]: [string]) => eventName === 'onWatchCompanionStateChange',
+      )?.[1] as ((payload: { available: boolean }) => void) | undefined;
+    }
+
+    it('flips availability to idle when the companion becomes available from unavailable', () => {
+      renderHook(() => useWatchHr());
+
+      act(() => {
+        getCompanionCallback()?.({ available: true });
+      });
+
       expect(useDeviceConnectionStore.getState().watchAvailability).toBe('idle');
+    });
+
+    it('marks availability unavailable when the companion is not paired or installed', () => {
+      useDeviceConnectionStore.setState({ watchAvailability: 'idle' });
+      renderHook(() => useWatchHr());
+
+      act(() => {
+        getCompanionCallback()?.({ available: false });
+      });
+
+      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('unavailable');
+    });
+
+    it('does not downgrade an in-progress workout when a companion-available event arrives', () => {
+      useDeviceConnectionStore.setState({ watchAvailability: 'in_progress' });
+      renderHook(() => useWatchHr());
+
+      act(() => {
+        getCompanionCallback()?.({ available: true });
+      });
+
+      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('in_progress');
     });
 
     it('maps started session events to in_progress and ended to idle', () => {

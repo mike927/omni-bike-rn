@@ -165,28 +165,32 @@ export function useWatchHr(): void {
   useEffect(() => {
     if (!watchAvailable) return;
 
-    const reachabilitySub = WatchConnectivity.addListener('onReachabilityChange', ({ reachable }) => {
-      if (!reachable) {
-        const { watchAvailability } = useDeviceConnectionStore.getState();
-        const shouldPreserveActiveStream =
-          watchHrEnabledRef.current && phaseRef.current === TrainingPhase.Active && watchAvailability === 'in_progress';
-
-        if (shouldPreserveActiveStream) {
+    // Companion availability (paired + Watch app installed) is the stable signal
+    // for `unavailable` ⇄ `idle`. It is independent of `isReachable`, which is a
+    // foreground-only link that drops whenever the Watch screen dims.
+    const companionStateSub = WatchConnectivity.addListener(
+      'onWatchCompanionStateChange',
+      ({ available }: { available: boolean }) => {
+        if (!available) {
+          setWatchAvailability('unavailable');
+          updateAppleWatchHr(null);
+          updateAppleWatchActiveKcal(null);
           return;
         }
+        // Paired + installed: surface `idle` unless a workout is already running
+        // (a concurrent `started` session event must not be clobbered).
+        if (useDeviceConnectionStore.getState().watchAvailability === 'unavailable') {
+          setWatchAvailability('idle');
+        }
+      },
+    );
 
-        setWatchAvailability('unavailable');
-        updateAppleWatchHr(null);
-        updateAppleWatchActiveKcal(null);
-        return;
-      }
-      // Step up to `idle` only when coming from `unavailable`; a concurrent
-      // `started` session event must not be clobbered.
-      const { watchAvailability } = useDeviceConnectionStore.getState();
-      if (watchAvailability === 'unavailable') {
-        setWatchAvailability('idle');
-      }
+    // Reachability is the live message link, not the Watch's existence. It must
+    // never downgrade availability (a dimmed Watch is still paired + installed).
+    // Its only job here is to retry the HR stream once the link returns mid-ride.
+    const reachabilitySub = WatchConnectivity.addListener('onReachabilityChange', ({ reachable }) => {
       if (
+        reachable &&
         watchHrEnabledRef.current &&
         phaseRef.current === TrainingPhase.Active &&
         !adapterRef.current &&
@@ -209,6 +213,7 @@ export function useWatchHr(): void {
     });
 
     return () => {
+      companionStateSub.remove();
       reachabilitySub.remove();
       sessionStateSub.remove();
     };
