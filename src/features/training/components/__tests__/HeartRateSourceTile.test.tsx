@@ -105,4 +105,9 @@ describe('HeartRateSourceTile', () => {
     expect(getByText(/Open the Omni Bike app on your Apple Watch/)).toBeTruthy();
     expect(getByText('Unavailable')).toBeTruthy();
   });
+
+  it('shows "Bike pulse" when the bike sensor is the active source', () => {
+    const { getByText } = renderTile({ activeHrSource: 'bike' });
+    expect(getByText('Bike pulse')).toBeTruthy();
+  });
 });

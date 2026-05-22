@@ -85,7 +85,7 @@ export function HeartRateSourceTile({
 
   return (
     <View style={styles.card}>
-      <Pressable accessibilityRole="button" onPress={toggle} style={styles.header}>
+      <Pressable accessibilityRole="button" accessibilityState={{ expanded }} onPress={toggle} style={styles.header}>
         <Text style={styles.label}>Heart Rate Source</Text>
         <View style={styles.headerRight}>
           <Text style={styles.value}>{activeHrSourceLabel(activeHrSource)}</Text>
