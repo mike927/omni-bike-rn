@@ -72,7 +72,7 @@ export function SettingsScreen() {
   const router = useRouter();
   const userProfile = useUserProfileStore((s) => s.profile);
   const { bikeConnected, hrConnected, latestAppleWatchHr, watchAvailability } = useDeviceConnection();
-  const { bikeReconnectState, hrReconnectState } = useAutoReconnect();
+  const { bikeReconnectState, hrReconnectState, retryBike, retryHr } = useAutoReconnect();
   const { watchAvailable, watchHrEnabled, enableWatchHr, disableWatchHr } = useWatchHrControls();
   const { savedBike, savedHrSource, forgetBike, forgetHr } = useSavedGear();
   const {
@@ -176,6 +176,15 @@ export function SettingsScreen() {
             </Text>
           </View>
           <View style={styles.gearActions}>
+            {savedBike && !bikeConnected ? (
+              <ActionButton
+                label="Connect"
+                onPress={() => {
+                  retryBike();
+                }}
+                variant="primary"
+              />
+            ) : null}
             <ActionButton
               label={savedBike ? 'Replace' : 'Set Up'}
               onPress={() => router.push('/gear-setup?target=bike')}
@@ -197,6 +206,15 @@ export function SettingsScreen() {
             </Text>
           </View>
           <View style={styles.gearActions}>
+            {savedHrSource && !hrConnected ? (
+              <ActionButton
+                label="Connect"
+                onPress={() => {
+                  retryHr();
+                }}
+                variant="primary"
+              />
+            ) : null}
             <ActionButton
               label={savedHrSource ? 'Replace' : 'Add Bluetooth HR'}
               onPress={() => router.push('/gear-setup?target=hr')}

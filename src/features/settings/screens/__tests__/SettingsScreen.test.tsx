@@ -196,6 +196,55 @@ describe('SettingsScreen', () => {
     expect(queryByText('Disconnect Active Gear')).toBeNull();
   });
 
+  describe('Connect button for saved-but-disconnected gear', () => {
+    it('shows Connect button for bike when saved and not connected', () => {
+      Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
+      Object.assign(mockConnection, { bikeConnected: false });
+      const { getByText } = render(<SettingsScreen />);
+      expect(getByText('Connect')).toBeTruthy();
+    });
+
+    it('calls retryBike when Connect is pressed on bike row', () => {
+      Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
+      Object.assign(mockConnection, { bikeConnected: false, hrConnected: false });
+      const { getByText } = render(<SettingsScreen />);
+      fireEvent.press(getByText('Connect'));
+      expect(mockAutoReconnect.retryBike).toHaveBeenCalled();
+    });
+
+    it('does not show Connect button for bike when bike is connected', () => {
+      Object.assign(mockSavedGear, {
+        savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' },
+        savedHrSource: null,
+      });
+      Object.assign(mockConnection, { bikeConnected: true, hrConnected: false });
+      const { queryByText } = render(<SettingsScreen />);
+      expect(queryByText('Connect')).toBeNull();
+    });
+
+    it('shows Connect button for Bluetooth HR when saved and not connected', () => {
+      Object.assign(mockSavedGear, { savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' } });
+      Object.assign(mockConnection, { hrConnected: false });
+      const { getAllByText } = render(<SettingsScreen />);
+      expect(getAllByText('Connect').length).toBeGreaterThan(0);
+    });
+
+    it('calls retryHr when Connect is pressed on HR row', () => {
+      Object.assign(mockSavedGear, { savedBike: null, savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' } });
+      Object.assign(mockConnection, { bikeConnected: false, hrConnected: false });
+      const { getByText } = render(<SettingsScreen />);
+      fireEvent.press(getByText('Connect'));
+      expect(mockAutoReconnect.retryHr).toHaveBeenCalled();
+    });
+
+    it('does not show Connect button for HR when hr is connected', () => {
+      Object.assign(mockSavedGear, { savedBike: null, savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' } });
+      Object.assign(mockConnection, { bikeConnected: false, hrConnected: true });
+      const { queryByText } = render(<SettingsScreen />);
+      expect(queryByText('Connect')).toBeNull();
+    });
+  });
+
   describe('Apple Watch HR row', () => {
     it('is not rendered when watchAvailable is false', () => {
       Object.assign(mockWatchHr, { watchAvailable: false });
