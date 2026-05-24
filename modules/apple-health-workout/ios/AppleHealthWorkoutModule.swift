@@ -17,23 +17,40 @@ public class AppleHealthWorkoutModule: Module {
   public func definition() -> ModuleDefinition {
     Name("AppleHealthWorkout")
 
-    // Requests write authorization for the iOS 17+ cycling metric types that
-    // `react-native-health` does not know about (cyclingPower / cyclingCadence /
-    // cyclingSpeed). The plain Workout / ActiveEnergyBurned / DistanceCycling /
-    // HeartRate types are still requested via `react-native-health.initHealthKit`.
-    AsyncFunction("requestCyclingMetricsAuthorization") { (promise: Promise) in
+    // Requests HealthKit authorization for EVERY read + write type the app
+    // uses, in a single sheet. This previously ran as two back-to-back
+    // requests — `react-native-health.initHealthKit` for the base types, then
+    // a second request here for the iOS 17+ cycling metric types
+    // (cyclingPower / cyclingCadence / cyclingSpeed) that react-native-health
+    // does not know about. On a fresh install that hung: iOS cannot present
+    // the second authorization sheet while the first is still dismissing, so
+    // the second request's completion handler never fired and the connect UI
+    // stuck on "Connecting..." forever. One request = one sheet = no conflict.
+    AsyncFunction("requestHealthKitAuthorization") { (promise: Promise) in
       guard HKHealthStore.isHealthDataAvailable() else {
         promise.reject("ERR_HEALTH_UNAVAILABLE", "Health data is not available on this device")
         return
       }
 
       let typesToShare: Set<HKSampleType> = [
+        HKObjectType.workoutType(),
+        HKQuantityType(.activeEnergyBurned),
+        HKQuantityType(.basalEnergyBurned),
+        HKQuantityType(.distanceCycling),
+        HKQuantityType(.heartRate),
         HKQuantityType(.cyclingPower),
         HKQuantityType(.cyclingCadence),
         HKQuantityType(.cyclingSpeed),
       ]
+      let typesToRead: Set<HKObjectType> = [
+        HKQuantityType(.basalEnergyBurned),
+        HKCharacteristicType(.biologicalSex),
+        HKCharacteristicType(.dateOfBirth),
+        HKQuantityType(.bodyMass),
+        HKQuantityType(.height),
+      ]
 
-      self.healthStore.requestAuthorization(toShare: typesToShare, read: []) { success, error in
+      self.healthStore.requestAuthorization(toShare: typesToShare, read: typesToRead) { success, error in
         if let error {
           promise.reject("ERR_AUTH_FAILED", error.localizedDescription)
           return

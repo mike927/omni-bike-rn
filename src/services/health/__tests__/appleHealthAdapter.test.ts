@@ -29,7 +29,7 @@ jest.mock('../../../services/profile/userProfileStorage', () => ({
 jest.mock('apple-health-workout', () => ({
   AppleHealthWorkout: {
     saveCyclingWorkout: jest.fn(),
-    requestCyclingMetricsAuthorization: jest.fn(() => Promise.resolve()),
+    requestHealthKitAuthorization: jest.fn(() => Promise.resolve()),
     queryBasalEnergyKcal: jest.fn(() => Promise.resolve(0)),
   },
 }));
@@ -41,7 +41,7 @@ const mockGetDateOfBirth = jest.fn();
 const mockGetLatestWeight = jest.fn();
 const mockGetLatestHeight = jest.fn();
 const mockSaveCyclingWorkout = AppleHealthWorkout.saveCyclingWorkout as jest.Mock;
-const mockRequestCyclingAuth = AppleHealthWorkout.requestCyclingMetricsAuthorization as jest.Mock;
+const mockRequestAuth = AppleHealthWorkout.requestHealthKitAuthorization as jest.Mock;
 const mockQueryBasalEnergyKcal = AppleHealthWorkout.queryBasalEnergyKcal as jest.Mock;
 
 const SESSION: PersistedTrainingSession = {
@@ -113,49 +113,30 @@ beforeEach(() => {
 });
 
 describe('initWithWritePermissions', () => {
-  it('resolves when native callback reports no error and requests cycling metric auth', async () => {
-    mockInit.mockImplementation((_permissions, callback) => callback(null));
+  // Regression guard: a fresh install used to hang on "Connecting..." because
+  // authorization was split into two back-to-back HealthKit sheets — the
+  // react-native-health `initHealthKit` request plus a separate native cycling
+  // request — and iOS never completed the second sheet presented mid-dismissal
+  // of the first. The native module now requests every type in one sheet, so
+  // react-native-health's `initHealthKit` must NOT be invoked here.
+  it('requests authorization through a single native sheet, not react-native-health initHealthKit', async () => {
     await expect(initWithWritePermissions()).resolves.toBeUndefined();
-    const permissionsArg = mockInit.mock.calls[0][0];
-    expect(permissionsArg.permissions.write).toEqual([
-      'Workout',
-      'ActiveEnergyBurned',
-      'DistanceCycling',
-      'HeartRate',
-      'BasalEnergyBurned',
-    ]);
-    expect(permissionsArg.permissions.read).toEqual([
-      'BasalEnergyBurned',
-      'BiologicalSex',
-      'DateOfBirth',
-      'Weight',
-      'Height',
-    ]);
-    expect(mockRequestCyclingAuth).toHaveBeenCalledTimes(1);
+    expect(mockRequestAuth).toHaveBeenCalledTimes(1);
+    expect(mockInit).not.toHaveBeenCalled();
   });
 
-  it('rejects when cycling metric authorization fails', async () => {
-    mockInit.mockImplementation((_permissions, callback) => callback(null));
-    mockRequestCyclingAuth.mockRejectedValueOnce(new Error('cycling denied'));
-    await expect(initWithWritePermissions()).rejects.toThrow('cycling denied');
-  });
-
-  it('rejects when native callback reports an error', async () => {
-    mockInit.mockImplementation((_permissions, callback) => callback('auth denied'));
+  it('rejects when native authorization fails', async () => {
+    mockRequestAuth.mockRejectedValueOnce(new Error('auth denied'));
     await expect(initWithWritePermissions()).rejects.toThrow('auth denied');
   });
 
-  it('rejects when the native Apple Health module is unavailable', async () => {
-    const originalAppleHealthKit = NativeModules.AppleHealthKit;
-    NativeModules.AppleHealthKit = undefined;
+  it('clears the memoized promise on failure so a later attempt can retry', async () => {
+    mockRequestAuth.mockRejectedValueOnce(new Error('first attempt denied'));
+    await expect(initWithWritePermissions()).rejects.toThrow('first attempt denied');
 
-    try {
-      await expect(initWithWritePermissions()).rejects.toThrow(
-        'Apple Health native module is unavailable. Rebuild the iOS app with the native dependency installed.',
-      );
-    } finally {
-      NativeModules.AppleHealthKit = originalAppleHealthKit;
-    }
+    mockRequestAuth.mockResolvedValueOnce(undefined);
+    await expect(initWithWritePermissions()).resolves.toBeUndefined();
+    expect(mockRequestAuth).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -381,7 +362,6 @@ describe('profile reads', () => {
   });
 
   it('loadProfileFromAppleHealth aggregates only the populated fields', async () => {
-    mockInit.mockImplementation((_permissions, callback) => callback(null));
     mockGetBiologicalSex.mockImplementation((_o, cb) => cb(null, { value: 'male' }));
     mockGetDateOfBirth.mockImplementation((_o, cb) => cb(null, { value: '1985-03-10T00:00:00.000Z', age: 41 }));
     mockGetLatestWeight.mockImplementation((_o, cb) => cb(null, { value: 80 }));
@@ -391,11 +371,11 @@ describe('profile reads', () => {
     expect(partial).toEqual({ sex: 'male', dateOfBirth: '1985-03-10', weightKg: 80 });
   });
 
-  it('loadProfileFromAppleHealth awaits init before reading characteristics', async () => {
+  it('loadProfileFromAppleHealth awaits authorization before reading characteristics', async () => {
     const callOrder: string[] = [];
-    mockInit.mockImplementation((_permissions, callback) => {
-      callOrder.push('init');
-      setTimeout(() => callback(null), 0);
+    mockRequestAuth.mockImplementation(() => {
+      callOrder.push('auth');
+      return new Promise<void>((resolve) => setTimeout(resolve, 0));
     });
     mockGetBiologicalSex.mockImplementation((_o, cb) => {
       callOrder.push('getBiologicalSex');
@@ -406,20 +386,20 @@ describe('profile reads', () => {
     mockGetLatestHeight.mockImplementation((_o, cb) => cb(null, { value: 165 }));
 
     await loadProfileFromAppleHealth();
-    expect(callOrder[0]).toBe('init');
+    expect(callOrder[0]).toBe('auth');
     expect(callOrder).toContain('getBiologicalSex');
-    expect(callOrder.indexOf('init')).toBeLessThan(callOrder.indexOf('getBiologicalSex'));
+    expect(callOrder.indexOf('auth')).toBeLessThan(callOrder.indexOf('getBiologicalSex'));
   });
 
   it('initWithWritePermissions memoizes a single in-flight prompt across concurrent callers', async () => {
-    mockInit.mockImplementation((_permissions, callback) => setTimeout(() => callback(null), 0));
+    mockRequestAuth.mockImplementation(() => new Promise<void>((resolve) => setTimeout(resolve, 0)));
     mockGetBiologicalSex.mockImplementation((_o, cb) => cb(null, { value: 'male' }));
     mockGetDateOfBirth.mockImplementation((_o, cb) => cb(null, { value: '1985-03-10T00:00:00.000Z', age: 41 }));
     mockGetLatestWeight.mockImplementation((_o, cb) => cb(null, { value: 80 }));
     mockGetLatestHeight.mockImplementation((_o, cb) => cb(null, { value: 180 }));
 
     await Promise.all([initWithWritePermissions(), loadProfileFromAppleHealth(), initWithWritePermissions()]);
-    expect(mockInit).toHaveBeenCalledTimes(1);
-    expect(mockRequestCyclingAuth).toHaveBeenCalledTimes(1);
+    expect(mockRequestAuth).toHaveBeenCalledTimes(1);
+    expect(mockInit).not.toHaveBeenCalled();
   });
 });
