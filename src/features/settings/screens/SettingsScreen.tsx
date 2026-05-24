@@ -175,22 +175,27 @@ export function SettingsScreen() {
                 : 'Not set'}
             </Text>
           </View>
-          <View style={styles.gearActions}>
+          <View style={styles.gearActionsStacked}>
             {savedBike && !bikeConnected ? (
               <ActionButton
-                label="Connect"
+                label={bikeReconnectState === 'connecting' ? 'Connecting...' : 'Connect'}
                 onPress={() => {
                   retryBike();
                 }}
                 variant="primary"
+                disabled={bikeReconnectState === 'connecting'}
+                fullWidth
               />
             ) : null}
             <ActionButton
               label={savedBike ? 'Replace' : 'Set Up'}
               onPress={() => router.push('/gear-setup?target=bike')}
               variant="secondary"
+              fullWidth
             />
-            {savedBike ? <ActionButton label="Forget" onPress={() => void forgetBike()} variant="danger" /> : null}
+            {savedBike ? (
+              <ActionButton label="Forget" onPress={() => void forgetBike()} variant="danger" fullWidth />
+            ) : null}
           </View>
         </View>
 
@@ -205,22 +210,27 @@ export function SettingsScreen() {
                 : 'Not set'}
             </Text>
           </View>
-          <View style={styles.gearActions}>
+          <View style={styles.gearActionsStacked}>
             {savedHrSource && !hrConnected ? (
               <ActionButton
-                label="Connect"
+                label={hrReconnectState === 'connecting' ? 'Connecting...' : 'Connect'}
                 onPress={() => {
                   retryHr();
                 }}
                 variant="primary"
+                disabled={hrReconnectState === 'connecting'}
+                fullWidth
               />
             ) : null}
             <ActionButton
               label={savedHrSource ? 'Replace' : 'Add Bluetooth HR'}
               onPress={() => router.push('/gear-setup?target=hr')}
               variant="secondary"
+              fullWidth
             />
-            {savedHrSource ? <ActionButton label="Forget" onPress={() => void forgetHr()} variant="danger" /> : null}
+            {savedHrSource ? (
+              <ActionButton label="Forget" onPress={() => void forgetHr()} variant="danger" fullWidth />
+            ) : null}
           </View>
         </View>
 
@@ -397,6 +407,11 @@ const styles = StyleSheet.create({
   },
   gearActions: {
     flexDirection: 'row',
+    gap: 8,
+  },
+  gearActionsStacked: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
     gap: 8,
   },
   divider: {

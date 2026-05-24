@@ -46,7 +46,7 @@ const ONBOARDING_PAGES: readonly OnboardingPage[] = [
   {
     headline: 'Train to your heart rate',
     subtitle:
-      'Connect a Bluetooth chest strap, Apple Watch, or other compatible watch. Optional — you can add one anytime.',
+      'Connect a Bluetooth chest strap or other compatible heart-rate sensor. Optional — you can add one anytime.',
     Illustration: Page2HrIllustration,
     illustrationTestID: 'onboarding-illustration-hr',
     primaryLabel: 'Pair Device',

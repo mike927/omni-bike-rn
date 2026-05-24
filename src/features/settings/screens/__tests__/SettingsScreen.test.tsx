@@ -212,6 +212,28 @@ describe('SettingsScreen', () => {
       expect(mockAutoReconnect.retryBike).toHaveBeenCalled();
     });
 
+    it('disables the bike Connect button and shows Connecting... while connecting', () => {
+      Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
+      Object.assign(mockConnection, { bikeConnected: false });
+      Object.assign(mockAutoReconnect, { bikeReconnectState: 'connecting' });
+      const { getByText, queryByText } = render(<SettingsScreen />);
+      expect(getByText('Connecting...')).toBeTruthy();
+      expect(queryByText('Connect')).toBeNull();
+      fireEvent.press(getByText('Connecting...'));
+      expect(mockAutoReconnect.retryBike).not.toHaveBeenCalled();
+    });
+
+    it('disables the HR Connect button and shows Connecting... while connecting', () => {
+      Object.assign(mockSavedGear, { savedBike: null, savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' } });
+      Object.assign(mockConnection, { bikeConnected: false, hrConnected: false });
+      Object.assign(mockAutoReconnect, { hrReconnectState: 'connecting' });
+      const { getByText, queryByText } = render(<SettingsScreen />);
+      expect(getByText('Connecting...')).toBeTruthy();
+      expect(queryByText('Connect')).toBeNull();
+      fireEvent.press(getByText('Connecting...'));
+      expect(mockAutoReconnect.retryHr).not.toHaveBeenCalled();
+    });
+
     it('does not show Connect button for bike when bike is connected', () => {
       Object.assign(mockSavedGear, {
         savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' },
