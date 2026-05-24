@@ -1,68 +1,9 @@
 import {
   WATCH_HR_UNAVAILABLE_HINT,
-  activeHrSourceLabel,
-  resolveActiveHrSource,
   resolveHrSourceSummary,
   resolveWatchHrDisplayState,
   watchHrDisplayLabel,
 } from '../hrStatus';
-
-describe('resolveActiveHrSource', () => {
-  it('reports watch when Watch HR is enabled and streaming', () => {
-    expect(
-      resolveActiveHrSource({
-        watchHrEnabled: true,
-        latestAppleWatchHr: 148,
-        latestBluetoothHr: 142,
-        sessionHeartRate: 148,
-      }),
-    ).toBe('watch');
-  });
-
-  it('ignores a Watch value when Watch HR is disabled, falling to Bluetooth', () => {
-    expect(
-      resolveActiveHrSource({
-        watchHrEnabled: false,
-        latestAppleWatchHr: 148,
-        latestBluetoothHr: 142,
-        sessionHeartRate: 142,
-      }),
-    ).toBe('bluetooth');
-  });
-
-  it('reports bluetooth when only a Bluetooth HR value is present', () => {
-    expect(
-      resolveActiveHrSource({
-        watchHrEnabled: true,
-        latestAppleWatchHr: null,
-        latestBluetoothHr: 140,
-        sessionHeartRate: 140,
-      }),
-    ).toBe('bluetooth');
-  });
-
-  it('attributes a session HR with no Watch/Bluetooth value to the bike pulse', () => {
-    expect(
-      resolveActiveHrSource({
-        watchHrEnabled: true,
-        latestAppleWatchHr: null,
-        latestBluetoothHr: null,
-        sessionHeartRate: 131,
-      }),
-    ).toBe('bike');
-  });
-
-  it('reports none when no HR is available anywhere', () => {
-    expect(
-      resolveActiveHrSource({
-        watchHrEnabled: true,
-        latestAppleWatchHr: null,
-        latestBluetoothHr: null,
-        sessionHeartRate: null,
-      }),
-    ).toBe('none');
-  });
-});
 
 describe('resolveWatchHrDisplayState', () => {
   it('collapses to disabled when Watch HR is off, regardless of availability', () => {
@@ -78,13 +19,6 @@ describe('resolveWatchHrDisplayState', () => {
 });
 
 describe('label helpers', () => {
-  it('maps active HR sources to human labels', () => {
-    expect(activeHrSourceLabel('watch')).toBe('Apple Watch');
-    expect(activeHrSourceLabel('bluetooth')).toBe('Bluetooth HR');
-    expect(activeHrSourceLabel('bike')).toBe('Bike pulse');
-    expect(activeHrSourceLabel('none')).toBe('No HR source');
-  });
-
   it('maps Watch HR display states to human labels', () => {
     expect(watchHrDisplayLabel('disabled')).toBe('Disabled');
     expect(watchHrDisplayLabel('unavailable')).toBe('Unavailable');
@@ -107,57 +41,75 @@ describe('resolveHrSourceSummary', () => {
     watchAvailability: 'unavailable' as const,
     hrConnected: false,
     savedHrName: null,
+    sessionHeartRate: null,
   };
 
-  it('(1) watch connected — returns Apple Watch · Connected', () => {
+  it('(1) fresh Watch sample — Apple Watch · Connected', () => {
+    expect(resolveHrSourceSummary({ ...base, watchHrEnabled: true, watchHasFreshSample: true })).toEqual({
+      name: 'Apple Watch',
+      state: 'Connected',
+    });
+  });
+
+  it('fresh Watch outranks a live bike pulse', () => {
     expect(
-      resolveHrSourceSummary({
-        ...base,
-        watchHrEnabled: true,
-        watchHasFreshSample: true,
-      }),
+      resolveHrSourceSummary({ ...base, watchHrEnabled: true, watchHasFreshSample: true, sessionHeartRate: 131 }),
     ).toEqual({ name: 'Apple Watch', state: 'Connected' });
   });
 
-  it('(2) BLE connected with saved name — uses saved name + Connected', () => {
-    expect(
-      resolveHrSourceSummary({
-        ...base,
-        hrConnected: true,
-        savedHrName: 'Polar H10',
-      }),
-    ).toEqual({ name: 'Polar H10', state: 'Connected' });
+  it('(2) connected BLE strap — saved name + Connected', () => {
+    expect(resolveHrSourceSummary({ ...base, hrConnected: true, savedHrName: 'Polar H10' })).toEqual({
+      name: 'Polar H10',
+      state: 'Connected',
+    });
   });
 
-  it('(2b) BLE connected with null savedHrName — falls back to Bluetooth HR', () => {
-    expect(resolveHrSourceSummary({ ...base, hrConnected: true, savedHrName: null })).toEqual({
+  it('(2b) connected BLE with null name — Bluetooth HR', () => {
+    expect(resolveHrSourceSummary({ ...base, hrConnected: true })).toEqual({
       name: 'Bluetooth HR',
       state: 'Connected',
     });
   });
 
-  it('(3) saved BLE not connected, watch not streaming — Disconnected', () => {
+  it('connected BLE outranks a live bike pulse', () => {
+    expect(
+      resolveHrSourceSummary({ ...base, hrConnected: true, savedHrName: 'Polar H10', sessionHeartRate: 131 }),
+    ).toEqual({ name: 'Polar H10', state: 'Connected' });
+  });
+
+  it('(3) live session HR with no Watch/BLE — Bike pulse · Connected', () => {
+    expect(resolveHrSourceSummary({ ...base, sessionHeartRate: 131 })).toEqual({
+      name: 'Bike pulse',
+      state: 'Connected',
+    });
+  });
+
+  it('(4) available Watch outranks a saved-but-disconnected strap', () => {
+    expect(
+      resolveHrSourceSummary({
+        ...base,
+        watchHrEnabled: true,
+        watchAvailable: true,
+        watchAvailability: 'idle',
+        savedHrName: 'Polar H10',
+      }),
+    ).toEqual({ name: 'Apple Watch', state: 'Idle' });
+  });
+
+  it('(4b) enabled+available Watch, availability unavailable — Apple Watch · Unavailable', () => {
+    expect(
+      resolveHrSourceSummary({ ...base, watchHrEnabled: true, watchAvailable: true, watchAvailability: 'unavailable' }),
+    ).toEqual({ name: 'Apple Watch', state: 'Unavailable' });
+  });
+
+  it('(5) saved BLE not connected, no available Watch — Disconnected', () => {
     expect(resolveHrSourceSummary({ ...base, savedHrName: 'Polar H10' })).toEqual({
       name: 'Polar H10',
       state: 'Disconnected',
     });
   });
 
-  it('(4) no BLE saved, watch enabled+available, watchAvailability unavailable — Unavailable', () => {
-    expect(
-      resolveHrSourceSummary({
-        ...base,
-        watchHrEnabled: true,
-        watchAvailable: true,
-        watchAvailability: 'unavailable',
-      }),
-    ).toEqual({ name: 'Apple Watch', state: 'Unavailable' });
-  });
-
-  it('(5) nothing — No HR source with null state', () => {
-    expect(resolveHrSourceSummary(base)).toEqual({
-      name: 'No HR source',
-      state: null,
-    });
+  it('(6) nothing — No HR source, null state', () => {
+    expect(resolveHrSourceSummary(base)).toEqual({ name: 'No HR source', state: null });
   });
 });

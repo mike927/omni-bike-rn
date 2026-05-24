@@ -76,6 +76,7 @@ export function TrainingDashboardScreen() {
     watchAvailability: watchAvailability ?? 'unavailable',
     hrConnected,
     savedHrName: savedHrSource?.name ?? null,
+    sessionHeartRate: session.currentMetrics.heartRate ?? null,
   });
 
   const showDisconnectedState =

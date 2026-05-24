@@ -1,31 +1,5 @@
 import type { WatchAvailability } from '../../types/watch';
 
-export type ActiveHrSource = 'watch' | 'bluetooth' | 'bike' | 'none';
-
-export interface ActiveHrSourceInput {
-  readonly watchHrEnabled: boolean;
-  readonly latestAppleWatchHr: number | null;
-  readonly latestBluetoothHr: number | null;
-  readonly sessionHeartRate: number | null;
-}
-
-/**
- * Display-side mirror of MetronomeEngine's HR priority (Watch > Bluetooth HR >
- * bike pulse). Watch only counts when the user has Watch HR enabled; a session
- * HR with no Watch/Bluetooth value is attributed to the bike's pulse sensor.
- */
-export function resolveActiveHrSource({
-  watchHrEnabled,
-  latestAppleWatchHr,
-  latestBluetoothHr,
-  sessionHeartRate,
-}: ActiveHrSourceInput): ActiveHrSource {
-  if (watchHrEnabled && latestAppleWatchHr !== null) return 'watch';
-  if (latestBluetoothHr !== null) return 'bluetooth';
-  if (sessionHeartRate !== null) return 'bike';
-  return 'none';
-}
-
 export type WatchHrDisplayState = 'disabled' | WatchAvailability;
 
 /**
@@ -37,17 +11,6 @@ export function resolveWatchHrDisplayState(
   watchAvailability: WatchAvailability,
 ): WatchHrDisplayState {
   return watchHrEnabled ? watchAvailability : 'disabled';
-}
-
-const ACTIVE_HR_SOURCE_LABELS: Record<ActiveHrSource, string> = {
-  watch: 'Apple Watch',
-  bluetooth: 'Bluetooth HR',
-  bike: 'Bike pulse',
-  none: 'No HR source',
-};
-
-export function activeHrSourceLabel(source: ActiveHrSource): string {
-  return ACTIVE_HR_SOURCE_LABELS[source];
 }
 
 const WATCH_HR_DISPLAY_LABELS: Record<WatchHrDisplayState, string> = {
@@ -71,6 +34,7 @@ export interface HrSourceSummaryInput {
   readonly watchAvailability: WatchAvailability;
   readonly hrConnected: boolean;
   readonly savedHrName: string | null;
+  readonly sessionHeartRate: number | null;
 }
 
 export interface HrSourceSummary {
@@ -80,9 +44,15 @@ export interface HrSourceSummary {
 
 /**
  * Read-only summary for the Training dashboard HR tile: which HR device/source
- * to display and its connection state. Watch counts as "Connected" only when its
- * sample is fresh (staleness-gated by the caller), so a stale Watch falls through
- * to the connected/saved Bluetooth strap — no contradictory state.
+ * to display and its connection state, mirroring MetronomeEngine's priority
+ * (Watch > Bluetooth HR > bike pulse).
+ *
+ * Streaming sources rank first: a fresh Watch sample, then a connected Bluetooth
+ * strap, then live bike pulse (a session HR with no Watch/Bluetooth attribution).
+ * Watch counts as fresh only when staleness-gated by the caller, so a stale Watch
+ * falls through rather than claiming a connection it isn't providing. When nothing
+ * is streaming, an available (idle) Watch outranks a saved-but-disconnected strap —
+ * keeping Watch > Bluetooth on the idle surface too.
  */
 export function resolveHrSourceSummary({
   watchHrEnabled,
@@ -91,21 +61,28 @@ export function resolveHrSourceSummary({
   watchAvailability,
   hrConnected,
   savedHrName,
+  sessionHeartRate,
 }: HrSourceSummaryInput): HrSourceSummary {
+  // Streaming sources first, in engine priority order (Watch > Bluetooth > bike).
   if (watchHrEnabled && watchHasFreshSample) {
     return { name: 'Apple Watch', state: 'Connected' };
   }
   if (hrConnected) {
     return { name: savedHrName ?? 'Bluetooth HR', state: 'Connected' };
   }
-  if (savedHrName !== null) {
-    return { name: savedHrName, state: 'Disconnected' };
+  if (sessionHeartRate !== null) {
+    // Live session HR with no fresh Watch and no connected strap = bike pulse.
+    return { name: 'Bike pulse', state: 'Connected' };
   }
+  // Nothing streaming: an available Watch outranks a saved-but-disconnected strap.
   if (watchHrEnabled && watchAvailable) {
     return {
       name: 'Apple Watch',
       state: watchHrDisplayLabel(resolveWatchHrDisplayState(watchHrEnabled, watchAvailability)),
     };
+  }
+  if (savedHrName !== null) {
+    return { name: savedHrName, state: 'Disconnected' };
   }
   return { name: 'No HR source', state: null };
 }
