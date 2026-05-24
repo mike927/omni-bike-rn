@@ -18,13 +18,15 @@ Active work tracked in `ROADMAP.md`. Update states (`[ ] [~] [x] [-]`) as work p
 
 Run scripts via `npm run <name>` — see `package.json` for the full list. The ones worth knowing by name: `ci:gate` (lint + typecheck + tests, the pre-ship gate) and `db:generate` / `db:check` (Drizzle migrations).
 
+**Tests (dev loop):** run `npm run test:changed` (`jest --changedSince=main` — branch-affected tests only); the full `npm test` is CI's job (`ci:gate`). A green run means "changed tests pass," not "all."
+
 ## Builds
 
 Default to `npm run ios` (device build) when an iPhone is detected via `xcrun devicectl list devices`. Otherwise fall back to `npm run ios:sim`.
 
 ## Git workflow
 
-- **Create a feature branch before starting any new feature or change.** Before touching code for new work, confirm the current branch is not `main`; if it is, create a branch first (e.g. `feat/…`, `fix/…`, `chore/…`, `docs/…`). Do not begin edits on `main` and defer branching until commit time.
+- **Branch before editing.** New feature/fix work starts on a fresh branch off `main` (`feat/…`, `fix/…`, `chore/…`, `docs/…`) — never edit on `main`, never defer branching to commit time.
 - **Never commit directly to `main`.** Before any commit, re-confirm the current branch is not `main`.
 - Never bypass hooks with `--no-verify`. If the pre-commit hook fails, fix the root cause and create a new commit (do not `--amend`).
 
