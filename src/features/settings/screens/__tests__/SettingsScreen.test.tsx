@@ -56,9 +56,6 @@ const mockAutoReconnect = {
 
 const mockWatchHr = {
   watchAvailable: false,
-  watchHrEnabled: false,
-  enableWatchHr: jest.fn(),
-  disableWatchHr: jest.fn(),
   primary: null as null | 'watch' | 'bluetooth' | 'bike',
   setPrimary: jest.fn(),
   availableSources: ['bike'] as ('watch' | 'bluetooth' | 'bike')[],
@@ -126,7 +123,6 @@ describe('SettingsScreen', () => {
     });
     Object.assign(mockWatchHr, {
       watchAvailable: false,
-      watchHrEnabled: false,
       primary: null,
       setPrimary: jest.fn(),
       availableSources: ['bike'] as ('watch' | 'bluetooth' | 'bike')[],

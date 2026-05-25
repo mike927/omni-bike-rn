@@ -5,8 +5,8 @@ import { WatchConnectivity } from 'watch-connectivity';
 import { WatchHrAdapter } from '../../../services/watch/WatchHrAdapter';
 import { isAppleWatchAvailable } from '../../../services/watch/isAppleWatchAvailable';
 import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
+import { useHrSourceStore } from '../../../store/hrSourceStore';
 import { useTrainingSessionStore } from '../../../store/trainingSessionStore';
-import { useWatchHrStore } from '../../../store/watchHrStore';
 import { TrainingPhase } from '../../../types/training';
 import type { WatchAvailability, WatchSessionStateEvent } from '../../../types/watch';
 
@@ -62,14 +62,30 @@ export function useWatchHr(): void {
   const updateAppleWatchHr = useDeviceConnectionStore((s) => s.updateAppleWatchHr);
   const updateAppleWatchActiveKcal = useDeviceConnectionStore((s) => s.updateAppleWatchActiveKcal);
   const setWatchAvailability = useDeviceConnectionStore((s) => s.setWatchAvailability);
+  const setActiveHrSource = useDeviceConnectionStore((s) => s.setActiveHrSource);
   const phase = useTrainingSessionStore((s) => s.phase);
-  const watchHrEnabled = useWatchHrStore((s) => s.enabled);
-  const hydrateWatchHrPref = useWatchHrStore((s) => s.hydrate);
+  const primary = useHrSourceStore((s) => s.primary);
+  const hydrateHrSourcePref = useHrSourceStore((s) => s.hydrate);
 
+  // Hydrate primary source unconditionally — non-watch primaries (bluetooth, bike) also
+  // need to be known at workout start so the lock is correct on all platforms/configs.
+  // Tolerates a pre-hydration `null` primary: no watch stream starts until `primary`
+  // resolves; the reachability-retry path recovers it if the Watch becomes reachable later.
   useEffect(() => {
-    if (!watchAvailable) return;
-    void hydrateWatchHrPref();
-  }, [watchAvailable, hydrateWatchHrPref]);
+    void hydrateHrSourcePref();
+  }, [hydrateHrSourcePref]);
+
+  // Session-level HR source lock — platform-independent, NOT gated on watch availability.
+  // Tracks `primary` while Active (consistent with the live `primary === 'watch'` watch gate):
+  // a mid-workout primary change retargets the locked source. Cleared when not training.
+  useEffect(() => {
+    if (phase === TrainingPhase.Active) {
+      setActiveHrSource(primary);
+    } else if (phase === TrainingPhase.Idle || phase === TrainingPhase.Finished) {
+      setActiveHrSource(null);
+    }
+    // Paused: leave the lock intact.
+  }, [phase, primary, setActiveHrSource]);
 
   const startStream = useCallback(async () => {
     if (!watchAvailable) return;
@@ -87,7 +103,7 @@ export function useWatchHr(): void {
       const startWasSuperseded =
         streamGeneration !== streamGenerationRef.current ||
         phaseRef.current !== TrainingPhase.Active ||
-        !watchHrEnabledRef.current;
+        primaryRef.current !== 'watch';
       if (startWasSuperseded) return;
       console.error('[useWatchHr] Failed to connect Watch HR:', err);
       return;
@@ -96,7 +112,7 @@ export function useWatchHr(): void {
     const startWasSuperseded =
       streamGeneration !== streamGenerationRef.current ||
       phaseRef.current !== TrainingPhase.Active ||
-      !watchHrEnabledRef.current;
+      primaryRef.current !== 'watch';
     if (startWasSuperseded) {
       startingRef.current = false;
       try {
@@ -111,7 +127,7 @@ export function useWatchHr(): void {
     startingRef.current = false;
     subRef.current = adapter.subscribeToHeartRate((hr) => {
       updateAppleWatchHr(hr);
-      if (phaseRef.current === TrainingPhase.Active && watchHrEnabledRef.current) {
+      if (phaseRef.current === TrainingPhase.Active && primaryRef.current === 'watch') {
         setWatchAvailability('in_progress');
       }
     });
@@ -147,15 +163,15 @@ export function useWatchHr(): void {
   // Refs shadow current values so the listener effect below stays mount-only.
   // Re-registering would trigger thousands of redundant `activate()` calls.
   const phaseRef = useRef(phase);
-  const watchHrEnabledRef = useRef(watchHrEnabled);
+  const primaryRef = useRef(primary);
   const startStreamRef = useRef(startStream);
   const stopStreamRef = useRef(stopStream);
   useEffect(() => {
     phaseRef.current = phase;
   }, [phase]);
   useEffect(() => {
-    watchHrEnabledRef.current = watchHrEnabled;
-  }, [watchHrEnabled]);
+    primaryRef.current = primary;
+  }, [primary]);
   useEffect(() => {
     startStreamRef.current = startStream;
   }, [startStream]);
@@ -171,26 +187,33 @@ export function useWatchHr(): void {
     const prevPhase = prevPhaseRef.current;
     prevPhaseRef.current = phase;
 
-    if (phase === TrainingPhase.Active && watchHrEnabled) {
-      void startStream();
-      if (prevPhase === TrainingPhase.Paused) {
-        // Resuming: the stream is still connected; tell the Watch to resume its session.
-        void WatchConnectivity.resumeMirroredWorkout().catch((error: unknown) => {
-          console.error('[useWatchHr] Failed to resume Watch workout:', error);
-        });
+    if (phase === TrainingPhase.Active) {
+      if (primary === 'watch') {
+        void startStream();
+        if (prevPhase === TrainingPhase.Paused) {
+          // Resuming: the stream is still connected; tell the Watch to resume its session.
+          void WatchConnectivity.resumeMirroredWorkout().catch((error: unknown) => {
+            console.error('[useWatchHr] Failed to resume Watch workout:', error);
+          });
+        }
+      } else {
+        // primary changed away from watch while session is active: tear down watch stream.
+        void stopStream();
       }
-    } else if (phase === TrainingPhase.Paused && watchHrEnabled) {
+    } else if (phase === TrainingPhase.Paused && primary === 'watch') {
       // Keep the stream alive but pause the Watch session so its workout timer and HR
       // collection stop in sync with the iPhone (the Watch owns the HKWorkoutSession).
       void WatchConnectivity.pauseMirroredWorkout().catch((error: unknown) => {
         console.error('[useWatchHr] Failed to pause Watch workout:', error);
       });
-    } else if (phase === TrainingPhase.Finished && watchHrEnabled) {
-      void stopStream();
-    } else if (phase === TrainingPhase.Idle || !watchHrEnabled) {
+    } else if (phase === TrainingPhase.Finished) {
+      if (primary === 'watch') {
+        void stopStream();
+      }
+    } else if (phase === TrainingPhase.Idle) {
       void stopStream();
     }
-  }, [phase, watchHrEnabled, startStream, stopStream, watchAvailable]);
+  }, [phase, primary, startStream, stopStream, watchAvailable]);
 
   // Unmount-only cleanup, scoped away from phase transitions so Active→Paused
   // does not tear down the Watch workout session.
@@ -254,7 +277,7 @@ export function useWatchHr(): void {
           setAvailability('idle', 'reachable');
         }
         if (
-          watchHrEnabledRef.current &&
+          primaryRef.current === 'watch' &&
           phaseRef.current === TrainingPhase.Active &&
           !adapterRef.current &&
           !startingRef.current

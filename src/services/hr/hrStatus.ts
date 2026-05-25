@@ -4,14 +4,14 @@ import type { WatchAvailability } from '../../types/watch';
 export type WatchHrDisplayState = 'disabled' | WatchAvailability;
 
 /**
- * Collapses to `disabled` when the user has turned Watch HR off so every screen
+ * Collapses to `disabled` when Watch is not the primary HR source so every screen
  * reports the same state Settings does, instead of a misleading `idle`.
  */
 export function resolveWatchHrDisplayState(
-  watchHrEnabled: boolean,
+  watchIsPrimary: boolean,
   watchAvailability: WatchAvailability,
 ): WatchHrDisplayState {
-  return watchHrEnabled ? watchAvailability : 'disabled';
+  return watchIsPrimary ? watchAvailability : 'disabled';
 }
 
 const WATCH_HR_DISPLAY_LABELS: Record<WatchHrDisplayState, string> = {

@@ -66,8 +66,8 @@ export function HomeScreen() {
   const session = useTrainingSession();
   const { interruptedSession, resumeInterruptedSession, discardInterruptedSession } = useInterruptedSession();
   const { bikeConnected, hrConnected, watchAvailability } = useDeviceConnection();
-  const { watchAvailable, watchHrEnabled } = useWatchHrControls();
-  const watchHrDisplayState = resolveWatchHrDisplayState(watchHrEnabled, watchAvailability ?? 'unavailable');
+  const { watchAvailable, primary } = useWatchHrControls();
+  const watchHrDisplayState = resolveWatchHrDisplayState(primary === 'watch', watchAvailability ?? 'unavailable');
   const { savedBike, savedHrSource } = useSavedGear();
   const { bikeReconnectState, hrReconnectState } = useAutoReconnect();
   const latestWorkout = useLatestWorkout();

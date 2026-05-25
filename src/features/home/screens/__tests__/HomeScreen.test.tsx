@@ -50,9 +50,9 @@ const mockConnection = {
 
 const mockWatchHrControls = {
   watchAvailable: true,
-  watchHrEnabled: false,
-  enableWatchHr: jest.fn(),
-  disableWatchHr: jest.fn(),
+  primary: null as null | 'watch' | 'bluetooth' | 'bike',
+  setPrimary: jest.fn(),
+  availableSources: ['bike'] as ('watch' | 'bluetooth' | 'bike')[],
 };
 
 const mockSavedGear = {
@@ -115,7 +115,7 @@ describe('HomeScreen', () => {
     });
     Object.assign(mockWatchHrControls, {
       watchAvailable: true,
-      watchHrEnabled: false,
+      primary: null,
     });
     Object.assign(mockSavedGear, {
       savedBike: null,
@@ -289,18 +289,18 @@ describe('HomeScreen', () => {
   });
 
   describe('Apple Watch HR status line', () => {
-    it('shows the Apple Watch status line when the Watch is available', () => {
+    it('shows the Apple Watch status line when the Watch is available and primary is watch', () => {
       Object.assign(mockConnection, { watchAvailability: 'idle' });
-      Object.assign(mockWatchHrControls, { watchAvailable: true, watchHrEnabled: true });
+      Object.assign(mockWatchHrControls, { watchAvailable: true, primary: 'watch' });
 
       const { getByText } = render(<HomeScreen />);
 
       expect(getByText('Idle')).toBeTruthy();
     });
 
-    it('shows Disabled on the line when Watch HR is turned off', () => {
+    it('shows Disabled on the line when primary is not watch', () => {
       Object.assign(mockConnection, { watchAvailability: 'idle' });
-      Object.assign(mockWatchHrControls, { watchAvailable: true, watchHrEnabled: false });
+      Object.assign(mockWatchHrControls, { watchAvailable: true, primary: null });
 
       const { getByText } = render(<HomeScreen />);
 
@@ -308,7 +308,7 @@ describe('HomeScreen', () => {
     });
 
     it('omits the Apple Watch row entirely when the Watch is not available', () => {
-      Object.assign(mockWatchHrControls, { watchAvailable: false, watchHrEnabled: false });
+      Object.assign(mockWatchHrControls, { watchAvailable: false, primary: null });
 
       const { queryByText } = render(<HomeScreen />);
 
