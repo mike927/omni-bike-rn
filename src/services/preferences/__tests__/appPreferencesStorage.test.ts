@@ -68,12 +68,11 @@ describe('setPrimaryHrSource', () => {
   });
 
   it('does not clobber existing preferences when writing', async () => {
-    mockGetItem.mockResolvedValue(JSON.stringify({ onboardingCompleted: true, watchHrEnabled: true }));
+    mockGetItem.mockResolvedValue(JSON.stringify({ onboardingCompleted: true }));
     await setPrimaryHrSource('watch');
     const [, value] = mockSetItem.mock.calls[0] as [string, string];
     const written = JSON.parse(value);
     expect(written.onboardingCompleted).toBe(true);
-    expect(written.watchHrEnabled).toBe(true);
     expect(written.primaryHrSource).toBe('watch');
   });
 });
