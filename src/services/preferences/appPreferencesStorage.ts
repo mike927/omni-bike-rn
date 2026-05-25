@@ -30,6 +30,11 @@ export async function markOnboardingCompleted(): Promise<void> {
   await Storage.setItem(STORAGE_KEY, JSON.stringify({ ...current, onboardingCompleted: true }));
 }
 
+// Note: this replaces the legacy `watchHrEnabled` boolean. A pre-existing user's
+// `watchHrEnabled` value is intentionally NOT migrated — `primaryHrSource` starts
+// absent and is resolved to the default (watch > bluetooth > bike) until the user
+// picks one in Settings. A user who had explicitly disabled watch HR is reset to
+// that default; this is a one-time, non-destructive reset.
 export async function loadPrimaryHrSource(): Promise<HrSource | null> {
   const prefs = await loadAppPreferences();
   return prefs.primaryHrSource ?? null;

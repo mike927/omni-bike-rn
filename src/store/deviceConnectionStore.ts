@@ -104,7 +104,10 @@ export const useDeviceConnectionStore = create<DeviceConnectionStore>((set) => (
       latestBikeMetrics: null,
       lastBikeSignalAtMs: null,
     }),
-  // Apple Watch HR is independent of the BLE HR lifecycle — only clear Bluetooth here.
+  // Apple Watch HR is independent of the BLE HR lifecycle, so only the Bluetooth
+  // fields are cleared here. activeHrSource is also released: forgetting the BLE
+  // strap invalidates any lock that pointed at it; the source is re-resolved from
+  // the persisted primary on the next read (resolveEffectiveHrSource's ?? fallback).
   clearHrConnection: () =>
     set({
       hrAdapter: null,
