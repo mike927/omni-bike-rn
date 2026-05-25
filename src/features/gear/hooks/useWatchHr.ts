@@ -11,16 +11,27 @@ import { TrainingPhase } from '../../../types/training';
 import type { WatchSessionStateEvent } from '../../../types/watch';
 
 /**
+ * Grace window before a dropped Watch link reads as `unavailable`. `isReachable`
+ * blips briefly when the Watch screen dims even though the app is still open, so a
+ * momentary drop is debounced; only a sustained drop (app closed/suspended) resolves
+ * to `unavailable`.
+ */
+export const WATCH_REACHABILITY_GRACE_MS = 5000;
+
+/**
  * Root-only hook that owns the Apple Watch HR lifecycle.
  *
  * Tracks the Watch as one of three availabilities:
- *   unavailable — Watch app is not reachable (off or out of range)
- *   idle        — Watch app is reachable, no workout running
- *   in_progress — Watch app is reachable, workout running (HR streams to iPhone)
+ *   unavailable — Watch app is not running (closed or suspended)
+ *   idle        — Watch app is running/reachable, no workout
+ *   in_progress — workout running (HR streams to iPhone)
  *
- * Derived from two signals: the native reachability event and the Watch-emitted
- * `started`/`ended`/`failed` session events. `failed` collapses to `idle` — the
- * iPhone does not surface transient starting/stopping/error states.
+ * Reachability drives `unavailable` ⇄ `idle`, debounced by WATCH_REACHABILITY_GRACE_MS
+ * so a dimmed-screen blip doesn't flap to `unavailable`. Companion presence (paired +
+ * installed) only gates whether the Watch is a candidate: `available: false` forces
+ * `unavailable`, but it never promotes to `idle` — "installed" is not "running".
+ * Session `started`/`ended`/`failed` events drive `in_progress`; `failed` collapses to
+ * `idle`. An active workout is never downgraded.
  *
  * Mount exactly once, at the root layout.
  */
@@ -165,50 +176,71 @@ export function useWatchHr(): void {
   useEffect(() => {
     if (!watchAvailable) return;
 
-    // Companion availability (paired + Watch app installed) is the stable signal
-    // for `unavailable` ⇄ `idle`. It is independent of `isReachable`, which is a
-    // foreground-only link that drops whenever the Watch screen dims.
+    // A momentary reachability drop (Watch screen dimming) must not flap to
+    // `unavailable`; only a sustained drop should. Debounce the downgrade.
+    let unavailableTimer: ReturnType<typeof setTimeout> | null = null;
+    const clearUnavailableTimer = () => {
+      if (unavailableTimer) {
+        clearTimeout(unavailableTimer);
+        unavailableTimer = null;
+      }
+    };
+    const markUnavailable = () => {
+      setWatchAvailability('unavailable');
+      updateAppleWatchHr(null);
+      updateAppleWatchActiveKcal(null);
+    };
+
+    // Companion presence (paired + app installed) only gates whether the Watch is a
+    // candidate. `available: false` (unpaired / uninstalled) is definitive — the Watch
+    // is gone. It never promotes to `idle`: "installed" is not "running", so a closed
+    // companion app must not read as ready. Reachability owns `unavailable` ⇄ `idle`.
     const companionStateSub = WatchConnectivity.addListener(
       'onWatchCompanionStateChange',
       ({ available }: { available: boolean }) => {
         if (!available) {
-          setWatchAvailability('unavailable');
-          updateAppleWatchHr(null);
-          updateAppleWatchActiveKcal(null);
-          return;
-        }
-        // Paired + installed: surface `idle` unless a workout is already running
-        // (a concurrent `started` session event must not be clobbered).
-        if (useDeviceConnectionStore.getState().watchAvailability === 'unavailable') {
-          setWatchAvailability('idle');
+          clearUnavailableTimer();
+          markUnavailable();
         }
       },
     );
 
-    // Reachability is the live message link, not the Watch's existence. It may
-    // UPGRADE availability (unavailable → idle: a reachable Watch is unambiguously
-    // present, so opening the Watch app refreshes a stuck "unavailable"), but it
-    // must never DOWNGRADE (a dimmed Watch drops reachability yet is still paired +
-    // installed). It also retries the HR stream once the link returns mid-ride.
+    // Reachability is the live "Watch app is running" signal: true only while the app
+    // is foreground/active or in an extended-runtime workout. true → `idle`; a
+    // sustained false → `unavailable` after the grace window. An in-progress workout
+    // is never downgraded (extended runtime keeps it reachable). It also retries the HR
+    // stream once the link returns mid-ride.
     const reachabilitySub = WatchConnectivity.addListener('onReachabilityChange', ({ reachable }) => {
-      if (reachable && useDeviceConnectionStore.getState().watchAvailability === 'unavailable') {
-        setWatchAvailability('idle');
+      if (reachable) {
+        clearUnavailableTimer();
+        if (useDeviceConnectionStore.getState().watchAvailability !== 'in_progress') {
+          setWatchAvailability('idle');
+        }
+        if (
+          watchHrEnabledRef.current &&
+          phaseRef.current === TrainingPhase.Active &&
+          !adapterRef.current &&
+          !startingRef.current
+        ) {
+          void startStreamRef.current();
+        }
+        return;
       }
-      if (
-        reachable &&
-        watchHrEnabledRef.current &&
-        phaseRef.current === TrainingPhase.Active &&
-        !adapterRef.current &&
-        !startingRef.current
-      ) {
-        void startStreamRef.current();
-      }
+      if (useDeviceConnectionStore.getState().watchAvailability === 'in_progress') return;
+      clearUnavailableTimer();
+      unavailableTimer = setTimeout(() => {
+        unavailableTimer = null;
+        if (useDeviceConnectionStore.getState().watchAvailability !== 'in_progress') {
+          markUnavailable();
+        }
+      }, WATCH_REACHABILITY_GRACE_MS);
     });
 
     const sessionStateSub = WatchConnectivity.addListener(
       'onWatchSessionState',
       ({ state, sentAtMs }: { state: WatchSessionStateEvent; sentAtMs: number }) => {
         if (sentAtMs < latestStartRequestAtRef.current) return;
+        clearUnavailableTimer();
         setWatchAvailability(state === 'started' ? 'in_progress' : 'idle');
       },
     );
@@ -218,6 +250,7 @@ export function useWatchHr(): void {
     });
 
     return () => {
+      clearUnavailableTimer();
       companionStateSub.remove();
       reachabilitySub.remove();
       sessionStateSub.remove();

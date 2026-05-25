@@ -1,6 +1,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react-native';
 
-import { useWatchHr } from '../useWatchHr';
+import { useWatchHr, WATCH_REACHABILITY_GRACE_MS } from '../useWatchHr';
 import { useDeviceConnectionStore } from '../../../../store/deviceConnectionStore';
 import { useTrainingSessionStore } from '../../../../store/trainingSessionStore';
 import { useWatchHrStore } from '../../../../store/watchHrStore';
@@ -406,21 +406,61 @@ describe('useWatchHr', () => {
       expect(getWatchConnectivityMock().addListener).toHaveBeenCalledWith('onReachabilityChange', expect.any(Function));
     });
 
-    it('keeps availability idle when reachability drops pre-workout (Watch dimmed, not gone)', () => {
-      useDeviceConnectionStore.setState({ watchAvailability: 'idle' });
-      renderHook(() => useWatchHr());
+    it('keeps availability idle during the grace window after a brief reachability drop', () => {
+      jest.useFakeTimers();
+      try {
+        useDeviceConnectionStore.setState({ watchAvailability: 'idle' });
+        renderHook(() => useWatchHr());
 
-      const wc = getWatchConnectivityMock();
-      const reachabilityCallback = wc.addListener.mock.calls.find(
-        ([eventName]: [string]) => eventName === 'onReachabilityChange',
-      )?.[1] as ((payload: { reachable: boolean }) => void) | undefined;
+        const wc = getWatchConnectivityMock();
+        const reachabilityCallback = wc.addListener.mock.calls.find(
+          ([eventName]: [string]) => eventName === 'onReachabilityChange',
+        )?.[1] as ((payload: { reachable: boolean }) => void) | undefined;
 
-      act(() => {
-        reachabilityCallback?.({ reachable: false });
-      });
+        act(() => {
+          reachabilityCallback?.({ reachable: false });
+        });
+        act(() => {
+          jest.advanceTimersByTime(WATCH_REACHABILITY_GRACE_MS - 1);
+        });
+        // A dimmed Watch (brief blip) must not flap to unavailable within the window.
+        expect(useDeviceConnectionStore.getState().watchAvailability).toBe('idle');
 
-      // isReachable is foreground-only; a dimmed Watch must not read as unavailable.
-      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('idle');
+        // Reachability returning before the window elapses cancels the downgrade.
+        act(() => {
+          reachabilityCallback?.({ reachable: true });
+        });
+        act(() => {
+          jest.advanceTimersByTime(WATCH_REACHABILITY_GRACE_MS);
+        });
+        expect(useDeviceConnectionStore.getState().watchAvailability).toBe('idle');
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('falls to unavailable after a sustained reachability drop (app closed or suspended)', () => {
+      jest.useFakeTimers();
+      try {
+        useDeviceConnectionStore.setState({ watchAvailability: 'idle' });
+        renderHook(() => useWatchHr());
+
+        const wc = getWatchConnectivityMock();
+        const reachabilityCallback = wc.addListener.mock.calls.find(
+          ([eventName]: [string]) => eventName === 'onReachabilityChange',
+        )?.[1] as ((payload: { reachable: boolean }) => void) | undefined;
+
+        act(() => {
+          reachabilityCallback?.({ reachable: false });
+        });
+        act(() => {
+          jest.advanceTimersByTime(WATCH_REACHABILITY_GRACE_MS);
+        });
+
+        expect(useDeviceConnectionStore.getState().watchAvailability).toBe('unavailable');
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it('preserves the active watch stream when reachability drops mid-workout', () => {
@@ -504,14 +544,17 @@ describe('useWatchHr', () => {
       )?.[1] as ((payload: { available: boolean }) => void) | undefined;
     }
 
-    it('flips availability to idle when the companion becomes available from unavailable', () => {
+    it('does not promote to idle on companion-available alone — reachability drives idle', () => {
+      useDeviceConnectionStore.setState({ watchAvailability: 'unavailable' });
       renderHook(() => useWatchHr());
 
       act(() => {
         getCompanionCallback()?.({ available: true });
       });
 
-      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('idle');
+      // "installed" is not "running": an installed-but-closed companion must not read
+      // as idle. Availability stays unavailable until the app is actually reachable.
+      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('unavailable');
     });
 
     it('marks availability unavailable when the companion is not paired or installed', () => {
