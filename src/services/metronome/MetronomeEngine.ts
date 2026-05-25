@@ -1,10 +1,10 @@
 import { useDeviceConnectionStore } from '../../store/deviceConnectionStore';
+import { useHrSourceStore } from '../../store/hrSourceStore';
 import { useSavedGearStore } from '../../store/savedGearStore';
 import { useTrainingSessionStore } from '../../store/trainingSessionStore';
 import { useUserProfileStore } from '../../store/userProfileStore';
 import type { BikeMetrics } from '../ble/BikeAdapter';
-import { availableHrSources, resolveDefaultPrimary, resolveHrReading } from '../hr/hrSource';
-import type { HrReading, HrSource } from '../hr/hrSource';
+import { resolveEffectiveHrSource, resolveHrReading, type HrReading } from '../hr/hrSource';
 import type { MetricSnapshot, TrainingTickInput } from '../../types/training';
 import { toKeytelInputs } from '../../types/userProfile';
 
@@ -62,15 +62,18 @@ export class MetronomeEngine {
     } = useDeviceConnectionStore.getState();
 
     const { savedHrSource } = useSavedGearStore.getState();
+    const { primary: primaryHrSource } = useHrSourceStore.getState();
 
-    // Resolve the effective HR source for this tick. If the session has not
-    // locked a source yet (activeHrSource === null), fall back to the default
-    // primary determined by what hardware is available.
+    // Resolve the effective HR source for this tick using the shared resolver.
+    // Priority: session-locked source → user-configured primary → hardware default.
     const watchSupported = watchAvailability !== 'unavailable';
     const savedHrStrapName = savedHrSource?.name ?? null;
-    const effectiveSource =
-      activeHrSource ??
-      resolveDefaultPrimary(availableHrSources({ watchSupported, savedHrStrapName }));
+    const effectiveSource = resolveEffectiveHrSource({
+      activeHrSource,
+      primaryHrSource,
+      watchSupported,
+      savedHrStrapName,
+    });
 
     const nowMs = Date.now();
     const reading = resolveHrReading({
@@ -86,20 +89,14 @@ export class MetronomeEngine {
     // Watch kcal is forwarded only while the watch reading is live — if the
     // watch stream has gone silent (reading.live is false for 'watch' source),
     // drop the stale cumulative kcal so the session falls through to app/power.
-    const effectiveWatchKcal =
-      reading.source === 'watch' && reading.live ? latestAppleWatchActiveKcal : null;
+    const effectiveWatchKcal = reading.source === 'watch' && reading.live ? latestAppleWatchActiveKcal : null;
 
     // Profile snapshot read once per tick. Pure derivation — no store
     // mutation. Returns null when sex / DOB / weight aren't all set, in which
     // case the store falls through to the existing power-based formula.
     const keytelInputs = toKeytelInputs(useUserProfileStore.getState().profile);
 
-    const merged = this.mergeMetrics(
-      latestBikeMetrics,
-      reading,
-      effectiveWatchKcal,
-      keytelInputs,
-    );
+    const merged = this.mergeMetrics(latestBikeMetrics, reading, effectiveWatchKcal, keytelInputs);
     useTrainingSessionStore.getState().tick(merged);
   }
 
@@ -135,7 +132,14 @@ export class MetronomeEngine {
     const hasLiveExternalHr = hrReading.live && hrReading.source !== 'bike';
 
     return {
-      metrics: { speed, cadence, power, heartRate, resistance, distance } satisfies MetricSnapshot,
+      metrics: {
+        speed,
+        cadence,
+        power,
+        heartRate,
+        resistance,
+        distance,
+      } satisfies MetricSnapshot,
       bikeTotalEnergyKcal,
       watchActiveKcal,
       hasLiveExternalHr,

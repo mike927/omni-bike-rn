@@ -1,14 +1,26 @@
-import { availableHrSources, resolveDefaultPrimary, resolveHrReading, HR_NO_SIGNAL_TIMEOUT_MS } from '../hrSource';
+import {
+  availableHrSources,
+  resolveDefaultPrimary,
+  resolveEffectiveHrSource,
+  resolveHrReading,
+  HR_NO_SIGNAL_TIMEOUT_MS,
+} from '../hrSource';
 
 describe('availableHrSources', () => {
   it('offers watch only when supported, strap only when saved, bike always', () => {
-    expect(availableHrSources({ watchSupported: true, savedHrStrapName: 'Polar H10' })).toEqual([
-      'watch',
-      'bluetooth',
-      'bike',
-    ]);
+    expect(
+      availableHrSources({
+        watchSupported: true,
+        savedHrStrapName: 'Polar H10',
+      }),
+    ).toEqual(['watch', 'bluetooth', 'bike']);
     expect(availableHrSources({ watchSupported: false, savedHrStrapName: null })).toEqual(['bike']);
-    expect(availableHrSources({ watchSupported: false, savedHrStrapName: 'Polar H10' })).toEqual(['bluetooth', 'bike']);
+    expect(
+      availableHrSources({
+        watchSupported: false,
+        savedHrStrapName: 'Polar H10',
+      }),
+    ).toEqual(['bluetooth', 'bike']);
   });
 });
 
@@ -17,6 +29,52 @@ describe('resolveDefaultPrimary', () => {
     expect(resolveDefaultPrimary(['watch', 'bluetooth', 'bike'])).toBe('watch');
     expect(resolveDefaultPrimary(['bluetooth', 'bike'])).toBe('bluetooth');
     expect(resolveDefaultPrimary(['bike'])).toBe('bike');
+  });
+});
+
+describe('resolveEffectiveHrSource', () => {
+  const base = { watchSupported: false, savedHrStrapName: null };
+
+  it('activeHrSource wins when set', () => {
+    expect(
+      resolveEffectiveHrSource({
+        ...base,
+        activeHrSource: 'bluetooth',
+        primaryHrSource: 'watch',
+      }),
+    ).toBe('bluetooth');
+  });
+
+  it('primaryHrSource is used when activeHrSource is null', () => {
+    expect(
+      resolveEffectiveHrSource({
+        ...base,
+        activeHrSource: null,
+        primaryHrSource: 'watch',
+      }),
+    ).toBe('watch');
+  });
+
+  it('falls back to default resolution when both active and primary are null', () => {
+    // No watch, no strap → default is 'bike'
+    expect(
+      resolveEffectiveHrSource({
+        ...base,
+        activeHrSource: null,
+        primaryHrSource: null,
+      }),
+    ).toBe('bike');
+  });
+
+  it('default resolution respects watchSupported when primary is null', () => {
+    expect(
+      resolveEffectiveHrSource({
+        watchSupported: true,
+        savedHrStrapName: null,
+        activeHrSource: null,
+        primaryHrSource: null,
+      }),
+    ).toBe('watch');
   });
 });
 
@@ -67,8 +125,12 @@ it('holds the value within the no-signal window (normal sampling gap)', () => {
 
 it('bluetooth uses its own freshness', () => {
   expect(
-    resolveHrReading({ ...base, activeSource: 'bluetooth', latestBluetoothHr: 140, lastBluetoothHrSampleAtMs: 100_000 })
-      .bpm,
+    resolveHrReading({
+      ...base,
+      activeSource: 'bluetooth',
+      latestBluetoothHr: 140,
+      lastBluetoothHrSampleAtMs: 100_000,
+    }).bpm,
   ).toBe(140);
   expect(
     resolveHrReading({

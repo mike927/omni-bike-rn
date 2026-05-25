@@ -1,3 +1,4 @@
+import type { HrSource, HrReading } from './hrSource';
 import type { WatchAvailability } from '../../types/watch';
 
 export type WatchHrDisplayState = 'disabled' | WatchAvailability;
@@ -28,13 +29,22 @@ export const WATCH_HR_UNAVAILABLE_HINT =
   'Open the Omni Bike app on your Apple Watch. If it is not installed yet, add it from the iPhone Watch app.';
 
 export interface HrSourceSummaryInput {
-  readonly watchHrEnabled: boolean;
-  readonly watchHasFreshSample: boolean;
-  readonly watchAvailable: boolean;
+  /** The per-session locked HR source. Null = pre-workout (idle). */
+  readonly activeHrSource: HrSource | null;
+  /**
+   * Current HR reading from `resolveHrReading`. Used for in-workout Connected/No signal.
+   * Ignored in idle mode.
+   */
+  readonly reading: HrReading;
+  /**
+   * The effective primary source for idle display. Always non-null — callers must
+   * resolve a default before calling (e.g. via `resolveEffectiveHrSource`).
+   */
+  readonly primaryHrSource: HrSource;
   readonly watchAvailability: WatchAvailability;
-  readonly hrConnected: boolean;
   readonly savedHrName: string | null;
-  readonly sessionHeartRate: number | null;
+  /** Whether a Bluetooth HR strap is currently connected. Used for idle BLE readiness. */
+  readonly hrConnected: boolean;
 }
 
 export interface HrSourceSummary {
@@ -42,47 +52,57 @@ export interface HrSourceSummary {
   readonly state: string | null;
 }
 
+/** Human-readable name for an HR source. */
+function hrSourceName(source: HrSource, savedHrName: string | null): string {
+  switch (source) {
+    case 'watch':
+      return 'Apple Watch';
+    case 'bluetooth':
+      return savedHrName ?? 'Bluetooth HR';
+    case 'bike':
+      return 'Bike pulse';
+  }
+}
+
 /**
- * Read-only summary for the Training dashboard HR tile: which HR device/source
- * to display and its connection state, mirroring MetronomeEngine's priority
- * (Watch > Bluetooth HR > bike pulse).
+ * Read-only summary for the Training dashboard HR tile.
  *
- * Streaming sources rank first: a fresh Watch sample, then a connected Bluetooth
- * strap, then live bike pulse (a session HR with no Watch/Bluetooth attribution).
- * Watch counts as fresh only when staleness-gated by the caller, so a stale Watch
- * falls through rather than claiming a connection it isn't providing. When nothing
- * is streaming, an available (idle) Watch outranks a saved-but-disconnected strap —
- * keeping Watch > Bluetooth on the idle surface too.
+ * In-workout (`activeHrSource` is set): always displays the locked source with
+ * `Connected` when the reading is live, `No signal` otherwise. Never falls back
+ * to a different source.
+ *
+ * Idle (`activeHrSource` is null): displays the effective primary source's
+ * readiness label (e.g. `Idle`, `Disconnected`, `Connected`).
  */
 export function resolveHrSourceSummary({
-  watchHrEnabled,
-  watchHasFreshSample,
-  watchAvailable,
+  activeHrSource,
+  reading,
+  primaryHrSource,
   watchAvailability,
-  hrConnected,
   savedHrName,
-  sessionHeartRate,
+  hrConnected,
 }: HrSourceSummaryInput): HrSourceSummary {
-  // Streaming sources first, in engine priority order (Watch > Bluetooth > bike).
-  if (watchHrEnabled && watchHasFreshSample) {
-    return { name: 'Apple Watch', state: 'Connected' };
-  }
-  if (hrConnected) {
-    return { name: savedHrName ?? 'Bluetooth HR', state: 'Connected' };
-  }
-  if (sessionHeartRate !== null) {
-    // Live session HR with no fresh Watch and no connected strap = bike pulse.
-    return { name: 'Bike pulse', state: 'Connected' };
-  }
-  // Nothing streaming: an available Watch outranks a saved-but-disconnected strap.
-  if (watchHrEnabled && watchAvailable) {
+  // ── In-workout: locked source wins unconditionally ──────────────────────
+  if (activeHrSource !== null) {
     return {
-      name: 'Apple Watch',
-      state: watchHrDisplayLabel(resolveWatchHrDisplayState(watchHrEnabled, watchAvailability)),
+      name: hrSourceName(activeHrSource, savedHrName),
+      state: reading.live ? 'Connected' : 'No signal',
     };
   }
-  if (savedHrName !== null) {
-    return { name: savedHrName, state: 'Disconnected' };
+
+  // ── Idle: show primary source's readiness ────────────────────────────────
+  switch (primaryHrSource) {
+    case 'watch':
+      return {
+        name: 'Apple Watch',
+        state: WATCH_HR_DISPLAY_LABELS[watchAvailability],
+      };
+    case 'bluetooth':
+      return {
+        name: savedHrName ?? 'Bluetooth HR',
+        state: hrConnected ? 'Connected' : 'Disconnected',
+      };
+    case 'bike':
+      return { name: 'Bike pulse', state: 'Connected' };
   }
-  return { name: 'No HR source', state: null };
 }

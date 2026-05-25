@@ -34,82 +34,219 @@ describe('label helpers', () => {
 });
 
 describe('resolveHrSourceSummary', () => {
-  const base = {
-    watchHrEnabled: false,
-    watchHasFreshSample: false,
-    watchAvailable: false,
-    watchAvailability: 'unavailable' as const,
-    hrConnected: false,
-    savedHrName: null,
-    sessionHeartRate: null,
+  // In-workout base: activeHrSource is set, reading is live
+  const liveWatchReading = { source: 'watch' as const, bpm: 148, live: true };
+  const deadWatchReading = { source: 'watch' as const, bpm: null, live: false };
+  const liveBtReading = { source: 'bluetooth' as const, bpm: 142, live: true };
+  const deadBtReading = {
+    source: 'bluetooth' as const,
+    bpm: null,
+    live: false,
   };
+  const liveBikeReading = { source: 'bike' as const, bpm: 135, live: true };
+  const deadBikeReading = { source: 'bike' as const, bpm: null, live: false };
 
-  it('(1) fresh Watch sample — Apple Watch · Connected', () => {
-    expect(resolveHrSourceSummary({ ...base, watchHrEnabled: true, watchHasFreshSample: true })).toEqual({
-      name: 'Apple Watch',
-      state: 'Connected',
+  // ── In-workout: locked source ─────────────────────────────────────────────
+
+  describe('in-workout (activeHrSource is set)', () => {
+    it('watch locked + live → Apple Watch · Connected', () => {
+      expect(
+        resolveHrSourceSummary({
+          activeHrSource: 'watch',
+          reading: liveWatchReading,
+          primaryHrSource: 'bike',
+          watchAvailability: 'in_progress',
+          savedHrName: null,
+          hrConnected: false,
+        }),
+      ).toEqual({ name: 'Apple Watch', state: 'Connected' });
+    });
+
+    it('watch locked + no signal → Apple Watch · No signal', () => {
+      expect(
+        resolveHrSourceSummary({
+          activeHrSource: 'watch',
+          reading: deadWatchReading,
+          primaryHrSource: 'bike',
+          watchAvailability: 'idle',
+          savedHrName: null,
+          hrConnected: false,
+        }),
+      ).toEqual({ name: 'Apple Watch', state: 'No signal' });
+    });
+
+    it('bluetooth locked + live → saved name · Connected', () => {
+      expect(
+        resolveHrSourceSummary({
+          activeHrSource: 'bluetooth',
+          reading: liveBtReading,
+          primaryHrSource: 'bike',
+          watchAvailability: 'unavailable',
+          savedHrName: 'Polar H10',
+          hrConnected: true,
+        }),
+      ).toEqual({ name: 'Polar H10', state: 'Connected' });
+    });
+
+    it('bluetooth locked + no signal + null name → Bluetooth HR · No signal', () => {
+      expect(
+        resolveHrSourceSummary({
+          activeHrSource: 'bluetooth',
+          reading: deadBtReading,
+          primaryHrSource: 'bike',
+          watchAvailability: 'unavailable',
+          savedHrName: null,
+          hrConnected: false,
+        }),
+      ).toEqual({ name: 'Bluetooth HR', state: 'No signal' });
+    });
+
+    it('bike locked + live → Bike pulse · Connected', () => {
+      expect(
+        resolveHrSourceSummary({
+          activeHrSource: 'bike',
+          reading: liveBikeReading,
+          primaryHrSource: 'bike',
+          watchAvailability: 'unavailable',
+          savedHrName: null,
+          hrConnected: false,
+        }),
+      ).toEqual({ name: 'Bike pulse', state: 'Connected' });
+    });
+
+    it('bike locked + no signal → Bike pulse · No signal', () => {
+      expect(
+        resolveHrSourceSummary({
+          activeHrSource: 'bike',
+          reading: deadBikeReading,
+          primaryHrSource: 'bike',
+          watchAvailability: 'unavailable',
+          savedHrName: null,
+          hrConnected: false,
+        }),
+      ).toEqual({ name: 'Bike pulse', state: 'No signal' });
+    });
+
+    it('never returns a different source than the locked one regardless of other signals', () => {
+      // Bike locked, but BLE is also connected — must still show Bike
+      const result = resolveHrSourceSummary({
+        activeHrSource: 'bike',
+        reading: liveBikeReading,
+        primaryHrSource: 'bike',
+        watchAvailability: 'in_progress',
+        savedHrName: 'Garmin HRM',
+        hrConnected: true,
+      });
+      expect(result.name).toBe('Bike pulse');
+    });
+
+    it('in-workout ignores primaryHrSource entirely', () => {
+      // Even if primary says 'watch', the locked bluetooth source wins
+      expect(
+        resolveHrSourceSummary({
+          activeHrSource: 'bluetooth',
+          reading: liveBtReading,
+          primaryHrSource: 'watch',
+          watchAvailability: 'in_progress',
+          savedHrName: 'Garmin HRM',
+          hrConnected: true,
+        }),
+      ).toEqual({ name: 'Garmin HRM', state: 'Connected' });
     });
   });
 
-  it('fresh Watch outranks a live bike pulse', () => {
-    expect(
-      resolveHrSourceSummary({ ...base, watchHrEnabled: true, watchHasFreshSample: true, sessionHeartRate: 131 }),
-    ).toEqual({ name: 'Apple Watch', state: 'Connected' });
-  });
+  // ── Idle: primary source readiness ───────────────────────────────────────
 
-  it('(2) connected BLE strap — saved name + Connected', () => {
-    expect(resolveHrSourceSummary({ ...base, hrConnected: true, savedHrName: 'Polar H10' })).toEqual({
-      name: 'Polar H10',
-      state: 'Connected',
+  describe('idle (activeHrSource is null)', () => {
+    it('primary watch + availability in_progress → Apple Watch · Connected', () => {
+      expect(
+        resolveHrSourceSummary({
+          activeHrSource: null,
+          reading: liveWatchReading,
+          primaryHrSource: 'watch',
+          watchAvailability: 'in_progress',
+          savedHrName: null,
+          hrConnected: false,
+        }),
+      ).toEqual({ name: 'Apple Watch', state: 'Connected' });
     });
-  });
 
-  it('(2b) connected BLE with null name — Bluetooth HR', () => {
-    expect(resolveHrSourceSummary({ ...base, hrConnected: true })).toEqual({
-      name: 'Bluetooth HR',
-      state: 'Connected',
+    it('primary watch + availability idle → Apple Watch · Idle', () => {
+      expect(
+        resolveHrSourceSummary({
+          activeHrSource: null,
+          reading: deadWatchReading,
+          primaryHrSource: 'watch',
+          watchAvailability: 'idle',
+          savedHrName: null,
+          hrConnected: false,
+        }),
+      ).toEqual({ name: 'Apple Watch', state: 'Idle' });
     });
-  });
 
-  it('connected BLE outranks a live bike pulse', () => {
-    expect(
-      resolveHrSourceSummary({ ...base, hrConnected: true, savedHrName: 'Polar H10', sessionHeartRate: 131 }),
-    ).toEqual({ name: 'Polar H10', state: 'Connected' });
-  });
-
-  it('(3) live session HR with no Watch/BLE — Bike pulse · Connected', () => {
-    expect(resolveHrSourceSummary({ ...base, sessionHeartRate: 131 })).toEqual({
-      name: 'Bike pulse',
-      state: 'Connected',
+    it('primary watch + availability unavailable → Apple Watch · Unavailable', () => {
+      expect(
+        resolveHrSourceSummary({
+          activeHrSource: null,
+          reading: deadWatchReading,
+          primaryHrSource: 'watch',
+          watchAvailability: 'unavailable',
+          savedHrName: null,
+          hrConnected: false,
+        }),
+      ).toEqual({ name: 'Apple Watch', state: 'Unavailable' });
     });
-  });
 
-  it('(4) available Watch outranks a saved-but-disconnected strap', () => {
-    expect(
-      resolveHrSourceSummary({
-        ...base,
-        watchHrEnabled: true,
-        watchAvailable: true,
-        watchAvailability: 'idle',
-        savedHrName: 'Polar H10',
-      }),
-    ).toEqual({ name: 'Apple Watch', state: 'Idle' });
-  });
-
-  it('(4b) enabled+available Watch, availability unavailable — Apple Watch · Unavailable', () => {
-    expect(
-      resolveHrSourceSummary({ ...base, watchHrEnabled: true, watchAvailable: true, watchAvailability: 'unavailable' }),
-    ).toEqual({ name: 'Apple Watch', state: 'Unavailable' });
-  });
-
-  it('(5) saved BLE not connected, no available Watch — Disconnected', () => {
-    expect(resolveHrSourceSummary({ ...base, savedHrName: 'Polar H10' })).toEqual({
-      name: 'Polar H10',
-      state: 'Disconnected',
+    it('primary bluetooth + connected → saved name · Connected', () => {
+      expect(
+        resolveHrSourceSummary({
+          activeHrSource: null,
+          reading: liveBtReading,
+          primaryHrSource: 'bluetooth',
+          watchAvailability: 'unavailable',
+          savedHrName: 'Polar H10',
+          hrConnected: true,
+        }),
+      ).toEqual({ name: 'Polar H10', state: 'Connected' });
     });
-  });
 
-  it('(6) nothing — No HR source, null state', () => {
-    expect(resolveHrSourceSummary(base)).toEqual({ name: 'No HR source', state: null });
+    it('primary bluetooth + disconnected → saved name · Disconnected', () => {
+      expect(
+        resolveHrSourceSummary({
+          activeHrSource: null,
+          reading: deadBtReading,
+          primaryHrSource: 'bluetooth',
+          watchAvailability: 'unavailable',
+          savedHrName: 'Polar H10',
+          hrConnected: false,
+        }),
+      ).toEqual({ name: 'Polar H10', state: 'Disconnected' });
+    });
+
+    it('primary bluetooth + null name + disconnected → Bluetooth HR · Disconnected', () => {
+      expect(
+        resolveHrSourceSummary({
+          activeHrSource: null,
+          reading: deadBtReading,
+          primaryHrSource: 'bluetooth',
+          watchAvailability: 'unavailable',
+          savedHrName: null,
+          hrConnected: false,
+        }),
+      ).toEqual({ name: 'Bluetooth HR', state: 'Disconnected' });
+    });
+
+    it('primary bike → Bike pulse · Connected (always available)', () => {
+      expect(
+        resolveHrSourceSummary({
+          activeHrSource: null,
+          reading: deadBikeReading,
+          primaryHrSource: 'bike',
+          watchAvailability: 'unavailable',
+          savedHrName: null,
+          hrConnected: false,
+        }),
+      ).toEqual({ name: 'Bike pulse', state: 'Connected' });
+    });
   });
 });

@@ -19,6 +19,28 @@ export function resolveDefaultPrimary(available: HrSource[]): HrSource {
   return PRIORITY.find((s) => available.includes(s)) ?? 'bike';
 }
 
+export interface ResolveEffectiveHrSourceInput extends HrSourceAvailabilityInput {
+  readonly activeHrSource: HrSource | null;
+  readonly primaryHrSource: HrSource | null;
+}
+
+/**
+ * Single source of truth for the effective HR source used by both the
+ * dashboard and the MetronomeEngine.
+ *
+ * Priority: session-locked source → user-configured primary → hardware default.
+ */
+export function resolveEffectiveHrSource({
+  activeHrSource,
+  primaryHrSource,
+  watchSupported,
+  savedHrStrapName,
+}: ResolveEffectiveHrSourceInput): HrSource {
+  return (
+    activeHrSource ?? primaryHrSource ?? resolveDefaultPrimary(availableHrSources({ watchSupported, savedHrStrapName }))
+  );
+}
+
 // Sustained loss before "No signal". Set above the slowest source cadence (Apple
 // Watch wrist HR delivers ~every 6 s with occasional longer gaps) so a normal gap
 // does not blank the value; only a real loss does.

@@ -3,6 +3,7 @@ import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
 import { useTrainingSessionStore } from '../../../store/trainingSessionStore';
 import { useUserProfileStore } from '../../../store/userProfileStore';
 import { useSavedGearStore } from '../../../store/savedGearStore';
+import { useHrSourceStore } from '../../../store/hrSourceStore';
 import { TrainingPhase } from '../../../types/training';
 import { EMPTY_USER_PROFILE } from '../../../types/userProfile';
 import { HR_NO_SIGNAL_TIMEOUT_MS } from '../../hr/hrSource';
@@ -48,6 +49,8 @@ describe('MetronomeEngine', () => {
     useUserProfileStore.setState({ profile: { ...EMPTY_USER_PROFILE, sources: {} }, hydrated: false });
     // Gear store: no saved HR strap so the default fallback resolves to 'bike'.
     useSavedGearStore.setState({ savedHrSource: null });
+    // HR source store: no configured primary so resolution uses hardware defaults.
+    useHrSourceStore.setState({ primary: null, hydrated: false });
   });
 
   afterEach(() => {
@@ -246,7 +249,11 @@ describe('MetronomeEngine', () => {
       useTrainingSessionStore.getState().start();
 
       const bikeMetrics: BikeMetrics = {
-        speed: 25, cadence: 80, power: 4186, heartRate: 72, totalEnergyKcal: 500,
+        speed: 25,
+        cadence: 80,
+        power: 4186,
+        heartRate: 72,
+        totalEnergyKcal: 500,
       };
       useDeviceConnectionStore.getState().updateBikeMetrics(bikeMetrics);
       useDeviceConnectionStore.getState().setActiveHrSource('bike');
@@ -278,7 +285,11 @@ describe('MetronomeEngine', () => {
       useTrainingSessionStore.getState().start();
 
       const bikeMetrics: BikeMetrics = {
-        speed: 25, cadence: 80, power: 4186, heartRate: 72, totalEnergyKcal: 500,
+        speed: 25,
+        cadence: 80,
+        power: 4186,
+        heartRate: 72,
+        totalEnergyKcal: 500,
       };
       useDeviceConnectionStore.getState().updateBikeMetrics(bikeMetrics);
       useDeviceConnectionStore.getState().updateBluetoothHr(145);
@@ -337,7 +348,9 @@ describe('MetronomeEngine', () => {
     it('should drop stale Watch samples and stop using Watch kcal when the Watch stream goes silent', () => {
       useTrainingSessionStore.getState().start();
 
-      useDeviceConnectionStore.getState().updateBikeMetrics({ speed: 25, cadence: 80, power: 4186, totalEnergyKcal: 100 });
+      useDeviceConnectionStore
+        .getState()
+        .updateBikeMetrics({ speed: 25, cadence: 80, power: 4186, totalEnergyKcal: 100 });
       useDeviceConnectionStore.getState().updateAppleWatchHr(150);
       useDeviceConnectionStore.getState().updateAppleWatchActiveKcal(10);
       useDeviceConnectionStore.getState().setActiveHrSource('watch');
@@ -356,7 +369,9 @@ describe('MetronomeEngine', () => {
     it('should resume the Watch branch when a fresh sample arrives after a staleness drop', () => {
       useTrainingSessionStore.getState().start();
 
-      useDeviceConnectionStore.getState().updateBikeMetrics({ speed: 25, cadence: 80, power: 4186, totalEnergyKcal: 100 });
+      useDeviceConnectionStore
+        .getState()
+        .updateBikeMetrics({ speed: 25, cadence: 80, power: 4186, totalEnergyKcal: 100 });
       useDeviceConnectionStore.getState().updateAppleWatchHr(150);
       useDeviceConnectionStore.getState().updateAppleWatchActiveKcal(10);
       useDeviceConnectionStore.getState().setActiveHrSource('watch');

@@ -6,11 +6,12 @@ import { useDeviceConnection } from '../hooks/useDeviceConnection';
 import { useTrainingSession } from '../hooks/useTrainingSession';
 import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
 import { reconnectLabel } from '../../gear/reconnectLabel';
-import { useWatchHrControls } from '../../gear/hooks/useWatchHrControls';
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { buildTrainingSummaryRoute, POST_FINISH_TRAINING_SUMMARY_SOURCE } from '../navigation/trainingSummaryRoute';
 import { resolveHrSourceSummary } from '../../../services/hr/hrStatus';
-import { resolveEffectiveWatchHr } from '../../../services/hr/watchSampleFreshness';
+import { resolveHrReading, resolveEffectiveHrSource } from '../../../services/hr/hrSource';
+import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
+import { useHrSourceStore } from '../../../store/hrSourceStore';
 import { TrainingPhase } from '../../../types/training';
 import { ActionButton } from '../../../ui/components/ActionButton';
 import { MetricTile } from '../../../ui/components/MetricTile';
@@ -48,35 +49,50 @@ export function TrainingDashboardScreen() {
   const {
     bikeConnected,
     hrConnected,
+    latestBikeMetrics,
     latestBluetoothHr,
     latestAppleWatchHr,
     lastAppleWatchSampleAtMs,
     watchAvailability,
   } = useDeviceConnection();
-  const { watchAvailable, watchHrEnabled } = useWatchHrControls();
   const { savedHrSource } = useSavedGear();
   const { bikeReconnectState } = useAutoReconnect();
   const [isFinishing, setIsFinishing] = useState(false);
-  // Mirror MetronomeEngine's staleness gate so the surfaced source never claims
-  // the Watch while a retained-but-stale sample is being ignored by the engine.
-  const effectiveWatchHr = resolveEffectiveWatchHr(
-    latestAppleWatchHr ?? null,
-    lastAppleWatchSampleAtMs ?? null,
-    Date.now(),
-  );
-  // Idle-state fallback: session HR (from MetronomeEngine, which already applies full priority)
-  // takes precedence; Watch HR (only when enabled + fresh) and Bluetooth HR are pre-start previews.
-  const resolvedHeartRate =
-    session.currentMetrics.heartRate ?? (watchHrEnabled ? effectiveWatchHr : null) ?? latestBluetoothHr;
 
+  const activeHrSource = useDeviceConnectionStore((s) => s.activeHrSource);
+  const primaryHrSourceFromStore = useHrSourceStore((s) => s.primary);
+  const lastBluetoothHrSampleAtMs = useDeviceConnectionStore((s) => s.lastBluetoothHrSampleAtMs);
+
+  // watchSupported mirrors MetronomeEngine: watch is supported when it is not unavailable.
+  const savedHrName = savedHrSource?.name ?? null;
+  const watchSupported = (watchAvailability ?? 'unavailable') !== 'unavailable';
+
+  // Single shared resolver: session-locked source → user-configured primary → hardware default.
+  const effectiveHrSource = resolveEffectiveHrSource({
+    activeHrSource,
+    primaryHrSource: primaryHrSourceFromStore,
+    watchSupported,
+    savedHrStrapName: savedHrName,
+  });
+
+  const reading = resolveHrReading({
+    activeSource: effectiveHrSource,
+    latestAppleWatchHr: latestAppleWatchHr ?? null,
+    lastAppleWatchSampleAtMs: lastAppleWatchSampleAtMs ?? null,
+    latestBluetoothHr: latestBluetoothHr ?? null,
+    lastBluetoothHrSampleAtMs: lastBluetoothHrSampleAtMs ?? null,
+    bikeHeartRate: latestBikeMetrics?.heartRate ?? null,
+    nowMs: Date.now(),
+  });
+
+  // effectiveHrSource is always non-null; pass it directly as the idle primary.
   const hrSummary = resolveHrSourceSummary({
-    watchHrEnabled,
-    watchHasFreshSample: effectiveWatchHr !== null,
-    watchAvailable,
+    activeHrSource,
+    reading,
+    primaryHrSource: effectiveHrSource,
     watchAvailability: watchAvailability ?? 'unavailable',
+    savedHrName,
     hrConnected,
-    savedHrName: savedHrSource?.name ?? null,
-    sessionHeartRate: session.currentMetrics.heartRate ?? null,
   });
 
   const showDisconnectedState =
@@ -122,7 +138,7 @@ export function TrainingDashboardScreen() {
           <MetricTile label="Power" value={`${session.currentMetrics.power} W`} style={styles.primaryMetricTile} />
           <MetricTile
             label="Heart Rate"
-            value={formatMetricValue(resolvedHeartRate, ' bpm')}
+            value={formatMetricValue(session.currentMetrics.heartRate ?? null, ' bpm')}
             style={styles.primaryMetricTile}
           />
           <MetricTile
