@@ -1,11 +1,15 @@
 import Storage from 'expo-sqlite/kv-store';
 
+import type { HrSource } from '../hr/hrSource';
+
 const STORAGE_KEY = 'omni:appPreferences';
 
 interface AppPreferences {
   onboardingCompleted: boolean;
   /** Whether the user has enabled Apple Watch as a native HR source. */
   watchHrEnabled: boolean;
+  /** The user's chosen primary HR source. Absent = no explicit preference set. */
+  primaryHrSource?: HrSource;
 }
 
 const DEFAULT_PREFERENCES: AppPreferences = {
@@ -37,4 +41,14 @@ export async function loadWatchHrEnabled(): Promise<boolean> {
 export async function setWatchHrEnabled(enabled: boolean): Promise<void> {
   const current = await loadAppPreferences();
   await Storage.setItem(STORAGE_KEY, JSON.stringify({ ...current, watchHrEnabled: enabled }));
+}
+
+export async function loadPrimaryHrSource(): Promise<HrSource | null> {
+  const prefs = await loadAppPreferences();
+  return prefs.primaryHrSource ?? null;
+}
+
+export async function setPrimaryHrSource(source: HrSource): Promise<void> {
+  const current = await loadAppPreferences();
+  await Storage.setItem(STORAGE_KEY, JSON.stringify({ ...current, primaryHrSource: source }));
 }
