@@ -8,7 +8,7 @@ import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
 import { useTrainingSessionStore } from '../../../store/trainingSessionStore';
 import { useWatchHrStore } from '../../../store/watchHrStore';
 import { TrainingPhase } from '../../../types/training';
-import type { WatchSessionStateEvent } from '../../../types/watch';
+import type { WatchAvailability, WatchSessionStateEvent } from '../../../types/watch';
 
 /**
  * Grace window before a dropped Watch link reads as `unavailable`. `isReachable`
@@ -17,6 +17,16 @@ import type { WatchSessionStateEvent } from '../../../types/watch';
  * to `unavailable`.
  */
 export const WATCH_REACHABILITY_GRACE_MS = 5000;
+
+// Dev-only tracing of the Watch↔iPhone link — every WC event arrival and every
+// availability transition (with its cause) — surfaced to Metro. This connection is
+// flaky in the field, so making the flow observable is worth the lines. `console.warn`
+// is lint-allowed; gated on __DEV__ so nothing ships to production logs.
+function logWc(message: string): void {
+  if (__DEV__) {
+    console.warn(`[WC-JS] ${message}`);
+  }
+}
 
 /**
  * Root-only hook that owns the Apple Watch HR lifecycle.
@@ -185,8 +195,16 @@ export function useWatchHr(): void {
         unavailableTimer = null;
       }
     };
-    const markUnavailable = () => {
-      setWatchAvailability('unavailable');
+    // Single funnel for availability writes so every transition is traced with its cause.
+    const setAvailability = (next: WatchAvailability, reason: string) => {
+      const prev = useDeviceConnectionStore.getState().watchAvailability;
+      if (prev !== next) {
+        logWc(`availability ${prev} -> ${next} (${reason})`);
+      }
+      setWatchAvailability(next);
+    };
+    const markUnavailable = (reason: string) => {
+      setAvailability('unavailable', reason);
       updateAppleWatchHr(null);
       updateAppleWatchActiveKcal(null);
     };
@@ -198,9 +216,10 @@ export function useWatchHr(): void {
     const companionStateSub = WatchConnectivity.addListener(
       'onWatchCompanionStateChange',
       ({ available }: { available: boolean }) => {
+        logWc(`event companion available=${available}`);
         if (!available) {
           clearUnavailableTimer();
-          markUnavailable();
+          markUnavailable('companion unpaired/uninstalled');
         }
       },
     );
@@ -211,10 +230,11 @@ export function useWatchHr(): void {
     // is never downgraded (extended runtime keeps it reachable). It also retries the HR
     // stream once the link returns mid-ride.
     const reachabilitySub = WatchConnectivity.addListener('onReachabilityChange', ({ reachable }) => {
+      logWc(`event reachability reachable=${reachable}`);
       if (reachable) {
         clearUnavailableTimer();
         if (useDeviceConnectionStore.getState().watchAvailability !== 'in_progress') {
-          setWatchAvailability('idle');
+          setAvailability('idle', 'reachable');
         }
         if (
           watchHrEnabledRef.current &&
@@ -222,16 +242,21 @@ export function useWatchHr(): void {
           !adapterRef.current &&
           !startingRef.current
         ) {
+          logWc('reachable mid-ride — retrying HR stream');
           void startStreamRef.current();
         }
         return;
       }
-      if (useDeviceConnectionStore.getState().watchAvailability === 'in_progress') return;
+      if (useDeviceConnectionStore.getState().watchAvailability === 'in_progress') {
+        logWc('reachability=false ignored (in_progress)');
+        return;
+      }
       clearUnavailableTimer();
+      logWc(`reachability=false — arming ${WATCH_REACHABILITY_GRACE_MS}ms grace`);
       unavailableTimer = setTimeout(() => {
         unavailableTimer = null;
         if (useDeviceConnectionStore.getState().watchAvailability !== 'in_progress') {
-          markUnavailable();
+          markUnavailable('reachability lost past grace');
         }
       }, WATCH_REACHABILITY_GRACE_MS);
     });
@@ -239,12 +264,17 @@ export function useWatchHr(): void {
     const sessionStateSub = WatchConnectivity.addListener(
       'onWatchSessionState',
       ({ state, sentAtMs }: { state: WatchSessionStateEvent; sentAtMs: number }) => {
-        if (sentAtMs < latestStartRequestAtRef.current) return;
+        logWc(`event session state=${state} sentAtMs=${sentAtMs} latestStart=${latestStartRequestAtRef.current}`);
+        if (sentAtMs < latestStartRequestAtRef.current) {
+          logWc('session event ignored (stale — predates current start request)');
+          return;
+        }
         clearUnavailableTimer();
-        setWatchAvailability(state === 'started' ? 'in_progress' : 'idle');
+        setAvailability(state === 'started' ? 'in_progress' : 'idle', `session ${state}`);
       },
     );
 
+    logWc('activating WatchConnectivity');
     void WatchConnectivity.activate().catch((error: unknown) => {
       console.error('[useWatchHr] Failed to activate WatchConnectivity:', error);
     });
