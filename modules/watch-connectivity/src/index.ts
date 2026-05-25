@@ -31,6 +31,14 @@ declare class WatchConnectivityNativeModule extends NativeModule<WatchConnectivi
    */
   endMirroredWorkout(): Promise<void>;
   /**
+   * Tells the paired Watch to pause its active workout session. The Watch owns the
+   * HKWorkoutSession, so only it can pause — pausing stops its workout timer and HR
+   * collection. Queued via transferUserInfo when the Watch is unreachable.
+   */
+  pauseMirroredWorkout(): Promise<void>;
+  /** Tells the paired Watch to resume its paused workout session. */
+  resumeMirroredWorkout(): Promise<void>;
+  /**
    * Sends a message dictionary to the paired Watch. Returns `true` if the message was
    * delivered to the WC layer, `false` if the session was not activated or the Watch
    * was not currently reachable.

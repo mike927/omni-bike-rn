@@ -45,6 +45,8 @@ fileprivate enum PayloadKey {
 fileprivate enum WatchCommand {
   static let start = "start"
   static let stop = "stop"
+  static let pause = "pause"
+  static let resume = "resume"
 }
 
 public class WatchConnectivityModule: Module {
@@ -177,6 +179,20 @@ public class WatchConnectivityModule: Module {
       promise.resolve()
     }
 
+    // Forwards a pause to the Watch. The Watch owns the HKWorkoutSession, so only it
+    // can pause it — pausing stops its system workout timer and HR collection.
+    AsyncFunction("pauseMirroredWorkout") { (promise: Promise) in
+      wcLog("[WC-iPhone] pauseMirroredWorkout() called")
+      self.sendCommandToWatch(WatchCommand.pause, label: "pauseMirroredWorkout")
+      promise.resolve()
+    }
+
+    AsyncFunction("resumeMirroredWorkout") { (promise: Promise) in
+      wcLog("[WC-iPhone] resumeMirroredWorkout() called")
+      self.sendCommandToWatch(WatchCommand.resume, label: "resumeMirroredWorkout")
+      promise.resolve()
+    }
+
     Function("sendMessage") { (message: [String: Any]) -> Bool in
       let session = WCSession.default
       guard session.activationState == .activated, session.isReachable else {
@@ -216,6 +232,25 @@ public class WatchConnectivityModule: Module {
       wcLog("[WC-iPhone] flushPendingStart: sendMessage error=\(error.localizedDescription)")
     }
     pendingStart = false
+  }
+
+  // Sends a lifecycle command (pause/resume) to the Watch. Live via sendMessage when
+  // reachable; otherwise queued FIFO via transferUserInfo so it still arrives when the
+  // Watch next wakes — same delivery contract as the stop command.
+  fileprivate func sendCommandToWatch(_ command: String, label: String) {
+    let session = WCSession.default
+    guard session.activationState == .activated else {
+      wcLog("[WC-iPhone] \(label): dropping — WC not activated")
+      return
+    }
+    let payload = [PayloadKey.command: command]
+    if session.isReachable {
+      wcLog("[WC-iPhone] \(label): sending via sendMessage")
+      session.sendMessage(payload, replyHandler: nil)
+    } else {
+      wcLog("[WC-iPhone] \(label): unreachable — queuing via transferUserInfo")
+      session.transferUserInfo(payload)
+    }
   }
 
   fileprivate func emitHr(_ hr: Int) {

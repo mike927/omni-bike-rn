@@ -9,6 +9,8 @@ struct ContentView: View {
             return .secondary
         case .inProgress:
             return .green
+        case .paused:
+            return .orange
         }
     }
 
@@ -18,6 +20,8 @@ struct ContentView: View {
             return "Idle"
         case .inProgress:
             return "Workout In Progress"
+        case .paused:
+            return "Paused"
         }
     }
 
@@ -27,6 +31,8 @@ struct ContentView: View {
             return "Waiting for the next ride"
         case .inProgress:
             return "Live heart rate"
+        case .paused:
+            return "Workout paused"
         }
     }
 

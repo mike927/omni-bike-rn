@@ -15,6 +15,8 @@ jest.mock('watch-connectivity', () => ({
     activate: jest.fn(),
     sendMessage: jest.fn(),
     addListener: jest.fn(),
+    pauseMirroredWorkout: jest.fn(),
+    resumeMirroredWorkout: jest.fn(),
   },
 }));
 
@@ -44,6 +46,8 @@ function getWatchConnectivityMock() {
       activate: jest.Mock;
       sendMessage: jest.Mock;
       addListener: jest.Mock;
+      pauseMirroredWorkout: jest.Mock;
+      resumeMirroredWorkout: jest.Mock;
     };
   };
   return mod.WatchConnectivity;
@@ -93,6 +97,8 @@ beforeEach(() => {
   wc.activate.mockResolvedValue(undefined);
   wc.sendMessage.mockReturnValue(true);
   wc.addListener.mockReturnValue({ remove: jest.fn() });
+  wc.pauseMirroredWorkout.mockResolvedValue(undefined);
+  wc.resumeMirroredWorkout.mockResolvedValue(undefined);
 
   const prefs = getAppPreferencesMock();
   prefs.loadWatchHrEnabled.mockResolvedValue(false);
@@ -396,6 +402,50 @@ describe('useWatchHr', () => {
       await waitFor(() => {
         expect(disconnect).toHaveBeenCalledTimes(1);
         expect(subscribeToHeartRate).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('Watch pause/resume', () => {
+    it('tells the Watch to pause when the workout pauses', async () => {
+      useWatchHrStore.setState({ enabled: true, hydrated: true });
+      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+
+      const { rerender } = renderHook(() => useWatchHr());
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Paused } as never);
+      });
+      rerender({});
+
+      await waitFor(() => {
+        expect(getWatchConnectivityMock().pauseMirroredWorkout).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('tells the Watch to resume when the workout resumes from pause', async () => {
+      useWatchHrStore.setState({ enabled: true, hydrated: true });
+      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+
+      const { rerender } = renderHook(() => useWatchHr());
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Paused } as never);
+      });
+      rerender({});
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+      });
+      rerender({});
+
+      await waitFor(() => {
+        expect(getWatchConnectivityMock().resumeMirroredWorkout).toHaveBeenCalledTimes(1);
       });
     });
   });

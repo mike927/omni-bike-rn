@@ -163,11 +163,28 @@ export function useWatchHr(): void {
     stopStreamRef.current = stopStream;
   }, [stopStream]);
 
+  // Tracks the phase the previous run saw, so a resume (Paused→Active) is told apart
+  // from a fresh start (Idle→Active) and the right pause/resume command is emitted.
+  const prevPhaseRef = useRef(phase);
   useEffect(() => {
     if (!watchAvailable) return;
+    const prevPhase = prevPhaseRef.current;
+    prevPhaseRef.current = phase;
 
     if (phase === TrainingPhase.Active && watchHrEnabled) {
       void startStream();
+      if (prevPhase === TrainingPhase.Paused) {
+        // Resuming: the stream is still connected; tell the Watch to resume its session.
+        void WatchConnectivity.resumeMirroredWorkout().catch((error: unknown) => {
+          console.error('[useWatchHr] Failed to resume Watch workout:', error);
+        });
+      }
+    } else if (phase === TrainingPhase.Paused && watchHrEnabled) {
+      // Keep the stream alive but pause the Watch session so its workout timer and HR
+      // collection stop in sync with the iPhone (the Watch owns the HKWorkoutSession).
+      void WatchConnectivity.pauseMirroredWorkout().catch((error: unknown) => {
+        console.error('[useWatchHr] Failed to pause Watch workout:', error);
+      });
     } else if (phase === TrainingPhase.Finished && watchHrEnabled) {
       void stopStream();
     } else if (phase === TrainingPhase.Idle || !watchHrEnabled) {
