@@ -2,8 +2,10 @@ import { MetronomeEngine } from '../MetronomeEngine';
 import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
 import { useTrainingSessionStore } from '../../../store/trainingSessionStore';
 import { useUserProfileStore } from '../../../store/userProfileStore';
+import { useSavedGearStore } from '../../../store/savedGearStore';
 import { TrainingPhase } from '../../../types/training';
 import { EMPTY_USER_PROFILE } from '../../../types/userProfile';
+import { HR_NO_SIGNAL_TIMEOUT_MS } from '../../hr/hrSource';
 import type { BikeMetrics } from '../../ble/BikeAdapter';
 
 describe('MetronomeEngine', () => {
@@ -44,6 +46,8 @@ describe('MetronomeEngine', () => {
     // training store falls through to the existing power formula. Tests that
     // exercise the Keytel branch override this explicitly.
     useUserProfileStore.setState({ profile: { ...EMPTY_USER_PROFILE, sources: {} }, hydrated: false });
+    // Gear store: no saved HR strap so the default fallback resolves to 'bike'.
+    useSavedGearStore.setState({ savedHrSource: null });
   });
 
   afterEach(() => {
@@ -154,37 +158,14 @@ describe('MetronomeEngine', () => {
     });
   });
 
-  describe('HR priority', () => {
-    it('should prefer Bluetooth HR over bike HR', () => {
+  describe('HR locked source', () => {
+    it('uses watch HR when activeHrSource is watch and the sample is fresh', () => {
       useTrainingSessionStore.getState().start();
 
-      const bikeMetrics: BikeMetrics = {
-        speed: 25,
-        cadence: 80,
-        power: 150,
-        heartRate: 72,
-      };
+      const bikeMetrics: BikeMetrics = { speed: 25, cadence: 80, power: 150, heartRate: 72 };
       useDeviceConnectionStore.getState().updateBikeMetrics(bikeMetrics);
-      useDeviceConnectionStore.getState().updateBluetoothHr(145);
-
-      engine.start();
-      jest.advanceTimersByTime(1000);
-
-      expect(useTrainingSessionStore.getState().currentMetrics.heartRate).toBe(145);
-    });
-
-    it('should prefer Apple Watch HR over Bluetooth HR', () => {
-      useTrainingSessionStore.getState().start();
-
-      const bikeMetrics: BikeMetrics = {
-        speed: 25,
-        cadence: 80,
-        power: 150,
-        heartRate: 72,
-      };
-      useDeviceConnectionStore.getState().updateBikeMetrics(bikeMetrics);
-      useDeviceConnectionStore.getState().updateBluetoothHr(145);
       useDeviceConnectionStore.getState().updateAppleWatchHr(158);
+      useDeviceConnectionStore.getState().setActiveHrSource('watch');
 
       engine.start();
       jest.advanceTimersByTime(1000);
@@ -192,16 +173,49 @@ describe('MetronomeEngine', () => {
       expect(useTrainingSessionStore.getState().currentMetrics.heartRate).toBe(158);
     });
 
-    it('should fall back to bike HR when no external source is available', () => {
+    it('returns null HR (not bike fallback) when activeHrSource is watch and watch is stale', () => {
       useTrainingSessionStore.getState().start();
 
-      const bikeMetrics: BikeMetrics = {
-        speed: 25,
-        cadence: 80,
-        power: 150,
-        heartRate: 72,
-      };
+      const bikeMetrics: BikeMetrics = { speed: 25, cadence: 80, power: 150, heartRate: 72 };
       useDeviceConnectionStore.getState().updateBikeMetrics(bikeMetrics);
+      useDeviceConnectionStore.getState().updateAppleWatchHr(158);
+      useDeviceConnectionStore.getState().setActiveHrSource('watch');
+
+      engine.start();
+      jest.advanceTimersByTime(1000);
+      // Watch sample is fresh — HR is 158
+      expect(useTrainingSessionStore.getState().currentMetrics.heartRate).toBe(158);
+
+      // Advance past the no-signal timeout without a new watch sample
+      jest.advanceTimersByTime(HR_NO_SIGNAL_TIMEOUT_MS + 1000);
+
+      // Must be null — must NOT fall through to bike HR (72)
+      expect(useTrainingSessionStore.getState().currentMetrics.heartRate).toBeNull();
+    });
+
+    it('uses Bluetooth HR when activeHrSource is bluetooth', () => {
+      useTrainingSessionStore.getState().start();
+
+      const bikeMetrics: BikeMetrics = { speed: 25, cadence: 80, power: 150, heartRate: 72 };
+      useDeviceConnectionStore.getState().updateBikeMetrics(bikeMetrics);
+      useDeviceConnectionStore.getState().updateAppleWatchHr(158);
+      useDeviceConnectionStore.getState().updateBluetoothHr(145);
+      useDeviceConnectionStore.getState().setActiveHrSource('bluetooth');
+
+      engine.start();
+      jest.advanceTimersByTime(1000);
+
+      expect(useTrainingSessionStore.getState().currentMetrics.heartRate).toBe(145);
+    });
+
+    it('uses bike HR when activeHrSource is bike', () => {
+      useTrainingSessionStore.getState().start();
+
+      const bikeMetrics: BikeMetrics = { speed: 25, cadence: 80, power: 150, heartRate: 72 };
+      useDeviceConnectionStore.getState().updateBikeMetrics(bikeMetrics);
+      useDeviceConnectionStore.getState().updateAppleWatchHr(158);
+      useDeviceConnectionStore.getState().updateBluetoothHr(145);
+      useDeviceConnectionStore.getState().setActiveHrSource('bike');
 
       engine.start();
       jest.advanceTimersByTime(1000);
@@ -209,16 +223,50 @@ describe('MetronomeEngine', () => {
       expect(useTrainingSessionStore.getState().currentMetrics.heartRate).toBe(72);
     });
 
-    it('should return null HR when no source provides it', () => {
+    it('hasLiveExternalHr is true for watch with a fresh sample', () => {
+      useTrainingSessionStore.getState().start();
+
+      useDeviceConnectionStore.getState().updateAppleWatchHr(158);
+      useDeviceConnectionStore.getState().setActiveHrSource('watch');
+      // Power is high enough that if bike were the calorie source the engine
+      // would accumulate kcal; totalEnergyKcal is intentionally absent so the
+      // only active calorie path is hasLiveExternalHr (app/power formula).
+      useDeviceConnectionStore.getState().updateBikeMetrics({ speed: 25, cadence: 80, power: 4186 });
+
+      engine.start();
+      jest.advanceTimersByTime(1000);
+
+      const state = useTrainingSessionStore.getState();
+      expect(state.currentMetrics.heartRate).toBe(158);
+      // hasLiveExternalHr = true → calorie source must not be 'bike'
+      expect(state.lastCalorieSourceMode).toBe('app');
+    });
+
+    it('hasLiveExternalHr is false when activeHrSource is bike', () => {
       useTrainingSessionStore.getState().start();
 
       const bikeMetrics: BikeMetrics = {
-        speed: 25,
-        cadence: 80,
-        power: 150,
-        // No heartRate field
+        speed: 25, cadence: 80, power: 4186, heartRate: 72, totalEnergyKcal: 500,
       };
       useDeviceConnectionStore.getState().updateBikeMetrics(bikeMetrics);
+      useDeviceConnectionStore.getState().setActiveHrSource('bike');
+
+      engine.start();
+      // First tick establishes baseline kcal offset (200 kcal → 0 accumulated)
+      jest.advanceTimersByTime(1000);
+
+      useDeviceConnectionStore.getState().updateBikeMetrics({ ...bikeMetrics, totalEnergyKcal: 503 });
+      jest.advanceTimersByTime(1000);
+
+      // With hasLiveExternalHr = false (bike source), bike total energy kcal is used
+      expect(useTrainingSessionStore.getState().totalCalories).toBe(3);
+    });
+
+    it('returns null HR when no source provides it and activeHrSource defaults to bike with no bike HR', () => {
+      useTrainingSessionStore.getState().start();
+      // No activeHrSource set (null), no saved HR strap, no watch → defaults to 'bike'
+      // Bike has no heartRate field
+      useDeviceConnectionStore.getState().updateBikeMetrics({ speed: 25, cadence: 80, power: 150 });
 
       engine.start();
       jest.advanceTimersByTime(1000);
@@ -226,18 +274,15 @@ describe('MetronomeEngine', () => {
       expect(useTrainingSessionStore.getState().currentMetrics.heartRate).toBeNull();
     });
 
-    it('should keep app-calculated calories when external HR is live even if bike energy is available', () => {
+    it('should keep app-calculated calories when external HR is live (bluetooth source) even if bike energy is available', () => {
       useTrainingSessionStore.getState().start();
 
       const bikeMetrics: BikeMetrics = {
-        speed: 25,
-        cadence: 80,
-        power: 4186,
-        heartRate: 72,
-        totalEnergyKcal: 500,
+        speed: 25, cadence: 80, power: 4186, heartRate: 72, totalEnergyKcal: 500,
       };
       useDeviceConnectionStore.getState().updateBikeMetrics(bikeMetrics);
       useDeviceConnectionStore.getState().updateBluetoothHr(145);
+      useDeviceConnectionStore.getState().setActiveHrSource('bluetooth');
 
       engine.start();
       jest.advanceTimersByTime(1000);
@@ -253,6 +298,7 @@ describe('MetronomeEngine', () => {
 
       useDeviceConnectionStore.getState().updateAppleWatchHr(150);
       useDeviceConnectionStore.getState().updateAppleWatchActiveKcal(10);
+      useDeviceConnectionStore.getState().setActiveHrSource('watch');
 
       engine.start();
       jest.advanceTimersByTime(1000);
@@ -276,10 +322,11 @@ describe('MetronomeEngine', () => {
       };
       useDeviceConnectionStore.getState().updateBikeMetrics(bikeMetrics);
       useDeviceConnectionStore.getState().updateBluetoothHr(145);
-      // HR also comes from the Watch payload — this establishes the freshness
-      // timestamp the engine uses to gate the Watch branch.
+      // HR also comes from the Watch payload — lock the source to watch so the
+      // engine reads watch HR (and its freshness timestamp).
       useDeviceConnectionStore.getState().updateAppleWatchHr(150);
       useDeviceConnectionStore.getState().updateAppleWatchActiveKcal(7);
+      useDeviceConnectionStore.getState().setActiveHrSource('watch');
 
       engine.start();
       jest.advanceTimersByTime(1000);
@@ -287,36 +334,37 @@ describe('MetronomeEngine', () => {
       expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('watch');
     });
 
-    it('should drop stale Watch samples and fall back to app-power when the Watch stream goes silent', () => {
+    it('should drop stale Watch samples and stop using Watch kcal when the Watch stream goes silent', () => {
       useTrainingSessionStore.getState().start();
 
-      useDeviceConnectionStore.getState().updateBluetoothHr(140);
-      useDeviceConnectionStore.getState().updateBikeMetrics({ speed: 25, cadence: 80, power: 4186 });
+      useDeviceConnectionStore.getState().updateBikeMetrics({ speed: 25, cadence: 80, power: 4186, totalEnergyKcal: 100 });
       useDeviceConnectionStore.getState().updateAppleWatchHr(150);
       useDeviceConnectionStore.getState().updateAppleWatchActiveKcal(10);
+      useDeviceConnectionStore.getState().setActiveHrSource('watch');
 
       engine.start();
       jest.advanceTimersByTime(1000);
       expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('watch');
 
-      // No new Watch samples arrive. After the staleness timeout passes, the
-      // engine must ignore the stale cumulative value and fall back to app-power.
-      jest.advanceTimersByTime(6000);
-      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('app');
+      // No new Watch samples arrive. After the no-signal timeout (HR_NO_SIGNAL_TIMEOUT_MS)
+      // passes, the engine drops the stale Watch kcal — since watch is locked and stale,
+      // hasLiveExternalHr is also false, so we fall through to bike-reported kcal.
+      jest.advanceTimersByTime(HR_NO_SIGNAL_TIMEOUT_MS + 1000);
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('bike');
     });
 
     it('should resume the Watch branch when a fresh sample arrives after a staleness drop', () => {
       useTrainingSessionStore.getState().start();
 
-      useDeviceConnectionStore.getState().updateBluetoothHr(140);
-      useDeviceConnectionStore.getState().updateBikeMetrics({ speed: 25, cadence: 80, power: 4186 });
+      useDeviceConnectionStore.getState().updateBikeMetrics({ speed: 25, cadence: 80, power: 4186, totalEnergyKcal: 100 });
       useDeviceConnectionStore.getState().updateAppleWatchHr(150);
       useDeviceConnectionStore.getState().updateAppleWatchActiveKcal(10);
+      useDeviceConnectionStore.getState().setActiveHrSource('watch');
 
       engine.start();
       jest.advanceTimersByTime(1000);
-      jest.advanceTimersByTime(6000);
-      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('app');
+      jest.advanceTimersByTime(HR_NO_SIGNAL_TIMEOUT_MS + 1000);
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('bike');
 
       // Fresh Watch sample refreshes the timestamp — next tick re-enters the Watch branch.
       useDeviceConnectionStore.getState().updateAppleWatchHr(152);
@@ -341,6 +389,7 @@ describe('MetronomeEngine', () => {
       useTrainingSessionStore.getState().start();
       useDeviceConnectionStore.getState().updateBluetoothHr(150);
       useDeviceConnectionStore.getState().updateBikeMetrics({ speed: 25, cadence: 80, power: 4186 });
+      useDeviceConnectionStore.getState().setActiveHrSource('bluetooth');
 
       engine.start();
       jest.advanceTimersByTime(1000);
@@ -355,6 +404,7 @@ describe('MetronomeEngine', () => {
       useTrainingSessionStore.getState().start();
       useDeviceConnectionStore.getState().updateBluetoothHr(150);
       useDeviceConnectionStore.getState().updateBikeMetrics({ speed: 25, cadence: 80, power: 4186 });
+      useDeviceConnectionStore.getState().setActiveHrSource('bluetooth');
 
       engine.start();
       jest.advanceTimersByTime(1000);
@@ -369,6 +419,7 @@ describe('MetronomeEngine', () => {
       useTrainingSessionStore.getState().start();
       useDeviceConnectionStore.getState().updateAppleWatchHr(150);
       useDeviceConnectionStore.getState().updateAppleWatchActiveKcal(7);
+      useDeviceConnectionStore.getState().setActiveHrSource('watch');
 
       engine.start();
       jest.advanceTimersByTime(1000);
