@@ -80,6 +80,12 @@ public class WatchConnectivityModule: Module {
         return
       }
       let session = WCSession.default
+      // Register the delegate unconditionally. When the session is already
+      // `.activated` at the first activate() call, the early return below used to
+      // skip this — so `sessionReachabilityDidChange` / `sessionWatchStateDidChange`
+      // never fired and the iPhone never saw the Watch app open/close (status stuck).
+      // Setting the delegate on an already-activated session is safe and idempotent.
+      session.delegate = self.sessionDelegate
       wcLog("[WC-iPhone] activate: state=\(session.activationState.rawValue) paired=\(session.isPaired) installed=\(session.isWatchAppInstalled) reachable=\(session.isReachable)")
       if session.activationState == .activated {
         self.emitReachability(session.isReachable)
