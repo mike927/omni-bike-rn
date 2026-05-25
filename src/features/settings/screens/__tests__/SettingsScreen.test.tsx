@@ -59,6 +59,9 @@ const mockWatchHr = {
   watchHrEnabled: false,
   enableWatchHr: jest.fn(),
   disableWatchHr: jest.fn(),
+  primary: null as null | 'watch' | 'bluetooth' | 'bike',
+  setPrimary: jest.fn(),
+  availableSources: ['bike'] as ('watch' | 'bluetooth' | 'bike')[],
 };
 
 const mockSavedGear = {
@@ -120,6 +123,13 @@ describe('SettingsScreen', () => {
     Object.assign(mockAutoReconnect, {
       bikeReconnectState: 'idle',
       hrReconnectState: 'idle',
+    });
+    Object.assign(mockWatchHr, {
+      watchAvailable: false,
+      watchHrEnabled: false,
+      primary: null,
+      setPrimary: jest.fn(),
+      availableSources: ['bike'] as ('watch' | 'bluetooth' | 'bike')[],
     });
     useSavedGearStore.setState({ bikeReconnectState: 'idle', hrReconnectState: 'idle' });
   });
@@ -267,92 +277,98 @@ describe('SettingsScreen', () => {
     });
   });
 
-  describe('Apple Watch HR row', () => {
-    it('is not rendered when watchAvailable is false', () => {
-      Object.assign(mockWatchHr, { watchAvailable: false });
+  describe('Primary HR source selector', () => {
+    it('does not render the old Apple Watch HR toggle', () => {
+      Object.assign(mockWatchHr, { watchAvailable: true, availableSources: ['watch', 'bike'] });
       const { queryByText } = render(<SettingsScreen />);
-      expect(queryByText('Apple Watch HR')).toBeNull();
+      expect(queryByText('Enable')).toBeNull();
+      expect(queryByText('Disable')).toBeNull();
     });
 
-    it('is rendered when watchAvailable is true', () => {
-      Object.assign(mockWatchHr, { watchAvailable: true, watchHrEnabled: false });
+    it('renders the Primary HR source section label', () => {
       const { getByText } = render(<SettingsScreen />);
-      expect(getByText('Apple Watch HR')).toBeTruthy();
+      expect(getByText('Primary HR Source')).toBeTruthy();
     });
 
-    it('shows Enable button when Watch HR is disabled', () => {
-      Object.assign(mockWatchHr, { watchAvailable: true, watchHrEnabled: false });
+    it('always shows Bike pulse as an option', () => {
+      Object.assign(mockWatchHr, { availableSources: ['bike'] });
       const { getByText } = render(<SettingsScreen />);
-      expect(getByText('Enable')).toBeTruthy();
+      expect(getByText('Bike pulse')).toBeTruthy();
     });
 
-    it('calls enableWatchHr when Enable is pressed', () => {
-      Object.assign(mockWatchHr, { watchAvailable: true, watchHrEnabled: false });
+    it('shows Apple Watch option when watchAvailable is true', () => {
+      Object.assign(mockWatchHr, { watchAvailable: true, availableSources: ['watch', 'bike'] });
       const { getByText } = render(<SettingsScreen />);
-      fireEvent.press(getByText('Enable'));
-      expect(mockWatchHr.enableWatchHr).toHaveBeenCalled();
+      expect(getByText('Apple Watch')).toBeTruthy();
     });
 
-    it('shows Disable button when Watch HR is enabled', () => {
-      Object.assign(mockWatchHr, { watchAvailable: true, watchHrEnabled: true });
+    it('does not show Apple Watch option when watchAvailable is false', () => {
+      Object.assign(mockWatchHr, { watchAvailable: false, availableSources: ['bike'] });
+      const { queryByText } = render(<SettingsScreen />);
+      expect(queryByText('Apple Watch')).toBeNull();
+    });
+
+    it('shows saved strap name when bluetooth is available', () => {
+      Object.assign(mockWatchHr, { availableSources: ['bluetooth', 'bike'] });
+      Object.assign(mockSavedGear, { savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' } });
+      const { getAllByText } = render(<SettingsScreen />);
+      // The strap name appears at least once as the selector option label
+      expect(getAllByText('Polar H10').length).toBeGreaterThan(0);
+    });
+
+    it('calls setPrimary with "watch" when Apple Watch option is pressed', () => {
+      Object.assign(mockWatchHr, {
+        watchAvailable: true,
+        availableSources: ['watch', 'bike'],
+        primary: 'bike',
+        setPrimary: jest.fn(),
+      });
       const { getByText } = render(<SettingsScreen />);
-      expect(getByText('Disable')).toBeTruthy();
+      fireEvent.press(getByText('Apple Watch'));
+      expect(mockWatchHr.setPrimary).toHaveBeenCalledWith('watch');
     });
 
-    it('calls disableWatchHr when Disable is pressed', () => {
-      Object.assign(mockWatchHr, { watchAvailable: true, watchHrEnabled: true });
+    it('calls setPrimary with "bluetooth" when strap option is pressed', () => {
+      Object.assign(mockWatchHr, {
+        availableSources: ['bluetooth', 'bike'],
+        primary: 'bike',
+        setPrimary: jest.fn(),
+      });
+      Object.assign(mockSavedGear, { savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' } });
+      const { getAllByText } = render(<SettingsScreen />);
+      fireEvent.press(getAllByText('Polar H10')[0]);
+      expect(mockWatchHr.setPrimary).toHaveBeenCalledWith('bluetooth');
+    });
+
+    it('calls setPrimary with "bike" when Bike pulse option is pressed', () => {
+      Object.assign(mockWatchHr, {
+        availableSources: ['bike'],
+        primary: null,
+        setPrimary: jest.fn(),
+      });
       const { getByText } = render(<SettingsScreen />);
-      fireEvent.press(getByText('Disable'));
-      expect(mockWatchHr.disableWatchHr).toHaveBeenCalled();
+      fireEvent.press(getByText('Bike pulse'));
+      expect(mockWatchHr.setPrimary).toHaveBeenCalledWith('bike');
     });
 
-    it('shows Idle status when Watch is reachable but no workout is in progress', () => {
-      Object.assign(mockWatchHr, { watchAvailable: true, watchHrEnabled: true });
-      Object.assign(mockConnection, { latestAppleWatchHr: null, watchAvailability: 'idle' });
+    it('shows watch readiness label (Idle) when watch is idle', () => {
+      Object.assign(mockWatchHr, { watchAvailable: true, availableSources: ['watch', 'bike'] });
+      Object.assign(mockConnection, { watchAvailability: 'idle' });
       const { getByText } = render(<SettingsScreen />);
       expect(getByText('Idle')).toBeTruthy();
     });
 
-    it('shows Connected status with HR value when receiving data', () => {
-      Object.assign(mockWatchHr, { watchAvailable: true, watchHrEnabled: true });
-      Object.assign(mockConnection, { latestAppleWatchHr: 72, watchAvailability: 'in_progress' });
-      const { getByText } = render(<SettingsScreen />);
-      expect(getByText('Connected · 72 bpm')).toBeTruthy();
-    });
-
-    it('shows plain Connected (no bpm) when streaming has not delivered a value yet', () => {
-      Object.assign(mockWatchHr, { watchAvailable: true, watchHrEnabled: true });
-      Object.assign(mockConnection, { latestAppleWatchHr: null, watchAvailability: 'in_progress' });
-      const { getByText } = render(<SettingsScreen />);
-      expect(getByText('Connected')).toBeTruthy();
-    });
-
-    it('shows Disabled status when Watch HR is disabled', () => {
-      Object.assign(mockWatchHr, { watchAvailable: true, watchHrEnabled: false });
-      const { getByText } = render(<SettingsScreen />);
-      expect(getByText('Disabled')).toBeTruthy();
-    });
-
-    it('shows the watch install hint when Watch HR is enabled but unavailable', () => {
-      Object.assign(mockWatchHr, { watchAvailable: true, watchHrEnabled: true });
+    it('shows watch readiness label (Unavailable) when watch is unavailable', () => {
+      Object.assign(mockWatchHr, { watchAvailable: true, availableSources: ['watch', 'bike'] });
       Object.assign(mockConnection, { watchAvailability: 'unavailable' });
       const { getByText } = render(<SettingsScreen />);
-      expect(
-        getByText(
-          'Open the Omni Bike app on your Apple Watch. If it is not installed yet, add it from the iPhone Watch app.',
-        ),
-      ).toBeTruthy();
+      expect(getByText('Unavailable')).toBeTruthy();
     });
 
-    it('hides the watch install hint when the Watch is reachable', () => {
-      Object.assign(mockWatchHr, { watchAvailable: true, watchHrEnabled: true });
-      Object.assign(mockConnection, { watchAvailability: 'idle' });
-      const { queryByText } = render(<SettingsScreen />);
-      expect(
-        queryByText(
-          'Open the Omni Bike app on your Apple Watch. If it is not installed yet, add it from the iPhone Watch app.',
-        ),
-      ).toBeNull();
+    it('shows Connected readiness for Bike pulse', () => {
+      Object.assign(mockWatchHr, { availableSources: ['bike'] });
+      const { getByText } = render(<SettingsScreen />);
+      expect(getByText('Connected')).toBeTruthy();
     });
   });
 });

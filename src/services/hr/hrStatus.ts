@@ -53,7 +53,7 @@ export interface HrSourceSummary {
 }
 
 /** Human-readable name for an HR source. */
-function hrSourceName(source: HrSource, savedHrName: string | null): string {
+export function hrSourceName(source: HrSource, savedHrName: string | null): string {
   switch (source) {
     case 'watch':
       return 'Apple Watch';
@@ -61,6 +61,24 @@ function hrSourceName(source: HrSource, savedHrName: string | null): string {
       return savedHrName ?? 'Bluetooth HR';
     case 'bike':
       return 'Bike pulse';
+  }
+}
+
+export interface HrSourceIdleReadinessInput {
+  readonly source: HrSource;
+  readonly watchAvailability: WatchAvailability;
+  readonly hrConnected: boolean;
+}
+
+/** Readiness label for a source when no workout is active (idle). */
+export function hrSourceIdleReadiness({ source, watchAvailability, hrConnected }: HrSourceIdleReadinessInput): string {
+  switch (source) {
+    case 'watch':
+      return WATCH_HR_DISPLAY_LABELS[watchAvailability];
+    case 'bluetooth':
+      return hrConnected ? 'Connected' : 'Disconnected';
+    case 'bike':
+      return 'Connected';
   }
 }
 
@@ -91,18 +109,8 @@ export function resolveHrSourceSummary({
   }
 
   // ── Idle: show primary source's readiness ────────────────────────────────
-  switch (primaryHrSource) {
-    case 'watch':
-      return {
-        name: 'Apple Watch',
-        state: WATCH_HR_DISPLAY_LABELS[watchAvailability],
-      };
-    case 'bluetooth':
-      return {
-        name: savedHrName ?? 'Bluetooth HR',
-        state: hrConnected ? 'Connected' : 'Disconnected',
-      };
-    case 'bike':
-      return { name: 'Bike pulse', state: 'Connected' };
-  }
+  return {
+    name: hrSourceName(primaryHrSource, savedHrName),
+    state: hrSourceIdleReadiness({ source: primaryHrSource, watchAvailability, hrConnected }),
+  };
 }

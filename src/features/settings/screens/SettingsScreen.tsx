@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
@@ -15,43 +15,62 @@ import { SectionCard } from '../../../ui/components/SectionCard';
 import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
 import type { UserProfile } from '../../../types/userProfile';
+import type { HrSource } from '../../../services/hr/hrSource';
 import type { WatchAvailability } from '../../../types/watch';
-import {
-  resolveWatchHrDisplayState,
-  watchHrDisplayLabel,
-  WATCH_HR_UNAVAILABLE_HINT,
-} from '../../../services/hr/hrStatus';
+import { hrSourceName, hrSourceIdleReadiness } from '../../../services/hr/hrStatus';
 
-interface WatchHrRowProps {
-  readonly watchHrEnabled: boolean;
-  readonly watchAvailability: WatchAvailability;
-  readonly latestAppleWatchHr: number | null;
-  readonly onEnable: () => void;
-  readonly onDisable: () => void;
+interface HrSourceOptionProps {
+  readonly label: string;
+  readonly readiness: string;
+  readonly isSelected: boolean;
+  readonly onPress: () => void;
 }
 
-function WatchHrRow({ watchHrEnabled, watchAvailability, latestAppleWatchHr, onEnable, onDisable }: WatchHrRowProps) {
-  const displayState = resolveWatchHrDisplayState(watchHrEnabled, watchAvailability);
-  const baseLabel = watchHrDisplayLabel(displayState);
-  const statusLabel =
-    displayState === 'in_progress' && latestAppleWatchHr !== null
-      ? `${baseLabel} · ${latestAppleWatchHr} bpm`
-      : baseLabel;
-  const watchHrHint = displayState === 'unavailable' ? WATCH_HR_UNAVAILABLE_HINT : null;
-
+function HrSourceOption({ label, readiness, isSelected, onPress }: HrSourceOptionProps) {
   return (
-    <View style={styles.gearRow}>
+    <TouchableOpacity
+      style={[styles.hrSourceOption, isSelected && styles.hrSourceOptionSelected]}
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: isSelected }}>
       <View style={styles.gearInfo}>
-        <Text style={styles.gearLabel}>Apple Watch HR</Text>
-        <Text style={styles.gearName}>{statusLabel}</Text>
-        {watchHrHint ? <Text style={styles.gearHint}>{watchHrHint}</Text> : null}
+        <Text style={[styles.gearName, isSelected && styles.hrSourceOptionSelectedText]}>{label}</Text>
+        <Text style={styles.gearHint}>{readiness}</Text>
       </View>
-      <View style={styles.gearActions}>
-        {watchHrEnabled ? (
-          <ActionButton label="Disable" onPress={onDisable} variant="danger" />
-        ) : (
-          <ActionButton label="Enable" onPress={onEnable} variant="secondary" />
-        )}
+    </TouchableOpacity>
+  );
+}
+
+interface PrimaryHrSourceRowProps {
+  readonly availableSources: HrSource[];
+  readonly primary: HrSource | null;
+  readonly watchAvailability: WatchAvailability;
+  readonly savedHrName: string | null;
+  readonly hrConnected: boolean;
+  readonly onSelect: (source: HrSource) => void;
+}
+
+function PrimaryHrSourceRow({
+  availableSources,
+  primary,
+  watchAvailability,
+  savedHrName,
+  hrConnected,
+  onSelect,
+}: PrimaryHrSourceRowProps) {
+  return (
+    <View style={styles.primaryHrContainer}>
+      <Text style={styles.gearLabel}>Primary HR Source</Text>
+      <View style={styles.hrSourceOptions} accessibilityRole="radiogroup">
+        {availableSources.map((source) => (
+          <HrSourceOption
+            key={source}
+            label={hrSourceName(source, savedHrName)}
+            readiness={hrSourceIdleReadiness({ source, watchAvailability, hrConnected })}
+            isSelected={primary === source}
+            onPress={() => onSelect(source)}
+          />
+        ))}
       </View>
     </View>
   );
@@ -71,9 +90,9 @@ function summarizeProfile(profile: UserProfile): string {
 export function SettingsScreen() {
   const router = useRouter();
   const userProfile = useUserProfileStore((s) => s.profile);
-  const { bikeConnected, hrConnected, latestAppleWatchHr, watchAvailability } = useDeviceConnection();
+  const { bikeConnected, hrConnected, watchAvailability } = useDeviceConnection();
   const { bikeReconnectState, hrReconnectState, retryBike, retryHr } = useAutoReconnect();
-  const { watchAvailable, watchHrEnabled, enableWatchHr, disableWatchHr } = useWatchHrControls();
+  const { primary, setPrimary, availableSources } = useWatchHrControls();
   const { savedBike, savedHrSource, forgetBike, forgetHr } = useSavedGear();
   const {
     isConnected: stravaConnected,
@@ -234,18 +253,15 @@ export function SettingsScreen() {
           </View>
         </View>
 
-        {watchAvailable ? (
-          <>
-            <View style={styles.divider} />
-            <WatchHrRow
-              watchHrEnabled={watchHrEnabled}
-              watchAvailability={watchAvailability}
-              latestAppleWatchHr={latestAppleWatchHr}
-              onEnable={() => void enableWatchHr()}
-              onDisable={() => void disableWatchHr()}
-            />
-          </>
-        ) : null}
+        <View style={styles.divider} />
+        <PrimaryHrSourceRow
+          availableSources={availableSources}
+          primary={primary}
+          watchAvailability={watchAvailability}
+          savedHrName={savedHrSource?.name ?? null}
+          hrConnected={hrConnected}
+          onSelect={(source) => void setPrimary(source)}
+        />
       </SectionCard>
 
       <SectionCard title="Personal">
@@ -430,5 +446,24 @@ const styles = StyleSheet.create({
     color: palette.danger,
     fontSize: 13,
     lineHeight: 18,
+  },
+  primaryHrContainer: {
+    gap: 8,
+  },
+  hrSourceOptions: {
+    gap: 6,
+  },
+  hrSourceOption: {
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: palette.border,
+  },
+  hrSourceOptionSelected: {
+    borderColor: palette.primary,
+    backgroundColor: palette.primarySubtle,
+  },
+  hrSourceOptionSelectedText: {
+    color: palette.primary,
   },
 });
