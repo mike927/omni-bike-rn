@@ -262,7 +262,13 @@ public class WatchConnectivityModule: Module {
   }
 
   fileprivate func emitReachability(_ reachable: Bool) {
-    sendEvent("onReachabilityChange", ["reachable": reachable])
+    let session = WCSession.default
+    sendEvent("onReachabilityChange", [
+      "reachable": reachable,
+      "activationState": session.activationState.rawValue,
+      "paired": session.isPaired,
+      "installed": session.isWatchAppInstalled,
+    ])
   }
 
   // Stable companion presence — paired + Watch app installed — independent of
@@ -270,8 +276,14 @@ public class WatchConnectivityModule: Module {
   // iPhone's idle ⇄ unavailable status; reachability must not.
   fileprivate func emitCompanionState(_ session: WCSession) {
     let available = session.isPaired && session.isWatchAppInstalled
-    wcLog("[WC-iPhone] emitCompanionState available=\(available) paired=\(session.isPaired) installed=\(session.isWatchAppInstalled)")
-    sendEvent("onWatchCompanionStateChange", ["available": available])
+    wcLog("[WC-iPhone] emitCompanionState available=\(available) paired=\(session.isPaired) installed=\(session.isWatchAppInstalled) activationState=\(session.activationState.rawValue) reachable=\(session.isReachable)")
+    sendEvent("onWatchCompanionStateChange", [
+      "available": available,
+      "paired": session.isPaired,
+      "installed": session.isWatchAppInstalled,
+      "activationState": session.activationState.rawValue,
+      "reachable": session.isReachable,
+    ])
   }
 
   fileprivate func emitSessionState(_ state: String, sentAtMs: Double) {

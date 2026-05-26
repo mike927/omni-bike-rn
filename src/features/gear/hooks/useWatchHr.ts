@@ -9,16 +9,7 @@ import { useHrSourceStore } from '../../../store/hrSourceStore';
 import { useTrainingSessionStore } from '../../../store/trainingSessionStore';
 import { TrainingPhase } from '../../../types/training';
 import type { WatchAvailability, WatchSessionStateEvent } from '../../../types/watch';
-
-// Dev-only tracing of the Watch↔iPhone link — every WC event arrival and every
-// availability transition (with its cause) — surfaced to Metro. This connection is
-// flaky in the field, so making the flow observable is worth the lines. `console.warn`
-// is lint-allowed; gated on __DEV__ so nothing ships to production logs.
-function logWc(message: string): void {
-  if (__DEV__) {
-    console.warn(`[WC-JS] ${message}`);
-  }
-}
+import { logWc } from '../../../services/watch/wcLog';
 
 /**
  * Root-only hook that owns the Apple Watch HR lifecycle.
@@ -90,6 +81,7 @@ export function useWatchHr(): void {
     streamGenerationRef.current = streamGeneration;
     startingRef.current = true;
     latestStartRequestAtRef.current = Date.now();
+    logWc(`startStream: connecting (gen=${streamGeneration})`);
     const adapter = new WatchHrAdapter();
     try {
       await adapter.connect();
@@ -110,6 +102,7 @@ export function useWatchHr(): void {
       primaryRef.current !== 'watch';
     if (startWasSuperseded) {
       startingRef.current = false;
+      logWc('startStream: superseded after connect — disconnecting');
       try {
         await adapter.disconnect();
       } catch (err) {
@@ -120,6 +113,7 @@ export function useWatchHr(): void {
 
     adapterRef.current = adapter;
     startingRef.current = false;
+    logWc('startStream: connected — HR stream live');
     subRef.current = adapter.subscribeToHeartRate((hr) => {
       updateAppleWatchHr(hr);
       if (phaseRef.current === TrainingPhase.Active && primaryRef.current === 'watch') {
@@ -136,6 +130,7 @@ export function useWatchHr(): void {
       adapterRef.current !== null || subRef.current !== null || kcalSubRef.current !== null || startingRef.current;
     streamGenerationRef.current += 1;
     if (!hadStream) return;
+    logWc('stopStream: tearing down Watch HR stream');
 
     subRef.current?.remove();
     subRef.current = null;
@@ -187,6 +182,7 @@ export function useWatchHr(): void {
         void startStream();
         if (prevPhase === TrainingPhase.Paused) {
           // Resuming: the stream is still connected; tell the Watch to resume its session.
+          logWc('phase Paused→Active — sending resumeMirroredWorkout');
           void WatchConnectivity.resumeMirroredWorkout().catch((error: unknown) => {
             console.error('[useWatchHr] Failed to resume Watch workout:', error);
           });
@@ -198,6 +194,7 @@ export function useWatchHr(): void {
     } else if (phase === TrainingPhase.Paused && primary === 'watch') {
       // Keep the stream alive but pause the Watch session so its workout timer and HR
       // collection stop in sync with the iPhone (the Watch owns the HKWorkoutSession).
+      logWc('phase Active→Paused — sending pauseMirroredWorkout');
       void WatchConnectivity.pauseMirroredWorkout().catch((error: unknown) => {
         console.error('[useWatchHr] Failed to pause Watch workout:', error);
       });
@@ -235,8 +232,22 @@ export function useWatchHr(): void {
     // `available: false` (unpaired / uninstalled) → `unavailable`, and clear HR + kcal.
     const companionStateSub = WatchConnectivity.addListener(
       'onWatchCompanionStateChange',
-      ({ available }: { available: boolean }) => {
-        logWc(`event companion available=${available}`);
+      ({
+        available,
+        paired,
+        installed,
+        activationState,
+        reachable,
+      }: {
+        available: boolean;
+        paired?: boolean;
+        installed?: boolean;
+        activationState?: number;
+        reachable?: boolean;
+      }) => {
+        logWc(
+          `event companion available=${available} paired=${paired} installed=${installed} activationState=${activationState} reachable=${reachable}`,
+        );
         if (available) {
           if (useDeviceConnectionStore.getState().watchAvailability !== 'in_progress') {
             setAvailability('idle', 'companion paired+installed');
@@ -252,19 +263,34 @@ export function useWatchHr(): void {
     // Reachability is transient (drops when the Watch screen dims) and MUST NOT change
     // the availability label. Its only job here is to retry the HR stream mid-ride if
     // the adapter was lost while the session is active.
-    const reachabilitySub = WatchConnectivity.addListener('onReachabilityChange', ({ reachable }) => {
-      logWc(`event reachability reachable=${reachable}`);
-      if (
-        reachable &&
-        primaryRef.current === 'watch' &&
-        phaseRef.current === TrainingPhase.Active &&
-        !adapterRef.current &&
-        !startingRef.current
-      ) {
-        logWc('reachable mid-ride — retrying HR stream');
-        void startStreamRef.current();
-      }
-    });
+    const reachabilitySub = WatchConnectivity.addListener(
+      'onReachabilityChange',
+      ({
+        reachable,
+        activationState,
+        paired,
+        installed,
+      }: {
+        reachable: boolean;
+        activationState?: number;
+        paired?: boolean;
+        installed?: boolean;
+      }) => {
+        logWc(
+          `event reachability reachable=${reachable} activationState=${activationState} paired=${paired} installed=${installed}`,
+        );
+        if (
+          reachable &&
+          primaryRef.current === 'watch' &&
+          phaseRef.current === TrainingPhase.Active &&
+          !adapterRef.current &&
+          !startingRef.current
+        ) {
+          logWc('reachable mid-ride — retrying HR stream');
+          void startStreamRef.current();
+        }
+      },
+    );
 
     const sessionStateSub = WatchConnectivity.addListener(
       'onWatchSessionState',
