@@ -272,9 +272,9 @@ export function useWatchHr(): void {
       'onWatchSessionState',
       ({ state, sentAtMs }: { state: WatchSessionStateEvent; sentAtMs: number }) => {
         logWc(`event session state=${state} sentAtMs=${sentAtMs} latestStart=${latestStartRequestAtRef.current}`);
-        if (sentAtMs >= latestStartRequestAtRef.current) {
-          // Current event — nothing to do, availability is companion-driven.
-        } else {
+        // Session events are logging-only; availability is companion-driven. The stale-sentAtMs
+        // guard is preserved purely for log clarity.
+        if (sentAtMs < latestStartRequestAtRef.current) {
           logWc('session event ignored (stale — predates current start request)');
         }
       },

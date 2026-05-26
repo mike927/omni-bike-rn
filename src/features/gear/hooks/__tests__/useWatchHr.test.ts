@@ -796,26 +796,46 @@ describe('useWatchHr', () => {
     });
 
     it('retries the HR stream when the Watch becomes reachable mid-ride', async () => {
-      // While Active + watch primary, reachability=true should trigger a startStream retry.
+      // While Active + watch primary, a reachable=true event must re-invoke startStream when
+      // adapterRef is null (stream dropped). To manufacture that state: make the first connect
+      // fail so startingRef resets to false and adapterRef stays null, then fire reachable=true.
+      const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
+        WatchHrAdapter: jest.Mock;
+      };
+
+      // First connect attempt fails — leaves adapterRef null, startingRef false.
+      WatchHrAdapter.mockImplementationOnce(() => ({
+        connect: jest.fn().mockRejectedValue(new Error('Watch dropped')),
+        disconnect: jest.fn().mockResolvedValue(undefined),
+        subscribeToHeartRate: jest.fn().mockReturnValue({ remove: jest.fn() }),
+        subscribeToActiveKcal: jest.fn().mockReturnValue({ remove: jest.fn() }),
+      }));
+
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
       renderHook(() => useWatchHr());
 
-      // Wait for the initial stream to connect.
-      const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
-        WatchHrAdapter: jest.Mock;
-      };
+      // Wait for the failing connect to settle (adapterRef stays null, startingRef resets).
       await waitFor(() => {
-        const inst = WatchHrAdapter.mock.results[0]?.value as { connect: jest.Mock } | undefined;
-        expect(inst?.connect).toHaveBeenCalled();
+        expect(WatchHrAdapter.mock.instances).toHaveLength(1);
+      });
+      const connectAfterFirstAttempt = (WatchHrAdapter.mock.results[0]?.value as { connect: jest.Mock }).connect;
+      await waitFor(() => {
+        expect(connectAfterFirstAttempt).toHaveBeenCalledTimes(1);
       });
 
-      // Firing reachable=true while Active + watch-primary must not throw.
-      expect(() => {
-        act(() => {
-          getReachabilityCallback()?.({ reachable: true });
-        });
-      }).not.toThrow();
+      const constructionCountBeforeRetry = WatchHrAdapter.mock.instances.length; // 1
+
+      // Reachability=true fires while phase=Active, primary='watch', adapterRef=null → retry.
+      await act(async () => {
+        getReachabilityCallback()?.({ reachable: true });
+        await Promise.resolve();
+      });
+
+      // A new WatchHrAdapter must have been constructed (retry fired startStream).
+      await waitFor(() => {
+        expect(WatchHrAdapter.mock.instances.length).toBeGreaterThan(constructionCountBeforeRetry);
+      });
     });
 
     it('forwards Watch-computed active kcal into the device store', async () => {
