@@ -5,7 +5,6 @@ import { useDeviceConnectionStore } from '../../../../store/deviceConnectionStor
 import { useTrainingSessionStore } from '../../../../store/trainingSessionStore';
 import { useHrSourceStore } from '../../../../store/hrSourceStore';
 import { TrainingPhase } from '../../../../types/training';
-import { WATCH_IDLE_GRACE_MS, WATCH_WORKOUT_GRACE_MS } from '../../../../services/watch/watchAvailability';
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
 
@@ -668,7 +667,7 @@ describe('useWatchHr', () => {
     });
   });
 
-  describe('Watch availability contact tracker', () => {
+  describe('Watch availability — companion-presence model', () => {
     function getReachabilityCallback() {
       return getWatchConnectivityMock().addListener.mock.calls.find(
         ([eventName]: [string]) => eventName === 'onReachabilityChange',
@@ -687,12 +686,6 @@ describe('useWatchHr', () => {
       )?.[1] as ((payload: { available: boolean }) => void) | undefined;
     }
 
-    function getWatchAppStateCallback() {
-      return getWatchConnectivityMock().addListener.mock.calls.find(
-        ([eventName]: [string]) => eventName === 'onWatchAppState',
-      )?.[1] as ((payload: { state: string }) => void) | undefined;
-    }
-
     it('registers all expected listeners on mount', () => {
       renderHook(() => useWatchHr());
       const wc = getWatchConnectivityMock();
@@ -702,113 +695,43 @@ describe('useWatchHr', () => {
       expect(wc.addListener).toHaveBeenCalledWith('onWatchAppState', expect.any(Function));
     });
 
-    it('reachability=true → connected immediately', () => {
+    it('companion available=true → watchAvailability becomes connected', () => {
       useDeviceConnectionStore.setState({ watchAvailability: 'unavailable' });
       renderHook(() => useWatchHr());
 
       act(() => {
-        getReachabilityCallback()?.({ reachable: true });
+        getCompanionCallback()?.({ available: true });
       });
 
       expect(useDeviceConnectionStore.getState().watchAvailability).toBe('connected');
     });
 
-    it('reachability=false + contact within idle grace → still connected', () => {
-      useDeviceConnectionStore.setState({ watchAvailability: 'unavailable' });
+    it('companion available=false → watchAvailability becomes unavailable', () => {
+      useDeviceConnectionStore.setState({ watchAvailability: 'connected' });
       renderHook(() => useWatchHr());
 
-      // First make contact by reaching reachable=true
       act(() => {
-        getReachabilityCallback()?.({ reachable: true });
-      });
-      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('connected');
-
-      // Then lose reachability
-      act(() => {
-        getReachabilityCallback()?.({ reachable: false });
-      });
-      // Still connected — within grace window
-      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('connected');
-
-      // Advance less than idle grace — still connected
-      act(() => {
-        jest.advanceTimersByTime(WATCH_IDLE_GRACE_MS - 1000);
-      });
-      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('connected');
-    });
-
-    it('reachability=false then advance past idle grace → unavailable', () => {
-      useDeviceConnectionStore.setState({ watchAvailability: 'unavailable' });
-      renderHook(() => useWatchHr());
-
-      // Make contact
-      act(() => {
-        getReachabilityCallback()?.({ reachable: true });
-      });
-      // Lose reachability
-      act(() => {
-        getReachabilityCallback()?.({ reachable: false });
-      });
-      // Advance past idle grace (timer fires at graceMs + 100)
-      act(() => {
-        jest.advanceTimersByTime(WATCH_IDLE_GRACE_MS + 200);
+        getCompanionCallback()?.({ available: false });
       });
 
       expect(useDeviceConnectionStore.getState().watchAvailability).toBe('unavailable');
     });
 
-    it('session started widens grace to workout grace', () => {
+    it('reachability change does NOT change watchAvailability (only companion does)', () => {
       useDeviceConnectionStore.setState({ watchAvailability: 'unavailable' });
       renderHook(() => useWatchHr());
 
-      // Make initial contact via reachability
       act(() => {
         getReachabilityCallback()?.({ reachable: true });
-      });
-      // Lose reachability
-      act(() => {
-        getReachabilityCallback()?.({ reachable: false });
-      });
-
-      // Session starts — this is also a contact + sets workoutActive=true
-      act(() => {
-        getSessionStateCallback()?.({ state: 'started', sentAtMs: Date.now() });
-      });
-      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('connected');
-
-      // Advance past idle grace but within workout grace — still connected
-      act(() => {
-        jest.advanceTimersByTime(WATCH_IDLE_GRACE_MS + 1000);
-      });
-      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('connected');
-    });
-
-    it('advance past workout grace → unavailable (mid-ride kill scenario)', () => {
-      useDeviceConnectionStore.setState({ watchAvailability: 'unavailable' });
-      renderHook(() => useWatchHr());
-
-      // Make initial contact and start a session
-      act(() => {
-        getReachabilityCallback()?.({ reachable: true });
-      });
-      act(() => {
-        getReachabilityCallback()?.({ reachable: false });
-      });
-      act(() => {
-        getSessionStateCallback()?.({ state: 'started', sentAtMs: Date.now() });
-      });
-
-      // Advance past workout grace (timer fires at WATCH_WORKOUT_GRACE_MS + 100)
-      act(() => {
-        jest.advanceTimersByTime(WATCH_WORKOUT_GRACE_MS + 200);
       });
 
       expect(useDeviceConnectionStore.getState().watchAvailability).toBe('unavailable');
     });
 
-    it('HR sample refreshes contact (stays connected past idle grace)', async () => {
+    it('HR sample does NOT change watchAvailability', async () => {
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+      useDeviceConnectionStore.setState({ watchAvailability: 'unavailable' });
       renderHook(() => useWatchHr());
 
       const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
@@ -824,67 +747,12 @@ describe('useWatchHr', () => {
         .subscribeToHeartRate;
       const hrCallback = subscribeToHeartRate.mock.calls[0]?.[0] as ((hr: number) => void) | undefined;
 
-      // Send an HR sample — this is a contact
       act(() => {
         hrCallback?.(147);
       });
-      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('connected');
+
+      // HR sample must update the HR reading but must NOT touch availability
       expect(useDeviceConnectionStore.getState().latestAppleWatchHr).toBe(147);
-
-      // Advance to near idle grace — still connected because HR refreshed
-      act(() => {
-        jest.advanceTimersByTime(WATCH_IDLE_GRACE_MS - 1000);
-      });
-      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('connected');
-    });
-
-    it('onWatchAppState event refreshes contact (stays connected)', () => {
-      useDeviceConnectionStore.setState({ watchAvailability: 'unavailable' });
-      renderHook(() => useWatchHr());
-
-      // Make initial contact
-      act(() => {
-        getReachabilityCallback()?.({ reachable: true });
-      });
-      act(() => {
-        getReachabilityCallback()?.({ reachable: false });
-      });
-
-      // Watch app state event acts as contact
-      act(() => {
-        getWatchAppStateCallback()?.({ state: 'active' });
-      });
-      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('connected');
-
-      // Advance near idle grace — still connected
-      act(() => {
-        jest.advanceTimersByTime(WATCH_IDLE_GRACE_MS - 1000);
-      });
-      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('connected');
-    });
-
-    it('companion available=false event alone does NOT set unavailable', () => {
-      // Companion events are logging-only in the new model
-      useDeviceConnectionStore.setState({ watchAvailability: 'connected' });
-      renderHook(() => useWatchHr());
-
-      act(() => {
-        getCompanionCallback()?.({ available: false });
-      });
-
-      // Must NOT change availability
-      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('connected');
-    });
-
-    it('companion available=true event alone does NOT set availability', () => {
-      useDeviceConnectionStore.setState({ watchAvailability: 'unavailable' });
-      renderHook(() => useWatchHr());
-
-      act(() => {
-        getCompanionCallback()?.({ available: true });
-      });
-
-      // Companion events are logging-only — must not promote to connected
       expect(useDeviceConnectionStore.getState().watchAvailability).toBe('unavailable');
     });
 
