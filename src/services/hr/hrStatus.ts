@@ -5,7 +5,7 @@ export type WatchHrDisplayState = 'disabled' | WatchAvailability;
 
 /**
  * Collapses to `disabled` when Watch is not the primary HR source so every screen
- * reports the same state Settings does, instead of a misleading `idle`.
+ * reports the same state Settings does, instead of a misleading availability label.
  */
 export function resolveWatchHrDisplayState(
   watchIsPrimary: boolean,
@@ -17,8 +17,7 @@ export function resolveWatchHrDisplayState(
 const WATCH_HR_DISPLAY_LABELS: Record<WatchHrDisplayState, string> = {
   disabled: 'Disabled',
   unavailable: 'Unavailable',
-  idle: 'Idle',
-  in_progress: 'Connected',
+  connected: 'Connected',
 };
 
 export function watchHrDisplayLabel(state: WatchHrDisplayState): string {

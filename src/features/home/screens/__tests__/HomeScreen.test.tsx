@@ -290,16 +290,16 @@ describe('HomeScreen', () => {
 
   describe('Apple Watch HR status line', () => {
     it('shows the Apple Watch status line when the Watch is available and primary is watch', () => {
-      Object.assign(mockConnection, { watchAvailability: 'idle' });
+      Object.assign(mockConnection, { watchAvailability: 'connected' });
       Object.assign(mockWatchHrControls, { watchAvailable: true, primary: 'watch' });
 
       const { getByText } = render(<HomeScreen />);
 
-      expect(getByText('Idle')).toBeTruthy();
+      expect(getByText('Connected')).toBeTruthy();
     });
 
     it('shows Disabled on the line when primary is not watch', () => {
-      Object.assign(mockConnection, { watchAvailability: 'idle' });
+      Object.assign(mockConnection, { watchAvailability: 'connected' });
       Object.assign(mockWatchHrControls, { watchAvailable: true, primary: null });
 
       const { getByText } = render(<HomeScreen />);

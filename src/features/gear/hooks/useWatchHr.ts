@@ -4,30 +4,28 @@ import { AppState, Platform } from 'react-native';
 import { WatchConnectivity } from 'watch-connectivity';
 import { WatchHrAdapter } from '../../../services/watch/WatchHrAdapter';
 import { isAppleWatchAvailable } from '../../../services/watch/isAppleWatchAvailable';
+import {
+  resolveWatchAvailability,
+  WATCH_IDLE_GRACE_MS,
+  WATCH_WORKOUT_GRACE_MS,
+} from '../../../services/watch/watchAvailability';
 import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
 import { useHrSourceStore } from '../../../store/hrSourceStore';
 import { useTrainingSessionStore } from '../../../store/trainingSessionStore';
 import { TrainingPhase } from '../../../types/training';
-import type { WatchAvailability, WatchSessionStateEvent } from '../../../types/watch';
+import type { WatchSessionStateEvent } from '../../../types/watch';
 import { logWc } from '../../../services/watch/wcLog';
 
 /**
  * Root-only hook that owns the Apple Watch HR lifecycle.
  *
- * Tracks the Watch as one of three availabilities:
- *   unavailable — Watch not paired or Watch app not installed
- *   idle        — Watch paired + app installed, no workout active
- *   in_progress — workout running (HR streams to iPhone)
+ * Tracks the Watch with a two-state, contact-based availability model:
+ *   connected   — Watch is reachable, OR in an active workout within the grace window,
+ *                 OR contacted within the idle grace window.
+ *   unavailable — no recent contact and not reachable.
  *
- * Companion presence (paired + app installed via `onWatchCompanionStateChange`) drives
- * `unavailable` ⇄ `idle`: `available: true` → `idle` (if not `in_progress`);
- * `available: false` → `unavailable` (and clears HR + kcal). Reachability
- * (`onReachabilityChange`) is transient — it drops when the Watch screen dims — so it
- * must NOT change the availability label. It is only used as a mid-ride stream-retry
- * trigger: if the Watch becomes reachable while Active + watch-primary and no adapter
- * is connected, `startStream` is retried.
- * Session `started`/`ended`/`failed` events drive `in_progress`; `failed` collapses to
- * `idle`. An active workout is never downgraded.
+ * Contact signals: reachability=true, session state events, HR samples, watch app-state
+ * events. Companion events are logging-only.
  *
  * Mount exactly once, at the root layout.
  */
@@ -44,6 +42,11 @@ export function useWatchHr(): void {
   // connect's await window) would pass the adapter-null check and race in a
   // parallel connect — causing an activate/startWatchApp feedback loop.
   const startingRef = useRef(false);
+
+  // Contact tracker state
+  const isReachableRef = useRef(false);
+  const workoutActiveRef = useRef(false);
+  const lastContactAtMsRef = useRef<number | null>(null);
 
   const updateAppleWatchHr = useDeviceConnectionStore((s) => s.updateAppleWatchHr);
   const updateAppleWatchActiveKcal = useDeviceConnectionStore((s) => s.updateAppleWatchActiveKcal);
@@ -125,14 +128,12 @@ export function useWatchHr(): void {
     logWc('startStream: connected — HR stream live');
     subRef.current = adapter.subscribeToHeartRate((hr) => {
       updateAppleWatchHr(hr);
-      if (phaseRef.current === TrainingPhase.Active && primaryRef.current === 'watch') {
-        setWatchAvailability('in_progress');
-      }
+      markContactRef.current();
     });
     kcalSubRef.current = adapter.subscribeToActiveKcal((kcal) => {
       updateAppleWatchActiveKcal(kcal);
     });
-  }, [setWatchAvailability, watchAvailable, updateAppleWatchHr, updateAppleWatchActiveKcal]);
+  }, [watchAvailable, updateAppleWatchHr, updateAppleWatchActiveKcal]);
 
   const stopStream = useCallback(async () => {
     const hadStream =
@@ -177,6 +178,13 @@ export function useWatchHr(): void {
   useEffect(() => {
     stopStreamRef.current = stopStream;
   }, [stopStream]);
+
+  // markContact needs to be stable and accessible from inside startStream's subscription
+  // callback, so it lives in a ref updated by the WC listener effect.
+  // The no-op default is safe: markContact is assigned synchronously inside the mount-only
+  // WC listener effect, which runs before any HR-subscription callback (those only fire
+  // after `await adapter.connect()` resolves); the no-op just guards the impossible-early-call case.
+  const markContactRef = useRef<() => void>(() => {});
 
   // Tracks the phase the previous run saw, so a resume (Paused→Active) is told apart
   // from a fresh start (Idle→Active) and the right pause/resume command is emitted.
@@ -227,18 +235,42 @@ export function useWatchHr(): void {
   useEffect(() => {
     if (!watchAvailable) return;
 
-    // Single funnel for availability writes so every transition is traced with its cause.
-    const setAvailability = (next: WatchAvailability, reason: string) => {
-      const prev = useDeviceConnectionStore.getState().watchAvailability;
-      if (prev !== next) {
-        logWc(`availability ${prev} -> ${next} (${reason})`);
+    let availabilityTimer: ReturnType<typeof setTimeout> | null = null;
+    const clearAvailabilityTimer = () => {
+      if (availabilityTimer) {
+        clearTimeout(availabilityTimer);
+        availabilityTimer = null;
       }
+    };
+
+    const recomputeAvailability = () => {
+      const next = resolveWatchAvailability({
+        isReachable: isReachableRef.current,
+        workoutActive: workoutActiveRef.current,
+        lastContactAtMs: lastContactAtMsRef.current,
+        nowMs: Date.now(),
+      });
+      const prev = useDeviceConnectionStore.getState().watchAvailability;
+      if (prev !== next) logWc(`availability ${prev} -> ${next}`);
       setWatchAvailability(next);
     };
 
-    // Companion presence (paired + app installed) drives `unavailable` ⇄ `idle`.
-    // `available: true` → `idle` (unless a workout is already `in_progress`).
-    // `available: false` (unpaired / uninstalled) → `unavailable`, and clear HR + kcal.
+    const graceMs = () => (workoutActiveRef.current ? WATCH_WORKOUT_GRACE_MS : WATCH_IDLE_GRACE_MS);
+
+    const armGraceTimer = () => {
+      clearAvailabilityTimer();
+      availabilityTimer = setTimeout(recomputeAvailability, graceMs() + 100);
+    };
+
+    // A signal received FROM the watch = contact. Refresh stamp, recompute, re-arm grace.
+    const markContact = () => {
+      lastContactAtMsRef.current = Date.now();
+      recomputeAvailability();
+      armGraceTimer();
+    };
+    markContactRef.current = markContact;
+
+    // Companion presence: logging only. Does NOT set availability.
     const companionStateSub = WatchConnectivity.addListener(
       'onWatchCompanionStateChange',
       ({
@@ -257,21 +289,10 @@ export function useWatchHr(): void {
         logWc(
           `event companion available=${available} paired=${paired} installed=${installed} activationState=${activationState} reachable=${reachable}`,
         );
-        if (available) {
-          if (useDeviceConnectionStore.getState().watchAvailability !== 'in_progress') {
-            setAvailability('idle', 'companion paired+installed');
-          }
-        } else {
-          setAvailability('unavailable', 'companion unpaired/uninstalled');
-          updateAppleWatchHr(null);
-          updateAppleWatchActiveKcal(null);
-        }
       },
     );
 
-    // Reachability is transient (drops when the Watch screen dims) and MUST NOT change
-    // the availability label. Its only job here is to retry the HR stream mid-ride if
-    // the adapter was lost while the session is active.
+    // Reachability drives both availability and the mid-ride stream-retry.
     const reachabilitySub = WatchConnectivity.addListener(
       'onReachabilityChange',
       ({
@@ -288,6 +309,14 @@ export function useWatchHr(): void {
         logWc(
           `event reachability reachable=${reachable} activationState=${activationState} paired=${paired} installed=${installed}`,
         );
+        isReachableRef.current = reachable;
+        if (reachable) {
+          markContact();
+        } else {
+          recomputeAvailability();
+          armGraceTimer();
+        }
+        // Mid-ride stream-retry when the Watch becomes reachable again.
         if (
           reachable &&
           primaryRef.current === 'watch' &&
@@ -309,12 +338,14 @@ export function useWatchHr(): void {
           logWc('session event ignored (stale — predates current start request)');
           return;
         }
-        setAvailability(state === 'started' ? 'in_progress' : 'idle', `session ${state}`);
+        workoutActiveRef.current = state === 'started';
+        markContact();
       },
     );
 
     const watchAppStateSub = WatchConnectivity.addListener('onWatchAppState', ({ state }: { state: string }) => {
       logWc(`event watchAppState=${state}`);
+      markContact();
     });
 
     logWc('activating WatchConnectivity');
@@ -323,10 +354,11 @@ export function useWatchHr(): void {
     });
 
     return () => {
+      clearAvailabilityTimer();
       companionStateSub.remove();
       reachabilitySub.remove();
       sessionStateSub.remove();
       watchAppStateSub.remove();
     };
-  }, [watchAvailable, updateAppleWatchHr, updateAppleWatchActiveKcal, setWatchAvailability]);
+  }, [watchAvailable, setWatchAvailability]);
 }

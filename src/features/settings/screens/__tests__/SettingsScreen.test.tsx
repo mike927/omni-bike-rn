@@ -347,11 +347,12 @@ describe('SettingsScreen', () => {
       expect(mockWatchHr.setPrimary).toHaveBeenCalledWith('bike');
     });
 
-    it('shows watch readiness label (Idle) when watch is idle', () => {
+    it('shows watch readiness label (Connected) when watch is connected', () => {
       Object.assign(mockWatchHr, { watchAvailable: true, availableSources: ['watch', 'bike'] });
-      Object.assign(mockConnection, { watchAvailability: 'idle' });
-      const { getByText } = render(<SettingsScreen />);
-      expect(getByText('Idle')).toBeTruthy();
+      Object.assign(mockConnection, { watchAvailability: 'connected' });
+      const { getAllByText } = render(<SettingsScreen />);
+      // Both Apple Watch and Bike pulse show 'Connected' when watch is connected
+      expect(getAllByText('Connected').length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows watch readiness label (Unavailable) when watch is unavailable', () => {

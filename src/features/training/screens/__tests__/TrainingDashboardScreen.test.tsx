@@ -352,7 +352,7 @@ describe('TrainingDashboardScreen', () => {
       bikeConnected: true,
       latestAppleWatchHr: 150,
       lastAppleWatchSampleAtMs: Date.now(),
-      watchAvailability: 'in_progress',
+      watchAvailability: 'connected',
     });
     Object.assign(mockDeviceConnectionStoreState, { activeHrSource: 'watch' });
 
@@ -377,7 +377,7 @@ describe('TrainingDashboardScreen', () => {
       bikeConnected: true,
       latestAppleWatchHr: 150,
       lastAppleWatchSampleAtMs: Date.now() - 20_000, // stale > 15s timeout
-      watchAvailability: 'in_progress',
+      watchAvailability: 'connected',
     });
     Object.assign(mockDeviceConnectionStoreState, { activeHrSource: 'watch' });
 
@@ -430,7 +430,7 @@ describe('TrainingDashboardScreen', () => {
       latestBluetoothHr: 142,
       lastAppleWatchSampleAtMs: Date.now(), // fresh watch, but BLE is locked
       latestAppleWatchHr: 150,
-      watchAvailability: 'in_progress',
+      watchAvailability: 'connected',
     });
     Object.assign(mockDeviceConnectionStoreState, {
       activeHrSource: 'bluetooth',

@@ -7,14 +7,13 @@ import {
 
 describe('resolveWatchHrDisplayState', () => {
   it('collapses to disabled when Watch HR is off, regardless of availability', () => {
-    expect(resolveWatchHrDisplayState(false, 'in_progress')).toBe('disabled');
+    expect(resolveWatchHrDisplayState(false, 'connected')).toBe('disabled');
     expect(resolveWatchHrDisplayState(false, 'unavailable')).toBe('disabled');
   });
 
   it('passes the raw availability through when Watch HR is enabled', () => {
     expect(resolveWatchHrDisplayState(true, 'unavailable')).toBe('unavailable');
-    expect(resolveWatchHrDisplayState(true, 'idle')).toBe('idle');
-    expect(resolveWatchHrDisplayState(true, 'in_progress')).toBe('in_progress');
+    expect(resolveWatchHrDisplayState(true, 'connected')).toBe('connected');
   });
 });
 
@@ -22,8 +21,7 @@ describe('label helpers', () => {
   it('maps Watch HR display states to human labels', () => {
     expect(watchHrDisplayLabel('disabled')).toBe('Disabled');
     expect(watchHrDisplayLabel('unavailable')).toBe('Unavailable');
-    expect(watchHrDisplayLabel('idle')).toBe('Idle');
-    expect(watchHrDisplayLabel('in_progress')).toBe('Connected');
+    expect(watchHrDisplayLabel('connected')).toBe('Connected');
   });
 
   it('exposes the canonical Watch-unavailable hint copy', () => {
@@ -55,7 +53,7 @@ describe('resolveHrSourceSummary', () => {
           activeHrSource: 'watch',
           reading: liveWatchReading,
           primaryHrSource: 'bike',
-          watchAvailability: 'in_progress',
+          watchAvailability: 'connected',
           savedHrName: null,
           hrConnected: false,
         }),
@@ -68,7 +66,7 @@ describe('resolveHrSourceSummary', () => {
           activeHrSource: 'watch',
           reading: deadWatchReading,
           primaryHrSource: 'bike',
-          watchAvailability: 'idle',
+          watchAvailability: 'unavailable',
           savedHrName: null,
           hrConnected: false,
         }),
@@ -133,7 +131,7 @@ describe('resolveHrSourceSummary', () => {
         activeHrSource: 'bike',
         reading: liveBikeReading,
         primaryHrSource: 'bike',
-        watchAvailability: 'in_progress',
+        watchAvailability: 'connected',
         savedHrName: 'Garmin HRM',
         hrConnected: true,
       });
@@ -147,7 +145,7 @@ describe('resolveHrSourceSummary', () => {
           activeHrSource: 'bluetooth',
           reading: liveBtReading,
           primaryHrSource: 'watch',
-          watchAvailability: 'in_progress',
+          watchAvailability: 'connected',
           savedHrName: 'Garmin HRM',
           hrConnected: true,
         }),
@@ -158,30 +156,17 @@ describe('resolveHrSourceSummary', () => {
   // ── Idle: primary source readiness ───────────────────────────────────────
 
   describe('idle (activeHrSource is null)', () => {
-    it('primary watch + availability in_progress → Apple Watch · Connected', () => {
+    it('primary watch + availability connected → Apple Watch · Connected', () => {
       expect(
         resolveHrSourceSummary({
           activeHrSource: null,
           reading: liveWatchReading,
           primaryHrSource: 'watch',
-          watchAvailability: 'in_progress',
+          watchAvailability: 'connected',
           savedHrName: null,
           hrConnected: false,
         }),
       ).toEqual({ name: 'Apple Watch', state: 'Connected' });
-    });
-
-    it('primary watch + availability idle → Apple Watch · Idle', () => {
-      expect(
-        resolveHrSourceSummary({
-          activeHrSource: null,
-          reading: deadWatchReading,
-          primaryHrSource: 'watch',
-          watchAvailability: 'idle',
-          savedHrName: null,
-          hrConnected: false,
-        }),
-      ).toEqual({ name: 'Apple Watch', state: 'Idle' });
     });
 
     it('primary watch + availability unavailable → Apple Watch · Unavailable', () => {

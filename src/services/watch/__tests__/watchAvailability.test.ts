@@ -1,6 +1,11 @@
-import { resolveWatchAvailability, WATCH_IDLE_GRACE_MS, WATCH_WORKOUT_GRACE_MS } from '../watchAvailability';
+import {
+  resolveWatchAvailability,
+  WATCH_IDLE_GRACE_MS,
+  WATCH_WORKOUT_GRACE_MS,
+  type WatchContactInput,
+} from '../watchAvailability';
 
-const base = { isReachable: false, workoutActive: false, lastContactAtMs: null as number | null, nowMs: 100_000 };
+const base: WatchContactInput = { isReachable: false, workoutActive: false, lastContactAtMs: null, nowMs: 100_000 };
 
 describe('resolveWatchAvailability', () => {
   it('connected when reachable, regardless of contact age', () => {
