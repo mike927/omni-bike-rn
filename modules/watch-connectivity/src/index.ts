@@ -2,10 +2,22 @@ import { NativeModule, requireNativeModule } from 'expo-modules-core';
 
 export type WatchHrPayload = { hr: number };
 export type WatchActiveKcalPayload = { activeKcal: number };
-export type WatchReachabilityPayload = { reachable: boolean };
+export type WatchReachabilityPayload = {
+  reachable: boolean;
+  activationState?: number;
+  paired?: boolean;
+  installed?: boolean;
+};
 export type WatchSessionStatePayload = { state: 'started' | 'ended' | 'failed'; sentAtMs: number };
 /** Stable presence of the companion: the Watch is paired and the app is installed. */
-export type WatchCompanionStatePayload = { available: boolean };
+export type WatchCompanionStatePayload = {
+  available: boolean;
+  paired?: boolean;
+  installed?: boolean;
+  activationState?: number;
+  reachable?: boolean;
+};
+export type WatchAppStatePayload = { state: string };
 
 type WatchConnectivityModuleEvents = {
   onWatchHr: (payload: WatchHrPayload) => void;
@@ -13,6 +25,7 @@ type WatchConnectivityModuleEvents = {
   onReachabilityChange: (payload: WatchReachabilityPayload) => void;
   onWatchSessionState: (payload: WatchSessionStatePayload) => void;
   onWatchCompanionStateChange: (payload: WatchCompanionStatePayload) => void;
+  onWatchAppState: (payload: WatchAppStatePayload) => void;
 };
 
 declare class WatchConnectivityNativeModule extends NativeModule<WatchConnectivityModuleEvents> {

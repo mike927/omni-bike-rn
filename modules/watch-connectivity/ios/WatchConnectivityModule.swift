@@ -60,7 +60,7 @@ public class WatchConnectivityModule: Module {
   public func definition() -> ModuleDefinition {
     Name("WatchConnectivity")
 
-    Events("onWatchHr", "onWatchActiveKcal", "onReachabilityChange", "onWatchSessionState", "onWatchCompanionStateChange")
+    Events("onWatchHr", "onWatchActiveKcal", "onReachabilityChange", "onWatchSessionState", "onWatchCompanionStateChange", "onWatchAppState")
 
     // Per WWDC23 session 10023: register the mirroring handler on every app
     // launch (foreground or background) so HealthKit can hand us the primary
@@ -290,6 +290,11 @@ public class WatchConnectivityModule: Module {
     sendEvent("onWatchSessionState", ["state": state, "sentAtMs": sentAtMs])
   }
 
+  fileprivate func emitWatchAppState(_ state: String) {
+    wcLog("[WC-iPhone] emitWatchAppState state=\(state)")
+    sendEvent("onWatchAppState", ["state": state])
+  }
+
   fileprivate func attachMirroredWorkoutSession(_ session: HKWorkoutSession) {
     clearMirroredWorkoutSession()
     wcLog("[WC-iPhone] attachMirroredWorkoutSession state=\(session.state.rawValue) type=\(session.type.rawValue)")
@@ -356,6 +361,9 @@ private class SessionDelegateProxy: NSObject, WCSessionDelegate, HKWorkoutSessio
       wcLog("[WC-iPhone] didReceiveMessage sessionState=\(state)")
       module?.emitSessionState(state, sentAtMs: sentAtMs.doubleValue)
     }
+    if let watchAppState = message["watchAppState"] as? String {
+      module?.emitWatchAppState(watchAppState)
+    }
   }
 
   func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
@@ -370,6 +378,9 @@ private class SessionDelegateProxy: NSObject, WCSessionDelegate, HKWorkoutSessio
        let sentAtMs = applicationContext[PayloadKey.sentAtMs] as? NSNumber {
       wcLog("[WC-iPhone] didReceiveApplicationContext sessionState=\(state)")
       module?.emitSessionState(state, sentAtMs: sentAtMs.doubleValue)
+    }
+    if let watchAppState = applicationContext["watchAppState"] as? String {
+      module?.emitWatchAppState(watchAppState)
     }
   }
 

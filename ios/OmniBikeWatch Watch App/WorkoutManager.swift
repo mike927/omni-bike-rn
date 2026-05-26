@@ -295,6 +295,17 @@ final class WorkoutManager: NSObject, ObservableObject {
         WCSession.default.activate()
     }
 
+    // Forwards the Watch app's foreground/background lifecycle to the iPhone for
+    // observability — an event-driven "is the Watch app running" signal that, unlike
+    // `isReachable`, does not flap when the screen merely dims. Best-effort live send;
+    // the transition is captured in the Watch's wc.log regardless of reachability.
+    func reportAppState(_ state: String) {
+        wcLog("[WC-Watch] appState -> \(state)")
+        let session = WCSession.default
+        guard session.activationState == .activated, session.isReachable else { return }
+        session.sendMessage(["watchAppState": state, "sentAtMs": Date().timeIntervalSince1970 * 1000], replyHandler: nil)
+    }
+
     private func sendHrToPhone(_ bpm: Int) {
         var payload: [String: Any] = [
             "hr": bpm,

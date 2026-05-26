@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
 import { WatchConnectivity } from 'watch-connectivity';
 import { WatchHrAdapter } from '../../../services/watch/WatchHrAdapter';
@@ -60,6 +60,15 @@ export function useWatchHr(): void {
   useEffect(() => {
     void hydrateHrSourcePref();
   }, [hydrateHrSourcePref]);
+
+  // Trace the iPhone app's own foreground/background transitions to correlate with
+  // Watch WC events when debugging.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      logWc(`iPhone appState -> ${state}`);
+    });
+    return () => sub.remove();
+  }, []);
 
   // Session-level HR source lock — platform-independent, NOT gated on watch availability.
   // Tracks `primary` while Active (consistent with the live `primary === 'watch'` watch gate):
@@ -304,6 +313,10 @@ export function useWatchHr(): void {
       },
     );
 
+    const watchAppStateSub = WatchConnectivity.addListener('onWatchAppState', ({ state }: { state: string }) => {
+      logWc(`event watchAppState=${state}`);
+    });
+
     logWc('activating WatchConnectivity');
     void WatchConnectivity.activate().catch((error: unknown) => {
       console.error('[useWatchHr] Failed to activate WatchConnectivity:', error);
@@ -313,6 +326,7 @@ export function useWatchHr(): void {
       companionStateSub.remove();
       reachabilitySub.remove();
       sessionStateSub.remove();
+      watchAppStateSub.remove();
     };
   }, [watchAvailable, updateAppleWatchHr, updateAppleWatchActiveKcal, setWatchAvailability]);
 }
