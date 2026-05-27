@@ -86,7 +86,8 @@ Larger paddings used at screen scaffolding edges: `60` (top inset), `80` / `152`
 Canonical, app-wide status labels for devices and HR sources — defined once in
 `src/services/status/deviceStatus.ts` (`DeviceStatus` + `DEVICE_STATUS_LABELS`) and rendered
 identically on every surface (Home, Settings, Training). **One label per state; never invent
-ad-hoc wording.** Rendered as plain text in the form `Name · Status` (no per-status color today).
+ad-hoc wording.** Always rendered as a color-coded **status pill** (`StatusPill` — see below),
+never as plain `Name · Status` text. The device name and its status never share a single line.
 
 | State | Label | Meaning |
 |---|---|---|
@@ -104,10 +105,43 @@ BLE strap link, bike FTMS link). Integration links (**Strava**, **Apple Health**
 **Connected / Not connected** — a separate account-linking domain, deliberately NOT part of this
 device vocabulary.
 
+## Status Pill (`StatusPill`)
+
+The single component for rendering any `DeviceStatus` on a read-only surface
+(`src/ui/components/StatusPill.tsx`). A `pill`-radius chip: a colored dot + the
+`deviceStatusLabel` text on a tinted background. Each status maps to one of four **tones** via
+`deviceStatusTone(status)` (`src/services/status/deviceStatus.ts`); the tone resolves to palette
+colors. Background = tone color at ~16% alpha, dot = solid tone color, text = a darkened tone color.
+
+| Tone | Statuses | Dot / accent | Reads as |
+|---|---|---|---|
+| `good` | `ready` | `success` `#10b5a4` (teal) | usable / live |
+| `working` | `connecting` | `warning` `#f5a524` (amber), **dot pulses** | in progress |
+| `attention` | `noSignal` | `danger` `#ef4b5c` (coral) | needs a look |
+| `inactive` | `unavailable`, `off`, `paused`, `notSetUp` | `tabInactive` `#7b8794` (gray) | not active |
+
+- Only `connecting` animates — the dot pulses (opacity loop, `react-native-reanimated`). All other
+  states render a static dot.
+- a11y: the label text carries the status for screen readers; the dot is decorative. Callers may
+  pass `accessibilityLabel` for extra context (e.g. the device name).
+- **One chip everywhere.** Used by the Home Bike + Heart Rate cards (via `SourceRow`), the Settings
+  `GearTile`, and the Training Bike-status pill + `HeartRateSourceTile`. Never re-style the status
+  inline — always render `StatusPill`.
+
+## Source Row (`SourceRow`)
+
+Reusable label / device / status row for the Home cards (`src/ui/components/SourceRow.tsx`): a muted
+category **label** on the left (e.g. `Bluetooth HR`, `Apple Watch`, or the bike name), an optional
+**device-name sub-line** beneath it (`textSoft`, single line, ellipsized), and a right-pinned
+`StatusPill`. When a card lists more than one source (the Heart Rate card), a hairline `border`
+divider separates the rows. The chip never truncates; the device name yields space.
+
 ## Gear / HR-Source Tiles
 
 Pattern for device & HR-source rows in Settings → "My Gear" (`SettingsScreen.tsx` `GearTile`).
-One tile per device (never list a device twice). Two distinct interactions, two distinct affordances:
+One tile per device (never list a device twice). The tile body shows the device **name** with its
+**`StatusPill`** directly beneath it (replacing the old plain-text status hint). Two distinct
+interactions, two distinct affordances:
 
 - **Selection** (HR sources only): tap the tile body → it becomes the primary source, shown by a
   **4px leading accent bar** (`primary`) + `primarySubtle` tint + bold `primary` name. **No radio.**
