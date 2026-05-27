@@ -11,7 +11,7 @@ export interface HeartRateSourceTileProps {
 
 export function HeartRateSourceTile({ name, status }: HeartRateSourceTileProps) {
   return (
-    <View style={styles.card}>
+    <View style={styles.card} testID="hr-source-tile">
       <Text style={styles.label}>Heart Rate Source</Text>
       <Text style={styles.value} numberOfLines={1}>
         {name}

@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, waitFor, within } from '@testing-library/react-native';
 
 import type { SavedDevice } from '../../../../types/gear';
 import { buildTrainingSummaryRoute, POST_FINISH_TRAINING_SUMMARY_SOURCE } from '../../navigation/trainingSummaryRoute';
@@ -356,10 +356,11 @@ describe('TrainingDashboardScreen', () => {
     });
     Object.assign(mockDeviceConnectionStoreState, { activeHrSource: 'watch' });
 
-    const { getByText, getAllByText } = render(<TrainingDashboardScreen />);
+    const { getByTestId } = render(<TrainingDashboardScreen />);
 
-    expect(getByText('Apple Watch')).toBeTruthy();
-    expect(getAllByText('Ready').length).toBeGreaterThanOrEqual(1);
+    const hrTile = within(getByTestId('hr-source-tile'));
+    expect(hrTile.getByText('Apple Watch')).toBeTruthy();
+    expect(hrTile.getByText('Ready')).toBeTruthy();
   });
 
   it('shows "Apple Watch · No signal" when watch is locked but sample is stale', () => {
@@ -382,10 +383,11 @@ describe('TrainingDashboardScreen', () => {
     });
     Object.assign(mockDeviceConnectionStoreState, { activeHrSource: 'watch' });
 
-    const { getByText } = render(<TrainingDashboardScreen />);
+    const { getByTestId } = render(<TrainingDashboardScreen />);
 
-    expect(getByText('Apple Watch')).toBeTruthy();
-    expect(getByText('No signal')).toBeTruthy();
+    const hrTile = within(getByTestId('hr-source-tile'));
+    expect(hrTile.getByText('Apple Watch')).toBeTruthy();
+    expect(hrTile.getByText('No signal')).toBeTruthy();
   });
 
   it('shows "Polar H10 · Ready" when BLE is locked as activeHrSource', () => {
@@ -401,28 +403,31 @@ describe('TrainingDashboardScreen', () => {
     });
     mockSavedGear.savedHrSource = { id: 'x', name: 'Polar H10', type: 'hr' };
 
-    const { getByText, getAllByText } = render(<TrainingDashboardScreen />);
+    const { getByTestId } = render(<TrainingDashboardScreen />);
 
-    expect(getByText('Polar H10')).toBeTruthy();
-    expect(getAllByText('Ready').length).toBeGreaterThanOrEqual(1);
+    const hrTile = within(getByTestId('hr-source-tile'));
+    expect(hrTile.getByText('Polar H10')).toBeTruthy();
+    expect(hrTile.getByText('Ready')).toBeTruthy();
   });
 
   it('shows "Bike pulse · Ready" in idle when no primary, watch unavailable, no saved gear, bike connected', () => {
     // Bike pulse becomes the idle default; ready only when bike is connected.
     Object.assign(mockDeviceConnection, { bikeConnected: true });
-    const { getByText, getAllByText } = render(<TrainingDashboardScreen />);
+    const { getByTestId } = render(<TrainingDashboardScreen />);
 
-    expect(getByText('Bike pulse')).toBeTruthy();
-    expect(getAllByText('Ready').length).toBeGreaterThanOrEqual(1);
+    const hrTile = within(getByTestId('hr-source-tile'));
+    expect(hrTile.getByText('Bike pulse')).toBeTruthy();
+    expect(hrTile.getByText('Ready')).toBeTruthy();
   });
 
   it('shows "Bike pulse · Unavailable" in idle when bike is not connected', () => {
     // Bike pulse becomes the idle default; shows Unavailable when bike is disconnected.
     Object.assign(mockDeviceConnection, { bikeConnected: false });
-    const { getByText, getAllByText } = render(<TrainingDashboardScreen />);
+    const { getByTestId } = render(<TrainingDashboardScreen />);
 
-    expect(getByText('Bike pulse')).toBeTruthy();
-    expect(getAllByText('Unavailable').length).toBeGreaterThanOrEqual(1);
+    const hrTile = within(getByTestId('hr-source-tile'));
+    expect(hrTile.getByText('Bike pulse')).toBeTruthy();
+    expect(hrTile.getByText('Unavailable')).toBeTruthy();
   });
 
   it('does not show Watch when bluetooth is locked mid-ride (locked source wins)', () => {
@@ -451,10 +456,11 @@ describe('TrainingDashboardScreen', () => {
     });
     mockSavedGear.savedHrSource = { id: 'y', name: 'Polar H10', type: 'hr' };
 
-    const { getByText, getAllByText, queryByText } = render(<TrainingDashboardScreen />);
+    const { getByTestId, queryByText } = render(<TrainingDashboardScreen />);
 
-    expect(getByText('Polar H10')).toBeTruthy();
-    expect(getAllByText('Ready').length).toBeGreaterThanOrEqual(1);
+    const hrTile = within(getByTestId('hr-source-tile'));
+    expect(hrTile.getByText('Polar H10')).toBeTruthy();
+    expect(hrTile.getByText('Ready')).toBeTruthy();
     expect(queryByText(/Apple Watch/)).toBeNull();
   });
 });

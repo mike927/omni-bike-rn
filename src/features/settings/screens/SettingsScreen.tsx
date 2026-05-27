@@ -56,6 +56,8 @@ interface GearTileProps {
   readonly actions?: React.ReactNode;
   /** Optional action on the header's right edge (e.g. a Set Up CTA for an empty tile). Ignored when `expandable`. */
   readonly trailingAction?: React.ReactNode;
+  /** Set false to hide the status pill, e.g. the not-set-up setup-affordance tile. Defaults true. */
+  readonly showStatus?: boolean;
 }
 
 function GearTileChevron({
@@ -101,6 +103,7 @@ function GearTile({
   chevronTestId,
   actions,
   trailingAction,
+  showStatus = true,
 }: GearTileProps) {
   // A tile is selectable when the caller supplies a boolean `selected` prop.
   // When `selected` is undefined the tile is expand-only (e.g. the Bike tile):
@@ -124,11 +127,11 @@ function GearTile({
           accessibilityRole={isSelectable ? undefined : bodyPressHandler === undefined ? undefined : 'button'}
           accessibilityState={bodyA11yState}>
           <Text style={[styles.gearName, isSelected && styles.gearNameSelected]}>{name}</Text>
-          {status === 'notSetUp' ? null : (
+          {showStatus ? (
             <View style={styles.gearTileStatus}>
               <StatusPill status={status} accessibilityLabel={`${name}: ${deviceStatusLabel(status)}`} />
             </View>
-          )}
+          ) : null}
         </TouchableOpacity>
         {expandable ? (
           <GearTileChevron expanded={expanded} onToggle={onToggleExpand} testID={chevronTestId} name={name} />
@@ -393,6 +396,7 @@ export function SettingsScreen() {
             <GearTile
               name={deviceStatusLabel('notSetUp')}
               status="notSetUp"
+              showStatus={false}
               headerTestId="bike-tile-header"
               trailingAction={
                 <ActionButton

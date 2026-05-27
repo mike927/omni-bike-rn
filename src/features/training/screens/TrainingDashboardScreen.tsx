@@ -5,7 +5,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useDeviceConnection } from '../hooks/useDeviceConnection';
 import { useTrainingSession } from '../hooks/useTrainingSession';
 import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
-import { bleDeviceStatus } from '../../../services/status/deviceStatus';
+import { bleDeviceStatus, deviceStatusLabel } from '../../../services/status/deviceStatus';
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { buildTrainingSummaryRoute, POST_FINISH_TRAINING_SUMMARY_SOURCE } from '../navigation/trainingSummaryRoute';
 import { resolveHrSourceSummary } from '../../../services/hr/hrStatus';
@@ -109,6 +109,12 @@ export function TrainingDashboardScreen() {
     logWc(`[hrTile] ${hrTileName} -> ${hrTileStatus}`);
   }, [hrTileName, hrTileStatus]);
 
+  const bikeConnectionStatus = bleDeviceStatus({
+    hasSavedDevice: true,
+    connected: bikeConnected,
+    reconnect: bikeReconnectState,
+  });
+
   const showDisconnectedState =
     !bikeConnected && (session.phase === TrainingPhase.Idle || session.phase === TrainingPhase.Paused);
 
@@ -166,11 +172,8 @@ export function TrainingDashboardScreen() {
           <View style={styles.connectionPill}>
             <Text style={styles.connectionLabel}>Bike</Text>
             <StatusPill
-              status={bleDeviceStatus({
-                hasSavedDevice: true,
-                connected: bikeConnected,
-                reconnect: bikeReconnectState,
-              })}
+              status={bikeConnectionStatus}
+              accessibilityLabel={`Bike: ${deviceStatusLabel(bikeConnectionStatus)}`}
             />
           </View>
         </View>
