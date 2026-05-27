@@ -72,16 +72,23 @@ NO_SIGNAL   otherwise
 - [x] Full suite green — **70 suites / 756 tests pass** (commit `0e19173`, +16 new status tests).
 - [x] `npx tsc --noEmit` + `npm run lint` clean.
 
-**On-device** (via `manual-test-handoff` skill; JS-only changes → Metro reload)
-- [ ] **Availability stable:** watch paired+installed → tile **"Ready"**, stays Ready while the
-  idle watch app suspends (no flap). *(criterion 7 of the availability spec)*
-- [ ] **Availability flips:** uninstall the watch app (or unpair) → tile **"Unavailable"**;
-  reinstall → back to **"Ready"**. Log-proven via `emitCompanionState available=…`. *(criterion 8)*
-- [ ] **Lock / no-fallback:** start a watch-primary ride → HR streams; kill watch app →
-  "No signal" after ~15 s, never silently falls back to bike.
-- [ ] **Pause/resume:** pause → watch timer stops; resume → HR resumes. (See I2 re: label.)
-- [ ] **Background HR (sub-project 8):** background the app mid-ride → on foreground, HR is live
-  immediately (no lingering "No signal"); a real kill still → "No signal".
+**On-device** (status logging now in place — `[WC-JS] [hrTile] <name> -> <status>` — so the
+in-workout state machine is verifiable from the Metro stream, not by eye):
+- [x] **Availability stable:** **log-confirmed** — `event companion available=true paired=true
+  installed=true` fires steadily, never `available=false`; watch reads **"Ready"**. *(criterion 7)*
+- [~] **Pause/resume:** pause **log-confirmed** (`phase Active→Paused — sending
+  pauseMirroredWorkout`). Resume + the `[hrTile] -> paused`/`-> ready` labels pending a
+  **foreground** ride-through (the live session is stuck in a backgrounded churn).
+- [ ] **I1/I3 tile labels:** bike-pulse gating · `[hrTile] -> connecting` then `-> ready` at
+  watch-ride start — pending one **foreground** watch ride (will read from `[hrTile]` logs).
+- [ ] **Lock / no-fallback:** foreground watch ride → kill watch → `[hrTile] -> noSignal`,
+  stays Apple Watch (no bike switch). Pending the same ride.
+- [ ] **Availability flips** *(optional, destructive)*: uninstall watch app → "Unavailable".
+  Needs the user; re-establishes the matched pair afterward. *(criterion 8)*
+- [-] **Background HR (sub-project 8):** ⏸️ **deferred** to its own task. Live testing surfaced
+  the core obstacle (see "Live-log findings" above): the mid-ride retry calls `startWatchApp`
+  from the background → `Error: Cannot start watch app when phone app is in background`. Fix +
+  on-device repro under that task.
 
 ---
 
