@@ -56,6 +56,7 @@ interface PrimaryHrSourceRowProps {
   readonly onSelect: (source: HrSource) => void;
   readonly hrReconnectState: ReconnectState;
   readonly onConnectHr: () => void;
+  readonly onAddHr: () => void;
   readonly onReplaceHr: () => void;
   readonly onForgetHr: () => void;
 }
@@ -70,6 +71,7 @@ function PrimaryHrSourceRow({
   onSelect,
   hrReconnectState,
   onConnectHr,
+  onAddHr,
   onReplaceHr,
   onForgetHr,
 }: PrimaryHrSourceRowProps) {
@@ -115,7 +117,7 @@ function PrimaryHrSourceRow({
         })}
       </View>
       {savedHrSource === null ? (
-        <ActionButton label="Add Bluetooth HR" onPress={onReplaceHr} variant="secondary" fullWidth />
+        <ActionButton label="Add Bluetooth HR" onPress={onAddHr} variant="secondary" fullWidth />
       ) : null}
     </View>
   );
@@ -282,6 +284,7 @@ export function SettingsScreen() {
           onConnectHr={() => {
             retryHr();
           }}
+          onAddHr={() => router.push('/gear-setup?target=hr')}
           onReplaceHr={() => router.push('/gear-setup?target=hr')}
           onForgetHr={() => void forgetHr()}
         />
@@ -476,9 +479,7 @@ const styles = StyleSheet.create({
   hrSourceOptions: {
     gap: 6,
   },
-  hrSourceOptionContainer: {
-    gap: 0,
-  },
+  hrSourceOptionContainer: {},
   hrSourceOptionActions: {
     paddingHorizontal: 10,
     paddingBottom: 8,

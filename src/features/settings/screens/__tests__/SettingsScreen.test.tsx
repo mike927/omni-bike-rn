@@ -445,12 +445,21 @@ describe('SettingsScreen', () => {
     });
 
     it('Apple Watch and Bike pulse HR source rows have no management action buttons', () => {
-      Object.assign(mockWatchHr, { watchAvailable: true, availableSources: ['watch', 'bike'] });
-      const { queryByText } = render(<SettingsScreen />);
-      // No Replace/Forget in the HR source section for watch/bike rows
-      // (Replace appears only for bike gear row when savedBike is present, which it is not here)
-      expect(queryByText('Replace')).toBeNull();
-      expect(queryByText('Forget')).toBeNull();
+      // Render with a saved + connected Bluetooth strap AND watch/bluetooth/bike all available.
+      // Only the bluetooth row should have Replace and Forget — exactly one each on screen.
+      Object.assign(mockSavedGear, {
+        savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' },
+      });
+      Object.assign(mockConnection, { hrConnected: true });
+      Object.assign(mockWatchHr, {
+        watchAvailable: true,
+        availableSources: ['watch', 'bluetooth', 'bike'],
+        primary: 'bluetooth',
+      });
+      const { getAllByText } = render(<SettingsScreen />);
+      // Exactly one Replace and one Forget — from the bluetooth row only.
+      expect(getAllByText('Replace').length).toBe(1);
+      expect(getAllByText('Forget').length).toBe(1);
     });
 
     it('selecting an HR source row calls setPrimary with the correct source', () => {
