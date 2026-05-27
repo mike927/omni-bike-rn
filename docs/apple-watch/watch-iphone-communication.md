@@ -1,0 +1,282 @@
+# Apple Watch ⇄ iPhone Communication Flows
+
+All communication paths between the **OmniBike Watch app** and the **iPhone (mobile) app**,
+derived directly from the native bridge:
+
+- iPhone module: `modules/watch-connectivity/ios/WatchConnectivityModule.swift`
+- iPhone JS bridge: `modules/watch-connectivity/src/index.ts` → consumed in `src/features/gear/hooks/useWatchHr.ts`
+- Watch app: `ios/OmniBikeWatch Watch App/WorkoutManager.swift`, `WatchAppDelegate.swift`, `OmniBikeWatchApp.swift`
+
+> **Roles.** The **iPhone decides** *when* a workout starts/stops/pauses (it sends commands).
+> The **Watch owns** the `HKWorkoutSession` — only it can call `startActivity` / `end` /
+> `pause` / `resume`. The Watch is a **pure HR source**: it never persists an `HKWorkout`
+> (`discardWorkout` on teardown), it only streams HR + active-kcal to the iPhone.
+
+---
+
+## 1. Transports at a glance
+
+The bridge uses **five distinct transports**, each with different reachability and
+background guarantees. Picking the right one per message is the whole game.
+
+| # | Transport | Direction | Needs `isReachable`? | Works backgrounded? | Delivery |
+|---|---|---|---|---|---|
+| T1 | `HKHealthStore.startWatchApp(with:)` | 📱→⌚ | no (HK wake broker) | **wakes/launches** the watch app | one-shot launch + config |
+| T2 | WCSession `sendMessage` | ⌚⇄📱 | **yes** | no (both ~foreground) | live, fire-and-forget |
+| T3 | WCSession `transferUserInfo` | 📱→⌚ | no | **yes** (delivered on next wake) | FIFO queue, guaranteed |
+| T4 | WCSession `updateApplicationContext` | ⌚→📱 | no | **yes** | latest-value-only (coalesced) |
+| T5 | `HKWorkoutSession` mirroring (`sendToRemoteWorkoutSession` / `didReceiveDataFromRemoteWorkoutSession`) | ⌚→📱 | no | **yes** (survives a dimmed/backgrounded ride) | streamed during active session |
+
+Plus **framework-driven callbacks** (no app payload): activation, reachability change,
+and companion-state (paired/installed) change.
+
+```mermaid
+flowchart LR
+  subgraph Phone["📱 iPhone app"]
+    JS["useWatchHr.ts<br/>(JS)"]
+    Mod["WatchConnectivityModule.swift"]
+    Mirror["workoutSessionMirroringStartHandler<br/>+ HKWorkoutSession delegate"]
+  end
+  subgraph Watch["⌚ Watch app"]
+    WM["WorkoutManager.swift"]
+    AD["WatchAppDelegate.handle(_:)"]
+  end
+
+  JS -->|activate / startWatchApp / end / pause / resume / sendMessage| Mod
+  Mod -->|T1 startWatchApp + config| AD
+  Mod -->|T2 sendMessage: cmd start/stop/pause/resume| WM
+  Mod -->|T3 transferUserInfo: cmd stop/pause/resume when unreachable| WM
+  WM -->|T2 sendMessage: hr / sessionState / watchAppState| Mod
+  WM -->|T4 updateApplicationContext: hr / sessionState| Mod
+  WM -->|T5 sendToRemoteWorkoutSession: hr+kcal| Mirror
+  Mod -->|events: onWatchHr / onWatchActiveKcal / onReachabilityChange /<br/>onWatchSessionState / onWatchCompanionStateChange / onWatchAppState| JS
+```
+
+---
+
+## 2. iPhone → Watch (commands)
+
+The iPhone never measures HR; it only **drives the session**. Every command keys off `cmd`.
+
+| What | JS call | Transport | Payload | Watch handler |
+|---|---|---|---|---|
+| Wake watch app + start ride | `startWatchApp()` | **T1** | `HKWorkoutConfiguration` (cycling/indoor) | `WatchAppDelegate.handle(_:)` → `requestAuthorization(starting:)` → `startWorkout` |
+| Start (backup trigger) | (auto, after T1 succeeds, when reachable — `flushPendingStart`) | **T2** | `{cmd:"start"}` | `handleCommand` → `startWorkout` |
+| Stop | `endMirroredWorkout()` | **T2** if reachable, else **T3** | `{cmd:"stop"}` | `handleCommand` → `stopWorkout` → `session.end()` |
+| Pause | `pauseMirroredWorkout()` | **T2** if reachable, else **T3** | `{cmd:"pause"}` | `handleCommand` → `pauseWorkout` → `session.pause()` |
+| Resume | `resumeMirroredWorkout()` | **T2** if reachable, else **T3** | `{cmd:"resume"}` | `handleCommand` → `resumeWorkout` → `session.resume()` |
+
+Notes:
+- **Two start paths converge.** T1 (HealthKit wake + config) and the T2 `cmd:"start"` message
+  both end at `startWorkout`, which **no-ops if a session already exists** (`session != nil`) —
+  so the redundancy is safe. T1 can wake a suspended watch app; T2 alone cannot.
+- **`start` is never queued.** It's gated behind `pendingStart` and only flushed via T2 once the
+  Watch is reachable. `stop`/`pause`/`resume` fall back to **T3 (`transferUserInfo`)** when
+  unreachable, so an end-of-ride stop still reaches an orphaned session on the next wake.
+
+### Start-ride sequence
+
+```mermaid
+sequenceDiagram
+  participant JS as 📱 useWatchHr (JS)
+  participant Mod as 📱 Module (Swift)
+  participant HK as HealthKit wake broker
+  participant AD as ⌚ WatchAppDelegate
+  participant WM as ⌚ WorkoutManager
+
+  JS->>Mod: startWatchApp()
+  Mod->>HK: HKHealthStore.startWatchApp(config)   %% T1
+  HK->>AD: handle(workoutConfiguration)            %% wakes app
+  AD->>WM: requestAuthorization(starting: config)
+  WM->>WM: startWorkout() → HKWorkoutSession.startActivity
+  WM->>Mod: startMirroringToCompanionDevice()      %% opens T5
+  Mod->>Mod: workoutSessionMirroringStartHandler → attach
+  Note over Mod: on success, reachable → flushPendingStart()
+  Mod-->>WM: sendMessage {cmd:"start"}  (T2, no-op if session exists)
+  WM->>Mod: publishSessionState("started")  (T2 + T4)
+  Mod-->>JS: onWatchSessionState {state:"started"}
+```
+
+---
+
+## 3. Watch → iPhone (HR, kcal, session state, lifecycle)
+
+### 3a. Heart rate + active kcal (~1 Hz during a workout)
+
+`sendHrToPhone` fires the **same payload over three transports at once** for maximum
+resilience — whichever arrives first wins; the iPhone treats each as "stream alive."
+
+| Transport | Condition | iPhone entry point → event |
+|---|---|---|
+| **T2** `sendMessage` | only if `isReachable` | `didReceiveMessage` → `emitHr`/`emitActiveKcal` |
+| **T5** `sendToRemoteWorkoutSession` | watchOS 10+, active session exists | `didReceiveDataFromRemoteWorkoutSession` → `emitHr`/`emitActiveKcal` |
+| **T4** `updateApplicationContext` | always (when activated) | `didReceiveApplicationContext` → `emitHr`/`emitActiveKcal` |
+
+Payload: `{ hr, sentAtMs, activeKcal? }` (kcal omitted until HealthKit produces its first
+`activeEnergyBurned` sample). All land on JS as `onWatchHr` → `updateAppleWatchHr` and
+`onWatchActiveKcal` → `updateAppleWatchActiveKcal`.
+
+> **Why three?** T5 is the only channel that keeps delivering while the watch screen is
+> **dimmed/backgrounded mid-ride** (the reason `HKLiveWorkoutBuilder` is used as the sample
+> pipe). T2 is the snappy foreground path. T4 is the always-on coalesced fallback.
+
+```mermaid
+sequenceDiagram
+  participant WM as ⌚ WorkoutManager (HKLiveWorkoutBuilder)
+  participant Mod as 📱 Module
+  participant JS as 📱 useWatchHr
+
+  Note over WM: builder collects HR @ ~1 Hz
+  par live (foreground)
+    WM->>Mod: T2 sendMessage {hr,...}
+  and background-capable
+    WM->>Mod: T5 sendToRemoteWorkoutSession {hr,...}
+  and coalesced fallback
+    WM->>Mod: T4 updateApplicationContext {hr,...}
+  end
+  Mod-->>JS: onWatchHr {hr}  (+ onWatchActiveKcal)
+  JS->>JS: updateAppleWatchHr(hr)  (15s freshness gate → "No signal")
+```
+
+### 3b. Session state — **two independent routes**
+
+`started` / `ended` / `failed` reaches the iPhone via **both**:
+
+1. **WC message route:** Watch `publishSessionState` → T2 (if reachable) **+** T4 →
+   `emitSessionState` → `onWatchSessionState`. Queued in `pendingSessionStatePayload` and
+   flushed on WC activation if not yet activated.
+2. **Mirrored-session delegate route:** the iPhone's attached `HKWorkoutSession` delegate fires
+   `workoutSession didChangeTo .running/.ended` → `emitSessionState("started"/"ended")`, and
+   `didFailWithError` → `"failed"`. This needs no watch app message at all.
+
+On JS, `onWatchSessionState` is currently **logging-only** (availability is companion-driven —
+see §5).
+
+### 3c. Watch app lifecycle (observability)
+
+`reportAppState` (from SwiftUI `scenePhase` in `OmniBikeWatchApp`) → T2 best-effort (reachable
+only) → `emitWatchAppState` → `onWatchAppState`. Payload `{watchAppState: "active"|"inactive"|
+"background", sentAtMs}`. JS logs it only. Unlike `isReachable`, this is an explicit event when
+the watch app foregrounds/backgrounds, useful for debugging — but it requires the app to be running.
+
+---
+
+## 4. Pause / resume and end (incl. unreachable fallback)
+
+```mermaid
+sequenceDiagram
+  participant JS as 📱 useWatchHr
+  participant Mod as 📱 Module
+  participant WM as ⌚ WorkoutManager
+
+  Note over JS: phase Active→Paused (primary=watch)
+  JS->>Mod: pauseMirroredWorkout()
+  alt Watch reachable
+    Mod->>WM: T2 sendMessage {cmd:"pause"}
+  else unreachable
+    Mod->>WM: T3 transferUserInfo {cmd:"pause"}  (delivered next wake)
+  end
+  WM->>WM: session.pause() → HKWorkoutSession .paused
+  Note over WM: timer + HR collection stop; no echoed sessionState
+
+  Note over JS: phase Paused→Active
+  JS->>Mod: resumeMirroredWorkout()
+  Mod->>WM: T2/T3 {cmd:"resume"} → session.resume()
+
+  Note over JS: phase → Finished/Idle
+  JS->>Mod: endMirroredWorkout()
+  alt reachable
+    Mod->>WM: T2 {cmd:"stop"}
+  else unreachable
+    Mod->>WM: T3 transferUserInfo {cmd:"stop"}  (ends orphan on next wake)
+  end
+  WM->>WM: session.end() → .ended → publishSessionState("ended") + discardWorkout
+  WM->>Mod: onWatchSessionState {state:"ended"} (+ mirrored .ended delegate)
+```
+
+**Orphan recovery:** if a ride ended while the Watch was unreachable and the stop never
+arrived, `WorkoutManager.recoverOrphanedSession()` (on watch app launch) finds the still-running
+`HKWorkoutSession` via `recoverActiveWorkoutSession` and ends + discards it, so the UI doesn't
+falsely show "in progress."
+
+---
+
+## 5. Availability, reachability & activation (framework-driven)
+
+These carry **no app payload** — they're WCSession lifecycle callbacks surfaced as JS events.
+
+| Native callback | JS event | Drives |
+|---|---|---|
+| `activate()` / `activationDidCompleteWith` | (resolves promise) + emits the two below | session setup |
+| `sessionReachabilityDidChange` | `onReachabilityChange` `{reachable, paired, installed}` | **mid-ride HR-stream retry** + `flushPendingStart`. **Does NOT set availability.** |
+| `sessionWatchStateDidChange` (paired/installed changed) | `onWatchCompanionStateChange` `{available, paired, installed, ...}` | **`watchAvailability`**: `setWatchAvailability(available ? 'connected' : 'unavailable')` |
+
+`available = isPaired && isWatchAppInstalled`. **Install/uninstall is OS-detected** — the watch
+app fires no "installed" hook (it isn't running at install time); the daemon notifies the
+iPhone's `WCSession` and `sessionWatchStateDidChange` fires. This is why the watch's availability
+is **stable** and doesn't flap when the idle watch app suspends.
+
+**Internal state vs displayed label:** `watchAvailability` is the internal value
+(`'connected' | 'unavailable'`). It renders through the canonical `DeviceStatus` vocabulary
+(`watchHrStatus` → `deviceStatusLabel`): `'connected'` → **"Ready"**, `'unavailable'` →
+**"Unavailable"**, and **"Off"** when the watch isn't the selected primary source. So the tile
+the user sees reads *Ready / Unavailable / Off*, not "Connected".
+
+```mermaid
+flowchart TD
+  A["WCSession on iPhone"] -->|sessionWatchStateDidChange| B["emitCompanionState<br/>available = isPaired && isWatchAppInstalled"]
+  B -->|onWatchCompanionStateChange| C{"available?"}
+  C -->|true| D["watchAvailability = 'connected'"]
+  C -->|false| E["watchAvailability = 'unavailable'"]
+  A -->|sessionReachabilityDidChange| F["onReachabilityChange"]
+  F -->|reachable && Active && primary=watch && no adapter| G["retry startStream (mid-ride)"]
+  F -.->|does NOT touch availability| D
+```
+
+> **"Ready" ≠ HR flowing.** Availability answers *"is the watch here (paired + installed)?"*.
+> The live-HR truth is separate: a 15 s freshness gate (`HR_NO_SIGNAL_TIMEOUT_MS`, in
+> `resolveHrReading`) shows **"No signal"** on the HR number when samples stop, even while the
+> availability stays **"Ready"**. (In-workout the tile also surfaces **"Connecting…"** before the
+> first sample and **"Paused"** while paused — see the device-status state machine in
+> `hr-source-feature-status.md`.)
+
+---
+
+## 6. Complete event/message catalog
+
+### JS-facing events (`modules/watch-connectivity/src/index.ts`) and their consumer
+
+| Event | Payload | Source transport | `useWatchHr` action |
+|---|---|---|---|
+| `onWatchHr` | `{hr}` | T2 / T4 / T5 | `updateAppleWatchHr` |
+| `onWatchActiveKcal` | `{activeKcal}` | T2 / T4 / T5 | `updateAppleWatchActiveKcal` |
+| `onReachabilityChange` | `{reachable, paired, installed, activationState}` | `sessionReachabilityDidChange` | mid-ride stream retry (not availability) |
+| `onWatchSessionState` | `{state, sentAtMs}` | T2/T4 message **or** mirrored-session delegate | logging only |
+| `onWatchCompanionStateChange` | `{available, paired, installed, ...}` | `sessionWatchStateDidChange` / activate | `setWatchAvailability` |
+| `onWatchAppState` | `{state}` | T2 (`reportAppState`) | logging only |
+
+### Native JS→native functions (`WatchConnectivity` module)
+
+| Function | Effect |
+|---|---|
+| `activate()` | Activate WCSession; emits reachability + companion state |
+| `startWatchApp()` | T1 wake + config; arms `pendingStart` (T2 `cmd:start` on reachable) |
+| `endMirroredWorkout()` | T2/T3 `cmd:stop`; clears `pendingStart` |
+| `pauseMirroredWorkout()` | T2/T3 `cmd:pause` |
+| `resumeMirroredWorkout()` | T2/T3 `cmd:resume` |
+| `sendMessage(dict)` | raw T2 passthrough (returns false if not activated/unreachable) |
+
+---
+
+## 7. Log prefixes (for debugging on-device)
+
+- `[WC-iPhone] …` — iPhone module (`Documents/wc.log` on the phone) + Metro NSLog.
+- `[WC-Watch] …` — watch app (`Documents/wc.log` on the watch).
+- `[WC-JS] …` — JS traces (`logWc`) in Metro.
+
+Key lines: `emitCompanionState available= paired= installed=` (availability ground truth),
+`sessionReachabilityDidChange reachable=`, `didReceiveDataFromRemoteWorkoutSession hr=` (T5),
+`sendHrToPhone` (watch send), `handleCommand cmd=` (command receipt).
+
+See `docs/apple-watch/wake-on-start.md` for the start-from-iPhone wake caveats, and
+`.claude/skills/manual-test-handoff` for the log-pull commands.
