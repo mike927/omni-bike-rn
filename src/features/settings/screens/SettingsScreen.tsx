@@ -53,6 +53,39 @@ interface GearTileProps {
   readonly chevronTestId?: string;
   /** Content rendered inside the tile when expanded */
   readonly actions?: React.ReactNode;
+  /** Optional action on the header's right edge (e.g. a Set Up CTA for an empty tile). Ignored when `expandable`. */
+  readonly trailingAction?: React.ReactNode;
+}
+
+function GearTileChevron({
+  expanded,
+  onToggle,
+  testID,
+  name,
+}: {
+  readonly expanded: boolean;
+  readonly onToggle?: () => void;
+  readonly testID?: string;
+  readonly name: string;
+}) {
+  return (
+    <TouchableOpacity
+      style={styles.gearTileChevron}
+      testID={testID}
+      onPress={(e) => {
+        e?.stopPropagation?.();
+        onToggle?.();
+      }}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      accessibilityRole="button"
+      accessibilityLabel={expanded ? `Collapse ${name}` : `Expand ${name}`}>
+      <Ionicons
+        name={expanded ? 'chevron-up' : 'chevron-down'}
+        size={18}
+        color={expanded ? palette.primary : palette.textMuted}
+      />
+    </TouchableOpacity>
+  );
 }
 
 function GearTile({
@@ -66,6 +99,7 @@ function GearTile({
   onToggleExpand,
   chevronTestId,
   actions,
+  trailingAction,
 }: GearTileProps) {
   // A tile is selectable when the caller supplies a boolean `selected` prop.
   // When `selected` is undefined the tile is expand-only (e.g. the Bike tile):
@@ -89,25 +123,12 @@ function GearTile({
           accessibilityRole={isSelectable ? undefined : bodyPressHandler === undefined ? undefined : 'button'}
           accessibilityState={bodyA11yState}>
           <Text style={[styles.gearName, isSelected && styles.gearNameSelected]}>{name}</Text>
-          <Text style={styles.gearHint}>{status}</Text>
+          {status ? <Text style={styles.gearHint}>{status}</Text> : null}
         </TouchableOpacity>
         {expandable ? (
-          <TouchableOpacity
-            style={styles.gearTileChevron}
-            testID={chevronTestId}
-            onPress={(e) => {
-              e?.stopPropagation?.();
-              onToggleExpand?.();
-            }}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityRole="button"
-            accessibilityLabel={expanded ? `Collapse ${name}` : `Expand ${name}`}>
-            <Ionicons
-              name={expanded ? 'chevron-up' : 'chevron-down'}
-              size={18}
-              color={expanded ? palette.primary : palette.textMuted}
-            />
-          </TouchableOpacity>
+          <GearTileChevron expanded={expanded} onToggle={onToggleExpand} testID={chevronTestId} name={name} />
+        ) : trailingAction ? (
+          <View style={styles.gearTileTrailing}>{trailingAction}</View>
         ) : null}
       </View>
       {expanded && actions !== undefined ? <View style={styles.gearTileActions}>{actions}</View> : null}
@@ -373,18 +394,18 @@ export function SettingsScreen() {
               actions={bikeActions}
             />
           ) : (
-            <View style={styles.gearRow}>
-              <View style={styles.gearInfo}>
-                <Text style={styles.gearName}>{deviceStatusLabel('notSetUp')}</Text>
-              </View>
-              <View style={styles.gearActions}>
+            <GearTile
+              name={deviceStatusLabel('notSetUp')}
+              status=""
+              headerTestId="bike-tile-header"
+              trailingAction={
                 <ActionButton
                   label="Set Up"
                   onPress={() => router.push('/gear-setup?target=bike')}
                   variant="secondary"
                 />
-              </View>
-            </View>
+              }
+            />
           )}
         </View>
 
@@ -639,6 +660,9 @@ const styles = StyleSheet.create({
     padding: 10,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  gearTileTrailing: {
+    paddingRight: 10,
   },
   gearTileActions: {
     paddingHorizontal: 10,
