@@ -17,6 +17,7 @@ import { palette } from '../../../ui/theme';
 import type { UserProfile } from '../../../types/userProfile';
 import type { HrSource } from '../../../services/hr/hrSource';
 import type { WatchAvailability } from '../../../types/watch';
+import type { ReconnectState } from '../../../types/gear';
 import { hrSourceName, hrSourceIdleReadiness } from '../../../services/hr/hrStatus';
 
 interface HrSourceOptionProps {
@@ -24,20 +25,24 @@ interface HrSourceOptionProps {
   readonly readiness: string;
   readonly isSelected: boolean;
   readonly onPress: () => void;
+  readonly actions?: React.ReactNode;
 }
 
-function HrSourceOption({ label, readiness, isSelected, onPress }: HrSourceOptionProps) {
+function HrSourceOption({ label, readiness, isSelected, onPress, actions }: HrSourceOptionProps) {
   return (
-    <TouchableOpacity
-      style={[styles.hrSourceOption, isSelected && styles.hrSourceOptionSelected]}
-      onPress={onPress}
-      accessibilityRole="radio"
-      accessibilityState={{ checked: isSelected }}>
-      <View style={styles.gearInfo}>
-        <Text style={[styles.gearName, isSelected && styles.hrSourceOptionSelectedText]}>{label}</Text>
-        <Text style={styles.gearHint}>{readiness}</Text>
-      </View>
-    </TouchableOpacity>
+    <View style={styles.hrSourceOptionContainer}>
+      <TouchableOpacity
+        style={[styles.hrSourceOption, isSelected && styles.hrSourceOptionSelected]}
+        onPress={onPress}
+        accessibilityRole="radio"
+        accessibilityState={{ checked: isSelected }}>
+        <View style={styles.gearInfo}>
+          <Text style={[styles.gearName, isSelected && styles.hrSourceOptionSelectedText]}>{label}</Text>
+          <Text style={styles.gearHint}>{readiness}</Text>
+        </View>
+      </TouchableOpacity>
+      {actions !== undefined && actions !== null ? <View style={styles.hrSourceOptionActions}>{actions}</View> : null}
+    </View>
   );
 }
 
@@ -45,42 +50,73 @@ interface PrimaryHrSourceRowProps {
   readonly availableSources: HrSource[];
   readonly primary: HrSource | null;
   readonly watchAvailability: WatchAvailability;
-  readonly savedHrName: string | null;
+  readonly savedHrSource: { name: string } | null;
   readonly hrConnected: boolean;
   readonly bikeConnected: boolean;
   readonly onSelect: (source: HrSource) => void;
+  readonly hrReconnectState: ReconnectState;
+  readonly onConnectHr: () => void;
+  readonly onReplaceHr: () => void;
+  readonly onForgetHr: () => void;
 }
 
 function PrimaryHrSourceRow({
   availableSources,
   primary,
   watchAvailability,
-  savedHrName,
+  savedHrSource,
   hrConnected,
   bikeConnected,
   onSelect,
+  hrReconnectState,
+  onConnectHr,
+  onReplaceHr,
+  onForgetHr,
 }: PrimaryHrSourceRowProps) {
   return (
     <View style={styles.primaryHrContainer}>
-      <Text style={styles.gearLabel}>Primary HR Source</Text>
+      <Text style={styles.gearLabel}>Heart Rate Source</Text>
       <View style={styles.hrSourceOptions} accessibilityRole="radiogroup">
-        {availableSources.map((source) => (
-          <HrSourceOption
-            key={source}
-            label={hrSourceName(source, savedHrName)}
-            readiness={deviceStatusLabel(
-              hrSourceIdleReadiness({
-                source,
-                watchAvailability,
-                hrConnected,
-                bikeConnected,
-              }),
-            )}
-            isSelected={primary === source}
-            onPress={() => onSelect(source)}
-          />
-        ))}
+        {availableSources.map((source) => {
+          const actions =
+            source === 'bluetooth' ? (
+              <View style={styles.gearActionsStacked}>
+                {savedHrSource !== null && !hrConnected ? (
+                  <ActionButton
+                    label={hrReconnectState === 'connecting' ? 'Connecting...' : 'Connect'}
+                    onPress={onConnectHr}
+                    variant="primary"
+                    disabled={hrReconnectState === 'connecting'}
+                    fullWidth
+                  />
+                ) : null}
+                <ActionButton label="Replace" onPress={onReplaceHr} variant="secondary" fullWidth />
+                <ActionButton label="Forget" onPress={onForgetHr} variant="danger" fullWidth />
+              </View>
+            ) : undefined;
+
+          return (
+            <HrSourceOption
+              key={source}
+              label={hrSourceName(source, savedHrSource?.name ?? null)}
+              readiness={deviceStatusLabel(
+                hrSourceIdleReadiness({
+                  source,
+                  watchAvailability,
+                  hrConnected,
+                  bikeConnected,
+                }),
+              )}
+              isSelected={primary === source}
+              onPress={() => onSelect(source)}
+              actions={actions}
+            />
+          );
+        })}
       </View>
+      {savedHrSource === null ? (
+        <ActionButton label="Add Bluetooth HR" onPress={onReplaceHr} variant="secondary" fullWidth />
+      ) : null}
     </View>
   );
 }
@@ -234,55 +270,20 @@ export function SettingsScreen() {
         </View>
 
         <View style={styles.divider} />
-
-        <View style={styles.gearRow}>
-          <View style={styles.gearInfo}>
-            <Text style={styles.gearLabel}>Bluetooth HR</Text>
-            <Text style={styles.gearName}>
-              {savedHrSource
-                ? `${savedHrSource.name} · ${deviceStatusLabel(
-                    bleDeviceStatus({
-                      hasSavedDevice: true,
-                      connected: hrConnected,
-                      reconnect: hrReconnectState,
-                    }),
-                  )}`
-                : deviceStatusLabel('notSetUp')}
-            </Text>
-          </View>
-          <View style={styles.gearActionsStacked}>
-            {savedHrSource && !hrConnected ? (
-              <ActionButton
-                label={hrReconnectState === 'connecting' ? 'Connecting...' : 'Connect'}
-                onPress={() => {
-                  retryHr();
-                }}
-                variant="primary"
-                disabled={hrReconnectState === 'connecting'}
-                fullWidth
-              />
-            ) : null}
-            <ActionButton
-              label={savedHrSource ? 'Replace' : 'Add Bluetooth HR'}
-              onPress={() => router.push('/gear-setup?target=hr')}
-              variant="secondary"
-              fullWidth
-            />
-            {savedHrSource ? (
-              <ActionButton label="Forget" onPress={() => void forgetHr()} variant="danger" fullWidth />
-            ) : null}
-          </View>
-        </View>
-
-        <View style={styles.divider} />
         <PrimaryHrSourceRow
           availableSources={availableSources}
           primary={primary}
           watchAvailability={watchAvailability}
-          savedHrName={savedHrSource?.name ?? null}
+          savedHrSource={savedHrSource}
           hrConnected={hrConnected}
           bikeConnected={bikeConnected}
           onSelect={(source) => void setPrimary(source)}
+          hrReconnectState={hrReconnectState}
+          onConnectHr={() => {
+            retryHr();
+          }}
+          onReplaceHr={() => router.push('/gear-setup?target=hr')}
+          onForgetHr={() => void forgetHr()}
         />
       </SectionCard>
 
@@ -474,6 +475,17 @@ const styles = StyleSheet.create({
   },
   hrSourceOptions: {
     gap: 6,
+  },
+  hrSourceOptionContainer: {
+    gap: 0,
+  },
+  hrSourceOptionActions: {
+    paddingHorizontal: 10,
+    paddingBottom: 8,
+    paddingTop: 6,
+    gap: 8,
+    flexDirection: 'column',
+    alignItems: 'stretch',
   },
   hrSourceOption: {
     padding: 10,
