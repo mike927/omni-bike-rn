@@ -85,6 +85,21 @@ NO_SIGNAL   otherwise
 
 ---
 
+### Live-log findings (2026-05-27, from Metro `[WC-JS]` during user testing)
+
+- ✅ **Availability stable = "Ready"** — `event companion available=true paired=true installed=true`
+  fires repeatedly, never `available=false`. Criterion 7 log-confirmed (companion presence is steady).
+- ✅ **Pause propagates** — `phase Active→Paused — sending pauseMirroredWorkout` observed.
+- 🟡 **Background wake fails (→ sub-project 8):** during a backgrounded ride the mid-ride
+  reachability-retry calls `startWatchApp`, which throws
+  `Error: Cannot start watch app when phone app is in background` (caught + logged by `useWatchHr`).
+  Pre-existing (the documented wake-on-start limit), NOT a regression from I1–I3. **Lead for the
+  background-sync task:** the retry should not attempt `startWatchApp` while the iPhone app is
+  backgrounded (it can't succeed); a backgrounded ride with a running session should rely on the
+  T5 mirrored stream, not a re-wake. Fix + validate under sub-project 8 (needs a controlled repro).
+- ⏳ Tile labels for I1/I2/I3 (bike gating / "Connecting…" / "Paused") are visual — still need the
+  user's eyes (handoff in chat).
+
 ## 4. Completion criteria (definition of done)
 
 The feature is **done** when:
