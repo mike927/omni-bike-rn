@@ -145,22 +145,28 @@ describe('SettingsScreen', () => {
     expect(getAllByText('Not set up').length).toBeGreaterThan(0);
   });
 
-  it('shows saved bike name with connection status when bike is saved', () => {
+  it('shows saved bike name and Unavailable status when bike is saved and not connected', () => {
     Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
-    const { getByText } = render(<SettingsScreen />);
-    expect(getByText('Zipro Rave · Unavailable')).toBeTruthy();
+    const { getByText, getAllByText } = render(<SettingsScreen />);
+    expect(getByText('Zipro Rave')).toBeTruthy();
+    expect(getAllByText('Unavailable').length).toBeGreaterThan(0);
   });
 
-  it('shows saved bike name with Ready status when bike is connected', () => {
+  it('shows saved bike name and Ready status when bike is connected', () => {
     Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
     Object.assign(mockConnection, { bikeConnected: true });
-    const { getByText } = render(<SettingsScreen />);
-    expect(getByText('Zipro Rave · Ready')).toBeTruthy();
+    const { getByText, getAllByText } = render(<SettingsScreen />);
+    expect(getByText('Zipro Rave')).toBeTruthy();
+    expect(getAllByText('Ready').length).toBeGreaterThan(0);
   });
 
-  it('shows Replace and Forget buttons when bike is saved', () => {
+  it('shows Replace and Forget buttons for bike after expanding the tile', () => {
     Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
-    const { getByText } = render(<SettingsScreen />);
+    const { getByText, queryByText } = render(<SettingsScreen />);
+    // Collapsed by default — buttons not in tree
+    expect(queryByText('Replace')).toBeNull();
+    expect(queryByText('Forget')).toBeNull();
+    fireEvent.press(getByText('Zipro Rave'));
     expect(getByText('Replace')).toBeTruthy();
     expect(getByText('Forget')).toBeTruthy();
   });
@@ -177,10 +183,11 @@ describe('SettingsScreen', () => {
     expect(mockPush).toHaveBeenCalledWith('/gear-setup?target=hr');
   });
 
-  it('calls forgetBike when Forget is pressed on saved bike', () => {
+  it('calls forgetBike when Forget is pressed on saved bike (after expanding tile)', () => {
     Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
-    const { getAllByText } = render(<SettingsScreen />);
-    fireEvent.press(getAllByText('Forget')[0]);
+    const { getByText } = render(<SettingsScreen />);
+    fireEvent.press(getByText('Zipro Rave'));
+    fireEvent.press(getByText('Forget'));
     expect(mockSavedGear.forgetBike).toHaveBeenCalled();
   });
 
@@ -207,76 +214,88 @@ describe('SettingsScreen', () => {
   });
 
   describe('Connect button for saved-but-disconnected gear', () => {
-    it('shows Connect button for bike when saved and not connected', () => {
+    it('shows Connect button for bike when saved and not connected (after expanding tile)', () => {
       Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
       Object.assign(mockConnection, { bikeConnected: false });
       const { getByText } = render(<SettingsScreen />);
+      // Expand the bike tile first
+      fireEvent.press(getByText('Zipro Rave'));
       expect(getByText('Connect')).toBeTruthy();
     });
 
-    it('calls retryBike when Connect is pressed on bike row', () => {
+    it('calls retryBike when Connect is pressed on bike row (after expanding tile)', () => {
       Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
       Object.assign(mockConnection, { bikeConnected: false, hrConnected: false });
       const { getByText } = render(<SettingsScreen />);
+      // Expand the bike tile first
+      fireEvent.press(getByText('Zipro Rave'));
       fireEvent.press(getByText('Connect'));
       expect(mockAutoReconnect.retryBike).toHaveBeenCalled();
     });
 
-    it('disables the bike Connect button and shows Connecting... while connecting', () => {
+    it('disables the bike Connect button and shows Connecting... while connecting (after expanding tile)', () => {
       Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
       Object.assign(mockConnection, { bikeConnected: false });
       Object.assign(mockAutoReconnect, { bikeReconnectState: 'connecting' });
-      const { getByText, queryByText } = render(<SettingsScreen />);
-      expect(getByText('Connecting...')).toBeTruthy();
+      const { getAllByText, queryByText } = render(<SettingsScreen />);
+      // Expand the bike tile first
+      fireEvent.press(getAllByText('Zipro Rave')[0]);
+      // Both the tile status and the action button show "Connecting..."
+      expect(getAllByText('Connecting...').length).toBeGreaterThanOrEqual(1);
       expect(queryByText('Connect')).toBeNull();
-      fireEvent.press(getByText('Connecting...'));
       expect(mockAutoReconnect.retryBike).not.toHaveBeenCalled();
     });
 
-    it('disables the HR Connect button and shows Connecting... while connecting', () => {
+    it('disables the HR Connect button and shows Connecting... while connecting (after expanding chevron)', () => {
       Object.assign(mockSavedGear, { savedBike: null, savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' } });
       Object.assign(mockConnection, { bikeConnected: false, hrConnected: false });
       Object.assign(mockAutoReconnect, { hrReconnectState: 'connecting' });
       Object.assign(mockWatchHr, { availableSources: ['bluetooth', 'bike'] });
-      const { getByText, queryByText } = render(<SettingsScreen />);
+      const { getByText, queryByText, getByTestId } = render(<SettingsScreen />);
+      // Expand the HR strap chevron first
+      fireEvent.press(getByTestId('hr-strap-chevron'));
       expect(getByText('Connecting...')).toBeTruthy();
       expect(queryByText('Connect')).toBeNull();
       fireEvent.press(getByText('Connecting...'));
       expect(mockAutoReconnect.retryHr).not.toHaveBeenCalled();
     });
 
-    it('does not show Connect button for bike when bike is connected', () => {
+    it('does not show Connect button for bike when bike is connected (even after expanding tile)', () => {
       Object.assign(mockSavedGear, {
         savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' },
         savedHrSource: null,
       });
       Object.assign(mockConnection, { bikeConnected: true, hrConnected: false });
-      const { queryByText } = render(<SettingsScreen />);
+      const { getByText, queryByText } = render(<SettingsScreen />);
+      fireEvent.press(getByText('Zipro Rave'));
       expect(queryByText('Connect')).toBeNull();
     });
 
-    it('shows Connect button for Bluetooth HR when saved and not connected', () => {
+    it('shows Connect button for Bluetooth HR when saved and not connected (after expanding chevron)', () => {
       Object.assign(mockSavedGear, { savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' } });
       Object.assign(mockConnection, { hrConnected: false });
       Object.assign(mockWatchHr, { availableSources: ['bluetooth', 'bike'] });
-      const { getAllByText } = render(<SettingsScreen />);
+      const { getAllByText, getByTestId } = render(<SettingsScreen />);
+      fireEvent.press(getByTestId('hr-strap-chevron'));
       expect(getAllByText('Connect').length).toBeGreaterThan(0);
     });
 
-    it('calls retryHr when Connect is pressed on HR source row', () => {
+    it('calls retryHr when Connect is pressed on HR source row (after expanding chevron)', () => {
       Object.assign(mockSavedGear, { savedBike: null, savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' } });
       Object.assign(mockConnection, { bikeConnected: false, hrConnected: false });
       Object.assign(mockWatchHr, { availableSources: ['bluetooth', 'bike'] });
-      const { getByText } = render(<SettingsScreen />);
+      const { getByText, getByTestId } = render(<SettingsScreen />);
+      fireEvent.press(getByTestId('hr-strap-chevron'));
       fireEvent.press(getByText('Connect'));
       expect(mockAutoReconnect.retryHr).toHaveBeenCalled();
     });
 
-    it('does not show Connect button for HR when hr is connected', () => {
+    it('does not show Connect button for HR when hr is connected (even after expanding chevron)', () => {
       Object.assign(mockSavedGear, { savedBike: null, savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' } });
       Object.assign(mockConnection, { bikeConnected: false, hrConnected: true });
       Object.assign(mockWatchHr, { availableSources: ['bluetooth', 'bike'] });
-      const { queryByText } = render(<SettingsScreen />);
+      const { queryByText, getByTestId } = render(<SettingsScreen />);
+      fireEvent.press(getByTestId('hr-strap-chevron'));
       expect(queryByText('Connect')).toBeNull();
     });
   });
@@ -395,15 +414,20 @@ describe('SettingsScreen', () => {
       expect(getAllByText('HRM-Dual:031993').length).toBe(1);
     });
 
-    it('bluetooth HR source row shows Replace and Forget when strap is saved', () => {
+    it('bluetooth HR source row shows Replace and Forget after tapping chevron (collapsed by default)', () => {
       Object.assign(mockSavedGear, { savedHrSource: { id: 'hr-1', name: 'HRM-Dual:031993', type: 'hr' } });
       Object.assign(mockWatchHr, { availableSources: ['bluetooth', 'bike'] });
-      const { getByText } = render(<SettingsScreen />);
+      const { getByText, queryByText, getByTestId } = render(<SettingsScreen />);
+      // Collapsed by default
+      expect(queryByText('Replace')).toBeNull();
+      expect(queryByText('Forget')).toBeNull();
+      // Expand via chevron
+      fireEvent.press(getByTestId('hr-strap-chevron'));
       expect(getByText('Replace')).toBeTruthy();
       expect(getByText('Forget')).toBeTruthy();
     });
 
-    it('pressing Forget on the HR source row calls forgetHr and does NOT call setPrimary', () => {
+    it('pressing Forget on the HR source row (after chevron expand) calls forgetHr and does NOT call setPrimary', () => {
       Object.assign(mockSavedGear, {
         savedBike: null,
         savedHrSource: { id: 'hr-1', name: 'HRM-Dual:031993', type: 'hr' },
@@ -413,20 +437,22 @@ describe('SettingsScreen', () => {
         primary: 'bluetooth',
         setPrimary: jest.fn(),
       });
-      const { getByText } = render(<SettingsScreen />);
+      const { getByText, getByTestId } = render(<SettingsScreen />);
+      fireEvent.press(getByTestId('hr-strap-chevron'));
       fireEvent.press(getByText('Forget'));
       expect(mockSavedGear.forgetHr).toHaveBeenCalled();
       expect(mockWatchHr.setPrimary).not.toHaveBeenCalled();
     });
 
-    it('bluetooth HR source row shows Connect when strap is saved but disconnected; pressing Connect calls retryHr', () => {
+    it('bluetooth HR source row shows Connect (after chevron expand) when strap saved but disconnected; pressing Connect calls retryHr', () => {
       Object.assign(mockSavedGear, {
         savedBike: null,
         savedHrSource: { id: 'hr-1', name: 'HRM-Dual:031993', type: 'hr' },
       });
       Object.assign(mockConnection, { bikeConnected: false, hrConnected: false });
       Object.assign(mockWatchHr, { availableSources: ['bluetooth', 'bike'] });
-      const { getByText } = render(<SettingsScreen />);
+      const { getByText, getByTestId } = render(<SettingsScreen />);
+      fireEvent.press(getByTestId('hr-strap-chevron'));
       expect(getByText('Connect')).toBeTruthy();
       fireEvent.press(getByText('Connect'));
       expect(mockAutoReconnect.retryHr).toHaveBeenCalled();
@@ -444,9 +470,8 @@ describe('SettingsScreen', () => {
       expect(mockPush).toHaveBeenCalledWith('/gear-setup?target=hr');
     });
 
-    it('Apple Watch and Bike pulse HR source rows have no management action buttons', () => {
-      // Render with a saved + connected Bluetooth strap AND watch/bluetooth/bike all available.
-      // Only the bluetooth row should have Replace and Forget — exactly one each on screen.
+    it('Apple Watch and Bike pulse HR source rows have no chevron and no management action buttons', () => {
+      // Render with all sources; only the bluetooth tile has a chevron.
       Object.assign(mockSavedGear, {
         savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' },
       });
@@ -456,10 +481,15 @@ describe('SettingsScreen', () => {
         availableSources: ['watch', 'bluetooth', 'bike'],
         primary: 'bluetooth',
       });
-      const { getAllByText } = render(<SettingsScreen />);
-      // Exactly one Replace and one Forget — from the bluetooth row only.
-      expect(getAllByText('Replace').length).toBe(1);
-      expect(getAllByText('Forget').length).toBe(1);
+      const { getByTestId, queryByTestId, queryByText } = render(<SettingsScreen />);
+      // Management buttons not in tree (collapsed)
+      expect(queryByText('Replace')).toBeNull();
+      expect(queryByText('Forget')).toBeNull();
+      // No chevrons for watch or bike-pulse
+      expect(queryByTestId('hr-watch-chevron')).toBeNull();
+      expect(queryByTestId('hr-bike-chevron')).toBeNull();
+      // The strap chevron exists
+      expect(getByTestId('hr-strap-chevron')).toBeTruthy();
     });
 
     it('selecting an HR source row calls setPrimary with the correct source', () => {
@@ -473,6 +503,125 @@ describe('SettingsScreen', () => {
       const { getByText } = render(<SettingsScreen />);
       fireEvent.press(getByText('Apple Watch'));
       expect(mockWatchHr.setPrimary).toHaveBeenCalledWith('watch');
+    });
+
+    // --- New spec tests (tap-to-select accent bar + chevron-expand) ---
+
+    it('bike tile is collapsed by default (buttons not in tree)', () => {
+      Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
+      const { queryByText } = render(<SettingsScreen />);
+      expect(queryByText('Replace')).toBeNull();
+      expect(queryByText('Forget')).toBeNull();
+    });
+
+    it('bike tile expands on tap and collapses on second tap', () => {
+      Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
+      const { getByText, queryByText } = render(<SettingsScreen />);
+      fireEvent.press(getByText('Zipro Rave'));
+      expect(getByText('Replace')).toBeTruthy();
+      fireEvent.press(getByText('Zipro Rave'));
+      expect(queryByText('Replace')).toBeNull();
+    });
+
+    it('tapping bike tile body does NOT call setPrimary', () => {
+      Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
+      Object.assign(mockWatchHr, {
+        availableSources: ['bike'],
+        setPrimary: jest.fn(),
+      });
+      const { getByText } = render(<SettingsScreen />);
+      fireEvent.press(getByText('Zipro Rave'));
+      expect(mockWatchHr.setPrimary).not.toHaveBeenCalled();
+    });
+
+    it('tapping HR strap chevron does NOT call setPrimary', () => {
+      Object.assign(mockSavedGear, {
+        savedBike: null,
+        savedHrSource: { id: 'hr-1', name: 'HRM-Dual:031993', type: 'hr' },
+      });
+      Object.assign(mockWatchHr, {
+        availableSources: ['bluetooth', 'bike'],
+        primary: 'bike',
+        setPrimary: jest.fn(),
+      });
+      const { getByTestId } = render(<SettingsScreen />);
+      fireEvent.press(getByTestId('hr-strap-chevron'));
+      expect(mockWatchHr.setPrimary).not.toHaveBeenCalled();
+    });
+
+    it('tapping HR strap tile body selects it and does NOT expand management', () => {
+      Object.assign(mockSavedGear, {
+        savedBike: null,
+        savedHrSource: { id: 'hr-1', name: 'HRM-Dual:031993', type: 'hr' },
+      });
+      Object.assign(mockWatchHr, {
+        availableSources: ['bluetooth', 'bike'],
+        primary: 'bike',
+        setPrimary: jest.fn(),
+      });
+      const { getAllByText, queryByText } = render(<SettingsScreen />);
+      fireEvent.press(getAllByText('HRM-Dual:031993')[0]);
+      expect(mockWatchHr.setPrimary).toHaveBeenCalledWith('bluetooth');
+      // Management buttons should NOT appear just from selecting
+      expect(queryByText('Forget')).toBeNull();
+    });
+
+    it('selected HR source tile has accessibilityState selected=true', () => {
+      Object.assign(mockWatchHr, {
+        availableSources: ['bike'],
+        primary: 'bike',
+      });
+      const { getByTestId } = render(<SettingsScreen />);
+      const bikeHrTile = getByTestId('hr-tile-bike');
+      expect(bikeHrTile.props.accessibilityState).toMatchObject({ selected: true });
+    });
+
+    it('unselected HR source tile has accessibilityState selected=false', () => {
+      Object.assign(mockWatchHr, {
+        watchAvailable: true,
+        availableSources: ['watch', 'bike'],
+        primary: 'bike',
+      });
+      const { getByTestId } = render(<SettingsScreen />);
+      const watchTile = getByTestId('hr-tile-watch');
+      expect(watchTile.props.accessibilityState).toMatchObject({ selected: false });
+    });
+
+    it('no saved bike shows "Not set up" text and Set Up button (no chevron)', () => {
+      Object.assign(mockSavedGear, { savedBike: null });
+      const { getByText, queryByTestId } = render(<SettingsScreen />);
+      expect(getByText('Not set up')).toBeTruthy();
+      expect(getByText('Set Up')).toBeTruthy();
+      expect(queryByTestId('bike-tile-chevron')).toBeNull();
+    });
+
+    it('saved bike shows a chevron (expand toggle) on the tile', () => {
+      Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
+      const { getByTestId } = render(<SettingsScreen />);
+      expect(getByTestId('bike-tile-chevron')).toBeTruthy();
+    });
+
+    it('Apple Watch HR tile has no chevron', () => {
+      Object.assign(mockWatchHr, {
+        watchAvailable: true,
+        availableSources: ['watch', 'bike'],
+      });
+      const { queryByTestId } = render(<SettingsScreen />);
+      expect(queryByTestId('hr-watch-chevron')).toBeNull();
+    });
+
+    it('Bike pulse HR tile has no chevron', () => {
+      Object.assign(mockWatchHr, { availableSources: ['bike'] });
+      const { queryByTestId } = render(<SettingsScreen />);
+      expect(queryByTestId('hr-bike-chevron')).toBeNull();
+    });
+
+    it('calls forgetBike when Forget is pressed after expanding bike tile', () => {
+      Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
+      const { getByText } = render(<SettingsScreen />);
+      fireEvent.press(getByText('Zipro Rave'));
+      fireEvent.press(getByText('Forget'));
+      expect(mockSavedGear.forgetBike).toHaveBeenCalled();
     });
   });
 });
