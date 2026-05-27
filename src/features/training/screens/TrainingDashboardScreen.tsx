@@ -5,7 +5,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useDeviceConnection } from '../hooks/useDeviceConnection';
 import { useTrainingSession } from '../hooks/useTrainingSession';
 import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
-import { bleDeviceStatus, deviceStatusLabel } from '../../../services/status/deviceStatus';
+import { bleDeviceStatus } from '../../../services/status/deviceStatus';
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { buildTrainingSummaryRoute, POST_FINISH_TRAINING_SUMMARY_SOURCE } from '../navigation/trainingSummaryRoute';
 import { resolveHrSourceSummary } from '../../../services/hr/hrStatus';
@@ -15,6 +15,7 @@ import { useHrSourceStore } from '../../../store/hrSourceStore';
 import { TrainingPhase } from '../../../types/training';
 import { ActionButton } from '../../../ui/components/ActionButton';
 import { MetricTile } from '../../../ui/components/MetricTile';
+import { StatusPill } from '../../../ui/components/StatusPill';
 import { HeartRateSourceTile } from '../components/HeartRateSourceTile';
 import { formatDistanceKm, formatDuration, formatMetricValue } from '../../../ui/formatters';
 import { AppScreen } from '../../../ui/layout/AppScreen';
@@ -164,15 +165,17 @@ export function TrainingDashboardScreen() {
         <View style={styles.connectionRow}>
           <View style={styles.connectionPill}>
             <Text style={styles.connectionLabel}>Bike</Text>
-            <Text style={styles.connectionValue}>
-              {deviceStatusLabel(
-                bleDeviceStatus({ hasSavedDevice: true, connected: bikeConnected, reconnect: bikeReconnectState }),
-              )}
-            </Text>
+            <StatusPill
+              status={bleDeviceStatus({
+                hasSavedDevice: true,
+                connected: bikeConnected,
+                reconnect: bikeReconnectState,
+              })}
+            />
           </View>
         </View>
 
-        <HeartRateSourceTile name={hrSummary.name} state={deviceStatusLabel(hrSummary.status)} />
+        <HeartRateSourceTile name={hrSummary.name} status={hrSummary.status} />
 
         <View style={styles.controlsCard}>
           <View style={styles.actionRow}>
@@ -274,11 +277,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.6,
-  },
-  connectionValue: {
-    color: palette.text,
-    fontSize: 15,
-    fontWeight: '700',
   },
   controlsCard: {
     gap: 14,

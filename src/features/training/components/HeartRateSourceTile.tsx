@@ -1,17 +1,26 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import type { DeviceStatus } from '../../../services/status/deviceStatus';
+import { StatusPill } from '../../../ui/components/StatusPill';
 import { palette } from '../../../ui/theme';
 
 export interface HeartRateSourceTileProps {
   readonly name: string;
-  readonly state: string | null;
+  readonly status: DeviceStatus | null;
 }
 
-export function HeartRateSourceTile({ name, state }: HeartRateSourceTileProps) {
+export function HeartRateSourceTile({ name, status }: HeartRateSourceTileProps) {
   return (
     <View style={styles.card}>
       <Text style={styles.label}>Heart Rate Source</Text>
-      <Text style={styles.value}>{state === null ? name : `${name} · ${state}`}</Text>
+      <Text style={styles.value} numberOfLines={1}>
+        {name}
+      </Text>
+      {status === null ? null : (
+        <View style={styles.status}>
+          <StatusPill status={status} />
+        </View>
+      )}
     </View>
   );
 }
@@ -33,9 +42,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
-  value: {
-    color: palette.text,
-    fontSize: 15,
-    fontWeight: '700',
-  },
+  value: { color: palette.text, fontSize: 15, fontWeight: '700' },
+  status: { marginTop: 2 },
 });
