@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useDeviceConnection } from '../hooks/useDeviceConnection';
@@ -19,6 +19,7 @@ import { HeartRateSourceTile } from '../components/HeartRateSourceTile';
 import { formatDistanceKm, formatDuration, formatMetricValue } from '../../../ui/formatters';
 import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
+import { logWc } from '../../../services/watch/wcLog';
 
 const HOME_ROUTE = '/';
 const BIKE_SETUP_ROUTE = '/gear-setup?target=bike';
@@ -97,6 +98,15 @@ export function TrainingDashboardScreen() {
     elapsedSeconds: session.elapsedSeconds,
     bikeConnected,
   });
+
+  // Diagnostic: log every HR-tile status transition so the in-workout state machine
+  // (connecting → ready → paused → noSignal) is verifiable from the [WC-JS] stream
+  // on-device, not by eye. Fires only on a status/name change.
+  const hrTileName = hrSummary.name;
+  const hrTileStatus = hrSummary.status;
+  useEffect(() => {
+    logWc(`[hrTile] ${hrTileName} -> ${hrTileStatus}`);
+  }, [hrTileName, hrTileStatus]);
 
   const showDisconnectedState =
     !bikeConnected && (session.phase === TrainingPhase.Idle || session.phase === TrainingPhase.Paused);
