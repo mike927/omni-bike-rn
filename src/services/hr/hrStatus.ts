@@ -1,27 +1,18 @@
 import type { HrSource, HrReading } from './hrSource';
 import type { WatchAvailability } from '../../types/watch';
-
-export type WatchHrDisplayState = 'disabled' | WatchAvailability;
+import type { DeviceStatus } from '../status/deviceStatus';
 
 /**
- * Collapses to `disabled` when Watch is not the primary HR source so every screen
- * reports the same state Settings does, instead of a misleading availability label.
+ * Watch HR status for the read-only surfaces (Home card, Training tile).
+ *
+ * Collapses to `off` when the Watch is not the selected primary source, so every
+ * screen reports the same state Settings does instead of a misleading
+ * availability label. When the Watch IS primary, maps the companion-presence
+ * availability to `ready` / `unavailable`.
  */
-export function resolveWatchHrDisplayState(
-  watchIsPrimary: boolean,
-  watchAvailability: WatchAvailability,
-): WatchHrDisplayState {
-  return watchIsPrimary ? watchAvailability : 'disabled';
-}
-
-const WATCH_HR_DISPLAY_LABELS: Record<WatchHrDisplayState, string> = {
-  disabled: 'Disabled',
-  unavailable: 'Unavailable',
-  connected: 'Connected',
-};
-
-export function watchHrDisplayLabel(state: WatchHrDisplayState): string {
-  return WATCH_HR_DISPLAY_LABELS[state];
+export function watchHrStatus(watchIsPrimary: boolean, watchAvailability: WatchAvailability): DeviceStatus {
+  if (!watchIsPrimary) return 'off';
+  return watchAvailability === 'connected' ? 'ready' : 'unavailable';
 }
 
 export const WATCH_HR_UNAVAILABLE_HINT =
@@ -31,7 +22,7 @@ export interface HrSourceSummaryInput {
   /** The per-session locked HR source. Null = pre-workout (idle). */
   readonly activeHrSource: HrSource | null;
   /**
-   * Current HR reading from `resolveHrReading`. Used for in-workout Connected/No signal.
+   * Current HR reading from `resolveHrReading`. Used for in-workout ready/noSignal.
    * Ignored in idle mode.
    */
   readonly reading: HrReading;
@@ -48,7 +39,7 @@ export interface HrSourceSummaryInput {
 
 export interface HrSourceSummary {
   readonly name: string;
-  readonly state: string | null;
+  readonly status: DeviceStatus;
 }
 
 /** Human-readable name for an HR source. */
@@ -69,15 +60,23 @@ export interface HrSourceIdleReadinessInput {
   readonly hrConnected: boolean;
 }
 
-/** Readiness label for a source when no workout is active (idle). */
-export function hrSourceIdleReadiness({ source, watchAvailability, hrConnected }: HrSourceIdleReadinessInput): string {
+/**
+ * Readiness status for a source when no workout is active (idle). Used by the
+ * Primary HR Source radio options, where each option shows its own true
+ * readiness (never `off` — that collapse only applies to read-only surfaces).
+ */
+export function hrSourceIdleReadiness({
+  source,
+  watchAvailability,
+  hrConnected,
+}: HrSourceIdleReadinessInput): DeviceStatus {
   switch (source) {
     case 'watch':
-      return WATCH_HR_DISPLAY_LABELS[watchAvailability];
+      return watchAvailability === 'connected' ? 'ready' : 'unavailable';
     case 'bluetooth':
-      return hrConnected ? 'Connected' : 'Disconnected';
+      return hrConnected ? 'ready' : 'unavailable';
     case 'bike':
-      return 'Connected';
+      return 'ready';
   }
 }
 
@@ -85,11 +84,11 @@ export function hrSourceIdleReadiness({ source, watchAvailability, hrConnected }
  * Read-only summary for the Training dashboard HR tile.
  *
  * In-workout (`activeHrSource` is set): always displays the locked source with
- * `Connected` when the reading is live, `No signal` otherwise. Never falls back
- * to a different source.
+ * `ready` when the reading is live, `noSignal` otherwise. Never falls back to a
+ * different source.
  *
  * Idle (`activeHrSource` is null): displays the effective primary source's
- * readiness label (e.g. `Idle`, `Disconnected`, `Connected`).
+ * readiness status.
  */
 export function resolveHrSourceSummary({
   activeHrSource,
@@ -103,13 +102,13 @@ export function resolveHrSourceSummary({
   if (activeHrSource !== null) {
     return {
       name: hrSourceName(activeHrSource, savedHrName),
-      state: reading.live ? 'Connected' : 'No signal',
+      status: reading.live ? 'ready' : 'noSignal',
     };
   }
 
   // ── Idle: show primary source's readiness ────────────────────────────────
   return {
     name: hrSourceName(primaryHrSource, savedHrName),
-    state: hrSourceIdleReadiness({ source: primaryHrSource, watchAvailability, hrConnected }),
+    status: hrSourceIdleReadiness({ source: primaryHrSource, watchAvailability, hrConnected }),
   };
 }
