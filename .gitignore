@@ -3,6 +3,9 @@
 # dependencies
 node_modules/
 
+# Brainstorming visual-companion (local mockups)
+.superpowers/
+
 # Expo
 .expo/
 dist/

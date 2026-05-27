@@ -81,6 +81,29 @@ Larger paddings used at screen scaffolding edges: `60` (top inset), `80` / `152`
 | 2xl | 28 | Hero card |
 | pill | 999 | Action buttons, status pills |
 
+## Device & Connection Status Vocabulary
+
+Canonical, app-wide status labels for devices and HR sources — defined once in
+`src/services/status/deviceStatus.ts` (`DeviceStatus` + `DEVICE_STATUS_LABELS`) and rendered
+identically on every surface (Home, Settings, Training). **One label per state; never invent
+ad-hoc wording.** Rendered as plain text in the form `Name · Status` (no per-status color today).
+
+| State | Label | Meaning |
+|---|---|---|
+| `notSetUp` | Not set up | no device saved / paired |
+| `connecting` | Connecting... | BLE attempt in flight, or watch ride waking (before the first sample) |
+| `ready` | Ready | usable (idle) / live-streaming (in-workout) |
+| `paused` | Paused | active workout, source intentionally paused |
+| `noSignal` | No signal | locked source, no fresh data for >15 s |
+| `unavailable` | Unavailable | saved / selected but not reachable now |
+| `off` | Off | exists but not the selected source |
+
+In-workout the HR tile resolves `paused → ready → connecting → noSignal` (state machine in
+`hrStatus.ts`); idle readiness gates each source on its own connection (watch companion presence,
+BLE strap link, bike FTMS link). Integration links (**Strava**, **Apple Health**) use
+**Connected / Not connected** — a separate account-linking domain, deliberately NOT part of this
+device vocabulary.
+
 ## Illustration Style
 
 Flat illustration with soft gradients in the brand palette. No photorealism. No text inside illustrations. Square aspect for hero illustrations. Consistent line weight and color treatment across all screens — illustrations in the same flow MUST share style.
