@@ -13,6 +13,7 @@ export type DeviceStatus =
   | 'connecting' // BLE connection attempt in flight
   | 'ready' // connected and working (idle, or streaming live mid-workout)
   | 'noSignal' // connected but no fresh data (mid-workout staleness)
+  | 'paused' // active workout, source intentionally paused
   | 'unavailable' // configured but not reachable right now
   | 'off'; // exists but is not the selected/active source
 
@@ -21,6 +22,7 @@ const DEVICE_STATUS_LABELS: Record<DeviceStatus, string> = {
   connecting: 'Connecting...',
   ready: 'Ready',
   noSignal: 'No signal',
+  paused: 'Paused',
   unavailable: 'Unavailable',
   off: 'Off',
 };

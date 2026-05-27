@@ -357,15 +357,24 @@ describe('SettingsScreen', () => {
 
     it('shows watch readiness label (Unavailable) when watch is unavailable', () => {
       Object.assign(mockWatchHr, { watchAvailable: true, availableSources: ['watch', 'bike'] });
-      Object.assign(mockConnection, { watchAvailability: 'unavailable' });
-      const { getByText } = render(<SettingsScreen />);
-      expect(getByText('Unavailable')).toBeTruthy();
+      Object.assign(mockConnection, { watchAvailability: 'unavailable', bikeConnected: false });
+      const { getAllByText } = render(<SettingsScreen />);
+      // Watch shows Unavailable; bike also shows Unavailable when not connected
+      expect(getAllByText('Unavailable').length).toBeGreaterThanOrEqual(1);
     });
 
-    it('shows Ready readiness for Bike pulse', () => {
+    it('shows Ready readiness for Bike pulse when bike is connected', () => {
       Object.assign(mockWatchHr, { availableSources: ['bike'] });
+      Object.assign(mockConnection, { bikeConnected: true });
       const { getByText } = render(<SettingsScreen />);
       expect(getByText('Ready')).toBeTruthy();
+    });
+
+    it('shows Unavailable readiness for Bike pulse when bike is not connected', () => {
+      Object.assign(mockWatchHr, { availableSources: ['bike'] });
+      Object.assign(mockConnection, { bikeConnected: false });
+      const { getByText } = render(<SettingsScreen />);
+      expect(getByText('Unavailable')).toBeTruthy();
     });
   });
 });

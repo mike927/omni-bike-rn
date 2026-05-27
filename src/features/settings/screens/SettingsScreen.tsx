@@ -47,6 +47,7 @@ interface PrimaryHrSourceRowProps {
   readonly watchAvailability: WatchAvailability;
   readonly savedHrName: string | null;
   readonly hrConnected: boolean;
+  readonly bikeConnected: boolean;
   readonly onSelect: (source: HrSource) => void;
 }
 
@@ -56,6 +57,7 @@ function PrimaryHrSourceRow({
   watchAvailability,
   savedHrName,
   hrConnected,
+  bikeConnected,
   onSelect,
 }: PrimaryHrSourceRowProps) {
   return (
@@ -66,7 +68,14 @@ function PrimaryHrSourceRow({
           <HrSourceOption
             key={source}
             label={hrSourceName(source, savedHrName)}
-            readiness={deviceStatusLabel(hrSourceIdleReadiness({ source, watchAvailability, hrConnected }))}
+            readiness={deviceStatusLabel(
+              hrSourceIdleReadiness({
+                source,
+                watchAvailability,
+                hrConnected,
+                bikeConnected,
+              }),
+            )}
             isSelected={primary === source}
             onPress={() => onSelect(source)}
           />
@@ -191,7 +200,11 @@ export function SettingsScreen() {
             <Text style={styles.gearName}>
               {savedBike
                 ? `${savedBike.name} · ${deviceStatusLabel(
-                    bleDeviceStatus({ hasSavedDevice: true, connected: bikeConnected, reconnect: bikeReconnectState }),
+                    bleDeviceStatus({
+                      hasSavedDevice: true,
+                      connected: bikeConnected,
+                      reconnect: bikeReconnectState,
+                    }),
                   )}`
                 : deviceStatusLabel('notSetUp')}
             </Text>
@@ -228,7 +241,11 @@ export function SettingsScreen() {
             <Text style={styles.gearName}>
               {savedHrSource
                 ? `${savedHrSource.name} · ${deviceStatusLabel(
-                    bleDeviceStatus({ hasSavedDevice: true, connected: hrConnected, reconnect: hrReconnectState }),
+                    bleDeviceStatus({
+                      hasSavedDevice: true,
+                      connected: hrConnected,
+                      reconnect: hrReconnectState,
+                    }),
                   )}`
                 : deviceStatusLabel('notSetUp')}
             </Text>
@@ -264,6 +281,7 @@ export function SettingsScreen() {
           watchAvailability={watchAvailability}
           savedHrName={savedHrSource?.name ?? null}
           hrConnected={hrConnected}
+          bikeConnected={bikeConnected}
           onSelect={(source) => void setPrimary(source)}
         />
       </SectionCard>

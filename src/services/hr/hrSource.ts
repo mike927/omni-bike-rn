@@ -59,6 +59,11 @@ export interface HrReading {
   readonly source: HrSource;
   readonly bpm: number | null; // null = no signal
   readonly live: boolean;
+  /**
+   * true when no sample has been received yet this session for this source
+   * (distinguishes a still-connecting startup from a had-it-then-lost-it gap).
+   */
+  readonly awaitingFirstReading: boolean;
 }
 
 function fresh(value: number | null, atMs: number | null, nowMs: number): number | null {
@@ -68,16 +73,20 @@ function fresh(value: number | null, atMs: number | null, nowMs: number): number
 
 export function resolveHrReading(input: HrReadingInput): HrReading {
   let bpm: number | null;
+  let received: boolean;
   switch (input.activeSource) {
     case 'watch':
       bpm = fresh(input.latestAppleWatchHr, input.lastAppleWatchSampleAtMs, input.nowMs);
+      received = input.lastAppleWatchSampleAtMs !== null;
       break;
     case 'bluetooth':
       bpm = fresh(input.latestBluetoothHr, input.lastBluetoothHrSampleAtMs, input.nowMs);
+      received = input.lastBluetoothHrSampleAtMs !== null;
       break;
     case 'bike':
       bpm = input.bikeHeartRate; // FTMS pushes ~1 Hz while connected; absence = no signal
+      received = input.bikeHeartRate !== null;
       break;
   }
-  return { source: input.activeSource, bpm, live: bpm !== null };
+  return { source: input.activeSource, bpm, live: bpm !== null, awaitingFirstReading: !received };
 }

@@ -6,6 +6,7 @@ describe('deviceStatusLabel', () => {
     ['connecting', 'Connecting...'],
     ['ready', 'Ready'],
     ['noSignal', 'No signal'],
+    ['paused', 'Paused'],
     ['unavailable', 'Unavailable'],
     ['off', 'Off'],
   ];

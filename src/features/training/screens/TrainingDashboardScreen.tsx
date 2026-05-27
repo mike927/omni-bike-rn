@@ -93,6 +93,9 @@ export function TrainingDashboardScreen() {
     watchAvailability: watchAvailability ?? 'unavailable',
     savedHrName,
     hrConnected,
+    phase: session.phase,
+    elapsedSeconds: session.elapsedSeconds,
+    bikeConnected,
   });
 
   const showDisconnectedState =

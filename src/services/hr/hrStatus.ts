@@ -1,6 +1,14 @@
 import type { HrSource, HrReading } from './hrSource';
 import type { WatchAvailability } from '../../types/watch';
 import type { DeviceStatus } from '../status/deviceStatus';
+import { TrainingPhase } from '../../types/training';
+
+/**
+ * Startup window before a never-yet-connected in-workout source flips from
+ * Connecting… to No signal. Covers Apple Watch wake (startWatchApp → handle →
+ * HealthKit auth → first sample), which can take ~10–20 s.
+ */
+export const HR_CONNECTING_GRACE_SECONDS = 30;
 
 /**
  * Watch HR status for the read-only surfaces (Home card, Training tile).
@@ -22,7 +30,7 @@ export interface HrSourceSummaryInput {
   /** The per-session locked HR source. Null = pre-workout (idle). */
   readonly activeHrSource: HrSource | null;
   /**
-   * Current HR reading from `resolveHrReading`. Used for in-workout ready/noSignal.
+   * Current HR reading from `resolveHrReading`. Used for in-workout state machine.
    * Ignored in idle mode.
    */
   readonly reading: HrReading;
@@ -35,6 +43,12 @@ export interface HrSourceSummaryInput {
   readonly savedHrName: string | null;
   /** Whether a Bluetooth HR strap is currently connected. Used for idle BLE readiness. */
   readonly hrConnected: boolean;
+  /** Current training phase. Drives the in-workout state machine (paused / ready / connecting / noSignal). */
+  readonly phase: TrainingPhase;
+  /** Elapsed seconds in the current session. Used for the connecting-grace window. */
+  readonly elapsedSeconds: number;
+  /** Whether the bike is currently connected. Used for idle bike-pulse readiness. */
+  readonly bikeConnected: boolean;
 }
 
 export interface HrSourceSummary {
@@ -58,6 +72,7 @@ export interface HrSourceIdleReadinessInput {
   readonly source: HrSource;
   readonly watchAvailability: WatchAvailability;
   readonly hrConnected: boolean;
+  readonly bikeConnected: boolean;
 }
 
 /**
@@ -69,6 +84,7 @@ export function hrSourceIdleReadiness({
   source,
   watchAvailability,
   hrConnected,
+  bikeConnected,
 }: HrSourceIdleReadinessInput): DeviceStatus {
   switch (source) {
     case 'watch':
@@ -76,16 +92,20 @@ export function hrSourceIdleReadiness({
     case 'bluetooth':
       return hrConnected ? 'ready' : 'unavailable';
     case 'bike':
-      return 'ready';
+      return bikeConnected ? 'ready' : 'unavailable';
   }
 }
 
 /**
  * Read-only summary for the Training dashboard HR tile.
  *
- * In-workout (`activeHrSource` is set): always displays the locked source with
- * `ready` when the reading is live, `noSignal` otherwise. Never falls back to a
- * different source.
+ * In-workout (`activeHrSource` is set): always displays the locked source.
+ * State machine:
+ *   - `paused`     if phase === Paused
+ *   - `ready`      else if reading.live
+ *   - `connecting` else if reading.awaitingFirstReading && elapsedSeconds <= HR_CONNECTING_GRACE_SECONDS
+ *   - `noSignal`   otherwise
+ * Never falls back to a different source.
  *
  * Idle (`activeHrSource` is null): displays the effective primary source's
  * readiness status.
@@ -97,18 +117,28 @@ export function resolveHrSourceSummary({
   watchAvailability,
   savedHrName,
   hrConnected,
+  phase,
+  elapsedSeconds,
+  bikeConnected,
 }: HrSourceSummaryInput): HrSourceSummary {
   // ── In-workout: locked source wins unconditionally ──────────────────────
   if (activeHrSource !== null) {
-    return {
-      name: hrSourceName(activeHrSource, savedHrName),
-      status: reading.live ? 'ready' : 'noSignal',
-    };
+    let status: DeviceStatus;
+    if (phase === TrainingPhase.Paused) {
+      status = 'paused';
+    } else if (reading.live) {
+      status = 'ready';
+    } else if (reading.awaitingFirstReading && elapsedSeconds <= HR_CONNECTING_GRACE_SECONDS) {
+      status = 'connecting';
+    } else {
+      status = 'noSignal';
+    }
+    return { name: hrSourceName(activeHrSource, savedHrName), status };
   }
 
   // ── Idle: show primary source's readiness ────────────────────────────────
   return {
     name: hrSourceName(primaryHrSource, savedHrName),
-    status: hrSourceIdleReadiness({ source: primaryHrSource, watchAvailability, hrConnected }),
+    status: hrSourceIdleReadiness({ source: primaryHrSource, watchAvailability, hrConnected, bikeConnected }),
   };
 }
