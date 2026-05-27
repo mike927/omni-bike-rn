@@ -10,6 +10,13 @@ Indoor cycling companion app. React Native / Expo, TypeScript, Drizzle + expo-sq
 
 superpowers is the workflow core — don't invent parallel flows.
 
+## Engineering principles
+
+- **Canonical over clever.** Implement the recommended, documented approach — no workarounds, monkey-patches, or one-off shims.
+- **Rebuild over patch.** When a structure is wrong (e.g. status management), redesign it cleanly — even from scratch — rather than layering fixes on the broken shape.
+- **Simplest thing that holds.** No speculative abstraction or premature generality; solve the case in front of you.
+- **Feasible on real transport.** Confirm a design works over the actual watch ↔ app ↔ bike connectivity before building it.
+
 ## Roadmap
 
 Active work tracked in `ROADMAP.md`. Update states (`[ ] [~] [x] [-]`) as work progresses. Unresolved or exploratory items live in its **Future Considerations** section at the bottom.
