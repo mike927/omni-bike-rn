@@ -336,7 +336,7 @@ describe('TrainingDashboardScreen', () => {
 
   // HR tile read-only tests
 
-  it('shows "Apple Watch · Connected" when watch is locked as activeHrSource and sample is fresh', () => {
+  it('shows "Apple Watch · Ready" when watch is locked as activeHrSource and sample is fresh', () => {
     Object.assign(mockSession, {
       phase: 'active',
       currentMetrics: {
@@ -386,7 +386,7 @@ describe('TrainingDashboardScreen', () => {
     expect(getByText('Apple Watch · No signal')).toBeTruthy();
   });
 
-  it('shows "Polar H10 · Connected" when BLE is locked as activeHrSource', () => {
+  it('shows "Polar H10 · Ready" when BLE is locked as activeHrSource', () => {
     Object.assign(mockDeviceConnection, {
       bikeConnected: true,
       hrConnected: true,

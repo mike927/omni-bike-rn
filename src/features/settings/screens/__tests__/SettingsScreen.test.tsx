@@ -151,7 +151,7 @@ describe('SettingsScreen', () => {
     expect(getByText('Zipro Rave · Unavailable')).toBeTruthy();
   });
 
-  it('shows saved bike name with Connected status when bike is connected', () => {
+  it('shows saved bike name with Ready status when bike is connected', () => {
     Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
     Object.assign(mockConnection, { bikeConnected: true });
     const { getByText } = render(<SettingsScreen />);
@@ -184,13 +184,13 @@ describe('SettingsScreen', () => {
     expect(mockSavedGear.forgetBike).toHaveBeenCalled();
   });
 
-  it('shows saved HR source name with Disconnected status when hr is not connected', () => {
+  it('shows saved HR source name with Unavailable status when hr is not connected', () => {
     Object.assign(mockSavedGear, { savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' } });
     const { getByText } = render(<SettingsScreen />);
     expect(getByText('Polar H10 · Unavailable')).toBeTruthy();
   });
 
-  it('shows saved HR source name with Connected status when hr is connected', () => {
+  it('shows saved HR source name with Ready status when hr is connected', () => {
     Object.assign(mockSavedGear, { savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' } });
     Object.assign(mockConnection, { hrConnected: true });
     const { getByText } = render(<SettingsScreen />);

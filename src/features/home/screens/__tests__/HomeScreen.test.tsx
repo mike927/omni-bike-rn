@@ -182,7 +182,7 @@ describe('HomeScreen', () => {
     expect(getByText('Ready')).toBeTruthy();
   });
 
-  it('shows the Bluetooth HR source name and connection status when saved and connected', () => {
+  it('shows the Bluetooth HR source name with Ready status when saved and connected', () => {
     Object.assign(mockSavedGear, {
       savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' },
     });
