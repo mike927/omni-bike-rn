@@ -149,12 +149,12 @@ describe('TrainingDashboardScreen', () => {
   it('shows disconnected-bike recovery actions before a workout starts', () => {
     const { getByText } = render(<TrainingDashboardScreen />);
 
-    expect(getByText('Bike connection required')).toBeTruthy();
+    expect(getByText('Smart Bike connection required')).toBeTruthy();
 
     fireEvent.press(getByText('Start Ride'));
     expect(mockSession.start).not.toHaveBeenCalled();
 
-    fireEvent.press(getByText('Set Up Bike'));
+    fireEvent.press(getByText('Set Up Smart Bike'));
     expect(mockPush).toHaveBeenCalledWith('/gear-setup?target=bike');
 
     fireEvent.press(getByText('Back Home'));
@@ -241,9 +241,9 @@ describe('TrainingDashboardScreen', () => {
 
     const { getByText } = render(<TrainingDashboardScreen />);
 
-    expect(getByText('Bike connection required')).toBeTruthy();
+    expect(getByText('Smart Bike connection required')).toBeTruthy();
     expect(
-      getByText('Reconnect your saved bike or choose one in setup before you resume this interrupted workout.'),
+      getByText('Reconnect your saved Smart Bike or choose one in setup before you resume this interrupted workout.'),
     ).toBeTruthy();
   });
 

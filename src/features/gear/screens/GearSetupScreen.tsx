@@ -42,7 +42,7 @@ const HR_BROADCAST_HINT = {
 } as const;
 
 const SAVE_LABEL: Record<GearType, string> = {
-  bike: 'Use This Bike',
+  bike: 'Use This Smart Bike',
   hr: 'Use This HR Source',
 };
 
@@ -126,10 +126,10 @@ export function GearSetupScreen({ target }: Readonly<GearSetupScreenProps>) {
     router.back();
   };
 
-  const title = target === 'bike' ? 'Select Bike' : 'Select Bluetooth HR Source';
+  const title = target === 'bike' ? 'Select Smart Bike' : 'Select Bluetooth HR Source';
   const subtitle =
     target === 'bike'
-      ? 'Choose your FTMS-compatible bike trainer. A live signal is required before saving.'
+      ? 'Choose your FTMS-compatible Smart Bike. A live signal is required before saving.'
       : 'Choose a Bluetooth HR monitor or a watch in broadcast or HR sensor mode. A live signal is required before saving.';
 
   return (
@@ -206,7 +206,7 @@ export function GearSetupScreen({ target }: Readonly<GearSetupScreenProps>) {
 const styles = StyleSheet.create({
   deviceRow: {
     gap: 8,
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: palette.border,
     backgroundColor: palette.surfaceMuted,

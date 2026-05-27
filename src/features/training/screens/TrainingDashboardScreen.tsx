@@ -39,10 +39,10 @@ function getPhaseSummary(phase: TrainingPhase): string {
 
 function getDisconnectedCalloutBody(phase: TrainingPhase): string {
   if (phase === TrainingPhase.Paused) {
-    return 'Reconnect your saved bike or choose one in setup before you resume this interrupted workout.';
+    return 'Reconnect your saved Smart Bike or choose one in setup before you resume this interrupted workout.';
   }
 
-  return 'Connect your saved bike or choose one in setup before you start a workout from this screen.';
+  return 'Connect your saved Smart Bike or choose one in setup before you start a workout from this screen.';
 }
 
 export function TrainingDashboardScreen() {
@@ -203,10 +203,14 @@ export function TrainingDashboardScreen() {
 
           {showDisconnectedState ? (
             <View style={styles.callout}>
-              <Text style={styles.calloutTitle}>Bike connection required</Text>
+              <Text style={styles.calloutTitle}>Smart Bike connection required</Text>
               <Text style={styles.calloutBody}>{getDisconnectedCalloutBody(session.phase)}</Text>
               <View style={styles.actionRow}>
-                <ActionButton label="Set Up Bike" onPress={() => router.push(BIKE_SETUP_ROUTE)} variant="secondary" />
+                <ActionButton
+                  label="Set Up Smart Bike"
+                  onPress={() => router.push(BIKE_SETUP_ROUTE)}
+                  variant="secondary"
+                />
                 <ActionButton label="Back Home" onPress={() => router.replace(HOME_ROUTE)} variant="ghost" />
               </View>
             </View>

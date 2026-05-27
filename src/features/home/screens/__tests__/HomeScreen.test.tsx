@@ -149,7 +149,7 @@ describe('HomeScreen', () => {
   it('does not render gear management buttons on the Bike or HR cards', () => {
     const { queryByText } = render(<HomeScreen />);
 
-    expect(queryByText('Set Up Bike')).toBeNull();
+    expect(queryByText('Set Up Smart Bike')).toBeNull();
     expect(queryByText('Add Bluetooth HR')).toBeNull();
     expect(queryByText('Forget')).toBeNull();
     expect(queryByText('Retry')).toBeNull();

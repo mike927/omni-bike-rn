@@ -119,7 +119,7 @@ export function HomeScreen() {
         />
       ) : null}
 
-      <SectionCard title="Quick Start" description="Begin a workout as soon as your main bike is connected.">
+      <SectionCard title="Quick Start" description="Begin a workout as soon as your main Smart Bike is connected.">
         <ActionButton
           label={getTrainingButtonLabel(session.phase)}
           onPress={() => router.push(TRAINING_ROUTE)}
@@ -127,7 +127,7 @@ export function HomeScreen() {
           fullWidth
         />
         {bikeConnected ? null : (
-          <Text style={styles.helperText}>Quick Start stays disabled until your saved bike is connected.</Text>
+          <Text style={styles.helperText}>Quick Start stays disabled until your saved Smart Bike is connected.</Text>
         )}
       </SectionCard>
 
