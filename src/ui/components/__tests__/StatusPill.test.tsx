@@ -26,4 +26,12 @@ describe('StatusPill', () => {
     const { getByLabelText } = render(<StatusPill status="ready" accessibilityLabel="Bluetooth HR: Ready" />);
     expect(getByLabelText('Bluetooth HR: Ready')).toBeTruthy();
   });
+
+  it('updates the label when the status changes from connecting to ready', () => {
+    const { getByText, queryByText, rerender } = render(<StatusPill status="connecting" />);
+    expect(getByText('Connecting...')).toBeTruthy();
+    rerender(<StatusPill status="ready" />);
+    expect(getByText('Ready')).toBeTruthy();
+    expect(queryByText('Connecting...')).toBeNull();
+  });
 });

@@ -1,6 +1,13 @@
 import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import Animated, {
+  cancelAnimation,
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 
 import {
   deviceStatusLabel,
@@ -16,12 +23,12 @@ interface ToneColors {
   readonly dot: string;
 }
 
-// Background = tone color @ ~16% alpha; fg = a darkened tone ink; dot = solid tone color.
+// Background = tone color @ ~16% alpha (inactive uses the palette's pill fill); text = darkened tone ink; dot = solid tone color.
 const TONE_COLORS: Record<DeviceStatusTone, ToneColors> = {
-  good: { bg: 'rgba(16, 181, 164, 0.16)', fg: '#0a7d72', dot: palette.success },
-  working: { bg: 'rgba(245, 165, 36, 0.18)', fg: '#a96a06', dot: palette.warning },
-  attention: { bg: 'rgba(239, 75, 92, 0.14)', fg: '#c4283a', dot: palette.danger },
-  inactive: { bg: '#eef2f6', fg: palette.tabInactive, dot: palette.tabInactive },
+  good: { bg: 'rgba(16, 181, 164, 0.16)', fg: palette.successInk, dot: palette.success },
+  working: { bg: 'rgba(245, 165, 36, 0.18)', fg: palette.warningInk, dot: palette.warning },
+  attention: { bg: 'rgba(239, 75, 92, 0.14)', fg: palette.dangerInk, dot: palette.danger },
+  inactive: { bg: palette.surfaceMuted, fg: palette.tabInactive, dot: palette.tabInactive },
 };
 
 export interface StatusPillProps {
@@ -39,9 +46,10 @@ export function StatusPill({ status, accessibilityLabel, testID }: StatusPillPro
   useEffect(() => {
     if (status === 'connecting') {
       opacity.value = withRepeat(withTiming(0.3, { duration: 650, easing: Easing.inOut(Easing.quad) }), -1, true);
-    } else {
-      opacity.value = 1;
+      return () => cancelAnimation(opacity);
     }
+    opacity.value = 1;
+    return undefined;
   }, [status, opacity]);
 
   const dotStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
