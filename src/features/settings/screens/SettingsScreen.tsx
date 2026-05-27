@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
-import { bleDeviceStatus, deviceStatusLabel } from '../../../services/status/deviceStatus';
+import { bleDeviceStatus, deviceStatusLabel, type DeviceStatus } from '../../../services/status/deviceStatus';
 import { useProviderBikeLinking } from '../../integrations/hooks/useProviderBikeLinking';
 import { useDeviceConnection } from '../../training/hooks/useDeviceConnection';
 import { useAppleHealthConnection } from '../../integrations/hooks/useAppleHealthConnection';
@@ -14,6 +14,7 @@ import { useWatchHrControls } from '../../gear/hooks/useWatchHrControls';
 import { useUserProfileStore } from '../../../store/userProfileStore';
 import { ActionButton } from '../../../ui/components/ActionButton';
 import { SectionCard } from '../../../ui/components/SectionCard';
+import { StatusPill } from '../../../ui/components/StatusPill';
 import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
 import type { UserProfile } from '../../../types/userProfile';
@@ -28,7 +29,7 @@ import { hrSourceName, hrSourceIdleReadiness } from '../../../services/hr/hrStat
 
 interface GearTileProps {
   readonly name: string;
-  readonly status: string;
+  readonly status: DeviceStatus;
   /**
    * HR-source tiles only: show 4 px accent bar + tint when selected.
    * When `undefined` the tile is treated as an **expand-only** tile (e.g. Bike):
@@ -123,7 +124,11 @@ function GearTile({
           accessibilityRole={isSelectable ? undefined : bodyPressHandler === undefined ? undefined : 'button'}
           accessibilityState={bodyA11yState}>
           <Text style={[styles.gearName, isSelected && styles.gearNameSelected]}>{name}</Text>
-          {status ? <Text style={styles.gearHint}>{status}</Text> : null}
+          {status === 'notSetUp' ? null : (
+            <View style={styles.gearTileStatus}>
+              <StatusPill status={status} accessibilityLabel={`${name}: ${deviceStatusLabel(status)}`} />
+            </View>
+          )}
         </TouchableOpacity>
         {expandable ? (
           <GearTileChevron expanded={expanded} onToggle={onToggleExpand} testID={chevronTestId} name={name} />
@@ -201,14 +206,7 @@ function PrimaryHrSourceRow({
             <GearTile
               key={source}
               name={hrSourceName(source, savedHrSource?.name ?? null)}
-              status={deviceStatusLabel(
-                hrSourceIdleReadiness({
-                  source,
-                  watchAvailability,
-                  hrConnected,
-                  bikeConnected,
-                }),
-              )}
+              status={hrSourceIdleReadiness({ source, watchAvailability, hrConnected, bikeConnected })}
               selected={isSelected}
               onSelectPress={() => onSelect(source)}
               headerTestId={`hr-tile-${source}`}
@@ -379,13 +377,11 @@ export function SettingsScreen() {
           {savedBike ? (
             <GearTile
               name={savedBike.name}
-              status={deviceStatusLabel(
-                bleDeviceStatus({
-                  hasSavedDevice: true,
-                  connected: bikeConnected,
-                  reconnect: bikeReconnectState,
-                }),
-              )}
+              status={bleDeviceStatus({
+                hasSavedDevice: true,
+                connected: bikeConnected,
+                reconnect: bikeReconnectState,
+              })}
               expandable
               expanded={bikeManageOpen}
               onToggleExpand={() => setBikeManageOpen((open) => !open)}
@@ -396,7 +392,7 @@ export function SettingsScreen() {
           ) : (
             <GearTile
               name={deviceStatusLabel('notSetUp')}
-              status=""
+              status="notSetUp"
               headerTestId="bike-tile-header"
               trailingAction={
                 <ActionButton
@@ -656,6 +652,7 @@ const styles = StyleSheet.create({
     padding: 10,
     paddingLeft: 14,
   },
+  gearTileStatus: { marginTop: 6 },
   gearTileChevron: {
     padding: 10,
     alignItems: 'center',
