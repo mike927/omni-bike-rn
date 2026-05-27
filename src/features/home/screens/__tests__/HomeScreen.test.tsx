@@ -188,9 +188,10 @@ describe('HomeScreen', () => {
     });
     Object.assign(mockConnection, { hrConnected: true });
 
-    const { getByText } = render(<HomeScreen />);
+    const { getByText, getAllByText } = render(<HomeScreen />);
 
-    expect(getByText('Polar H10 · Ready')).toBeTruthy();
+    expect(getByText('Polar H10')).toBeTruthy();
+    expect(getAllByText('Ready').length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows Not set for Bluetooth HR when no source is saved', () => {

@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
 import { useRouter } from 'expo-router';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text } from 'react-native';
 
 import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
-import { bleDeviceStatus, deviceStatusLabel } from '../../../services/status/deviceStatus';
+import { bleDeviceStatus } from '../../../services/status/deviceStatus';
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { useWatchHrControls } from '../../gear/hooks/useWatchHrControls';
 import { watchHrStatus } from '../../../services/hr/hrStatus';
@@ -19,6 +19,7 @@ import { useDeviceConnection } from '../../training/hooks/useDeviceConnection';
 import { TrainingPhase } from '../../../types/training';
 import { ActionButton } from '../../../ui/components/ActionButton';
 import { SectionCard } from '../../../ui/components/SectionCard';
+import { SourceRow } from '../../../ui/components/SourceRow';
 import { formatDistanceKm, formatDuration } from '../../../ui/formatters';
 import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
@@ -131,38 +132,32 @@ export function HomeScreen() {
       </SectionCard>
 
       <SectionCard title="Bike" onPress={() => router.push(SETTINGS_ROUTE)}>
-        <View style={styles.sourceRow}>
-          <Text style={styles.sourceLabel}>{savedBike ? savedBike.name : 'Not set'}</Text>
-          <Text style={styles.sourceValue}>
-            {deviceStatusLabel(
-              bleDeviceStatus({
-                hasSavedDevice: savedBike !== null,
-                connected: bikeConnected,
-                reconnect: bikeReconnectState,
-              }),
-            )}
-          </Text>
-        </View>
+        <SourceRow
+          label={savedBike ? savedBike.name : 'Not set'}
+          status={bleDeviceStatus({
+            hasSavedDevice: savedBike !== null,
+            connected: bikeConnected,
+            reconnect: bikeReconnectState,
+          })}
+        />
       </SectionCard>
 
       <SectionCard title="Heart Rate" onPress={() => router.push(SETTINGS_ROUTE)}>
-        <View style={styles.sourceRow}>
-          <Text style={styles.sourceLabel}>Bluetooth HR</Text>
-          <Text style={styles.sourceValue}>
-            {savedHrSource
-              ? `${savedHrSource.name} · ${deviceStatusLabel(
-                  bleDeviceStatus({ hasSavedDevice: true, connected: hrConnected, reconnect: hrReconnectState }),
-                )}`
-              : deviceStatusLabel('notSetUp')}
-          </Text>
-        </View>
+        <SourceRow
+          label="Bluetooth HR"
+          deviceName={savedHrSource?.name}
+          status={
+            savedHrSource
+              ? bleDeviceStatus({ hasSavedDevice: true, connected: hrConnected, reconnect: hrReconnectState })
+              : 'notSetUp'
+          }
+        />
         {watchAvailable ? (
-          <View style={styles.sourceRow}>
-            <Text style={styles.sourceLabel}>Apple Watch</Text>
-            <Text style={styles.sourceValue}>
-              {deviceStatusLabel(watchHrStatus(primary === 'watch', watchAvailability ?? 'unavailable'))}
-            </Text>
-          </View>
+          <SourceRow
+            showDivider
+            label="Apple Watch"
+            status={watchHrStatus(primary === 'watch', watchAvailability ?? 'unavailable')}
+          />
         ) : null}
       </SectionCard>
 
@@ -174,22 +169,6 @@ export function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  sourceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
-  },
-  sourceLabel: {
-    color: palette.textMuted,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  sourceValue: {
-    color: palette.text,
-    fontSize: 15,
-    fontWeight: '600',
-  },
   helperText: {
     color: palette.textMuted,
     fontSize: 13,
