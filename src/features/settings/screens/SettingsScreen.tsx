@@ -3,7 +3,7 @@ import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
-import { reconnectLabel } from '../../gear/reconnectLabel';
+import { bleDeviceStatus, deviceStatusLabel } from '../../../services/status/deviceStatus';
 import { useProviderBikeLinking } from '../../integrations/hooks/useProviderBikeLinking';
 import { useDeviceConnection } from '../../training/hooks/useDeviceConnection';
 import { useAppleHealthConnection } from '../../integrations/hooks/useAppleHealthConnection';
@@ -66,7 +66,7 @@ function PrimaryHrSourceRow({
           <HrSourceOption
             key={source}
             label={hrSourceName(source, savedHrName)}
-            readiness={hrSourceIdleReadiness({ source, watchAvailability, hrConnected })}
+            readiness={deviceStatusLabel(hrSourceIdleReadiness({ source, watchAvailability, hrConnected }))}
             isSelected={primary === source}
             onPress={() => onSelect(source)}
           />
@@ -190,8 +190,10 @@ export function SettingsScreen() {
             <Text style={styles.gearLabel}>Bike</Text>
             <Text style={styles.gearName}>
               {savedBike
-                ? `${savedBike.name} · ${bikeConnected ? 'Connected' : reconnectLabel(bikeReconnectState)}`
-                : 'Not set'}
+                ? `${savedBike.name} · ${deviceStatusLabel(
+                    bleDeviceStatus({ hasSavedDevice: true, connected: bikeConnected, reconnect: bikeReconnectState }),
+                  )}`
+                : deviceStatusLabel('notSetUp')}
             </Text>
           </View>
           <View style={styles.gearActionsStacked}>
@@ -225,8 +227,10 @@ export function SettingsScreen() {
             <Text style={styles.gearLabel}>Bluetooth HR</Text>
             <Text style={styles.gearName}>
               {savedHrSource
-                ? `${savedHrSource.name} · ${hrConnected ? 'Connected' : reconnectLabel(hrReconnectState)}`
-                : 'Not set'}
+                ? `${savedHrSource.name} · ${deviceStatusLabel(
+                    bleDeviceStatus({ hasSavedDevice: true, connected: hrConnected, reconnect: hrReconnectState }),
+                  )}`
+                : deviceStatusLabel('notSetUp')}
             </Text>
           </View>
           <View style={styles.gearActionsStacked}>

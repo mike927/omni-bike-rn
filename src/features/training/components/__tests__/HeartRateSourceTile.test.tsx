@@ -4,8 +4,8 @@ import { HeartRateSourceTile } from '../HeartRateSourceTile';
 
 describe('HeartRateSourceTile', () => {
   it('renders "{name} · {state}" when state is provided', () => {
-    const { getByText } = render(<HeartRateSourceTile name="Polar H10" state="Connected" />);
-    expect(getByText('Polar H10 · Connected')).toBeTruthy();
+    const { getByText } = render(<HeartRateSourceTile name="Polar H10" state="Ready" />);
+    expect(getByText('Polar H10 · Ready')).toBeTruthy();
   });
 
   it('renders just the name when state is null', () => {
@@ -14,7 +14,7 @@ describe('HeartRateSourceTile', () => {
   });
 
   it('renders the "Heart Rate Source" label', () => {
-    const { getByText } = render(<HeartRateSourceTile name="Apple Watch" state="Connected" />);
+    const { getByText } = render(<HeartRateSourceTile name="Apple Watch" state="Ready" />);
     expect(getByText('Heart Rate Source')).toBeTruthy();
   });
 });

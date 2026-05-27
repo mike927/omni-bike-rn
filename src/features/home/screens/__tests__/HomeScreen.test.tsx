@@ -179,7 +179,7 @@ describe('HomeScreen', () => {
     const { getByText } = render(<HomeScreen />);
 
     expect(getByText('Zipro Rave')).toBeTruthy();
-    expect(getByText('Connected')).toBeTruthy();
+    expect(getByText('Ready')).toBeTruthy();
   });
 
   it('shows the Bluetooth HR source name and connection status when saved and connected', () => {
@@ -190,7 +190,7 @@ describe('HomeScreen', () => {
 
     const { getByText } = render(<HomeScreen />);
 
-    expect(getByText('Polar H10 · Connected')).toBeTruthy();
+    expect(getByText('Polar H10 · Ready')).toBeTruthy();
   });
 
   it('shows Not set for Bluetooth HR when no source is saved', () => {
@@ -199,7 +199,7 @@ describe('HomeScreen', () => {
 
     const { getByText } = render(<HomeScreen />);
 
-    expect(getByText('Not set')).toBeTruthy();
+    expect(getByText('Not set up')).toBeTruthy();
   });
 
   it('renders and resumes an interrupted session from Home', () => {
@@ -295,16 +295,16 @@ describe('HomeScreen', () => {
 
       const { getByText } = render(<HomeScreen />);
 
-      expect(getByText('Connected')).toBeTruthy();
+      expect(getByText('Ready')).toBeTruthy();
     });
 
-    it('shows Disabled on the line when primary is not watch', () => {
+    it('shows Off on the line when primary is not watch', () => {
       Object.assign(mockConnection, { watchAvailability: 'connected' });
       Object.assign(mockWatchHrControls, { watchAvailable: true, primary: null });
 
       const { getByText } = render(<HomeScreen />);
 
-      expect(getByText('Disabled')).toBeTruthy();
+      expect(getByText('Off')).toBeTruthy();
     });
 
     it('omits the Apple Watch row entirely when the Watch is not available', () => {

@@ -358,7 +358,7 @@ describe('TrainingDashboardScreen', () => {
 
     const { getByText } = render(<TrainingDashboardScreen />);
 
-    expect(getByText('Apple Watch · Connected')).toBeTruthy();
+    expect(getByText('Apple Watch · Ready')).toBeTruthy();
   });
 
   it('shows "Apple Watch · No signal" when watch is locked but sample is stale', () => {
@@ -401,15 +401,15 @@ describe('TrainingDashboardScreen', () => {
 
     const { getByText } = render(<TrainingDashboardScreen />);
 
-    expect(getByText('Polar H10 · Connected')).toBeTruthy();
+    expect(getByText('Polar H10 · Ready')).toBeTruthy();
   });
 
-  it('shows "Bike pulse · Connected" in idle when no primary, watch unavailable, no saved gear', () => {
+  it('shows "Bike pulse · Ready" in idle when no primary, watch unavailable, no saved gear', () => {
     // All defaults: no bike, no BLE, watchAvailability=unavailable, no saved gear, no primary.
     // Bike pulse is always available so it becomes the idle default.
     const { getByText } = render(<TrainingDashboardScreen />);
 
-    expect(getByText('Bike pulse · Connected')).toBeTruthy();
+    expect(getByText('Bike pulse · Ready')).toBeTruthy();
   });
 
   it('does not show Watch when bluetooth is locked mid-ride (locked source wins)', () => {
@@ -440,7 +440,7 @@ describe('TrainingDashboardScreen', () => {
 
     const { getByText, queryByText } = render(<TrainingDashboardScreen />);
 
-    expect(getByText('Polar H10 · Connected')).toBeTruthy();
+    expect(getByText('Polar H10 · Ready')).toBeTruthy();
     expect(queryByText(/Apple Watch/)).toBeNull();
   });
 });

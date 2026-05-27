@@ -3,10 +3,10 @@ import { useRouter } from 'expo-router';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
-import { reconnectLabel } from '../../gear/reconnectLabel';
+import { bleDeviceStatus, deviceStatusLabel } from '../../../services/status/deviceStatus';
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { useWatchHrControls } from '../../gear/hooks/useWatchHrControls';
-import { resolveWatchHrDisplayState, watchHrDisplayLabel } from '../../../services/hr/hrStatus';
+import { watchHrStatus } from '../../../services/hr/hrStatus';
 import { InterruptedSessionCard } from '../components/InterruptedSessionCard';
 import { useLatestWorkout } from '../../training/hooks/useLatestWorkout';
 import { useInterruptedSession } from '../../training/hooks/useInterruptedSession';
@@ -67,7 +67,6 @@ export function HomeScreen() {
   const { interruptedSession, resumeInterruptedSession, discardInterruptedSession } = useInterruptedSession();
   const { bikeConnected, hrConnected, watchAvailability } = useDeviceConnection();
   const { watchAvailable, primary } = useWatchHrControls();
-  const watchHrDisplayState = resolveWatchHrDisplayState(primary === 'watch', watchAvailability ?? 'unavailable');
   const { savedBike, savedHrSource } = useSavedGear();
   const { bikeReconnectState, hrReconnectState } = useAutoReconnect();
   const latestWorkout = useLatestWorkout();
@@ -134,7 +133,15 @@ export function HomeScreen() {
       <SectionCard title="Bike" onPress={() => router.push(SETTINGS_ROUTE)}>
         <View style={styles.sourceRow}>
           <Text style={styles.sourceLabel}>{savedBike ? savedBike.name : 'Not set'}</Text>
-          <Text style={styles.sourceValue}>{bikeConnected ? 'Connected' : reconnectLabel(bikeReconnectState)}</Text>
+          <Text style={styles.sourceValue}>
+            {deviceStatusLabel(
+              bleDeviceStatus({
+                hasSavedDevice: savedBike !== null,
+                connected: bikeConnected,
+                reconnect: bikeReconnectState,
+              }),
+            )}
+          </Text>
         </View>
       </SectionCard>
 
@@ -143,14 +150,18 @@ export function HomeScreen() {
           <Text style={styles.sourceLabel}>Bluetooth HR</Text>
           <Text style={styles.sourceValue}>
             {savedHrSource
-              ? `${savedHrSource.name} · ${hrConnected ? 'Connected' : reconnectLabel(hrReconnectState)}`
-              : 'Not set'}
+              ? `${savedHrSource.name} · ${deviceStatusLabel(
+                  bleDeviceStatus({ hasSavedDevice: true, connected: hrConnected, reconnect: hrReconnectState }),
+                )}`
+              : deviceStatusLabel('notSetUp')}
           </Text>
         </View>
         {watchAvailable ? (
           <View style={styles.sourceRow}>
             <Text style={styles.sourceLabel}>Apple Watch</Text>
-            <Text style={styles.sourceValue}>{watchHrDisplayLabel(watchHrDisplayState)}</Text>
+            <Text style={styles.sourceValue}>
+              {deviceStatusLabel(watchHrStatus(primary === 'watch', watchAvailability ?? 'unavailable'))}
+            </Text>
           </View>
         ) : null}
       </SectionCard>

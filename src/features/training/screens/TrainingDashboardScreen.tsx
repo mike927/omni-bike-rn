@@ -5,7 +5,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useDeviceConnection } from '../hooks/useDeviceConnection';
 import { useTrainingSession } from '../hooks/useTrainingSession';
 import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
-import { reconnectLabel } from '../../gear/reconnectLabel';
+import { bleDeviceStatus, deviceStatusLabel } from '../../../services/status/deviceStatus';
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { buildTrainingSummaryRoute, POST_FINISH_TRAINING_SUMMARY_SOURCE } from '../navigation/trainingSummaryRoute';
 import { resolveHrSourceSummary } from '../../../services/hr/hrStatus';
@@ -152,12 +152,14 @@ export function TrainingDashboardScreen() {
           <View style={styles.connectionPill}>
             <Text style={styles.connectionLabel}>Bike</Text>
             <Text style={styles.connectionValue}>
-              {bikeConnected ? 'Connected' : reconnectLabel(bikeReconnectState)}
+              {deviceStatusLabel(
+                bleDeviceStatus({ hasSavedDevice: true, connected: bikeConnected, reconnect: bikeReconnectState }),
+              )}
             </Text>
           </View>
         </View>
 
-        <HeartRateSourceTile name={hrSummary.name} state={hrSummary.state} />
+        <HeartRateSourceTile name={hrSummary.name} state={deviceStatusLabel(hrSummary.status)} />
 
         <View style={styles.controlsCard}>
           <View style={styles.actionRow}>

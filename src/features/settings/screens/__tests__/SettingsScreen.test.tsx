@@ -140,22 +140,22 @@ describe('SettingsScreen', () => {
     expect(getByText('My Gear')).toBeTruthy();
   });
 
-  it('shows "Not set" when no bike is saved', () => {
+  it('shows "Not set up" for unsaved gear rows', () => {
     const { getAllByText } = render(<SettingsScreen />);
-    expect(getAllByText('Not set').length).toBeGreaterThan(0);
+    expect(getAllByText('Not set up').length).toBeGreaterThan(0);
   });
 
   it('shows saved bike name with connection status when bike is saved', () => {
     Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
     const { getByText } = render(<SettingsScreen />);
-    expect(getByText('Zipro Rave · Disconnected')).toBeTruthy();
+    expect(getByText('Zipro Rave · Unavailable')).toBeTruthy();
   });
 
   it('shows saved bike name with Connected status when bike is connected', () => {
     Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
     Object.assign(mockConnection, { bikeConnected: true });
     const { getByText } = render(<SettingsScreen />);
-    expect(getByText('Zipro Rave · Connected')).toBeTruthy();
+    expect(getByText('Zipro Rave · Ready')).toBeTruthy();
   });
 
   it('shows Replace and Forget buttons when bike is saved', () => {
@@ -187,14 +187,14 @@ describe('SettingsScreen', () => {
   it('shows saved HR source name with Disconnected status when hr is not connected', () => {
     Object.assign(mockSavedGear, { savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' } });
     const { getByText } = render(<SettingsScreen />);
-    expect(getByText('Polar H10 · Disconnected')).toBeTruthy();
+    expect(getByText('Polar H10 · Unavailable')).toBeTruthy();
   });
 
   it('shows saved HR source name with Connected status when hr is connected', () => {
     Object.assign(mockSavedGear, { savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' } });
     Object.assign(mockConnection, { hrConnected: true });
     const { getByText } = render(<SettingsScreen />);
-    expect(getByText('Polar H10 · Connected')).toBeTruthy();
+    expect(getByText('Polar H10 · Ready')).toBeTruthy();
   });
 
   it('does not render the Disconnect Active Gear button', () => {
@@ -347,12 +347,12 @@ describe('SettingsScreen', () => {
       expect(mockWatchHr.setPrimary).toHaveBeenCalledWith('bike');
     });
 
-    it('shows watch readiness label (Connected) when watch is connected', () => {
+    it('shows watch readiness label (Ready) when watch is connected', () => {
       Object.assign(mockWatchHr, { watchAvailable: true, availableSources: ['watch', 'bike'] });
       Object.assign(mockConnection, { watchAvailability: 'connected' });
       const { getAllByText } = render(<SettingsScreen />);
-      // Both Apple Watch and Bike pulse show 'Connected' when watch is connected
-      expect(getAllByText('Connected').length).toBeGreaterThanOrEqual(1);
+      // Both Apple Watch and Bike pulse show 'Ready' when watch is connected
+      expect(getAllByText('Ready').length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows watch readiness label (Unavailable) when watch is unavailable', () => {
@@ -362,10 +362,10 @@ describe('SettingsScreen', () => {
       expect(getByText('Unavailable')).toBeTruthy();
     });
 
-    it('shows Connected readiness for Bike pulse', () => {
+    it('shows Ready readiness for Bike pulse', () => {
       Object.assign(mockWatchHr, { availableSources: ['bike'] });
       const { getByText } = render(<SettingsScreen />);
-      expect(getByText('Connected')).toBeTruthy();
+      expect(getByText('Ready')).toBeTruthy();
     });
   });
 });
