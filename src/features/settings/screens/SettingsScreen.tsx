@@ -29,9 +29,17 @@ import { hrSourceName, hrSourceIdleReadiness } from '../../../services/hr/hrStat
 interface GearTileProps {
   readonly name: string;
   readonly status: string;
-  /** HR-source tiles: show 4 px accent bar + tint when selected */
+  /**
+   * HR-source tiles only: show 4 px accent bar + tint when selected.
+   * When `undefined` the tile is treated as an **expand-only** tile (e.g. Bike):
+   * the body press toggles expand instead of selecting, and the body is
+   * announced as a button with `expanded` state rather than `selected`.
+   */
   readonly selected?: boolean;
-  /** Callback when the tile body (name/status area) is pressed */
+  /**
+   * Selectable tiles: called when the body is pressed to select this source.
+   * Ignored for expand-only tiles (where `selected` is `undefined`).
+   */
   readonly onSelectPress?: () => void;
   /** testID applied to the tile header TouchableOpacity */
   readonly headerTestId?: string;
@@ -39,7 +47,7 @@ interface GearTileProps {
   readonly expandable?: boolean;
   /** Controlled expanded state */
   readonly expanded?: boolean;
-  /** Called when the chevron is pressed; should NOT also call onSelectPress */
+  /** Called when the chevron is pressed; for expand-only tiles also called by body press */
   readonly onToggleExpand?: () => void;
   /** testID for the chevron button */
   readonly chevronTestId?: string;
@@ -50,7 +58,7 @@ interface GearTileProps {
 function GearTile({
   name,
   status,
-  selected = false,
+  selected,
   onSelectPress,
   headerTestId,
   expandable = false,
@@ -59,16 +67,28 @@ function GearTile({
   chevronTestId,
   actions,
 }: GearTileProps) {
+  // A tile is selectable when the caller supplies a boolean `selected` prop.
+  // When `selected` is undefined the tile is expand-only (e.g. the Bike tile):
+  // tapping the body toggles expand and the body is announced as a button
+  // with `expanded` state rather than `selected`.
+  const isSelectable = selected !== undefined;
+  const isSelected = selected ?? false;
+
+  const bodyPressHandler = isSelectable ? onSelectPress : onToggleExpand;
+  const bodyA11yState =
+    bodyPressHandler === undefined ? undefined : isSelectable ? { selected: isSelected } : { expanded };
+
   return (
-    <View style={[styles.gearTile, selected && styles.gearTileSelected]}>
-      {selected ? <View style={styles.gearTileAccentBar} /> : null}
+    <View style={[styles.gearTile, isSelected && styles.gearTileSelected]}>
+      {isSelected ? <View style={styles.gearTileAccentBar} /> : null}
       <View style={styles.gearTileHeaderRow}>
         <TouchableOpacity
           style={styles.gearTileBody}
-          onPress={onSelectPress}
+          onPress={bodyPressHandler}
           testID={headerTestId}
-          accessibilityState={onSelectPress === undefined ? undefined : { selected }}>
-          <Text style={[styles.gearName, selected && styles.gearNameSelected]}>{name}</Text>
+          accessibilityRole={isSelectable ? undefined : bodyPressHandler === undefined ? undefined : 'button'}
+          accessibilityState={bodyA11yState}>
+          <Text style={[styles.gearName, isSelected && styles.gearNameSelected]}>{name}</Text>
           <Text style={styles.gearHint}>{status}</Text>
         </TouchableOpacity>
         {expandable ? (
@@ -348,7 +368,6 @@ export function SettingsScreen() {
               expandable
               expanded={bikeManageOpen}
               onToggleExpand={() => setBikeManageOpen((open) => !open)}
-              onSelectPress={() => setBikeManageOpen((open) => !open)}
               headerTestId="bike-tile-header"
               chevronTestId="bike-tile-chevron"
               actions={bikeActions}

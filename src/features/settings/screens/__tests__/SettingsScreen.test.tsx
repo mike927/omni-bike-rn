@@ -587,6 +587,35 @@ describe('SettingsScreen', () => {
       expect(watchTile.props.accessibilityState).toMatchObject({ selected: false });
     });
 
+    it('bike tile body has accessibilityRole="button" (not a selectable)', () => {
+      Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
+      const { getByTestId } = render(<SettingsScreen />);
+      const bikeTileBody = getByTestId('bike-tile-header');
+      expect(bikeTileBody.props.accessibilityRole).toBe('button');
+    });
+
+    it('bike tile body does NOT have accessibilityState.selected', () => {
+      Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
+      const { getByTestId } = render(<SettingsScreen />);
+      const bikeTileBody = getByTestId('bike-tile-header');
+      expect(bikeTileBody.props.accessibilityState?.selected).toBeUndefined();
+    });
+
+    it('bike tile body reports accessibilityState.expanded=false when collapsed', () => {
+      Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
+      const { getByTestId } = render(<SettingsScreen />);
+      const bikeTileBody = getByTestId('bike-tile-header');
+      expect(bikeTileBody.props.accessibilityState).toMatchObject({ expanded: false });
+    });
+
+    it('bike tile body reports accessibilityState.expanded=true after expanding', () => {
+      Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
+      const { getByTestId, getByText } = render(<SettingsScreen />);
+      fireEvent.press(getByText('Zipro Rave'));
+      const bikeTileBody = getByTestId('bike-tile-header');
+      expect(bikeTileBody.props.accessibilityState).toMatchObject({ expanded: true });
+    });
+
     it('no saved bike shows "Not set up" text and Set Up button (no chevron)', () => {
       Object.assign(mockSavedGear, { savedBike: null });
       const { getByText, queryByTestId } = render(<SettingsScreen />);
