@@ -112,17 +112,29 @@ export function useAutoReconnect() {
           bikeAttemptingRef.current = false;
           return;
         }
-        const nextState = toReconnectFailureState(err);
-        bikeRetryAttemptCountRef.current = nextState === 'disconnected' ? bikeRetryAttemptCountRef.current + 1 : 0;
-        if (nextState === 'failed') {
-          clearBikeRetryTimeout();
-          console.error('[useAutoReconnect] Bike connect failed:', err);
-        }
         bikeAttemptingRef.current = false;
-        if (nextState === 'disconnected') {
-          setBikeRetrySignal((value) => value + 1);
+        const nextState = toReconnectFailureState(err);
+
+        if (nextState === 'failed') {
+          bikeRetryAttemptCountRef.current = 0;
+          clearBikeRetryTimeout();
+          setBikeReconnectState('failed');
+          console.error('[useAutoReconnect] Bike connect failed:', err);
+          return;
         }
-        setBikeReconnectState(nextState);
+
+        // Transient drop: count this probe and, while the budget remains, stay in
+        // the `connecting` display state and schedule the next probe so the chip
+        // reads one continuous "Connecting…". Only once the budget is spent do we
+        // fall back to `disconnected` (rendered as "Unavailable").
+        bikeRetryAttemptCountRef.current += 1;
+        if (bikeRetryAttemptCountRef.current >= MAX_AUTO_RECONNECT_ATTEMPTS) {
+          clearBikeRetryTimeout();
+          setBikeReconnectState('disconnected');
+          return;
+        }
+        setBikeReconnectState('connecting');
+        setBikeRetrySignal((value) => value + 1);
       }
     },
     [clearBikeRetryTimeout, disconnectBike, isCurrentSavedBikeAttempt, runBikeConnect, setBikeReconnectState],
@@ -153,17 +165,29 @@ export function useAutoReconnect() {
           hrAttemptingRef.current = false;
           return;
         }
-        const nextState = toReconnectFailureState(err);
-        hrRetryAttemptCountRef.current = nextState === 'disconnected' ? hrRetryAttemptCountRef.current + 1 : 0;
-        if (nextState === 'failed') {
-          clearHrRetryTimeout();
-          console.error('[useAutoReconnect] HR connect failed:', err);
-        }
         hrAttemptingRef.current = false;
-        if (nextState === 'disconnected') {
-          setHrRetrySignal((value) => value + 1);
+        const nextState = toReconnectFailureState(err);
+
+        if (nextState === 'failed') {
+          hrRetryAttemptCountRef.current = 0;
+          clearHrRetryTimeout();
+          setHrReconnectState('failed');
+          console.error('[useAutoReconnect] HR connect failed:', err);
+          return;
         }
-        setHrReconnectState(nextState);
+
+        // Transient drop: count this probe and, while the budget remains, stay in
+        // the `connecting` display state and schedule the next probe so the chip
+        // reads one continuous "Connecting…". Only once the budget is spent do we
+        // fall back to `disconnected` (rendered as "Unavailable").
+        hrRetryAttemptCountRef.current += 1;
+        if (hrRetryAttemptCountRef.current >= MAX_AUTO_RECONNECT_ATTEMPTS) {
+          clearHrRetryTimeout();
+          setHrReconnectState('disconnected');
+          return;
+        }
+        setHrReconnectState('connecting');
+        setHrRetrySignal((value) => value + 1);
       }
     },
     [clearHrRetryTimeout, disconnectHr, isCurrentSavedHrAttempt, runHrConnect, setHrReconnectState],
@@ -255,18 +279,17 @@ export function useAutoReconnect() {
       return;
     }
 
+    // A reconnect cycle is live while the state is `connecting` (active probe or
+    // waiting between probes) or `disconnected` (a fresh drop). Once the probe
+    // budget is spent we stop and leave the device disconnected (Unavailable).
+    const bikeNeedsReconnect = bikeReconnectState === 'connecting' || bikeReconnectState === 'disconnected';
     if (
-      bikeReconnectState !== 'disconnected' ||
+      !bikeNeedsReconnect ||
       bikeAdapter !== null ||
       bikeAttemptingRef.current ||
-      bikeConnectionInProgress
+      bikeConnectionInProgress ||
+      bikeRetryAttemptCountRef.current >= MAX_AUTO_RECONNECT_ATTEMPTS
     ) {
-      clearBikeRetryTimeout();
-      return;
-    }
-
-    if (bikeRetryAttemptCountRef.current >= MAX_AUTO_RECONNECT_ATTEMPTS) {
-      // Exhausted the probe budget — stay disconnected until a manual Connect.
       clearBikeRetryTimeout();
       return;
     }
@@ -308,18 +331,17 @@ export function useAutoReconnect() {
       return;
     }
 
+    // A reconnect cycle is live while the state is `connecting` (active probe or
+    // waiting between probes) or `disconnected` (a fresh drop). Once the probe
+    // budget is spent we stop and leave the device disconnected (Unavailable).
+    const hrNeedsReconnect = hrReconnectState === 'connecting' || hrReconnectState === 'disconnected';
     if (
-      hrReconnectState !== 'disconnected' ||
+      !hrNeedsReconnect ||
       hrAdapter !== null ||
       hrAttemptingRef.current ||
-      hrConnectionInProgress
+      hrConnectionInProgress ||
+      hrRetryAttemptCountRef.current >= MAX_AUTO_RECONNECT_ATTEMPTS
     ) {
-      clearHrRetryTimeout();
-      return;
-    }
-
-    if (hrRetryAttemptCountRef.current >= MAX_AUTO_RECONNECT_ATTEMPTS) {
-      // Exhausted the probe budget — stay disconnected until a manual Connect.
       clearHrRetryTimeout();
       return;
     }
