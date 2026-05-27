@@ -1,4 +1,4 @@
-import { bleDeviceStatus, deviceStatusLabel, type DeviceStatus } from '../deviceStatus';
+import { bleDeviceStatus, deviceStatusLabel, deviceStatusTone, type DeviceStatus } from '../deviceStatus';
 
 describe('deviceStatusLabel', () => {
   const cases: [DeviceStatus, string][] = [
@@ -35,5 +35,21 @@ describe('bleDeviceStatus', () => {
     expect(bleDeviceStatus({ hasSavedDevice: true, connected: false, reconnect: 'idle' })).toBe('unavailable');
     expect(bleDeviceStatus({ hasSavedDevice: true, connected: false, reconnect: 'disconnected' })).toBe('unavailable');
     expect(bleDeviceStatus({ hasSavedDevice: true, connected: false, reconnect: 'failed' })).toBe('unavailable');
+  });
+});
+
+describe('deviceStatusTone', () => {
+  const cases: [DeviceStatus, 'good' | 'working' | 'attention' | 'inactive'][] = [
+    ['ready', 'good'],
+    ['connecting', 'working'],
+    ['noSignal', 'attention'],
+    ['paused', 'inactive'],
+    ['unavailable', 'inactive'],
+    ['off', 'inactive'],
+    ['notSetUp', 'inactive'],
+  ];
+
+  it.each(cases)('maps %s → %s', (status, tone) => {
+    expect(deviceStatusTone(status)).toBe(tone);
   });
 });

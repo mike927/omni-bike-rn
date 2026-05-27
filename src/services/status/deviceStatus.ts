@@ -55,3 +55,21 @@ export function bleDeviceStatus({ hasSavedDevice, connected, reconnect }: BleDev
   if (reconnect === 'connecting') return 'connecting';
   return 'unavailable';
 }
+
+/** Semantic tone for a device status — drives the StatusPill color. */
+export type DeviceStatusTone = 'good' | 'working' | 'attention' | 'inactive';
+
+const DEVICE_STATUS_TONES: Record<DeviceStatus, DeviceStatusTone> = {
+  notSetUp: 'inactive',
+  connecting: 'working',
+  ready: 'good',
+  noSignal: 'attention',
+  paused: 'inactive',
+  unavailable: 'inactive',
+  off: 'inactive',
+};
+
+/** Single source of truth for the semantic tone of any device status. */
+export function deviceStatusTone(status: DeviceStatus): DeviceStatusTone {
+  return DEVICE_STATUS_TONES[status];
+}
