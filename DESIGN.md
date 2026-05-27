@@ -104,6 +104,24 @@ BLE strap link, bike FTMS link). Integration links (**Strava**, **Apple Health**
 **Connected / Not connected** — a separate account-linking domain, deliberately NOT part of this
 device vocabulary.
 
+## Gear / HR-Source Tiles
+
+Pattern for device & HR-source rows in Settings → "My Gear" (`SettingsScreen.tsx` `GearTile`).
+One tile per device (never list a device twice). Two distinct interactions, two distinct affordances:
+
+- **Selection** (HR sources only): tap the tile body → it becomes the primary source, shown by a
+  **4px leading accent bar** (`primary`) + `primarySubtle` tint + bold `primary` name. **No radio.**
+  Exactly one HR source selected at a time. a11y: `accessibilityState={{ selected }}`.
+- **Management** (only tiles that have actions — the Bike and a Bluetooth strap): a **right-edge
+  chevron** (`Ionicons` `chevron-down`/`chevron-up`, `textMuted` → `primary` when open) reveals
+  Connect / Replace / Forget **inside** the tile on tap; the chevron rotates 180° when open.
+  Action buttons are conditionally rendered (absent from the tree until expanded). The chevron is
+  a separate press target from the body (expanding never selects).
+- Tiles with nothing to manage (**Apple Watch**, **Bike pulse**) have **no chevron**.
+- The **Bike** tile is an **expander, not a selectable** — no accent bar; tapping it toggles its
+  management; a11y: `accessibilityRole="button"` + `accessibilityState={{ expanded }}`.
+- "Set Up" (no device saved) and "+ Add Bluetooth HR" (no strap saved) are plain CTAs, no chevron.
+
 ## Illustration Style
 
 Flat illustration with soft gradients in the brand palette. No photorealism. No text inside illustrations. Square aspect for hero illustrations. Consistent line weight and color treatment across all screens — illustrations in the same flow MUST share style.
