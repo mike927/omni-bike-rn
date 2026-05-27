@@ -30,9 +30,9 @@ interface HrSourceOptionProps {
 
 function HrSourceOption({ label, readiness, isSelected, onPress, actions }: HrSourceOptionProps) {
   return (
-    <View style={styles.hrSourceOptionContainer}>
+    <View style={[styles.hrSourceOption, isSelected && styles.hrSourceOptionSelected]}>
       <TouchableOpacity
-        style={[styles.hrSourceOption, isSelected && styles.hrSourceOptionSelected]}
+        style={styles.hrSourceOptionHeader}
         onPress={onPress}
         accessibilityRole="radio"
         accessibilityState={{ checked: isSelected }}>
@@ -479,20 +479,22 @@ const styles = StyleSheet.create({
   hrSourceOptions: {
     gap: 6,
   },
-  hrSourceOptionContainer: {},
   hrSourceOptionActions: {
     paddingHorizontal: 10,
-    paddingBottom: 8,
-    paddingTop: 6,
+    paddingBottom: 10,
+    paddingTop: 4,
     gap: 8,
     flexDirection: 'column',
     alignItems: 'stretch',
   },
   hrSourceOption: {
-    padding: 10,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: palette.border,
+    overflow: 'hidden',
+  },
+  hrSourceOptionHeader: {
+    padding: 10,
   },
   hrSourceOptionSelected: {
     borderColor: palette.primary,
