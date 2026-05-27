@@ -382,7 +382,7 @@ describe('retry', () => {
     expect(mockConnectBike).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      jest.advanceTimersByTime(4999);
+      jest.advanceTimersByTime(2999);
     });
 
     expect(mockConnectBike).toHaveBeenCalledTimes(1);
@@ -398,7 +398,7 @@ describe('retry', () => {
     });
 
     await act(async () => {
-      jest.advanceTimersByTime(9999);
+      jest.advanceTimersByTime(4999);
     });
 
     expect(mockConnectBike).toHaveBeenCalledTimes(2);
@@ -408,6 +408,39 @@ describe('retry', () => {
     });
 
     expect(mockConnectBike).toHaveBeenCalledTimes(3);
+  });
+
+  it('stops auto-reconnect after 3 probes (immediate, +3s, +5s) and stays disconnected', async () => {
+    jest.useFakeTimers();
+    mockConnectBike.mockRejectedValue(new Error('Operation timed out'));
+    useSavedGearStore.setState({ savedBike: bike, hydrated: true });
+
+    renderHook(() => useAutoReconnect());
+
+    // Probe 1 — immediate (on mount)
+    await waitFor(() => {
+      expect(useSavedGearStore.getState().bikeReconnectState).toBe('disconnected');
+    });
+    expect(mockConnectBike).toHaveBeenCalledTimes(1);
+
+    // Probe 2 — after 3s
+    await act(async () => {
+      jest.advanceTimersByTime(3000);
+    });
+    expect(mockConnectBike).toHaveBeenCalledTimes(2);
+
+    // Probe 3 — after a further 5s
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+    });
+    expect(mockConnectBike).toHaveBeenCalledTimes(3);
+
+    // Budget exhausted — no 4th probe ever, device left disconnected.
+    await act(async () => {
+      jest.advanceTimersByTime(60000);
+    });
+    expect(mockConnectBike).toHaveBeenCalledTimes(3);
+    expect(useSavedGearStore.getState().bikeReconnectState).toBe('disconnected');
   });
 
   it('resets the bike retry backoff after a manual bike connection succeeds', async () => {
@@ -425,7 +458,7 @@ describe('retry', () => {
     expect(mockConnectBike).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      jest.advanceTimersByTime(5000);
+      jest.advanceTimersByTime(3000);
     });
 
     await waitFor(() => {
@@ -447,12 +480,7 @@ describe('retry', () => {
 
     expect(result.current.bikeReconnectState).toBe('disconnected');
 
-    await act(async () => {
-      jest.advanceTimersByTime(4999);
-    });
-
-    expect(mockConnectBike).toHaveBeenCalledTimes(2);
-
+    // Backoff was reset by the successful connect, so probe 1 of the new cycle fires immediately.
     await act(async () => {
       jest.advanceTimersByTime(1);
     });

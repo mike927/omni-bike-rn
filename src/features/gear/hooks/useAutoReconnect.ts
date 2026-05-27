@@ -7,15 +7,20 @@ import { isExpectedBleDisconnectError } from '../../../services/ble/isExpectedBl
 import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
 import { useSavedGearStore } from '../../../store/savedGearStore';
 
-const AUTO_RECONNECT_RETRY_DELAYS_MS = [5000, 10000, 20000, 30000] as const;
+// Auto-reconnect fires at most MAX_AUTO_RECONNECT_ATTEMPTS probes after a drop:
+// probe 1 immediately (0 ms), probe 2 after 3 s, probe 3 after 5 s. Once the last
+// probe fails the device is left `disconnected` (shown as "Unavailable") until the
+// user taps Connect, which resets the cycle.
+const AUTO_RECONNECT_RETRY_DELAYS_MS = [0, 3000, 5000] as const;
+const MAX_AUTO_RECONNECT_ATTEMPTS = AUTO_RECONNECT_RETRY_DELAYS_MS.length;
 
 function toReconnectFailureState(err: unknown): 'failed' | 'disconnected' {
   return isExpectedBleDisconnectError(err) || isExpectedBleConnectTimeoutError(err) ? 'disconnected' : 'failed';
 }
 
+// `attemptCount` = probes already made; returns the wait before the next probe.
 function nextAutoReconnectDelayMs(attemptCount: number): number {
-  const attemptIndex = Math.max(0, attemptCount - 1);
-  return AUTO_RECONNECT_RETRY_DELAYS_MS[Math.min(attemptIndex, AUTO_RECONNECT_RETRY_DELAYS_MS.length - 1)] ?? 30000;
+  return AUTO_RECONNECT_RETRY_DELAYS_MS[attemptCount] ?? 0;
 }
 
 export function useAutoReconnect() {
@@ -260,6 +265,12 @@ export function useAutoReconnect() {
       return;
     }
 
+    if (bikeRetryAttemptCountRef.current >= MAX_AUTO_RECONNECT_ATTEMPTS) {
+      // Exhausted the probe budget — stay disconnected until a manual Connect.
+      clearBikeRetryTimeout();
+      return;
+    }
+
     clearBikeRetryTimeout();
     bikeRetryTimeoutRef.current = setTimeout(() => {
       bikeRetryTimeoutRef.current = null;
@@ -303,6 +314,12 @@ export function useAutoReconnect() {
       hrAttemptingRef.current ||
       hrConnectionInProgress
     ) {
+      clearHrRetryTimeout();
+      return;
+    }
+
+    if (hrRetryAttemptCountRef.current >= MAX_AUTO_RECONNECT_ATTEMPTS) {
+      // Exhausted the probe budget — stay disconnected until a manual Connect.
       clearHrRetryTimeout();
       return;
     }
