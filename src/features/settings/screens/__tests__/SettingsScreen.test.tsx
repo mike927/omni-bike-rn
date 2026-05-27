@@ -140,9 +140,10 @@ describe('SettingsScreen', () => {
     expect(getByText('My Gear')).toBeTruthy();
   });
 
-  it('shows "Not set up" for unsaved gear rows', () => {
-    const { getAllByText } = render(<SettingsScreen />);
-    expect(getAllByText('Not set up').length).toBeGreaterThan(0);
+  it('shows setup CTAs for unsaved gear', () => {
+    const { getByText } = render(<SettingsScreen />);
+    expect(getByText('Set Up Smart Bike')).toBeTruthy();
+    expect(getByText('Add Bluetooth HR')).toBeTruthy();
   });
 
   it('shows saved bike name and Unavailable status when bike is saved and not connected', () => {
@@ -171,9 +172,9 @@ describe('SettingsScreen', () => {
     expect(getByText('Forget')).toBeTruthy();
   });
 
-  it('navigates to gear setup with bike target when Set Up is pressed', () => {
+  it('navigates to gear setup with bike target when Set Up Smart Bike is pressed', () => {
     const { getByText } = render(<SettingsScreen />);
-    fireEvent.press(getByText('Set Up'));
+    fireEvent.press(getByText('Set Up Smart Bike'));
     expect(mockPush).toHaveBeenCalledWith('/gear-setup?target=bike');
   });
 
@@ -616,11 +617,10 @@ describe('SettingsScreen', () => {
       expect(bikeTileBody.props.accessibilityState).toMatchObject({ expanded: true });
     });
 
-    it('no saved bike shows "Not set up" text and Set Up button (no chevron)', () => {
+    it('no saved bike shows the Set Up Smart Bike CTA (no chevron)', () => {
       Object.assign(mockSavedGear, { savedBike: null });
       const { getByText, queryByTestId } = render(<SettingsScreen />);
-      expect(getByText('Not set up')).toBeTruthy();
-      expect(getByText('Set Up')).toBeTruthy();
+      expect(getByText('Set Up Smart Bike')).toBeTruthy();
       expect(queryByTestId('bike-tile-chevron')).toBeNull();
     });
 

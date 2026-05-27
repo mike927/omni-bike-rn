@@ -137,7 +137,7 @@ describe('HomeScreen', () => {
     const { getByText, queryByText } = render(<HomeScreen />);
 
     expect(getByText('Quick Start')).toBeTruthy();
-    expect(getByText('Bike')).toBeTruthy();
+    expect(getByText('Smart Bike')).toBeTruthy();
     expect(getByText('Heart Rate')).toBeTruthy();
     expect(getByText('Latest Workout')).toBeTruthy();
     expect(queryByText(/Latest reading:/)).toBeNull();
@@ -159,7 +159,7 @@ describe('HomeScreen', () => {
   it('navigates to Settings when the Bike card is pressed', () => {
     const { getByText } = render(<HomeScreen />);
 
-    fireEvent.press(getByText('Bike'));
+    fireEvent.press(getByText('Smart Bike'));
     expect(mockPush).toHaveBeenCalledWith('/(tabs)/settings');
   });
 

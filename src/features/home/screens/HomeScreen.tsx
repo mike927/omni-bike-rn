@@ -131,7 +131,7 @@ export function HomeScreen() {
         )}
       </SectionCard>
 
-      <SectionCard title="Bike" onPress={() => router.push(SETTINGS_ROUTE)}>
+      <SectionCard title="Smart Bike" onPress={() => router.push(SETTINGS_ROUTE)}>
         <SourceRow
           label={savedBike ? savedBike.name : 'Not set'}
           status={bleDeviceStatus({

@@ -15,6 +15,7 @@ import { useUserProfileStore } from '../../../store/userProfileStore';
 import { ActionButton } from '../../../ui/components/ActionButton';
 import { SectionCard } from '../../../ui/components/SectionCard';
 import { StatusPill } from '../../../ui/components/StatusPill';
+import { AddGearTile } from '../../../ui/components/AddGearTile';
 import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
 import type { UserProfile } from '../../../types/userProfile';
@@ -54,8 +55,6 @@ interface GearTileProps {
   readonly chevronTestId?: string;
   /** Content rendered inside the tile when expanded */
   readonly actions?: React.ReactNode;
-  /** Optional action on the header's right edge (e.g. a Set Up CTA for an empty tile). Ignored when `expandable`. */
-  readonly trailingAction?: React.ReactNode;
   /** Set false to hide the status pill, e.g. the not-set-up setup-affordance tile. Defaults true. */
   readonly showStatus?: boolean;
 }
@@ -102,7 +101,6 @@ function GearTile({
   onToggleExpand,
   chevronTestId,
   actions,
-  trailingAction,
   showStatus = true,
 }: GearTileProps) {
   // A tile is selectable when the caller supplies a boolean `selected` prop.
@@ -135,8 +133,6 @@ function GearTile({
         </TouchableOpacity>
         {expandable ? (
           <GearTileChevron expanded={expanded} onToggle={onToggleExpand} testID={chevronTestId} name={name} />
-        ) : trailingAction ? (
-          <View style={styles.gearTileTrailing}>{trailingAction}</View>
         ) : null}
       </View>
       {expanded && actions !== undefined ? <View style={styles.gearTileActions}>{actions}</View> : null}
@@ -376,7 +372,7 @@ export function SettingsScreen() {
       <SectionCard title="My Gear">
         {/* BIKE sub-section */}
         <View style={styles.bikeSection}>
-          <Text style={styles.gearLabel}>Bike</Text>
+          <Text style={styles.gearLabel}>Smart Bike</Text>
           {savedBike ? (
             <GearTile
               name={savedBike.name}
@@ -393,18 +389,10 @@ export function SettingsScreen() {
               actions={bikeActions}
             />
           ) : (
-            <GearTile
-              name={deviceStatusLabel('notSetUp')}
-              status="notSetUp"
-              showStatus={false}
-              headerTestId="bike-tile-header"
-              trailingAction={
-                <ActionButton
-                  label="Set Up"
-                  onPress={() => router.push('/gear-setup?target=bike')}
-                  variant="secondary"
-                />
-              }
+            <AddGearTile
+              label="Set Up Smart Bike"
+              onPress={() => router.push('/gear-setup?target=bike')}
+              testID="bike-setup-cta"
             />
           )}
         </View>
@@ -661,9 +649,6 @@ const styles = StyleSheet.create({
     padding: 10,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  gearTileTrailing: {
-    paddingRight: 10,
   },
   gearTileActions: {
     paddingHorizontal: 10,

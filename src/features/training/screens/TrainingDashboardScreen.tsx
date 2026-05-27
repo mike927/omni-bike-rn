@@ -170,7 +170,7 @@ export function TrainingDashboardScreen() {
 
         <View style={styles.connectionRow}>
           <View style={styles.connectionPill}>
-            <Text style={styles.connectionLabel}>Bike</Text>
+            <Text style={styles.connectionLabel}>Smart Bike</Text>
             <StatusPill
               status={bikeConnectionStatus}
               accessibilityLabel={`Bike: ${deviceStatusLabel(bikeConnectionStatus)}`}

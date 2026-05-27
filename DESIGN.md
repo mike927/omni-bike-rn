@@ -130,8 +130,8 @@ fill).
   states render a static dot.
 - a11y: the label text carries the status for screen readers; the dot is decorative. Callers may
   pass `accessibilityLabel` for extra context (e.g. the device name).
-- **One chip everywhere.** Used by the Home Bike + Heart Rate cards (via `SourceRow`), the Settings
-  `GearTile`, and the Training Bike-status pill + `HeartRateSourceTile`. Never re-style the status
+- **One chip everywhere.** Used by the Home Smart Bike + Heart Rate cards (via `SourceRow`), the
+  Settings `GearTile`, and the Training Smart Bike-status pill + `HeartRateSourceTile`. Never re-style the status
   inline — always render `StatusPill`.
 
 ## Source Row (`SourceRow`)
@@ -146,21 +146,26 @@ divider separates the rows. The chip never truncates; the device name yields spa
 
 Pattern for device & HR-source rows in Settings → "My Gear" (`SettingsScreen.tsx` `GearTile`).
 One tile per device (never list a device twice). The tile body shows the device **name** with its
-**`StatusPill`** directly beneath it (replacing the old plain-text status hint). Two distinct
-interactions, two distinct affordances:
+**`StatusPill`** directly beneath it (replacing the old plain-text status hint). The trainer device
+is labelled **Smart Bike** everywhere it appears (Home card title, this section's label, the
+Training connection pill); the bike-derived HR source keeps its distinct name **Bike pulse**. Two
+distinct interactions, two distinct affordances:
 
 - **Selection** (HR sources only): tap the tile body → it becomes the primary source, shown by a
   **4px leading accent bar** (`primary`) + `primarySubtle` tint + bold `primary` name. **No radio.**
   Exactly one HR source selected at a time. a11y: `accessibilityState={{ selected }}`.
-- **Management** (only tiles that have actions — the Bike and a Bluetooth strap): a **right-edge
+- **Management** (only tiles that have actions — the Smart Bike and a Bluetooth strap): a **right-edge
   chevron** (`Ionicons` `chevron-down`/`chevron-up`, `textMuted` → `primary` when open) reveals
   Connect / Replace / Forget **inside** the tile on tap; the chevron rotates 180° when open.
   Action buttons are conditionally rendered (absent from the tree until expanded). The chevron is
   a separate press target from the body (expanding never selects).
 - Tiles with nothing to manage (**Apple Watch**, **Bike pulse**) have **no chevron**.
-- The **Bike** tile is an **expander, not a selectable** — no accent bar; tapping it toggles its
+- The **Smart Bike** tile is an **expander, not a selectable** — no accent bar; tapping it toggles its
   management; a11y: `accessibilityRole="button"` + `accessibilityState={{ expanded }}`.
-- "Set Up" (no device saved) and "+ Add Bluetooth HR" (no strap saved) are plain CTAs, no chevron.
+- **Empty slots use `AddGearTile`** (`src/ui/components/AddGearTile.tsx`) — a **dashed**, full-width
+  tap-to-add tile (`Ionicons add` + label in `primary`), visually distinct from a populated tile.
+  The no-bike state is **＋ Set Up Smart Bike**. (The no-strap HR state still uses the plain
+  full-width **Add Bluetooth HR** `ActionButton`.)
 
 ## Illustration Style
 
