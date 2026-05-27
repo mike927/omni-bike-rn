@@ -34,7 +34,10 @@ Brand action colors. `secondary`, `success`, and `accent` deliberately alias to 
 | `danger` | `#ef4b5c` | Destructive coral |
 | `dangerBg` | `#ffe5e8` | Destructive button fill |
 | `dangerBorder` | `#f7b5bd` | Destructive button border |
-| `tabInactive` | `#7b8794` | Inactive tab icon/label |
+| `successInk` | `#0a7d72` | Darkened teal — status-pill text on `success` tint |
+| `warningInk` | `#a96a06` | Darkened amber — status-pill text on `warning` tint |
+| `dangerInk` | `#c4283a` | Darkened coral — status-pill text on `danger` tint |
+| `tabInactive` | `#7b8794` | Inactive tab icon/label; status-pill text/dot for `inactive` tone |
 
 ## Gradients
 
@@ -111,7 +114,10 @@ The single component for rendering any `DeviceStatus` on a read-only surface
 (`src/ui/components/StatusPill.tsx`). A `pill`-radius chip: a colored dot + the
 `deviceStatusLabel` text on a tinted background. Each status maps to one of four **tones** via
 `deviceStatusTone(status)` (`src/services/status/deviceStatus.ts`); the tone resolves to palette
-colors. Background = tone color at ~16% alpha, dot = solid tone color, text = a darkened tone color.
+tokens — no raw hex in the component. Per tone: **dot** = `success` / `warning` / `danger` /
+`tabInactive`; **text** = `successInk` / `warningInk` / `dangerInk` / `tabInactive`; **background**
+= that tone's color at ~16% alpha, except `inactive` which uses `surfaceMuted` (the designated pill
+fill).
 
 | Tone | Statuses | Dot / accent | Reads as |
 |---|---|---|---|
