@@ -7,15 +7,20 @@ import { isExpectedBleDisconnectError } from '../../../services/ble/isExpectedBl
 import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
 import { useSavedGearStore } from '../../../store/savedGearStore';
 
-const AUTO_RECONNECT_RETRY_DELAYS_MS = [5000, 10000, 20000, 30000] as const;
+// Auto-reconnect fires at most MAX_AUTO_RECONNECT_ATTEMPTS probes after a drop:
+// probe 1 immediately (0 ms), probe 2 after 3 s, probe 3 after 5 s. Once the last
+// probe fails the device is left `disconnected` (shown as "Unavailable") until the
+// user taps Connect, which resets the cycle.
+const AUTO_RECONNECT_RETRY_DELAYS_MS = [0, 3000, 5000] as const;
+const MAX_AUTO_RECONNECT_ATTEMPTS = AUTO_RECONNECT_RETRY_DELAYS_MS.length;
 
 function toReconnectFailureState(err: unknown): 'failed' | 'disconnected' {
   return isExpectedBleDisconnectError(err) || isExpectedBleConnectTimeoutError(err) ? 'disconnected' : 'failed';
 }
 
+// `attemptCount` = probes already made; returns the wait before the next probe.
 function nextAutoReconnectDelayMs(attemptCount: number): number {
-  const attemptIndex = Math.max(0, attemptCount - 1);
-  return AUTO_RECONNECT_RETRY_DELAYS_MS[Math.min(attemptIndex, AUTO_RECONNECT_RETRY_DELAYS_MS.length - 1)] ?? 30000;
+  return AUTO_RECONNECT_RETRY_DELAYS_MS[attemptCount] ?? 0;
 }
 
 export function useAutoReconnect() {
@@ -107,17 +112,29 @@ export function useAutoReconnect() {
           bikeAttemptingRef.current = false;
           return;
         }
-        const nextState = toReconnectFailureState(err);
-        bikeRetryAttemptCountRef.current = nextState === 'disconnected' ? bikeRetryAttemptCountRef.current + 1 : 0;
-        if (nextState === 'failed') {
-          clearBikeRetryTimeout();
-          console.error('[useAutoReconnect] Bike connect failed:', err);
-        }
         bikeAttemptingRef.current = false;
-        if (nextState === 'disconnected') {
-          setBikeRetrySignal((value) => value + 1);
+        const nextState = toReconnectFailureState(err);
+
+        if (nextState === 'failed') {
+          bikeRetryAttemptCountRef.current = 0;
+          clearBikeRetryTimeout();
+          setBikeReconnectState('failed');
+          console.error('[useAutoReconnect] Bike connect failed:', err);
+          return;
         }
-        setBikeReconnectState(nextState);
+
+        // Transient drop: count this probe and, while the budget remains, stay in
+        // the `connecting` display state and schedule the next probe so the chip
+        // reads one continuous "Connecting…". Only once the budget is spent do we
+        // fall back to `disconnected` (rendered as "Unavailable").
+        bikeRetryAttemptCountRef.current += 1;
+        if (bikeRetryAttemptCountRef.current >= MAX_AUTO_RECONNECT_ATTEMPTS) {
+          clearBikeRetryTimeout();
+          setBikeReconnectState('disconnected');
+          return;
+        }
+        setBikeReconnectState('connecting');
+        setBikeRetrySignal((value) => value + 1);
       }
     },
     [clearBikeRetryTimeout, disconnectBike, isCurrentSavedBikeAttempt, runBikeConnect, setBikeReconnectState],
@@ -148,17 +165,29 @@ export function useAutoReconnect() {
           hrAttemptingRef.current = false;
           return;
         }
-        const nextState = toReconnectFailureState(err);
-        hrRetryAttemptCountRef.current = nextState === 'disconnected' ? hrRetryAttemptCountRef.current + 1 : 0;
-        if (nextState === 'failed') {
-          clearHrRetryTimeout();
-          console.error('[useAutoReconnect] HR connect failed:', err);
-        }
         hrAttemptingRef.current = false;
-        if (nextState === 'disconnected') {
-          setHrRetrySignal((value) => value + 1);
+        const nextState = toReconnectFailureState(err);
+
+        if (nextState === 'failed') {
+          hrRetryAttemptCountRef.current = 0;
+          clearHrRetryTimeout();
+          setHrReconnectState('failed');
+          console.error('[useAutoReconnect] HR connect failed:', err);
+          return;
         }
-        setHrReconnectState(nextState);
+
+        // Transient drop: count this probe and, while the budget remains, stay in
+        // the `connecting` display state and schedule the next probe so the chip
+        // reads one continuous "Connecting…". Only once the budget is spent do we
+        // fall back to `disconnected` (rendered as "Unavailable").
+        hrRetryAttemptCountRef.current += 1;
+        if (hrRetryAttemptCountRef.current >= MAX_AUTO_RECONNECT_ATTEMPTS) {
+          clearHrRetryTimeout();
+          setHrReconnectState('disconnected');
+          return;
+        }
+        setHrReconnectState('connecting');
+        setHrRetrySignal((value) => value + 1);
       }
     },
     [clearHrRetryTimeout, disconnectHr, isCurrentSavedHrAttempt, runHrConnect, setHrReconnectState],
@@ -250,11 +279,16 @@ export function useAutoReconnect() {
       return;
     }
 
+    // A reconnect cycle is live while the state is `connecting` (active probe or
+    // waiting between probes) or `disconnected` (a fresh drop). Once the probe
+    // budget is spent we stop and leave the device disconnected (Unavailable).
+    const bikeNeedsReconnect = bikeReconnectState === 'connecting' || bikeReconnectState === 'disconnected';
     if (
-      bikeReconnectState !== 'disconnected' ||
+      !bikeNeedsReconnect ||
       bikeAdapter !== null ||
       bikeAttemptingRef.current ||
-      bikeConnectionInProgress
+      bikeConnectionInProgress ||
+      bikeRetryAttemptCountRef.current >= MAX_AUTO_RECONNECT_ATTEMPTS
     ) {
       clearBikeRetryTimeout();
       return;
@@ -297,11 +331,16 @@ export function useAutoReconnect() {
       return;
     }
 
+    // A reconnect cycle is live while the state is `connecting` (active probe or
+    // waiting between probes) or `disconnected` (a fresh drop). Once the probe
+    // budget is spent we stop and leave the device disconnected (Unavailable).
+    const hrNeedsReconnect = hrReconnectState === 'connecting' || hrReconnectState === 'disconnected';
     if (
-      hrReconnectState !== 'disconnected' ||
+      !hrNeedsReconnect ||
       hrAdapter !== null ||
       hrAttemptingRef.current ||
-      hrConnectionInProgress
+      hrConnectionInProgress ||
+      hrRetryAttemptCountRef.current >= MAX_AUTO_RECONNECT_ATTEMPTS
     ) {
       clearHrRetryTimeout();
       return;

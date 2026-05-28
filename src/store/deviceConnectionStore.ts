@@ -2,6 +2,7 @@ import { create } from 'zustand';
 
 import type { BikeAdapter, BikeMetrics } from '../services/ble/BikeAdapter';
 import type { HrAdapter } from '../services/ble/HrAdapter';
+import type { HrSource } from '../services/hr/hrSource';
 import type { WatchAvailability } from '../types/watch';
 
 /**
@@ -23,6 +24,11 @@ export interface DeviceConnectionStore {
   latestBikeMetrics: BikeMetrics | null;
   lastBikeSignalAtMs: number | null;
   latestBluetoothHr: number | null;
+  /**
+   * Wall-clock timestamp of the most recent Bluetooth HR sample.
+   * Used to detect stale BLE HR streams (mirrors lastAppleWatchSampleAtMs pattern).
+   */
+  lastBluetoothHrSampleAtMs: number | null;
   latestAppleWatchHr: number | null;
   latestAppleWatchActiveKcal: number | null;
   /**
@@ -32,6 +38,11 @@ export interface DeviceConnectionStore {
    */
   lastAppleWatchSampleAtMs: number | null;
   watchAvailability: WatchAvailability;
+  /**
+   * The per-session locked HR source selected by the user (or auto-selected).
+   * Null until a source is locked in for the session.
+   */
+  activeHrSource: HrSource | null;
 
   // ── Actions ────────────────────────────────────────────
   setBikeAdapter: (adapter: BikeAdapter | null) => void;
@@ -43,6 +54,7 @@ export interface DeviceConnectionStore {
   updateAppleWatchHr: (hr: number | null) => void;
   updateAppleWatchActiveKcal: (kcal: number | null) => void;
   setWatchAvailability: (availability: WatchAvailability) => void;
+  setActiveHrSource: (source: HrSource | null) => void;
   clearBikeConnection: () => void;
   clearHrConnection: () => void;
   clearAll: () => void;
@@ -56,10 +68,12 @@ export const useDeviceConnectionStore = create<DeviceConnectionStore>((set) => (
   latestBikeMetrics: null,
   lastBikeSignalAtMs: null,
   latestBluetoothHr: null,
+  lastBluetoothHrSampleAtMs: null,
   latestAppleWatchHr: null,
   latestAppleWatchActiveKcal: null,
   lastAppleWatchSampleAtMs: null,
   watchAvailability: 'unavailable',
+  activeHrSource: null,
 
   setBikeAdapter: (adapter) =>
     set({
@@ -74,7 +88,7 @@ export const useDeviceConnectionStore = create<DeviceConnectionStore>((set) => (
       latestBikeMetrics: metrics,
       lastBikeSignalAtMs: Date.now(),
     }),
-  updateBluetoothHr: (hr) => set({ latestBluetoothHr: hr }),
+  updateBluetoothHr: (hr) => set({ latestBluetoothHr: hr, lastBluetoothHrSampleAtMs: Date.now() }),
   // HR arrives every 1 Hz on every Watch payload; treat it as the canonical
   // "stream alive" signal. kcal piggy-backs on the same payload but may be
   // absent until HealthKit produces its first active-energy sample.
@@ -83,17 +97,23 @@ export const useDeviceConnectionStore = create<DeviceConnectionStore>((set) => (
   updateAppleWatchActiveKcal: (kcal) => set({ latestAppleWatchActiveKcal: kcal }),
   setWatchAvailability: (watchAvailability) =>
     set((state) => (state.watchAvailability === watchAvailability ? state : { watchAvailability })),
+  setActiveHrSource: (source) => set({ activeHrSource: source }),
   clearBikeConnection: () =>
     set({
       bikeAdapter: null,
       latestBikeMetrics: null,
       lastBikeSignalAtMs: null,
     }),
-  // Apple Watch HR is independent of the BLE HR lifecycle — only clear Bluetooth here.
+  // Apple Watch HR is independent of the BLE HR lifecycle, so only the Bluetooth
+  // fields are cleared here. activeHrSource is also released: forgetting the BLE
+  // strap invalidates any lock that pointed at it; the source is re-resolved from
+  // the persisted primary on the next read (resolveEffectiveHrSource's ?? fallback).
   clearHrConnection: () =>
     set({
       hrAdapter: null,
       latestBluetoothHr: null,
+      lastBluetoothHrSampleAtMs: null,
+      activeHrSource: null,
     }),
   clearAll: () =>
     set({
@@ -104,9 +124,11 @@ export const useDeviceConnectionStore = create<DeviceConnectionStore>((set) => (
       latestBikeMetrics: null,
       lastBikeSignalAtMs: null,
       latestBluetoothHr: null,
+      lastBluetoothHrSampleAtMs: null,
       latestAppleWatchHr: null,
       latestAppleWatchActiveKcal: null,
       lastAppleWatchSampleAtMs: null,
       watchAvailability: 'unavailable',
+      activeHrSource: null,
     }),
 }));

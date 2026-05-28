@@ -175,7 +175,7 @@ describe('failed state', () => {
     expect(result.current.bikeReconnectState).toBe('failed');
   });
 
-  it('treats cancelled reconnect attempts as disconnected without logging an error', async () => {
+  it('treats cancelled reconnect attempts as a transient retry without logging an error', async () => {
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     const cancelledError = Object.assign(new Error('Operation was cancelled'), { errorCode: 2 });
 
@@ -184,17 +184,18 @@ describe('failed state', () => {
 
     const { result } = renderHook(() => useAutoReconnect());
 
+    // Transient failure keeps the cycle alive (still "connecting"), not a hard failure.
     await waitFor(() => {
-      expect(useSavedGearStore.getState().bikeReconnectState).toBe('disconnected');
+      expect(useSavedGearStore.getState().bikeReconnectState).toBe('connecting');
     });
 
-    expect(result.current.bikeReconnectState).toBe('disconnected');
+    expect(result.current.bikeReconnectState).toBe('connecting');
     expect(consoleErrorSpy).not.toHaveBeenCalledWith('[useAutoReconnect] Bike connect failed:', cancelledError);
 
     consoleErrorSpy.mockRestore();
   });
 
-  it('treats connection timeouts as disconnected without logging an error', async () => {
+  it('treats connection timeouts as a transient retry without logging an error', async () => {
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     const timeoutError = new Error('Operation timed out');
 
@@ -203,11 +204,12 @@ describe('failed state', () => {
 
     const { result } = renderHook(() => useAutoReconnect());
 
+    // Transient timeout keeps the cycle alive (still "connecting"), not a hard failure.
     await waitFor(() => {
-      expect(result.current.bikeReconnectState).toBe('disconnected');
+      expect(result.current.bikeReconnectState).toBe('connecting');
     });
 
-    expect(result.current.bikeReconnectState).toBe('disconnected');
+    expect(result.current.bikeReconnectState).toBe('connecting');
     expect(consoleErrorSpy).not.toHaveBeenCalledWith('[useAutoReconnect] Bike connect failed:', timeoutError);
 
     consoleErrorSpy.mockRestore();
@@ -367,47 +369,75 @@ describe('retry', () => {
     expect(useDeviceConnectionStore.getState().bikeAdapter).toBeNull();
   });
 
-  it('retries disconnected bikes automatically with backoff while the app is active', async () => {
+  it('probes on the immediate / +3s / +5s cadence while the app is active', async () => {
     jest.useFakeTimers();
     mockConnectBike.mockRejectedValue(new Error('Operation timed out'));
     useSavedGearStore.setState({ savedBike: bike, hydrated: true });
 
     renderHook(() => useAutoReconnect());
 
-    await waitFor(() => {
-      expect(useSavedGearStore.getState().bikeReconnectState).toBe('disconnected');
+    // Probe 1 fired immediately on mount; flush its failure so probe 2 is scheduled.
+    await act(async () => {
+      await Promise.resolve();
     });
-
-    expect(useSavedGearStore.getState().bikeReconnectState).toBe('disconnected');
     expect(mockConnectBike).toHaveBeenCalledTimes(1);
+    expect(useSavedGearStore.getState().bikeReconnectState).toBe('connecting');
 
+    // Probe 2 — at +3s (nothing at 2999 ms).
+    await act(async () => {
+      jest.advanceTimersByTime(2999);
+    });
+    expect(mockConnectBike).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      jest.advanceTimersByTime(1);
+    });
+    expect(mockConnectBike).toHaveBeenCalledTimes(2);
+    // Stays "connecting" in the gap — budget not yet spent.
+    expect(useSavedGearStore.getState().bikeReconnectState).toBe('connecting');
+
+    // Probe 3 — at +5s after probe 2 (nothing at 4999 ms).
     await act(async () => {
       jest.advanceTimersByTime(4999);
     });
-
-    expect(mockConnectBike).toHaveBeenCalledTimes(1);
-
+    expect(mockConnectBike).toHaveBeenCalledTimes(2);
     await act(async () => {
       jest.advanceTimersByTime(1);
     });
-
-    expect(mockConnectBike).toHaveBeenCalledTimes(2);
-
-    await waitFor(() => {
-      expect(useSavedGearStore.getState().bikeReconnectState).toBe('disconnected');
-    });
-
-    await act(async () => {
-      jest.advanceTimersByTime(9999);
-    });
-
-    expect(mockConnectBike).toHaveBeenCalledTimes(2);
-
-    await act(async () => {
-      jest.advanceTimersByTime(1);
-    });
-
     expect(mockConnectBike).toHaveBeenCalledTimes(3);
+  });
+
+  it('stops auto-reconnect after 3 probes (immediate, +3s, +5s) and stays disconnected', async () => {
+    jest.useFakeTimers();
+    mockConnectBike.mockRejectedValue(new Error('Operation timed out'));
+    useSavedGearStore.setState({ savedBike: bike, hydrated: true });
+
+    renderHook(() => useAutoReconnect());
+
+    // Probe 1 — immediate (on mount); flush its failure so probe 2 is scheduled.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(mockConnectBike).toHaveBeenCalledTimes(1);
+    expect(useSavedGearStore.getState().bikeReconnectState).toBe('connecting');
+
+    // Probe 2 — after 3s
+    await act(async () => {
+      jest.advanceTimersByTime(3000);
+    });
+    expect(mockConnectBike).toHaveBeenCalledTimes(2);
+
+    // Probe 3 — after a further 5s
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+    });
+    expect(mockConnectBike).toHaveBeenCalledTimes(3);
+
+    // Budget exhausted — no 4th probe ever, device left disconnected (Unavailable).
+    await act(async () => {
+      jest.advanceTimersByTime(60000);
+    });
+    expect(mockConnectBike).toHaveBeenCalledTimes(3);
+    expect(useSavedGearStore.getState().bikeReconnectState).toBe('disconnected');
   });
 
   it('resets the bike retry backoff after a manual bike connection succeeds', async () => {
@@ -417,42 +447,35 @@ describe('retry', () => {
 
     const { result } = renderHook(() => useAutoReconnect());
 
-    await waitFor(() => {
-      expect(result.current.bikeReconnectState).toBe('disconnected');
-    });
-
-    expect(result.current.bikeReconnectState).toBe('disconnected');
-    expect(mockConnectBike).toHaveBeenCalledTimes(1);
-
+    // Probe 1 on mount; flush its failure so probe 2 is scheduled.
     await act(async () => {
-      jest.advanceTimersByTime(5000);
+      await Promise.resolve();
     });
+    expect(mockConnectBike).toHaveBeenCalledTimes(1);
+    expect(result.current.bikeReconnectState).toBe('connecting');
 
-    await waitFor(() => {
-      expect(mockConnectBike).toHaveBeenCalledTimes(2);
+    // Probe 2 — after 3s
+    await act(async () => {
+      jest.advanceTimersByTime(3000);
     });
-
     expect(mockConnectBike).toHaveBeenCalledTimes(2);
-    expect(result.current.bikeReconnectState).toBe('disconnected');
+    expect(result.current.bikeReconnectState).toBe('connecting');
 
+    // A successful connect (adapter appears) resets the probe budget.
     act(() => {
       useDeviceConnectionStore.setState({ bikeAdapter: {} as never });
     });
 
     expect(result.current.bikeReconnectState).toBe('connected');
 
+    // The adapter drops again → a fresh cycle.
     act(() => {
       useDeviceConnectionStore.setState({ bikeAdapter: null });
     });
 
     expect(result.current.bikeReconnectState).toBe('disconnected');
 
-    await act(async () => {
-      jest.advanceTimersByTime(4999);
-    });
-
-    expect(mockConnectBike).toHaveBeenCalledTimes(2);
-
+    // Budget was reset by the successful connect, so probe 1 of the new cycle fires immediately.
     await act(async () => {
       jest.advanceTimersByTime(1);
     });

@@ -62,18 +62,18 @@ describe('OnboardingScreen', () => {
     render(<OnboardingScreen />);
 
     expect(screen.getByText('See your ride in real time')).toBeTruthy();
-    expect(screen.getByText('Search for Bike')).toBeTruthy();
+    expect(screen.getByText('Search for Smart Bike')).toBeTruthy();
     expect(screen.getByText('Skip')).toBeTruthy();
   });
 
   it('opens the modal pairing flow for bike on page 1 primary CTA', () => {
     render(<OnboardingScreen />);
 
-    fireEvent.press(screen.getByText('Search for Bike'));
+    fireEvent.press(screen.getByText('Search for Smart Bike'));
 
     expect(mockPush).toHaveBeenCalledWith('/onboarding-gear-setup?target=bike');
     // Primary CTA must not advance the carousel on pages 1-2.
-    expect(screen.getByText('Search for Bike')).toBeTruthy();
+    expect(screen.getByText('Search for Smart Bike')).toBeTruthy();
   });
 
   it('opens the modal pairing flow for HR on page 2 primary CTA', () => {

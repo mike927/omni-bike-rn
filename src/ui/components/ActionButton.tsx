@@ -33,8 +33,8 @@ const variantStyles: Record<ActionButtonVariant, { container: ViewStyle; label: 
   },
   danger: {
     container: {
-      backgroundColor: '#ffe7e7',
-      borderColor: '#f5b1b1',
+      backgroundColor: palette.dangerBg,
+      borderColor: palette.dangerBorder,
     },
     label: {
       color: palette.danger,

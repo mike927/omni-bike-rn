@@ -1,16 +1,17 @@
 import Storage from 'expo-sqlite/kv-store';
 
+import type { HrSource } from '../hr/hrSource';
+
 const STORAGE_KEY = 'omni:appPreferences';
 
 interface AppPreferences {
   onboardingCompleted: boolean;
-  /** Whether the user has enabled Apple Watch as a native HR source. */
-  watchHrEnabled: boolean;
+  /** The user's chosen primary HR source. Absent = no explicit preference set. */
+  primaryHrSource?: HrSource;
 }
 
 const DEFAULT_PREFERENCES: AppPreferences = {
   onboardingCompleted: false,
-  watchHrEnabled: false,
 };
 
 export async function loadAppPreferences(): Promise<AppPreferences> {
@@ -29,12 +30,17 @@ export async function markOnboardingCompleted(): Promise<void> {
   await Storage.setItem(STORAGE_KEY, JSON.stringify({ ...current, onboardingCompleted: true }));
 }
 
-export async function loadWatchHrEnabled(): Promise<boolean> {
+// Note: this replaces the legacy `watchHrEnabled` boolean. A pre-existing user's
+// `watchHrEnabled` value is intentionally NOT migrated — `primaryHrSource` starts
+// absent and is resolved to the default (watch > bluetooth > bike) until the user
+// picks one in Settings. A user who had explicitly disabled watch HR is reset to
+// that default; this is a one-time, non-destructive reset.
+export async function loadPrimaryHrSource(): Promise<HrSource | null> {
   const prefs = await loadAppPreferences();
-  return prefs.watchHrEnabled;
+  return prefs.primaryHrSource ?? null;
 }
 
-export async function setWatchHrEnabled(enabled: boolean): Promise<void> {
+export async function setPrimaryHrSource(source: HrSource): Promise<void> {
   const current = await loadAppPreferences();
-  await Storage.setItem(STORAGE_KEY, JSON.stringify({ ...current, watchHrEnabled: enabled }));
+  await Storage.setItem(STORAGE_KEY, JSON.stringify({ ...current, primaryHrSource: source }));
 }

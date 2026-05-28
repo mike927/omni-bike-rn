@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 12,
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: palette.border,
     backgroundColor: palette.surfaceMuted,

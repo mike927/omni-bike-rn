@@ -1,9 +1,11 @@
 import { renderHook, act, waitFor } from '@testing-library/react-native';
+import { AppState } from 'react-native';
 
 import { useWatchHr } from '../useWatchHr';
 import { useDeviceConnectionStore } from '../../../../store/deviceConnectionStore';
 import { useTrainingSessionStore } from '../../../../store/trainingSessionStore';
-import { useWatchHrStore } from '../../../../store/watchHrStore';
+import { useHrSourceStore } from '../../../../store/hrSourceStore';
+import { useSavedGearStore } from '../../../../store/savedGearStore';
 import { TrainingPhase } from '../../../../types/training';
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
@@ -15,12 +17,14 @@ jest.mock('watch-connectivity', () => ({
     activate: jest.fn(),
     sendMessage: jest.fn(),
     addListener: jest.fn(),
+    pauseMirroredWorkout: jest.fn(),
+    resumeMirroredWorkout: jest.fn(),
   },
 }));
 
 jest.mock('../../../../services/preferences/appPreferencesStorage', () => ({
-  loadWatchHrEnabled: jest.fn(),
-  setWatchHrEnabled: jest.fn(),
+  loadPrimaryHrSource: jest.fn(),
+  setPrimaryHrSource: jest.fn(),
 }));
 
 jest.mock('../../../../services/watch/isAppleWatchAvailable', () => ({
@@ -44,6 +48,8 @@ function getWatchConnectivityMock() {
       activate: jest.Mock;
       sendMessage: jest.Mock;
       addListener: jest.Mock;
+      pauseMirroredWorkout: jest.Mock;
+      resumeMirroredWorkout: jest.Mock;
     };
   };
   return mod.WatchConnectivity;
@@ -51,8 +57,8 @@ function getWatchConnectivityMock() {
 
 function getAppPreferencesMock() {
   return jest.requireMock('../../../../services/preferences/appPreferencesStorage') as {
-    loadWatchHrEnabled: jest.Mock;
-    setWatchHrEnabled: jest.Mock;
+    loadPrimaryHrSource: jest.Mock;
+    setPrimaryHrSource: jest.Mock;
   };
 }
 
@@ -78,14 +84,19 @@ function resetStores() {
     latestAppleWatchActiveKcal: null,
     lastAppleWatchSampleAtMs: null,
     watchAvailability: 'unavailable',
+    activeHrSource: null,
   });
   useTrainingSessionStore.setState({ phase: TrainingPhase.Idle } as never);
-  useWatchHrStore.setState({ enabled: false, hydrated: false });
+  useHrSourceStore.setState({ primary: null, hydrated: false });
+  useSavedGearStore.setState({ savedHrSource: null });
 }
+
+const SAVED_STRAP = { id: 'strap-1', name: 'Polar H10' } as never;
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
+  jest.useFakeTimers();
   jest.clearAllMocks();
   resetStores();
 
@@ -93,12 +104,22 @@ beforeEach(() => {
   wc.activate.mockResolvedValue(undefined);
   wc.sendMessage.mockReturnValue(true);
   wc.addListener.mockReturnValue({ remove: jest.fn() });
+  wc.pauseMirroredWorkout.mockResolvedValue(undefined);
+  wc.resumeMirroredWorkout.mockResolvedValue(undefined);
 
   const prefs = getAppPreferencesMock();
-  prefs.loadWatchHrEnabled.mockResolvedValue(false);
-  prefs.setWatchHrEnabled.mockResolvedValue(undefined);
+  prefs.loadPrimaryHrSource.mockResolvedValue(null);
+  prefs.setPrimaryHrSource.mockResolvedValue(undefined);
 
   getIsAppleWatchAvailableMock().mockReturnValue(true);
+
+  // RN's jest preset stubs AppState.currentState as a jest.fn(); the mid-ride
+  // reachability retry gates on it being 'active', so default it to foreground.
+  AppState.currentState = 'active';
+});
+
+afterEach(() => {
+  jest.useRealTimers();
 });
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -113,14 +134,14 @@ describe('useWatchHr', () => {
     expect(wc.addListener).not.toHaveBeenCalled();
   });
 
-  it('hydrates the persisted preference on mount', async () => {
-    getAppPreferencesMock().loadWatchHrEnabled.mockResolvedValue(true);
+  it('hydrates the persisted primary source preference on mount', async () => {
+    getAppPreferencesMock().loadPrimaryHrSource.mockResolvedValue('watch');
 
     renderHook(() => useWatchHr());
 
     await waitFor(() => {
-      expect(useWatchHrStore.getState().enabled).toBe(true);
-      expect(useWatchHrStore.getState().hydrated).toBe(true);
+      expect(useHrSourceStore.getState().primary).toBe('watch');
+      expect(useHrSourceStore.getState().hydrated).toBe(true);
     });
   });
 
@@ -131,8 +152,8 @@ describe('useWatchHr', () => {
   });
 
   describe('training phase transitions', () => {
-    it('starts the stream when phase transitions to Active and Watch HR is enabled', async () => {
-      useWatchHrStore.setState({ enabled: true, hydrated: true });
+    it('starts the stream when phase transitions to Active and primary is watch', async () => {
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
 
       const { rerender } = renderHook(() => useWatchHr());
 
@@ -150,8 +171,58 @@ describe('useWatchHr', () => {
       });
     });
 
-    it('does not start the stream when phase transitions to Active but Watch HR is disabled', async () => {
-      useWatchHrStore.setState({ enabled: false, hydrated: true });
+    it('starts the stream when phase transitions to Active and the Watch is the effective default (no explicit primary)', async () => {
+      // Finding #1: a user who never picked a source resolves to the Watch
+      // default (watch is connected), so the lifecycle must start the stream.
+      useHrSourceStore.setState({ primary: null, hydrated: true });
+      useDeviceConnectionStore.setState({ watchAvailability: 'connected' });
+
+      const { rerender } = renderHook(() => useWatchHr());
+
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+      });
+      rerender({});
+
+      await waitFor(() => {
+        const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
+          WatchHrAdapter: jest.Mock;
+        };
+        const inst = WatchHrAdapter.mock.results[0]?.value as { connect: jest.Mock } | undefined;
+        expect(inst?.connect).toHaveBeenCalled();
+      });
+      expect(useDeviceConnectionStore.getState().activeHrSource).toBe('watch');
+    });
+
+    it('does not start the stream before the primary preference has hydrated', async () => {
+      // Pre-hydration tolerance: even with the Watch connected, no stream starts
+      // until the persisted preference resolves (avoids a premature connect that
+      // a non-watch primary would immediately tear down). Hold hydration open so
+      // `hydrated` stays false for the duration of the assertion.
+      getAppPreferencesMock().loadPrimaryHrSource.mockReturnValue(new Promise<never>(() => {}));
+      useHrSourceStore.setState({ primary: null, hydrated: false });
+      useDeviceConnectionStore.setState({ watchAvailability: 'connected' });
+
+      const { rerender } = renderHook(() => useWatchHr());
+
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+      });
+      rerender({});
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(useHrSourceStore.getState().hydrated).toBe(false);
+      const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
+        WatchHrAdapter: jest.Mock;
+      };
+      expect(WatchHrAdapter.mock.instances).toHaveLength(0);
+    });
+
+    it('does not start the stream when phase transitions to Active but the effective primary is not watch', async () => {
+      useHrSourceStore.setState({ primary: 'bike', hydrated: true });
 
       const { rerender } = renderHook(() => useWatchHr());
 
@@ -171,9 +242,46 @@ describe('useWatchHr', () => {
       expect(WatchHrAdapter.mock.instances).toHaveLength(0);
     });
 
+    it('tears down the Watch stream on Finish even after primary changed away from watch while paused', async () => {
+      // Finding #2: pausing a Watch ride, switching primary away, then finishing
+      // must still end the mirrored workout — teardown is not gated on the
+      // mutable current primary.
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
+      useSavedGearStore.setState({ savedHrSource: SAVED_STRAP });
+      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+
+      const { rerender } = renderHook(() => useWatchHr());
+
+      const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
+        WatchHrAdapter: jest.Mock;
+      };
+      await waitFor(() => {
+        const inst = WatchHrAdapter.mock.results[0]?.value as { connect: jest.Mock } | undefined;
+        expect(inst?.connect).toHaveBeenCalled();
+      });
+
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Paused } as never);
+      });
+      rerender({});
+      act(() => {
+        useHrSourceStore.setState({ primary: 'bluetooth' });
+      });
+      rerender({});
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Finished } as never);
+      });
+      rerender({});
+
+      await waitFor(() => {
+        const inst = WatchHrAdapter.mock.results[0]?.value as { disconnect: jest.Mock } | undefined;
+        expect(inst?.disconnect).toHaveBeenCalled();
+      });
+    });
+
     it('logs unexpected connect failures when phase transitions to Active', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(jest.fn());
-      useWatchHrStore.setState({ enabled: true, hydrated: true });
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
 
       const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
         WatchHrAdapter: jest.Mock;
@@ -198,7 +306,7 @@ describe('useWatchHr', () => {
     });
 
     it('does not stop the stream when phase transitions from Active to Paused', async () => {
-      useWatchHrStore.setState({ enabled: true, hydrated: true });
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
       const { rerender } = renderHook(() => useWatchHr());
@@ -226,7 +334,7 @@ describe('useWatchHr', () => {
     });
 
     it('stops the stream when phase transitions to Idle', async () => {
-      useWatchHrStore.setState({ enabled: true, hydrated: true });
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
       const { rerender } = renderHook(() => useWatchHr());
@@ -252,7 +360,7 @@ describe('useWatchHr', () => {
     });
 
     it('stops the stream when phase transitions to Finished', async () => {
-      useWatchHrStore.setState({ enabled: true, hydrated: true });
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
       const { rerender } = renderHook(() => useWatchHr());
@@ -277,8 +385,8 @@ describe('useWatchHr', () => {
       });
     });
 
-    it('stops the stream when Watch HR is disabled mid-session', async () => {
-      useWatchHrStore.setState({ enabled: true, hydrated: true });
+    it('stops the stream when primary changes away from watch mid-session', async () => {
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
       const { rerender } = renderHook(() => useWatchHr());
@@ -293,7 +401,7 @@ describe('useWatchHr', () => {
       });
 
       act(() => {
-        useWatchHrStore.setState({ enabled: false });
+        useHrSourceStore.setState({ primary: 'bluetooth' });
       });
       rerender({});
 
@@ -303,8 +411,8 @@ describe('useWatchHr', () => {
       });
     });
 
-    it('cancels a pending start when Watch HR is disabled before connect resolves', async () => {
-      useWatchHrStore.setState({ enabled: true, hydrated: true });
+    it('cancels a pending start when primary changes away from watch before connect resolves', async () => {
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
 
       let resolveConnect: (() => void) | null = null;
       const connectPromise = new Promise<void>((resolve) => {
@@ -336,7 +444,7 @@ describe('useWatchHr', () => {
       });
 
       act(() => {
-        useWatchHrStore.setState({ enabled: false });
+        useHrSourceStore.setState({ primary: null });
       });
       rerender({});
 
@@ -352,7 +460,7 @@ describe('useWatchHr', () => {
     });
 
     it('cancels a pending start when the session finishes before connect resolves', async () => {
-      useWatchHrStore.setState({ enabled: true, hydrated: true });
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
 
       let resolveConnect: (() => void) | null = null;
       const connectPromise = new Promise<void>((resolve) => {
@@ -400,101 +508,328 @@ describe('useWatchHr', () => {
     });
   });
 
-  describe('Watch reachability', () => {
-    it('registers a reachability listener on mount', () => {
-      renderHook(() => useWatchHr());
-      expect(getWatchConnectivityMock().addListener).toHaveBeenCalledWith('onReachabilityChange', expect.any(Function));
-    });
+  describe('active HR source lock', () => {
+    it('locks activeHrSource to primary when Idle→Active', async () => {
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
 
-    it('clears latestAppleWatchHr when the Watch goes out of range', () => {
-      useDeviceConnectionStore.setState({ latestAppleWatchHr: 72 });
-      renderHook(() => useWatchHr());
-
-      const wc = getWatchConnectivityMock();
-      const reachabilityCallback = wc.addListener.mock.calls[0]?.[1] as
-        | ((payload: { reachable: boolean }) => void)
-        | undefined;
+      const { rerender } = renderHook(() => useWatchHr());
 
       act(() => {
-        reachabilityCallback?.({ reachable: false });
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+      });
+      rerender({});
+
+      await act(async () => {
+        await Promise.resolve();
       });
 
-      expect(useDeviceConnectionStore.getState().latestAppleWatchHr).toBeNull();
+      expect(useDeviceConnectionStore.getState().activeHrSource).toBe('watch');
     });
 
-    it('preserves the active watch stream when reachability drops mid-workout', () => {
-      useWatchHrStore.setState({ enabled: true, hydrated: true });
-      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
-      useDeviceConnectionStore.setState({ latestAppleWatchHr: 72, watchAvailability: 'in_progress' });
-      renderHook(() => useWatchHr());
+    it('locks activeHrSource to bluetooth primary even though the watch stream is not started', async () => {
+      // A bluetooth primary is only valid while its strap is saved (finding #3).
+      useHrSourceStore.setState({ primary: 'bluetooth', hydrated: true });
+      useSavedGearStore.setState({ savedHrSource: SAVED_STRAP });
 
-      const wc = getWatchConnectivityMock();
-      const reachabilityCallback = wc.addListener.mock.calls.find(
+      const { rerender } = renderHook(() => useWatchHr());
+
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+      });
+      rerender({});
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(useDeviceConnectionStore.getState().activeHrSource).toBe('bluetooth');
+
+      // Watch stream must NOT have started for a non-watch primary
+      const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
+        WatchHrAdapter: jest.Mock;
+      };
+      expect(WatchHrAdapter.mock.instances).toHaveLength(0);
+    });
+
+    it('locks activeHrSource to bike primary', async () => {
+      useHrSourceStore.setState({ primary: 'bike', hydrated: true });
+
+      const { rerender } = renderHook(() => useWatchHr());
+
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+      });
+      rerender({});
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(useDeviceConnectionStore.getState().activeHrSource).toBe('bike');
+    });
+
+    it('unlocks activeHrSource (sets null) when session finishes', async () => {
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
+      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+
+      const { rerender } = renderHook(() => useWatchHr());
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Finished } as never);
+      });
+      rerender({});
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(useDeviceConnectionStore.getState().activeHrSource).toBeNull();
+    });
+
+    it('unlocks activeHrSource (sets null) when session goes to Idle', async () => {
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
+      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+
+      const { rerender } = renderHook(() => useWatchHr());
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Idle } as never);
+      });
+      rerender({});
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(useDeviceConnectionStore.getState().activeHrSource).toBeNull();
+    });
+
+    it('does not unlock activeHrSource during Active→Paused (lock persists through pause)', async () => {
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
+      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+
+      const { rerender } = renderHook(() => useWatchHr());
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      // Verify lock was set
+      expect(useDeviceConnectionStore.getState().activeHrSource).toBe('watch');
+
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Paused } as never);
+      });
+      rerender({});
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      // Lock must persist through pause
+      expect(useDeviceConnectionStore.getState().activeHrSource).toBe('watch');
+    });
+
+    // Fix 1 regression guard: the lock must engage even when the Watch is not available
+    // (Android, iPad, or iPhone with no paired watch). Previously the lock was inside the
+    // `if (!watchAvailable) return;` guard, so it was never set on those platforms.
+    it('locks and unlocks activeHrSource on platforms where Watch is not available', async () => {
+      getIsAppleWatchAvailableMock().mockReturnValue(false);
+      useHrSourceStore.setState({ primary: 'bike', hydrated: true });
+
+      const { rerender } = renderHook(() => useWatchHr());
+
+      // Idle→Active: lock must engage even without a Watch
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+      });
+      rerender({});
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(useDeviceConnectionStore.getState().activeHrSource).toBe('bike');
+
+      // Finished: lock must clear
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Finished } as never);
+      });
+      rerender({});
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(useDeviceConnectionStore.getState().activeHrSource).toBeNull();
+
+      // Idle: also clears (covers the other unlock branch)
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+      });
+      rerender({});
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Idle } as never);
+      });
+      rerender({});
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(useDeviceConnectionStore.getState().activeHrSource).toBeNull();
+    });
+
+    // Fix 2: the lock deliberately tracks `primary` while Active so a mid-workout
+    // primary change retargets the locked source. Pin this semantic so regressions
+    // are caught (see comment in the lock effect in useWatchHr.ts).
+    it('retargets the locked source when primary changes while Active (track-while-Active)', async () => {
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
+      // Bluetooth is only a valid retarget while its strap is saved (finding #3).
+      useSavedGearStore.setState({ savedHrSource: SAVED_STRAP });
+
+      const { rerender } = renderHook(() => useWatchHr());
+
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+      });
+      rerender({});
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(useDeviceConnectionStore.getState().activeHrSource).toBe('watch');
+
+      // Change primary to bluetooth while still Active
+      act(() => {
+        useHrSourceStore.setState({ primary: 'bluetooth' });
+      });
+      rerender({});
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(useDeviceConnectionStore.getState().activeHrSource).toBe('bluetooth');
+    });
+  });
+
+  describe('Watch pause/resume', () => {
+    it('tells the Watch to pause when the workout pauses', async () => {
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
+      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+
+      const { rerender } = renderHook(() => useWatchHr());
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Paused } as never);
+      });
+      rerender({});
+
+      await waitFor(() => {
+        expect(getWatchConnectivityMock().pauseMirroredWorkout).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('tells the Watch to resume when the workout resumes from pause', async () => {
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
+      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+
+      const { rerender } = renderHook(() => useWatchHr());
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Paused } as never);
+      });
+      rerender({});
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+      });
+      rerender({});
+
+      await waitFor(() => {
+        expect(getWatchConnectivityMock().resumeMirroredWorkout).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
+
+  describe('Watch availability — companion-presence model', () => {
+    function getReachabilityCallback() {
+      return getWatchConnectivityMock().addListener.mock.calls.find(
         ([eventName]: [string]) => eventName === 'onReachabilityChange',
       )?.[1] as ((payload: { reachable: boolean }) => void) | undefined;
+    }
 
-      act(() => {
-        reachabilityCallback?.({ reachable: false });
-      });
-
-      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('in_progress');
-      expect(useDeviceConnectionStore.getState().latestAppleWatchHr).toBe(72);
-    });
-
-    it('does not clear latestAppleWatchHr when the Watch comes back in range', () => {
-      useDeviceConnectionStore.setState({ latestAppleWatchHr: 72 });
-      renderHook(() => useWatchHr());
-
-      const wc = getWatchConnectivityMock();
-      const reachabilityCallback = wc.addListener.mock.calls[0]?.[1] as
-        | ((payload: { reachable: boolean }) => void)
-        | undefined;
-
-      act(() => {
-        reachabilityCallback?.({ reachable: true });
-      });
-
-      expect(useDeviceConnectionStore.getState().latestAppleWatchHr).toBe(72);
-    });
-
-    it('flips availability to idle when the Watch becomes reachable from unavailable', () => {
-      renderHook(() => useWatchHr());
-
-      const wc = getWatchConnectivityMock();
-      const reachabilityCallback = wc.addListener.mock.calls.find(
-        ([eventName]: [string]) => eventName === 'onReachabilityChange',
-      )?.[1] as ((payload: { reachable: boolean }) => void) | undefined;
-
-      act(() => {
-        reachabilityCallback?.({ reachable: true });
-      });
-
-      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('idle');
-    });
-
-    it('maps started session events to in_progress and ended to idle', () => {
-      useWatchHrStore.setState({ enabled: true, hydrated: true });
-      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
-      renderHook(() => useWatchHr());
-
-      const wc = getWatchConnectivityMock();
-      const sessionStateCallback = wc.addListener.mock.calls.find(
+    function getSessionStateCallback() {
+      return getWatchConnectivityMock().addListener.mock.calls.find(
         ([eventName]: [string]) => eventName === 'onWatchSessionState',
       )?.[1] as ((payload: NativeWatchSessionStatePayload) => void) | undefined;
+    }
 
-      act(() => {
-        sessionStateCallback?.({ state: 'started', sentAtMs: Date.now() });
-      });
-      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('in_progress');
+    function getCompanionCallback() {
+      return getWatchConnectivityMock().addListener.mock.calls.find(
+        ([eventName]: [string]) => eventName === 'onWatchCompanionStateChange',
+      )?.[1] as ((payload: { available: boolean }) => void) | undefined;
+    }
 
-      act(() => {
-        sessionStateCallback?.({ state: 'ended', sentAtMs: Date.now() });
-      });
-      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('idle');
+    it('registers all expected listeners on mount', () => {
+      renderHook(() => useWatchHr());
+      const wc = getWatchConnectivityMock();
+      expect(wc.addListener).toHaveBeenCalledWith('onReachabilityChange', expect.any(Function));
+      expect(wc.addListener).toHaveBeenCalledWith('onWatchCompanionStateChange', expect.any(Function));
+      expect(wc.addListener).toHaveBeenCalledWith('onWatchSessionState', expect.any(Function));
+      expect(wc.addListener).toHaveBeenCalledWith('onWatchAppState', expect.any(Function));
     });
 
-    it('marks the stream in progress again when a heart rate sample arrives while training is active', async () => {
-      useWatchHrStore.setState({ enabled: true, hydrated: true });
+    it('companion available=true → watchAvailability becomes connected', () => {
+      useDeviceConnectionStore.setState({ watchAvailability: 'unavailable' });
+      renderHook(() => useWatchHr());
+
+      act(() => {
+        getCompanionCallback()?.({ available: true });
+      });
+
+      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('connected');
+    });
+
+    it('companion available=false → watchAvailability becomes unavailable', () => {
+      useDeviceConnectionStore.setState({ watchAvailability: 'connected' });
+      renderHook(() => useWatchHr());
+
+      act(() => {
+        getCompanionCallback()?.({ available: false });
+      });
+
+      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('unavailable');
+    });
+
+    it('reachability change does NOT change watchAvailability (only companion does)', () => {
+      useDeviceConnectionStore.setState({ watchAvailability: 'unavailable' });
+      renderHook(() => useWatchHr());
+
+      act(() => {
+        getReachabilityCallback()?.({ reachable: true });
+      });
+
+      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('unavailable');
+    });
+
+    it('HR sample does NOT change watchAvailability', async () => {
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
       useDeviceConnectionStore.setState({ watchAvailability: 'unavailable' });
       renderHook(() => useWatchHr());
@@ -516,12 +851,130 @@ describe('useWatchHr', () => {
         hrCallback?.(147);
       });
 
-      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('in_progress');
+      // HR sample must update the HR reading but must NOT touch availability
       expect(useDeviceConnectionStore.getState().latestAppleWatchHr).toBe(147);
+      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('unavailable');
+    });
+
+    it('ignores stale watch session state events from before the current start request', async () => {
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
+
+      const { rerender } = renderHook(() => useWatchHr());
+
+      const staleSentAtMs = Date.now() - 10_000;
+
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+      });
+      rerender({});
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      act(() => {
+        getSessionStateCallback()?.({ state: 'started', sentAtMs: staleSentAtMs });
+      });
+
+      // Stale event must not change availability
+      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('unavailable');
+    });
+
+    it('does not clear latestAppleWatchHr when reachability changes', () => {
+      useDeviceConnectionStore.setState({ latestAppleWatchHr: 72 });
+      renderHook(() => useWatchHr());
+
+      act(() => {
+        getReachabilityCallback()?.({ reachable: false });
+      });
+      expect(useDeviceConnectionStore.getState().latestAppleWatchHr).toBe(72);
+
+      act(() => {
+        getReachabilityCallback()?.({ reachable: true });
+      });
+      expect(useDeviceConnectionStore.getState().latestAppleWatchHr).toBe(72);
+    });
+
+    it('retries the HR stream when the Watch becomes reachable mid-ride', async () => {
+      // While Active + watch primary, a reachable=true event must re-invoke startStream when
+      // adapterRef is null (stream dropped). To manufacture that state: make the first connect
+      // fail so startingRef resets to false and adapterRef stays null, then fire reachable=true.
+      const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
+        WatchHrAdapter: jest.Mock;
+      };
+
+      // First connect attempt fails — leaves adapterRef null, startingRef false.
+      WatchHrAdapter.mockImplementationOnce(() => ({
+        connect: jest.fn().mockRejectedValue(new Error('Watch dropped')),
+        disconnect: jest.fn().mockResolvedValue(undefined),
+        subscribeToHeartRate: jest.fn().mockReturnValue({ remove: jest.fn() }),
+        subscribeToActiveKcal: jest.fn().mockReturnValue({ remove: jest.fn() }),
+      }));
+
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
+      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+      renderHook(() => useWatchHr());
+
+      // Wait for the failing connect to settle (adapterRef stays null, startingRef resets).
+      await waitFor(() => {
+        expect(WatchHrAdapter.mock.instances).toHaveLength(1);
+      });
+      const connectAfterFirstAttempt = (WatchHrAdapter.mock.results[0]?.value as { connect: jest.Mock }).connect;
+      await waitFor(() => {
+        expect(connectAfterFirstAttempt).toHaveBeenCalledTimes(1);
+      });
+
+      const constructionCountBeforeRetry = WatchHrAdapter.mock.instances.length; // 1
+
+      // Reachability=true fires while phase=Active, primary='watch', adapterRef=null → retry.
+      await act(async () => {
+        getReachabilityCallback()?.({ reachable: true });
+        await Promise.resolve();
+      });
+
+      // A new WatchHrAdapter must have been constructed (retry fired startStream).
+      await waitFor(() => {
+        expect(WatchHrAdapter.mock.instances.length).toBeGreaterThan(constructionCountBeforeRetry);
+      });
+    });
+
+    it('does not retry the HR stream on reachability while the iPhone app is backgrounded (M-01)', async () => {
+      // startWatchApp cannot launch the Watch app from the background, so a
+      // reachability re-wake there is a doomed, error-logging probe — skip it.
+      const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
+        WatchHrAdapter: jest.Mock;
+      };
+
+      // First connect fails → adapterRef stays null, startingRef resets (stream dropped).
+      WatchHrAdapter.mockImplementationOnce(() => ({
+        connect: jest.fn().mockRejectedValue(new Error('Watch dropped')),
+        disconnect: jest.fn().mockResolvedValue(undefined),
+        subscribeToHeartRate: jest.fn().mockReturnValue({ remove: jest.fn() }),
+        subscribeToActiveKcal: jest.fn().mockReturnValue({ remove: jest.fn() }),
+      }));
+
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
+      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+      renderHook(() => useWatchHr());
+
+      await waitFor(() => {
+        expect(WatchHrAdapter.mock.instances).toHaveLength(1);
+      });
+      const constructionCountBeforeRetry = WatchHrAdapter.mock.instances.length; // 1
+
+      // App is backgrounded when the Watch becomes reachable again.
+      AppState.currentState = 'background';
+      await act(async () => {
+        getReachabilityCallback()?.({ reachable: true });
+        await Promise.resolve();
+      });
+
+      // No re-wake attempted: no new adapter constructed.
+      expect(WatchHrAdapter.mock.instances).toHaveLength(constructionCountBeforeRetry);
     });
 
     it('forwards Watch-computed active kcal into the device store', async () => {
-      useWatchHrStore.setState({ enabled: true, hydrated: true });
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
       renderHook(() => useWatchHr());
 
@@ -545,24 +998,8 @@ describe('useWatchHr', () => {
       expect(useDeviceConnectionStore.getState().latestAppleWatchActiveKcal).toBe(42.5);
     });
 
-    it('clears latestAppleWatchActiveKcal when the Watch goes out of range', () => {
-      useDeviceConnectionStore.setState({ latestAppleWatchActiveKcal: 42.5 });
-      renderHook(() => useWatchHr());
-
-      const wc = getWatchConnectivityMock();
-      const reachabilityCallback = wc.addListener.mock.calls[0]?.[1] as
-        | ((payload: { reachable: boolean }) => void)
-        | undefined;
-
-      act(() => {
-        reachabilityCallback?.({ reachable: false });
-      });
-
-      expect(useDeviceConnectionStore.getState().latestAppleWatchActiveKcal).toBeNull();
-    });
-
     it('clears latestAppleWatchActiveKcal when the stream is stopped', async () => {
-      useWatchHrStore.setState({ enabled: true, hydrated: true });
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
       const { rerender } = renderHook(() => useWatchHr());
@@ -594,39 +1031,11 @@ describe('useWatchHr', () => {
         expect(useDeviceConnectionStore.getState().latestAppleWatchActiveKcal).toBeNull();
       });
     });
-
-    it('ignores stale watch session state events from before the current start request', async () => {
-      useWatchHrStore.setState({ enabled: true, hydrated: true });
-
-      const { rerender } = renderHook(() => useWatchHr());
-
-      const staleSentAtMs = Date.now() - 10_000;
-
-      act(() => {
-        useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
-      });
-      rerender({});
-
-      const wc = getWatchConnectivityMock();
-      const sessionStateCallback = wc.addListener.mock.calls.find(
-        ([eventName]: [string]) => eventName === 'onWatchSessionState',
-      )?.[1] as ((payload: NativeWatchSessionStatePayload) => void) | undefined;
-
-      await act(async () => {
-        await Promise.resolve();
-      });
-
-      act(() => {
-        sessionStateCallback?.({ state: 'started', sentAtMs: staleSentAtMs });
-      });
-
-      expect(useDeviceConnectionStore.getState().watchAvailability).toBe('unavailable');
-    });
   });
 
   describe('on-mount with phase already Active', () => {
-    it('starts the stream immediately on mount when phase is Active and Watch HR is enabled', async () => {
-      useWatchHrStore.setState({ enabled: true, hydrated: true });
+    it('starts the stream immediately on mount when phase is Active and primary is watch', async () => {
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
       renderHook(() => useWatchHr());
@@ -641,7 +1050,7 @@ describe('useWatchHr', () => {
     });
 
     it('disconnects the adapter on unmount when the stream is active', async () => {
-      useWatchHrStore.setState({ enabled: true, hydrated: true });
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
       const { unmount } = renderHook(() => useWatchHr());
@@ -663,8 +1072,10 @@ describe('useWatchHr', () => {
       });
     });
 
-    it('does not start the stream on mount when phase is Active but Watch HR is disabled', async () => {
-      useWatchHrStore.setState({ enabled: false, hydrated: true });
+    it('does not start the stream on mount when the effective default is not watch (no primary, Watch unavailable)', async () => {
+      // No explicit primary + Watch unavailable → default resolves to bike, not watch.
+      useHrSourceStore.setState({ primary: null, hydrated: true });
+      useDeviceConnectionStore.setState({ watchAvailability: 'unavailable' });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
       renderHook(() => useWatchHr());

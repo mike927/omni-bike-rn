@@ -45,6 +45,8 @@ fileprivate enum PayloadKey {
 fileprivate enum WatchCommand {
   static let start = "start"
   static let stop = "stop"
+  static let pause = "pause"
+  static let resume = "resume"
 }
 
 public class WatchConnectivityModule: Module {
@@ -58,7 +60,7 @@ public class WatchConnectivityModule: Module {
   public func definition() -> ModuleDefinition {
     Name("WatchConnectivity")
 
-    Events("onWatchHr", "onWatchActiveKcal", "onReachabilityChange", "onWatchSessionState")
+    Events("onWatchHr", "onWatchActiveKcal", "onReachabilityChange", "onWatchSessionState", "onWatchCompanionStateChange", "onWatchAppState")
 
     // Per WWDC23 session 10023: register the mirroring handler on every app
     // launch (foreground or background) so HealthKit can hand us the primary
@@ -80,9 +82,16 @@ public class WatchConnectivityModule: Module {
         return
       }
       let session = WCSession.default
+      // Register the delegate unconditionally. When the session is already
+      // `.activated` at the first activate() call, the early return below used to
+      // skip this — so `sessionReachabilityDidChange` / `sessionWatchStateDidChange`
+      // never fired and the iPhone never saw the Watch app open/close (status stuck).
+      // Setting the delegate on an already-activated session is safe and idempotent.
+      session.delegate = self.sessionDelegate
       wcLog("[WC-iPhone] activate: state=\(session.activationState.rawValue) paired=\(session.isPaired) installed=\(session.isWatchAppInstalled) reachable=\(session.isReachable)")
       if session.activationState == .activated {
         self.emitReachability(session.isReachable)
+        self.emitCompanionState(session)
         promise.resolve()
         return
       }
@@ -170,6 +179,20 @@ public class WatchConnectivityModule: Module {
       promise.resolve()
     }
 
+    // Forwards a pause to the Watch. The Watch owns the HKWorkoutSession, so only it
+    // can pause it — pausing stops its system workout timer and HR collection.
+    AsyncFunction("pauseMirroredWorkout") { (promise: Promise) in
+      wcLog("[WC-iPhone] pauseMirroredWorkout() called")
+      self.sendCommandToWatch(WatchCommand.pause, label: "pauseMirroredWorkout")
+      promise.resolve()
+    }
+
+    AsyncFunction("resumeMirroredWorkout") { (promise: Promise) in
+      wcLog("[WC-iPhone] resumeMirroredWorkout() called")
+      self.sendCommandToWatch(WatchCommand.resume, label: "resumeMirroredWorkout")
+      promise.resolve()
+    }
+
     Function("sendMessage") { (message: [String: Any]) -> Bool in
       let session = WCSession.default
       guard session.activationState == .activated, session.isReachable else {
@@ -192,6 +215,7 @@ public class WatchConnectivityModule: Module {
       promises.forEach { $0.reject("ERR_ACTIVATION_FAILED", err.localizedDescription) }
     } else {
       emitReachability(WCSession.default.isReachable)
+      emitCompanionState(WCSession.default)
       promises.forEach { $0.resolve() }
     }
   }
@@ -210,6 +234,25 @@ public class WatchConnectivityModule: Module {
     pendingStart = false
   }
 
+  // Sends a lifecycle command (pause/resume) to the Watch. Live via sendMessage when
+  // reachable; otherwise queued FIFO via transferUserInfo so it still arrives when the
+  // Watch next wakes — same delivery contract as the stop command.
+  fileprivate func sendCommandToWatch(_ command: String, label: String) {
+    let session = WCSession.default
+    guard session.activationState == .activated else {
+      wcLog("[WC-iPhone] \(label): dropping — WC not activated")
+      return
+    }
+    let payload = [PayloadKey.command: command]
+    if session.isReachable {
+      wcLog("[WC-iPhone] \(label): sending via sendMessage")
+      session.sendMessage(payload, replyHandler: nil)
+    } else {
+      wcLog("[WC-iPhone] \(label): unreachable — queuing via transferUserInfo")
+      session.transferUserInfo(payload)
+    }
+  }
+
   fileprivate func emitHr(_ hr: Int) {
     sendEvent("onWatchHr", ["hr": hr])
   }
@@ -219,11 +262,37 @@ public class WatchConnectivityModule: Module {
   }
 
   fileprivate func emitReachability(_ reachable: Bool) {
-    sendEvent("onReachabilityChange", ["reachable": reachable])
+    let session = WCSession.default
+    sendEvent("onReachabilityChange", [
+      "reachable": reachable,
+      "activationState": session.activationState.rawValue,
+      "paired": session.isPaired,
+      "installed": session.isWatchAppInstalled,
+    ])
+  }
+
+  // Stable companion presence — paired + Watch app installed — independent of
+  // `isReachable`, which drops whenever the Watch screen dims. This drives the
+  // iPhone's idle ⇄ unavailable status; reachability must not.
+  fileprivate func emitCompanionState(_ session: WCSession) {
+    let available = session.isPaired && session.isWatchAppInstalled
+    wcLog("[WC-iPhone] emitCompanionState available=\(available) paired=\(session.isPaired) installed=\(session.isWatchAppInstalled) activationState=\(session.activationState.rawValue) reachable=\(session.isReachable)")
+    sendEvent("onWatchCompanionStateChange", [
+      "available": available,
+      "paired": session.isPaired,
+      "installed": session.isWatchAppInstalled,
+      "activationState": session.activationState.rawValue,
+      "reachable": session.isReachable,
+    ])
   }
 
   fileprivate func emitSessionState(_ state: String, sentAtMs: Double) {
     sendEvent("onWatchSessionState", ["state": state, "sentAtMs": sentAtMs])
+  }
+
+  fileprivate func emitWatchAppState(_ state: String) {
+    wcLog("[WC-iPhone] emitWatchAppState state=\(state)")
+    sendEvent("onWatchAppState", ["state": state])
   }
 
   fileprivate func attachMirroredWorkoutSession(_ session: HKWorkoutSession) {
@@ -292,6 +361,9 @@ private class SessionDelegateProxy: NSObject, WCSessionDelegate, HKWorkoutSessio
       wcLog("[WC-iPhone] didReceiveMessage sessionState=\(state)")
       module?.emitSessionState(state, sentAtMs: sentAtMs.doubleValue)
     }
+    if let watchAppState = message["watchAppState"] as? String {
+      module?.emitWatchAppState(watchAppState)
+    }
   }
 
   func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
@@ -307,6 +379,9 @@ private class SessionDelegateProxy: NSObject, WCSessionDelegate, HKWorkoutSessio
       wcLog("[WC-iPhone] didReceiveApplicationContext sessionState=\(state)")
       module?.emitSessionState(state, sentAtMs: sentAtMs.doubleValue)
     }
+    if let watchAppState = applicationContext["watchAppState"] as? String {
+      module?.emitWatchAppState(watchAppState)
+    }
   }
 
   func sessionReachabilityDidChange(_ session: WCSession) {
@@ -315,6 +390,13 @@ private class SessionDelegateProxy: NSObject, WCSessionDelegate, HKWorkoutSessio
     if session.isReachable {
       module?.flushPendingStart()
     }
+  }
+
+  // Fires when the Watch is paired/unpaired or the companion app is
+  // installed/removed — the events that actually change availability.
+  func sessionWatchStateDidChange(_ session: WCSession) {
+    wcLog("[WC-iPhone] sessionWatchStateDidChange paired=\(session.isPaired) installed=\(session.isWatchAppInstalled)")
+    module?.emitCompanionState(session)
   }
 
   func workoutSession(

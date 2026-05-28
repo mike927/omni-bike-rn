@@ -44,6 +44,16 @@ const mockConnection = {
   hrConnected: false,
   latestBikeMetrics: null,
   latestBluetoothHr: null,
+  latestAppleWatchHr: null,
+  watchAvailability: 'unavailable',
+};
+
+const mockWatchHrControls = {
+  watchAvailable: true,
+  primary: null as null | 'watch' | 'bluetooth' | 'bike',
+  effectivePrimary: 'bike' as 'watch' | 'bluetooth' | 'bike',
+  setPrimary: jest.fn(),
+  availableSources: ['bike'] as ('watch' | 'bluetooth' | 'bike')[],
 };
 
 const mockSavedGear = {
@@ -87,6 +97,10 @@ jest.mock('../../../training/hooks/useInterruptedSession', () => ({
   useInterruptedSession: () => mockInterruptedSessionHook(),
 }));
 
+jest.mock('../../../gear/hooks/useWatchHrControls', () => ({
+  useWatchHrControls: () => mockWatchHrControls,
+}));
+
 describe('HomeScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -97,6 +111,13 @@ describe('HomeScreen', () => {
       bikeConnected: false,
       hrConnected: false,
       latestBluetoothHr: null,
+      latestAppleWatchHr: null,
+      watchAvailability: 'unavailable',
+    });
+    Object.assign(mockWatchHrControls, {
+      watchAvailable: true,
+      primary: null,
+      effectivePrimary: 'bike',
     });
     Object.assign(mockSavedGear, {
       savedBike: null,
@@ -114,18 +135,76 @@ describe('HomeScreen', () => {
     });
   });
 
-  it('renders the simplified home sections', () => {
+  it('renders the home sections', () => {
     const { getByText, queryByText } = render(<HomeScreen />);
 
     expect(getByText('Quick Start')).toBeTruthy();
-    expect(getByText('Bike')).toBeTruthy();
-    expect(getByText('HR Source')).toBeTruthy();
+    expect(getByText('Smart Bike')).toBeTruthy();
+    expect(getByText('Heart Rate')).toBeTruthy();
     expect(getByText('Latest Workout')).toBeTruthy();
     expect(queryByText(/Latest reading:/)).toBeNull();
     expect(queryByText(/Current training state:/)).toBeNull();
     expect(queryByText('Interrupted Session')).toBeNull();
     expect(queryByText('History')).toBeNull();
-    expect(queryByText('Settings')).toBeNull();
+  });
+
+  it('does not render gear management buttons on the Bike or HR cards', () => {
+    const { queryByText } = render(<HomeScreen />);
+
+    expect(queryByText('Set Up Smart Bike')).toBeNull();
+    expect(queryByText('Add Bluetooth HR')).toBeNull();
+    expect(queryByText('Forget')).toBeNull();
+    expect(queryByText('Retry')).toBeNull();
+    expect(queryByText('Choose Another')).toBeNull();
+  });
+
+  it('navigates to Settings when the Bike card is pressed', () => {
+    const { getByText } = render(<HomeScreen />);
+
+    fireEvent.press(getByText('Smart Bike'));
+    expect(mockPush).toHaveBeenCalledWith('/(tabs)/settings');
+  });
+
+  it('navigates to Settings when the Heart Rate card is pressed', () => {
+    const { getByText } = render(<HomeScreen />);
+
+    fireEvent.press(getByText('Heart Rate'));
+    expect(mockPush).toHaveBeenCalledWith('/(tabs)/settings');
+  });
+
+  it('shows the bike connection status', () => {
+    Object.assign(mockSavedGear, {
+      savedBike: { id: 'bike-1', name: 'Zipro Rave', type: 'bike' },
+    });
+    Object.assign(mockConnection, { bikeConnected: true });
+
+    const { getByText, getAllByText } = render(<HomeScreen />);
+
+    expect(getByText('Zipro Rave')).toBeTruthy();
+    // 'Ready' appears for the Smart Bike row and (since bike is the effective HR
+    // source by default) the Bike pulse row.
+    expect(getAllByText('Ready').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shows the Bluetooth HR source name with Ready status when saved and connected', () => {
+    Object.assign(mockSavedGear, {
+      savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' },
+    });
+    Object.assign(mockConnection, { hrConnected: true });
+
+    const { getByText, getAllByText } = render(<HomeScreen />);
+
+    expect(getByText('Polar H10')).toBeTruthy();
+    expect(getAllByText('Ready').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shows Not set for Bluetooth HR when no source is saved', () => {
+    // Give the bike a name so the only "Not set" is the Bluetooth HR row.
+    Object.assign(mockSavedGear, { savedBike: { id: 'bike-1', name: 'Zipro Rave', type: 'bike' } });
+
+    const { getByText } = render(<HomeScreen />);
+
+    expect(getByText('Not set up')).toBeTruthy();
   });
 
   it('renders and resumes an interrupted session from Home', () => {
@@ -181,26 +260,6 @@ describe('HomeScreen', () => {
     expect(getByText('Resume Training')).toBeTruthy();
   });
 
-  it('shows setup actions when no bike or HR source is saved', () => {
-    const { getByText } = render(<HomeScreen />);
-
-    expect(getByText('Set Up Bike')).toBeTruthy();
-    expect(getByText('Add Bluetooth HR')).toBeTruthy();
-  });
-
-  it('shows reconnect actions when the saved bike reconnect failed', () => {
-    Object.assign(mockSavedGear, {
-      savedBike: { id: 'bike-1', name: 'Zipro Rave', type: 'bike' },
-    });
-    Object.assign(mockAutoReconnect, { bikeReconnectState: 'failed' });
-
-    const { getByText } = render(<HomeScreen />);
-
-    expect(getByText('Retry')).toBeTruthy();
-    expect(getByText('Choose Another')).toBeTruthy();
-    expect(getByText('Forget')).toBeTruthy();
-  });
-
   it('shows the latest workout card and routes to its summary', () => {
     mockLatestWorkoutHook.mockReturnValue({
       id: 'session-42',
@@ -232,5 +291,64 @@ describe('HomeScreen', () => {
     const { getByText } = render(<HomeScreen />);
 
     expect(getByText('Complete a ride to see your latest workout summary here.')).toBeTruthy();
+  });
+
+  describe('Apple Watch HR status line', () => {
+    it('shows the Apple Watch status line when the Watch is available and is the effective primary', () => {
+      Object.assign(mockConnection, { watchAvailability: 'connected' });
+      Object.assign(mockWatchHrControls, { watchAvailable: true, primary: 'watch', effectivePrimary: 'watch' });
+
+      const { getByText } = render(<HomeScreen />);
+
+      expect(getByText('Ready')).toBeTruthy();
+    });
+
+    it('shows the Apple Watch as Ready when it is the effective default (no explicit primary)', () => {
+      // Finding #1: a never-chosen user whose Watch is connected resolves to the
+      // Watch default — Home must reflect that, not show it Off.
+      Object.assign(mockConnection, { watchAvailability: 'connected' });
+      Object.assign(mockWatchHrControls, { watchAvailable: true, primary: null, effectivePrimary: 'watch' });
+
+      const { getByText } = render(<HomeScreen />);
+
+      expect(getByText('Ready')).toBeTruthy();
+    });
+
+    it('shows Off on the line when the effective primary is not watch', () => {
+      Object.assign(mockConnection, { watchAvailability: 'connected' });
+      Object.assign(mockWatchHrControls, { watchAvailable: true, primary: 'bike', effectivePrimary: 'bike' });
+
+      const { getByText } = render(<HomeScreen />);
+
+      expect(getByText('Off')).toBeTruthy();
+    });
+
+    it('omits the Apple Watch row entirely when the Watch is not available', () => {
+      Object.assign(mockWatchHrControls, { watchAvailable: false, primary: null, effectivePrimary: 'bike' });
+
+      const { queryByText } = render(<HomeScreen />);
+
+      expect(queryByText('Apple Watch')).toBeNull();
+    });
+  });
+
+  describe('Bike pulse HR row (finding #5)', () => {
+    it('surfaces a Bike pulse row with Ready when bike is the effective HR source and connected', () => {
+      Object.assign(mockConnection, { bikeConnected: true });
+      Object.assign(mockWatchHrControls, { watchAvailable: false, primary: 'bike', effectivePrimary: 'bike' });
+
+      const { getByText } = render(<HomeScreen />);
+
+      expect(getByText('Bike pulse')).toBeTruthy();
+    });
+
+    it('does not show the Bike pulse row when bike is not the effective HR source', () => {
+      Object.assign(mockConnection, { bikeConnected: true, watchAvailability: 'connected' });
+      Object.assign(mockWatchHrControls, { watchAvailable: true, primary: 'watch', effectivePrimary: 'watch' });
+
+      const { queryByText } = render(<HomeScreen />);
+
+      expect(queryByText('Bike pulse')).toBeNull();
+    });
   });
 });

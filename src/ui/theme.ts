@@ -17,6 +17,9 @@ export const palette = {
   danger: '#ef4b5c',
   dangerBg: '#ffe5e8',
   dangerBorder: '#f7b5bd',
+  successInk: '#0a7d72', // darkened success — status-pill text on success tint
+  warningInk: '#a96a06', // darkened warning — status-pill text on warning tint
+  dangerInk: '#c4283a', // darkened danger — status-pill text on danger tint
   accent: MINT_TEAL,
   tabInactive: '#7b8794',
 } as const;

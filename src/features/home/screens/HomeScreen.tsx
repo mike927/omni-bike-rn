@@ -1,9 +1,12 @@
 import type { ReactNode } from 'react';
 import { useRouter } from 'expo-router';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text } from 'react-native';
 
 import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
+import { bleDeviceStatus } from '../../../services/status/deviceStatus';
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
+import { useWatchHrControls } from '../../gear/hooks/useWatchHrControls';
+import { hrSourceIdleReadiness, watchHrStatus } from '../../../services/hr/hrStatus';
 import { InterruptedSessionCard } from '../components/InterruptedSessionCard';
 import { useLatestWorkout } from '../../training/hooks/useLatestWorkout';
 import { useInterruptedSession } from '../../training/hooks/useInterruptedSession';
@@ -16,15 +19,14 @@ import { useDeviceConnection } from '../../training/hooks/useDeviceConnection';
 import { TrainingPhase } from '../../../types/training';
 import { ActionButton } from '../../../ui/components/ActionButton';
 import { SectionCard } from '../../../ui/components/SectionCard';
+import { SourceRow } from '../../../ui/components/SourceRow';
 import { formatDistanceKm, formatDuration } from '../../../ui/formatters';
 import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
-import type { ReconnectState } from '../../../types/gear';
 import type { PersistedTrainingSession } from '../../../types/sessionPersistence';
 
 const TRAINING_ROUTE = '/training';
-const BIKE_SETUP_ROUTE = '/gear-setup?target=bike';
-const HR_SETUP_ROUTE = '/gear-setup?target=hr';
+const SETTINGS_ROUTE = '/(tabs)/settings';
 
 function getTrainingButtonLabel(phase: TrainingPhase): string {
   if (phase === TrainingPhase.Active || phase === TrainingPhase.Paused) {
@@ -36,49 +38,6 @@ function getTrainingButtonLabel(phase: TrainingPhase): string {
 
 function canOpenTraining(phase: TrainingPhase, bikeConnected: boolean): boolean {
   return bikeConnected && phase !== TrainingPhase.Finished;
-}
-
-function reconnectLabel(state: ReconnectState): string {
-  if (state === 'connecting') return 'Connecting...';
-  if (state === 'connected') return 'Connected';
-  if (state === 'failed') return 'Connection failed';
-  if (state === 'disconnected') return 'Not connected';
-  return 'Not connected';
-}
-
-function renderSavedGearActions(
-  hasSavedGear: boolean,
-  reconnectState: ReconnectState,
-  setupLabel: string,
-  setupRoute: string,
-  retry: () => void,
-  forget: () => void,
-  onNavigate: (route: string) => void,
-): ReactNode {
-  if (!hasSavedGear) {
-    return <ActionButton label={setupLabel} onPress={() => onNavigate(setupRoute)} variant="secondary" />;
-  }
-
-  if (reconnectState === 'connecting') {
-    return (
-      <>
-        <ActionButton label="Reconnecting..." onPress={retry} variant="secondary" disabled />
-        <ActionButton label="Forget" onPress={forget} variant="danger" />
-      </>
-    );
-  }
-
-  if (reconnectState === 'failed' || reconnectState === 'disconnected') {
-    return (
-      <>
-        <ActionButton label="Retry" onPress={retry} variant="secondary" />
-        <ActionButton label="Choose Another" onPress={() => onNavigate(setupRoute)} variant="secondary" />
-        <ActionButton label="Forget" onPress={forget} variant="danger" />
-      </>
-    );
-  }
-
-  return null;
 }
 
 function renderLatestWorkoutContent(
@@ -107,9 +66,10 @@ export function HomeScreen() {
   const router = useRouter();
   const session = useTrainingSession();
   const { interruptedSession, resumeInterruptedSession, discardInterruptedSession } = useInterruptedSession();
-  const { bikeConnected, hrConnected } = useDeviceConnection();
-  const { savedBike, savedHrSource, forgetBike, forgetHr } = useSavedGear();
-  const { bikeReconnectState, hrReconnectState, retryBike, retryHr } = useAutoReconnect();
+  const { bikeConnected, hrConnected, watchAvailability } = useDeviceConnection();
+  const { watchAvailable, effectivePrimary } = useWatchHrControls();
+  const { savedBike, savedHrSource } = useSavedGear();
+  const { bikeReconnectState, hrReconnectState } = useAutoReconnect();
   const latestWorkout = useLatestWorkout();
 
   const isTrainingEnabled = canOpenTraining(session.phase, bikeConnected);
@@ -159,7 +119,7 @@ export function HomeScreen() {
         />
       ) : null}
 
-      <SectionCard title="Quick Start" description="Begin a workout as soon as your main bike is connected.">
+      <SectionCard title="Quick Start" description="Begin a workout as soon as your main Smart Bike is connected.">
         <ActionButton
           label={getTrainingButtonLabel(session.phase)}
           onPress={() => router.push(TRAINING_ROUTE)}
@@ -167,46 +127,50 @@ export function HomeScreen() {
           fullWidth
         />
         {bikeConnected ? null : (
-          <Text style={styles.helperText}>Quick Start stays disabled until your saved bike is connected.</Text>
+          <Text style={styles.helperText}>Quick Start stays disabled until your saved Smart Bike is connected.</Text>
         )}
       </SectionCard>
 
-      <SectionCard title="Bike" description={savedBike ? savedBike.name : 'No bike saved yet.'}>
-        <Text style={styles.statusText}>
-          Status: {bikeConnected ? 'Connected' : reconnectLabel(bikeReconnectState)}
-        </Text>
-        <View style={styles.actionRow}>
-          {renderSavedGearActions(
-            savedBike !== null,
-            bikeReconnectState,
-            'Set Up Bike',
-            BIKE_SETUP_ROUTE,
-            retryBike,
-            () => void forgetBike(),
-            router.push,
-          )}
-        </View>
+      <SectionCard title="Smart Bike" onPress={() => router.push(SETTINGS_ROUTE)}>
+        <SourceRow
+          label={savedBike ? savedBike.name : 'Not set'}
+          status={bleDeviceStatus({
+            hasSavedDevice: savedBike !== null,
+            connected: bikeConnected,
+            reconnect: bikeReconnectState,
+          })}
+        />
       </SectionCard>
 
-      <SectionCard
-        title="HR Source"
-        description={
-          savedHrSource
-            ? savedHrSource.name
-            : 'No Bluetooth HR source saved. Chest straps and broadcast watches are optional.'
-        }>
-        <Text style={styles.statusText}>Status: {hrConnected ? 'Connected' : reconnectLabel(hrReconnectState)}</Text>
-        <View style={styles.actionRow}>
-          {renderSavedGearActions(
-            savedHrSource !== null,
-            hrReconnectState,
-            'Add Bluetooth HR',
-            HR_SETUP_ROUTE,
-            retryHr,
-            () => void forgetHr(),
-            router.push,
-          )}
-        </View>
+      <SectionCard title="Heart Rate" onPress={() => router.push(SETTINGS_ROUTE)}>
+        <SourceRow
+          label="Bluetooth HR"
+          deviceName={savedHrSource?.name}
+          status={
+            savedHrSource
+              ? bleDeviceStatus({ hasSavedDevice: true, connected: hrConnected, reconnect: hrReconnectState })
+              : 'notSetUp'
+          }
+        />
+        {watchAvailable ? (
+          <SourceRow
+            showDivider
+            label="Apple Watch"
+            status={watchHrStatus(effectivePrimary === 'watch', watchAvailability ?? 'unavailable')}
+          />
+        ) : null}
+        {effectivePrimary === 'bike' ? (
+          <SourceRow
+            showDivider
+            label="Bike pulse"
+            status={hrSourceIdleReadiness({
+              source: 'bike',
+              watchAvailability: watchAvailability ?? 'unavailable',
+              hrConnected,
+              bikeConnected,
+            })}
+          />
+        ) : null}
       </SectionCard>
 
       <SectionCard title="Latest Workout">
@@ -217,16 +181,6 @@ export function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  actionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  statusText: {
-    color: palette.text,
-    fontSize: 15,
-    fontWeight: '600',
-  },
   helperText: {
     color: palette.textMuted,
     fontSize: 13,

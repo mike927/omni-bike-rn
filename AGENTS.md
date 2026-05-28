@@ -10,6 +10,14 @@ Indoor cycling companion app. React Native / Expo, TypeScript, Drizzle + expo-sq
 
 superpowers is the workflow core — don't invent parallel flows.
 
+## Engineering principles
+
+- **Canonical over clever.** Implement the recommended, documented approach — no workarounds, monkey-patches, or one-off shims.
+- **Rebuild over patch.** When a structure is wrong (e.g. status management), redesign it cleanly — even from scratch — rather than layering fixes on the broken shape.
+- **Simplest thing that holds.** No speculative abstraction or premature generality; solve the case in front of you.
+- **Feasible on real transport.** Confirm a design works over the actual watch ↔ app ↔ bike connectivity before building it.
+- **Idempotent teardown.** Release a resource by whether it exists, not by the current value of a mutable input that may have drifted since acquisition.
+
 ## Roadmap
 
 Active work tracked in `ROADMAP.md`. Update states (`[ ] [~] [x] [-]`) as work progresses. Unresolved or exploratory items live in its **Future Considerations** section at the bottom.
@@ -18,18 +26,21 @@ Active work tracked in `ROADMAP.md`. Update states (`[ ] [~] [x] [-]`) as work p
 
 Run scripts via `npm run <name>` — see `package.json` for the full list. The ones worth knowing by name: `ci:gate` (lint + typecheck + tests, the pre-ship gate) and `db:generate` / `db:check` (Drizzle migrations).
 
+**Tests (dev loop):** run `npm run test:changed` (`jest --changedSince=main` — branch-affected tests only); the full `npm test` is CI's job (`ci:gate`). A green run means "changed tests pass," not "all."
+
 ## Builds
 
 Default to `npm run ios` (device build) when an iPhone is detected via `xcrun devicectl list devices`. Otherwise fall back to `npm run ios:sim`.
 
 ## Git workflow
 
-- **Never commit directly to `main`.** Before any commit, confirm the current branch is not `main`; if it is, create a feature branch first (e.g. `feat/…`, `fix/…`, `chore/…`, `docs/…`).
+- **Branch before editing.** New feature/fix work starts on a fresh branch off `main` (`feat/…`, `fix/…`, `chore/…`, `docs/…`) — never edit on `main`, never defer branching to commit time.
+- **Never commit directly to `main`.** Before any commit, re-confirm the current branch is not `main`.
 - Never bypass hooks with `--no-verify`. If the pre-commit hook fails, fix the root cause and create a new commit (do not `--amend`).
 
 ## Domain model
 
-- **HR source priority:** Watch → BLE HR monitor → bike pulse.
+- **HR source priority:** Watch → BLE HR monitor → bike pulse — the *default* when none is picked. Resolve the **effective** source only through `src/services/hr/hrSource.ts` (`resolveEffectivePrimary` / `resolveEffectiveHrSource`), in every screen, status surface, and the Watch lifecycle. Never branch on the raw stored `primaryHrSource`: it may be unset (`null`) or stale (a forgotten device). Status surfaces must render every source the resolver can return.
 - **Calorie source priority:** Watch-computed → HR + profile (Keytel) → power-based → bike-reported.
 - **Provider adapter contract:** external upload providers (Strava today, Garmin next) share one interface for save-and-upload. New providers slot into that contract — don't build parallel paths.
 - **Gear model:** one main bike + optional HR source. Extensible to other FTMS equipment types later, but bike-first today.

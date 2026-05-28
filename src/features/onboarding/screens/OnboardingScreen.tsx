@@ -37,16 +37,16 @@ const BOTTOM_PADDING = 24;
 const ONBOARDING_PAGES: readonly OnboardingPage[] = [
   {
     headline: 'See your ride in real time',
-    subtitle: 'Pair your FTMS bike to stream live speed, power, cadence, and distance.',
+    subtitle: 'Pair your FTMS Smart Bike to stream live speed, power, cadence, and distance.',
     Illustration: Page1BikeIllustration,
     illustrationTestID: 'onboarding-illustration-bike',
-    primaryLabel: 'Search for Bike',
+    primaryLabel: 'Search for Smart Bike',
     secondaryLabel: 'Skip',
   },
   {
     headline: 'Train to your heart rate',
     subtitle:
-      'Connect a Bluetooth chest strap, Apple Watch, or other compatible watch. Optional — you can add one anytime.',
+      'Connect a Bluetooth chest strap or other compatible heart-rate sensor. Optional — you can add one anytime.',
     Illustration: Page2HrIllustration,
     illustrationTestID: 'onboarding-illustration-hr',
     primaryLabel: 'Pair Device',

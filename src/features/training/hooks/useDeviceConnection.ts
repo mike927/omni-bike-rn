@@ -131,6 +131,7 @@ interface UseDeviceConnectionReturn {
   latestBikeMetrics: BikeMetrics | null;
   latestBluetoothHr: number | null;
   latestAppleWatchHr: number | null;
+  lastAppleWatchSampleAtMs: number | null;
   watchAvailability: WatchAvailability;
 
   // ── Actions ────────────────────────────────────────────
@@ -153,6 +154,7 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
   const latestBikeMetrics = useDeviceConnectionStore((s) => s.latestBikeMetrics);
   const latestBluetoothHr = useDeviceConnectionStore((s) => s.latestBluetoothHr);
   const latestAppleWatchHr = useDeviceConnectionStore((s) => s.latestAppleWatchHr);
+  const lastAppleWatchSampleAtMs = useDeviceConnectionStore((s) => s.lastAppleWatchSampleAtMs);
   const watchAvailability = useDeviceConnectionStore((s) => s.watchAvailability);
 
   const disconnectBike = useCallback(async () => {
@@ -228,6 +230,7 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
     latestBikeMetrics,
     latestBluetoothHr,
     latestAppleWatchHr,
+    lastAppleWatchSampleAtMs,
     watchAvailability,
     connectBike,
     connectHr,

@@ -1,4 +1,4 @@
 export const AppleHealthWorkout = {
   saveCyclingWorkout: jest.fn(() => Promise.resolve('mock-workout-uuid')),
-  requestCyclingMetricsAuthorization: jest.fn(() => Promise.resolve()),
+  requestHealthKitAuthorization: jest.fn(() => Promise.resolve()),
 };

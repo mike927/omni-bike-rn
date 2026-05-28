@@ -1,18 +1,26 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { useDeviceConnection } from '../hooks/useDeviceConnection';
 import { useTrainingSession } from '../hooks/useTrainingSession';
+import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
+import { bleDeviceStatus, deviceStatusLabel } from '../../../services/status/deviceStatus';
+import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { buildTrainingSummaryRoute, POST_FINISH_TRAINING_SUMMARY_SOURCE } from '../navigation/trainingSummaryRoute';
-import { isAppleWatchAvailable } from '../../../services/watch/isAppleWatchAvailable';
+import { resolveHrSourceSummary } from '../../../services/hr/hrStatus';
+import { resolveHrReading, resolveEffectiveHrSource } from '../../../services/hr/hrSource';
+import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
+import { useHrSourceStore } from '../../../store/hrSourceStore';
 import { TrainingPhase } from '../../../types/training';
-import type { WatchAvailability } from '../../../types/watch';
 import { ActionButton } from '../../../ui/components/ActionButton';
 import { MetricTile } from '../../../ui/components/MetricTile';
+import { StatusPill } from '../../../ui/components/StatusPill';
+import { HeartRateSourceTile } from '../components/HeartRateSourceTile';
 import { formatDistanceKm, formatDuration, formatMetricValue } from '../../../ui/formatters';
 import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
+import { logWc } from '../../../services/watch/wcLog';
 
 const HOME_ROUTE = '/';
 const BIKE_SETUP_ROUTE = '/gear-setup?target=bike';
@@ -31,30 +39,82 @@ function getPhaseSummary(phase: TrainingPhase): string {
 
 function getDisconnectedCalloutBody(phase: TrainingPhase): string {
   if (phase === TrainingPhase.Paused) {
-    return 'Reconnect your saved bike or choose one in setup before you resume this interrupted workout.';
+    return 'Reconnect your saved Smart Bike or choose one in setup before you resume this interrupted workout.';
   }
 
-  return 'Connect your saved bike or choose one in setup before you start a workout from this screen.';
-}
-
-function getWatchStatusLabel(watchAvailability: WatchAvailability): string {
-  if (watchAvailability === 'unavailable') return 'Unavailable';
-  if (watchAvailability === 'idle') return 'Idle';
-  return 'In Progress';
+  return 'Connect your saved Smart Bike or choose one in setup before you start a workout from this screen.';
 }
 
 export function TrainingDashboardScreen() {
   const router = useRouter();
   const session = useTrainingSession();
-  const { bikeConnected, hrConnected, latestBluetoothHr, latestAppleWatchHr, watchAvailability } =
-    useDeviceConnection();
+  const {
+    bikeConnected,
+    hrConnected,
+    latestBikeMetrics,
+    latestBluetoothHr,
+    latestAppleWatchHr,
+    lastAppleWatchSampleAtMs,
+    watchAvailability,
+  } = useDeviceConnection();
+  const { savedBike, savedHrSource } = useSavedGear();
+  const { bikeReconnectState } = useAutoReconnect();
   const [isFinishing, setIsFinishing] = useState(false);
-  const watchAvailable = isAppleWatchAvailable(Platform.OS);
-  // Idle-state fallback: session HR (from MetronomeEngine, which already applies full priority)
-  // takes precedence; Watch HR and Bluetooth HR are pre-start previews in priority order.
-  const resolvedHeartRate = session.currentMetrics.heartRate ?? latestAppleWatchHr ?? latestBluetoothHr;
-  // Watch HR has highest priority in MetronomeEngine; if it's non-null, it is the active source.
-  const watchIsActiveSource = latestAppleWatchHr !== null;
+
+  const activeHrSource = useDeviceConnectionStore((s) => s.activeHrSource);
+  const primaryHrSourceFromStore = useHrSourceStore((s) => s.primary);
+  const lastBluetoothHrSampleAtMs = useDeviceConnectionStore((s) => s.lastBluetoothHrSampleAtMs);
+
+  // watchSupported mirrors MetronomeEngine: watch is supported when it is not unavailable.
+  const savedHrName = savedHrSource?.name ?? null;
+  const watchSupported = (watchAvailability ?? 'unavailable') !== 'unavailable';
+
+  // Single shared resolver: session-locked source → user-configured primary → hardware default.
+  const effectiveHrSource = resolveEffectiveHrSource({
+    activeHrSource,
+    primaryHrSource: primaryHrSourceFromStore,
+    watchSupported,
+    savedHrStrapName: savedHrName,
+  });
+
+  const reading = resolveHrReading({
+    activeSource: effectiveHrSource,
+    latestAppleWatchHr: latestAppleWatchHr ?? null,
+    lastAppleWatchSampleAtMs: lastAppleWatchSampleAtMs ?? null,
+    latestBluetoothHr: latestBluetoothHr ?? null,
+    lastBluetoothHrSampleAtMs: lastBluetoothHrSampleAtMs ?? null,
+    bikeHeartRate: latestBikeMetrics?.heartRate ?? null,
+    nowMs: Date.now(),
+  });
+
+  // effectiveHrSource is always non-null; pass it directly as the idle primary.
+  const hrSummary = resolveHrSourceSummary({
+    activeHrSource,
+    reading,
+    primaryHrSource: effectiveHrSource,
+    watchAvailability: watchAvailability ?? 'unavailable',
+    savedHrName,
+    hrConnected,
+    phase: session.phase,
+    elapsedSeconds: session.elapsedSeconds,
+    bikeConnected,
+  });
+
+  // Diagnostic: log every HR-tile status transition so the in-workout state machine
+  // (connecting → ready → paused → noSignal) is verifiable from the [WC-JS] stream
+  // on-device, not by eye. Fires only on a status/name change.
+  const hrTileName = hrSummary.name;
+  const hrTileStatus = hrSummary.status;
+  useEffect(() => {
+    logWc(`[hrTile] ${hrTileName} -> ${hrTileStatus}`);
+  }, [hrTileName, hrTileStatus]);
+
+  const bikeConnectionStatus = bleDeviceStatus({
+    hasSavedDevice: savedBike !== null,
+    connected: bikeConnected,
+    reconnect: bikeReconnectState,
+  });
+
   const showDisconnectedState =
     !bikeConnected && (session.phase === TrainingPhase.Idle || session.phase === TrainingPhase.Paused);
 
@@ -97,8 +157,8 @@ export function TrainingDashboardScreen() {
           />
           <MetricTile label="Power" value={`${session.currentMetrics.power} W`} style={styles.primaryMetricTile} />
           <MetricTile
-            label={watchIsActiveSource ? 'Heart Rate ⌚' : 'Heart Rate'}
-            value={formatMetricValue(resolvedHeartRate, ' bpm')}
+            label="Heart Rate"
+            value={formatMetricValue(session.currentMetrics.heartRate ?? null, ' bpm')}
             style={styles.primaryMetricTile}
           />
           <MetricTile
@@ -110,20 +170,15 @@ export function TrainingDashboardScreen() {
 
         <View style={styles.connectionRow}>
           <View style={styles.connectionPill}>
-            <Text style={styles.connectionLabel}>Bike</Text>
-            <Text style={styles.connectionValue}>{bikeConnected ? 'Connected' : 'Disconnected'}</Text>
+            <Text style={styles.connectionLabel}>Smart Bike</Text>
+            <StatusPill
+              status={bikeConnectionStatus}
+              accessibilityLabel={`Bike: ${deviceStatusLabel(bikeConnectionStatus)}`}
+            />
           </View>
-          <View style={styles.connectionPill}>
-            <Text style={styles.connectionLabel}>Bluetooth HR</Text>
-            <Text style={styles.connectionValue}>{hrConnected ? 'Connected' : 'Disconnected'}</Text>
-          </View>
-          {watchAvailable ? (
-            <View style={styles.connectionPill}>
-              <Text style={styles.connectionLabel}>Watch HR</Text>
-              <Text style={styles.connectionValue}>{getWatchStatusLabel(watchAvailability)}</Text>
-            </View>
-          ) : null}
         </View>
+
+        <HeartRateSourceTile name={hrSummary.name} status={hrSummary.status} />
 
         <View style={styles.controlsCard}>
           <View style={styles.actionRow}>
@@ -148,10 +203,14 @@ export function TrainingDashboardScreen() {
 
           {showDisconnectedState ? (
             <View style={styles.callout}>
-              <Text style={styles.calloutTitle}>Bike connection required</Text>
+              <Text style={styles.calloutTitle}>Smart Bike connection required</Text>
               <Text style={styles.calloutBody}>{getDisconnectedCalloutBody(session.phase)}</Text>
               <View style={styles.actionRow}>
-                <ActionButton label="Set Up Bike" onPress={() => router.push(BIKE_SETUP_ROUTE)} variant="secondary" />
+                <ActionButton
+                  label="Set Up Smart Bike"
+                  onPress={() => router.push(BIKE_SETUP_ROUTE)}
+                  variant="secondary"
+                />
                 <ActionButton label="Back Home" onPress={() => router.replace(HOME_ROUTE)} variant="ghost" />
               </View>
             </View>
@@ -225,11 +284,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.6,
-  },
-  connectionValue: {
-    color: palette.text,
-    fontSize: 15,
-    fontWeight: '700',
   },
   controlsCard: {
     gap: 14,

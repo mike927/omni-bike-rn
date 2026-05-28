@@ -112,6 +112,23 @@ describe('deviceConnectionStore', () => {
     });
   });
 
+  describe('BLE HR freshness + locked active source', () => {
+    it('stamps lastBluetoothHrSampleAtMs on updateBluetoothHr', () => {
+      const before = Date.now();
+      useDeviceConnectionStore.getState().updateBluetoothHr(142);
+      const { latestBluetoothHr, lastBluetoothHrSampleAtMs } = useDeviceConnectionStore.getState();
+      expect(latestBluetoothHr).toBe(142);
+      expect(lastBluetoothHrSampleAtMs).toBeGreaterThanOrEqual(before);
+    });
+
+    it('locks and clears the active HR source', () => {
+      useDeviceConnectionStore.getState().setActiveHrSource('watch');
+      expect(useDeviceConnectionStore.getState().activeHrSource).toBe('watch');
+      useDeviceConnectionStore.getState().setActiveHrSource(null);
+      expect(useDeviceConnectionStore.getState().activeHrSource).toBeNull();
+    });
+  });
+
   describe('clearAll()', () => {
     it('should reset everything to null', () => {
       useDeviceConnectionStore.getState().setBikeAdapter(mockBikeAdapter);

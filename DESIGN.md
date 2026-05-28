@@ -34,7 +34,10 @@ Brand action colors. `secondary`, `success`, and `accent` deliberately alias to 
 | `danger` | `#ef4b5c` | Destructive coral |
 | `dangerBg` | `#ffe5e8` | Destructive button fill |
 | `dangerBorder` | `#f7b5bd` | Destructive button border |
-| `tabInactive` | `#7b8794` | Inactive tab icon/label |
+| `successInk` | `#0a7d72` | Darkened teal — status-pill text on `success` tint |
+| `warningInk` | `#a96a06` | Darkened amber — status-pill text on `warning` tint |
+| `dangerInk` | `#c4283a` | Darkened coral — status-pill text on `danger` tint |
+| `tabInactive` | `#7b8794` | Inactive tab icon/label; status-pill text/dot for `inactive` tone |
 
 ## Gradients
 
@@ -80,6 +83,96 @@ Larger paddings used at screen scaffolding edges: `60` (top inset), `80` / `152`
 | xl | 24 | Section card |
 | 2xl | 28 | Hero card |
 | pill | 999 | Action buttons, status pills |
+
+## Device & Connection Status Vocabulary
+
+Canonical, app-wide status labels for devices and HR sources — defined once in
+`src/services/status/deviceStatus.ts` (`DeviceStatus` + `DEVICE_STATUS_LABELS`) and rendered
+identically on every surface (Home, Settings, Training). **One label per state; never invent
+ad-hoc wording.** Always rendered as a color-coded **status pill** (`StatusPill` — see below),
+never as plain `Name · Status` text. The device name and its status never share a single line.
+
+| State | Label | Meaning |
+|---|---|---|
+| `notSetUp` | Not set up | no device saved / paired |
+| `connecting` | Connecting... | BLE attempt in flight, or watch ride waking (before the first sample) |
+| `ready` | Ready | usable (idle) / live-streaming (in-workout) |
+| `paused` | Paused | active workout, source intentionally paused |
+| `noSignal` | No signal | locked source, no fresh data for >15 s |
+| `unavailable` | Unavailable | saved / selected but not reachable now |
+| `off` | Off | exists but not the selected source |
+
+In-workout the HR tile resolves `paused → ready → connecting → noSignal` (state machine in
+`hrStatus.ts`); idle readiness gates each source on its own connection (watch companion presence,
+BLE strap link, bike FTMS link). Integration links (**Strava**, **Apple Health**) use
+**Connected / Not connected** — a separate account-linking domain, deliberately NOT part of this
+device vocabulary.
+
+## Status Pill (`StatusPill`)
+
+The single component for rendering any `DeviceStatus` on a read-only surface
+(`src/ui/components/StatusPill.tsx`). A `pill`-radius chip: a colored dot + the
+`deviceStatusLabel` text on a tinted background. Each status maps to one of four **tones** via
+`deviceStatusTone(status)` (`src/services/status/deviceStatus.ts`); the tone resolves to palette
+tokens — no raw hex in the component. Per tone: **dot** = `success` / `warning` / `danger` /
+`tabInactive`; **text** = `successInk` / `warningInk` / `dangerInk` / `tabInactive`; **background**
+= that tone's color at ~16% alpha, except `inactive` which uses `surfaceMuted` (the designated pill
+fill).
+
+| Tone | Statuses | Dot / accent | Reads as |
+|---|---|---|---|
+| `good` | `ready` | `success` `#10b5a4` (teal) | usable / live |
+| `working` | `connecting` | `warning` `#f5a524` (amber), **dot pulses** | in progress |
+| `attention` | `noSignal` | `danger` `#ef4b5c` (coral) | needs a look |
+| `inactive` | `unavailable`, `off`, `paused`, `notSetUp` | `tabInactive` `#7b8794` (gray) | not active |
+
+- Only `connecting` animates — the dot pulses (opacity loop, `react-native-reanimated`). All other
+  states render a static dot.
+- a11y: the label text carries the status for screen readers; the dot is decorative. Callers may
+  pass `accessibilityLabel` for extra context (e.g. the device name).
+- **One chip everywhere.** Used by the Home Smart Bike + Heart Rate cards (via `SourceRow`), the
+  Settings `GearTile`, and the Training Smart Bike-status pill + `HeartRateSourceTile`. Never re-style the status
+  inline — always render `StatusPill`.
+
+## Source Row (`SourceRow`)
+
+Reusable label / device / status row for the Home cards (`src/ui/components/SourceRow.tsx`): a muted
+category **label** on the left (e.g. `Bluetooth HR`, `Apple Watch`, or the bike name), an optional
+**device-name sub-line** beneath it (`textSoft`, single line, ellipsized), and a right-pinned
+`StatusPill`. When a card lists more than one source (the Heart Rate card), a hairline `border`
+divider separates the rows. The chip never truncates; the device name yields space. The Home Heart
+Rate card always shows the **Bluetooth HR** row, the **Apple Watch** row when the Watch is a platform
+option, and a **Bike pulse** row when the bike is the effective HR source — so the source actually in
+effect is never invisible. The Apple Watch row reads `Off` unless the Watch is the effective primary.
+
+## Gear / HR-Source Tiles
+
+Pattern for device & HR-source rows in Settings → "My Gear" (`SettingsScreen.tsx` `GearTile`).
+One tile per device (never list a device twice). The tile body shows the device **name** with its
+**`StatusPill`** directly beneath it (replacing the old plain-text status hint). The trainer device
+is labelled **Smart Bike** everywhere it appears (Home card title, this section's label, the
+Training connection pill); the bike-derived HR source keeps its distinct name **Bike pulse**. Two
+distinct interactions, two distinct affordances:
+
+- **Selection** (HR sources only): tap the tile body → it becomes the primary source, shown by a
+  **4px leading accent bar** (`primary`) + `primarySubtle` tint + bold `primary` name. **No radio.**
+  Exactly one HR source selected at a time. a11y: `accessibilityState={{ selected }}`. Until the
+  user picks one, the selected tile is the **effective default** — the availability-ranked fallback
+  `watch → bluetooth → bike` (`resolveEffectivePrimary`) — so a tile is always shown selected, never
+  "nothing selected". A primary that loses its backing device (e.g. a forgotten Bluetooth strap)
+  falls back to that default.
+- **Management** (only tiles that have actions — the Smart Bike and a Bluetooth strap): a **right-edge
+  chevron** (`Ionicons` `chevron-down`/`chevron-up`, `textMuted` → `primary` when open) reveals
+  Connect / Replace / Forget **inside** the tile on tap; the chevron rotates 180° when open.
+  Action buttons are conditionally rendered (absent from the tree until expanded). The chevron is
+  a separate press target from the body (expanding never selects).
+- Tiles with nothing to manage (**Apple Watch**, **Bike pulse**) have **no chevron**.
+- The **Smart Bike** tile is an **expander, not a selectable** — no accent bar; tapping it toggles its
+  management; a11y: `accessibilityRole="button"` + `accessibilityState={{ expanded }}`.
+- **Empty slots use `AddGearTile`** (`src/ui/components/AddGearTile.tsx`) — a **dashed**, full-width
+  tap-to-add tile (`Ionicons add` + label in `primary`), visually distinct from a populated tile.
+  The no-bike state is **＋ Set Up Smart Bike**. (The no-strap HR state still uses the plain
+  full-width **Add Bluetooth HR** `ActionButton`.)
 
 ## Illustration Style
 

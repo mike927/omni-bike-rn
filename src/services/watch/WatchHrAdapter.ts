@@ -1,5 +1,6 @@
 import { WatchConnectivity } from 'watch-connectivity';
 import type { HrAdapter } from '../ble/HrAdapter';
+import { logWc } from './wcLog';
 
 /**
  * HrAdapter implementation for Apple Watch HR streaming via WatchConnectivity.
@@ -13,11 +14,14 @@ import type { HrAdapter } from '../ble/HrAdapter';
  */
 export class WatchHrAdapter implements HrAdapter {
   async connect(): Promise<void> {
+    logWc('adapter.connect: activate + startWatchApp');
     await WatchConnectivity.activate();
     await WatchConnectivity.startWatchApp();
+    logWc('adapter.connect: startWatchApp resolved');
   }
 
   async disconnect(): Promise<void> {
+    logWc('adapter.disconnect: endMirroredWorkout');
     await WatchConnectivity.endMirroredWorkout();
   }
 

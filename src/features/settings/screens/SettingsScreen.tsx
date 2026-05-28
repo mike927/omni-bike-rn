@@ -1,7 +1,11 @@
+import { useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
+import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
+import { bleDeviceStatus, deviceStatusLabel, type DeviceStatus } from '../../../services/status/deviceStatus';
 import { useProviderBikeLinking } from '../../integrations/hooks/useProviderBikeLinking';
 import { useDeviceConnection } from '../../training/hooks/useDeviceConnection';
 import { useAppleHealthConnection } from '../../integrations/hooks/useAppleHealthConnection';
@@ -10,63 +14,221 @@ import { useWatchHrControls } from '../../gear/hooks/useWatchHrControls';
 import { useUserProfileStore } from '../../../store/userProfileStore';
 import { ActionButton } from '../../../ui/components/ActionButton';
 import { SectionCard } from '../../../ui/components/SectionCard';
+import { StatusPill } from '../../../ui/components/StatusPill';
+import { AddGearTile } from '../../../ui/components/AddGearTile';
 import { AppScreen } from '../../../ui/layout/AppScreen';
 import { palette } from '../../../ui/theme';
 import type { UserProfile } from '../../../types/userProfile';
+import type { HrSource } from '../../../services/hr/hrSource';
 import type { WatchAvailability } from '../../../types/watch';
+import type { ReconnectState } from '../../../types/gear';
+import { hrSourceName, hrSourceIdleReadiness } from '../../../services/hr/hrStatus';
 
-interface WatchHrRowProps {
-  readonly watchHrEnabled: boolean;
-  readonly watchAvailability: WatchAvailability;
-  readonly latestAppleWatchHr: number | null;
-  readonly onEnable: () => void;
-  readonly onDisable: () => void;
+// ---------------------------------------------------------------------------
+// GearTile — shared card UI for bike + HR-source tiles
+// ---------------------------------------------------------------------------
+
+interface GearTileProps {
+  readonly name: string;
+  readonly status: DeviceStatus;
+  /**
+   * HR-source tiles only: show 4 px accent bar + tint when selected.
+   * When `undefined` the tile is treated as an **expand-only** tile (e.g. Bike):
+   * the body press toggles expand instead of selecting, and the body is
+   * announced as a button with `expanded` state rather than `selected`.
+   */
+  readonly selected?: boolean;
+  /**
+   * Selectable tiles: called when the body is pressed to select this source.
+   * Ignored for expand-only tiles (where `selected` is `undefined`).
+   */
+  readonly onSelectPress?: () => void;
+  /** testID applied to the tile header TouchableOpacity */
+  readonly headerTestId?: string;
+  /** When true, a chevron button is shown on the right edge of the header */
+  readonly expandable?: boolean;
+  /** Controlled expanded state */
+  readonly expanded?: boolean;
+  /** Called when the chevron is pressed; for expand-only tiles also called by body press */
+  readonly onToggleExpand?: () => void;
+  /** testID for the chevron button */
+  readonly chevronTestId?: string;
+  /** Content rendered inside the tile when expanded */
+  readonly actions?: React.ReactNode;
+  /** Set false to hide the status pill, e.g. the not-set-up setup-affordance tile. Defaults true. */
+  readonly showStatus?: boolean;
 }
 
-const WATCH_HR_INSTALL_HINT =
-  'Open the Omni Bike app on your Apple Watch. If it is not installed yet, add it from the iPhone Watch app.';
-
-function getWatchHrStatusLabel(
-  watchHrEnabled: boolean,
-  watchAvailability: WatchAvailability,
-  latestAppleWatchHr: number | null,
-): string {
-  if (!watchHrEnabled) return 'Disabled';
-  if (watchAvailability === 'unavailable') return 'Unavailable';
-  if (watchAvailability === 'idle') return 'Idle';
-  return latestAppleWatchHr === null ? 'In Progress' : `In Progress · ${latestAppleWatchHr} bpm`;
+function GearTileChevron({
+  expanded,
+  onToggle,
+  testID,
+  name,
+}: {
+  readonly expanded: boolean;
+  readonly onToggle?: () => void;
+  readonly testID?: string;
+  readonly name: string;
+}) {
+  return (
+    <TouchableOpacity
+      style={styles.gearTileChevron}
+      testID={testID}
+      onPress={(e) => {
+        e?.stopPropagation?.();
+        onToggle?.();
+      }}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      accessibilityRole="button"
+      accessibilityLabel={expanded ? `Collapse ${name}` : `Expand ${name}`}>
+      <Ionicons
+        name={expanded ? 'chevron-up' : 'chevron-down'}
+        size={18}
+        color={expanded ? palette.primary : palette.textMuted}
+      />
+    </TouchableOpacity>
+  );
 }
 
-function getWatchHrHint(watchHrEnabled: boolean, watchAvailability: WatchAvailability): string | null {
-  if (!watchHrEnabled || watchAvailability !== 'unavailable') {
-    return null;
-  }
+function GearTile({
+  name,
+  status,
+  selected,
+  onSelectPress,
+  headerTestId,
+  expandable = false,
+  expanded = false,
+  onToggleExpand,
+  chevronTestId,
+  actions,
+  showStatus = true,
+}: GearTileProps) {
+  // A tile is selectable when the caller supplies a boolean `selected` prop.
+  // When `selected` is undefined the tile is expand-only (e.g. the Bike tile):
+  // tapping the body toggles expand and the body is announced as a button
+  // with `expanded` state rather than `selected`.
+  const isSelectable = selected !== undefined;
+  const isSelected = selected ?? false;
 
-  return WATCH_HR_INSTALL_HINT;
-}
-
-function WatchHrRow({ watchHrEnabled, watchAvailability, latestAppleWatchHr, onEnable, onDisable }: WatchHrRowProps) {
-  const watchHrHint = getWatchHrHint(watchHrEnabled, watchAvailability);
+  const bodyPressHandler = isSelectable ? onSelectPress : onToggleExpand;
+  const bodyA11yState =
+    bodyPressHandler === undefined ? undefined : isSelectable ? { selected: isSelected } : { expanded };
 
   return (
-    <View style={styles.gearRow}>
-      <View style={styles.gearInfo}>
-        <Text style={styles.gearLabel}>Apple Watch HR</Text>
-        <Text style={styles.gearName}>
-          {getWatchHrStatusLabel(watchHrEnabled, watchAvailability, latestAppleWatchHr)}
-        </Text>
-        {watchHrHint ? <Text style={styles.gearHint}>{watchHrHint}</Text> : null}
+    <View style={[styles.gearTile, isSelected && styles.gearTileSelected]}>
+      {isSelected ? <View style={styles.gearTileAccentBar} /> : null}
+      <View style={styles.gearTileHeaderRow}>
+        <TouchableOpacity
+          style={styles.gearTileBody}
+          onPress={bodyPressHandler}
+          testID={headerTestId}
+          accessibilityRole={isSelectable ? undefined : bodyPressHandler === undefined ? undefined : 'button'}
+          accessibilityState={bodyA11yState}>
+          <Text style={[styles.gearName, isSelected && styles.gearNameSelected]}>{name}</Text>
+          {showStatus ? (
+            <View style={styles.gearTileStatus}>
+              <StatusPill status={status} accessibilityLabel={`${name}: ${deviceStatusLabel(status)}`} />
+            </View>
+          ) : null}
+        </TouchableOpacity>
+        {expandable ? (
+          <GearTileChevron expanded={expanded} onToggle={onToggleExpand} testID={chevronTestId} name={name} />
+        ) : null}
       </View>
-      <View style={styles.gearActions}>
-        {watchHrEnabled ? (
-          <ActionButton label="Disable" onPress={onDisable} variant="danger" />
-        ) : (
-          <ActionButton label="Enable" onPress={onEnable} variant="secondary" />
-        )}
-      </View>
+      {expanded && actions !== undefined ? <View style={styles.gearTileActions}>{actions}</View> : null}
     </View>
   );
 }
+
+// ---------------------------------------------------------------------------
+// PrimaryHrSourceRow — Heart Rate Source sub-section
+// ---------------------------------------------------------------------------
+
+interface PrimaryHrSourceRowProps {
+  readonly availableSources: HrSource[];
+  /** The source shown as selected — the explicit primary or the resolved default. */
+  readonly effectivePrimary: HrSource;
+  readonly watchAvailability: WatchAvailability;
+  readonly savedHrSource: { name: string } | null;
+  readonly hrConnected: boolean;
+  readonly bikeConnected: boolean;
+  readonly onSelect: (source: HrSource) => void;
+  readonly hrReconnectState: ReconnectState;
+  readonly onConnectHr: () => void;
+  readonly onAddHr: () => void;
+  readonly onReplaceHr: () => void;
+  readonly onForgetHr: () => void;
+  readonly hrManageOpen: boolean;
+  readonly onToggleHrManage: () => void;
+}
+
+function PrimaryHrSourceRow({
+  availableSources,
+  effectivePrimary,
+  watchAvailability,
+  savedHrSource,
+  hrConnected,
+  bikeConnected,
+  onSelect,
+  hrReconnectState,
+  onConnectHr,
+  onAddHr,
+  onReplaceHr,
+  onForgetHr,
+  hrManageOpen,
+  onToggleHrManage,
+}: PrimaryHrSourceRowProps) {
+  return (
+    <View style={styles.primaryHrContainer}>
+      <Text style={styles.gearLabel}>Heart Rate Source</Text>
+      <View style={styles.hrSourceOptions}>
+        {availableSources.map((source) => {
+          const isSelected = effectivePrimary === source;
+          const isStrap = source === 'bluetooth';
+
+          const actions = isStrap ? (
+            <View style={styles.gearActionsStacked}>
+              {savedHrSource !== null && !hrConnected ? (
+                <ActionButton
+                  label={hrReconnectState === 'connecting' ? 'Connecting...' : 'Connect'}
+                  onPress={onConnectHr}
+                  variant="primary"
+                  disabled={hrReconnectState === 'connecting'}
+                  fullWidth
+                />
+              ) : null}
+              <ActionButton label="Replace" onPress={onReplaceHr} variant="secondary" fullWidth />
+              <ActionButton label="Forget" onPress={onForgetHr} variant="danger" fullWidth />
+            </View>
+          ) : undefined;
+
+          return (
+            <GearTile
+              key={source}
+              name={hrSourceName(source, savedHrSource?.name ?? null)}
+              status={hrSourceIdleReadiness({ source, watchAvailability, hrConnected, bikeConnected })}
+              selected={isSelected}
+              onSelectPress={() => onSelect(source)}
+              headerTestId={`hr-tile-${source}`}
+              expandable={isStrap}
+              expanded={isStrap ? hrManageOpen : false}
+              onToggleExpand={isStrap ? onToggleHrManage : undefined}
+              chevronTestId={isStrap ? 'hr-strap-chevron' : undefined}
+              actions={actions}
+            />
+          );
+        })}
+      </View>
+      {savedHrSource === null ? (
+        <ActionButton label="Add Bluetooth HR" onPress={onAddHr} variant="secondary" fullWidth />
+      ) : null}
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 function summarizeProfile(profile: UserProfile): string {
   const parts: string[] = [];
@@ -78,12 +240,17 @@ function summarizeProfile(profile: UserProfile): string {
   return parts.join(' · ');
 }
 
+// ---------------------------------------------------------------------------
+// SettingsScreen
+// ---------------------------------------------------------------------------
+
 // eslint-disable-next-line sonarjs/cognitive-complexity -- large screen component; refactor tracked separately
 export function SettingsScreen() {
   const router = useRouter();
   const userProfile = useUserProfileStore((s) => s.profile);
-  const { bikeConnected, hrConnected, latestAppleWatchHr, watchAvailability, disconnectAll } = useDeviceConnection();
-  const { watchAvailable, watchHrEnabled, enableWatchHr, disableWatchHr } = useWatchHrControls();
+  const { bikeConnected, hrConnected, watchAvailability } = useDeviceConnection();
+  const { bikeReconnectState, hrReconnectState, retryBike, retryHr } = useAutoReconnect();
+  const { effectivePrimary, setPrimary, availableSources } = useWatchHrControls();
   const { savedBike, savedHrSource, forgetBike, forgetHr } = useSavedGear();
   const {
     isConnected: stravaConnected,
@@ -105,6 +272,10 @@ export function SettingsScreen() {
     errorMessage: providerBikeErrorMessage,
     openProviderGearManagement,
   } = useProviderBikeLinking('strava', savedBike);
+
+  // Expand/collapse state for gear tiles
+  const [bikeManageOpen, setBikeManageOpen] = useState(false);
+  const [hrManageOpen, setHrManageOpen] = useState(false);
 
   const handleStravaConnect = async () => {
     const result = await connect();
@@ -173,69 +344,79 @@ export function SettingsScreen() {
     );
   };
 
-  const handleDisconnect = async () => {
-    try {
-      await disconnectAll({ suppressAutoReconnect: true });
-      Alert.alert('Disconnected', 'Cleared the active bike and heart-rate connections.');
-    } catch (err: unknown) {
-      console.error('[SettingsScreen] Disconnect error:', err);
-      Alert.alert('Disconnect Failed', err instanceof Error ? err.message : String(err));
-    }
-  };
+  // Bike tile actions (revealed when expanded)
+  const bikeActions = savedBike ? (
+    <View style={styles.gearActionsStacked}>
+      {bikeConnected ? null : (
+        <ActionButton
+          label={bikeReconnectState === 'connecting' ? 'Connecting...' : 'Connect'}
+          onPress={() => {
+            retryBike();
+          }}
+          variant="primary"
+          disabled={bikeReconnectState === 'connecting'}
+          fullWidth
+        />
+      )}
+      <ActionButton
+        label="Replace"
+        onPress={() => router.push('/gear-setup?target=bike')}
+        variant="secondary"
+        fullWidth
+      />
+      <ActionButton label="Forget" onPress={() => void forgetBike()} variant="danger" fullWidth />
+    </View>
+  ) : undefined;
 
   return (
     <AppScreen title="Settings" subtitle="Manage your saved gear and active connections.">
       <SectionCard title="My Gear">
-        <View style={styles.gearRow}>
-          <View style={styles.gearInfo}>
-            <Text style={styles.gearLabel}>Bike</Text>
-            <Text style={styles.gearName}>{savedBike ? savedBike.name : 'Not set'}</Text>
-          </View>
-          <View style={styles.gearActions}>
-            <ActionButton
-              label={savedBike ? 'Replace' : 'Set Up'}
-              onPress={() => router.push('/gear-setup?target=bike')}
-              variant="secondary"
+        {/* BIKE sub-section */}
+        <View style={styles.bikeSection}>
+          <Text style={styles.gearLabel}>Smart Bike</Text>
+          {savedBike ? (
+            <GearTile
+              name={savedBike.name}
+              status={bleDeviceStatus({
+                hasSavedDevice: true,
+                connected: bikeConnected,
+                reconnect: bikeReconnectState,
+              })}
+              expandable
+              expanded={bikeManageOpen}
+              onToggleExpand={() => setBikeManageOpen((open) => !open)}
+              headerTestId="bike-tile-header"
+              chevronTestId="bike-tile-chevron"
+              actions={bikeActions}
             />
-            {savedBike ? <ActionButton label="Forget" onPress={() => void forgetBike()} variant="danger" /> : null}
-          </View>
+          ) : (
+            <AddGearTile
+              label="Set Up Smart Bike"
+              onPress={() => router.push('/gear-setup?target=bike')}
+              testID="bike-setup-cta"
+            />
+          )}
         </View>
 
         <View style={styles.divider} />
 
-        <View style={styles.gearRow}>
-          <View style={styles.gearInfo}>
-            <Text style={styles.gearLabel}>Bluetooth HR</Text>
-            <Text style={styles.gearName}>{savedHrSource ? savedHrSource.name : 'Not set'}</Text>
-          </View>
-          <View style={styles.gearActions}>
-            <ActionButton
-              label={savedHrSource ? 'Replace' : 'Add Bluetooth HR'}
-              onPress={() => router.push('/gear-setup?target=hr')}
-              variant="secondary"
-            />
-            {savedHrSource ? <ActionButton label="Forget" onPress={() => void forgetHr()} variant="danger" /> : null}
-          </View>
-        </View>
-
-        {watchAvailable ? (
-          <>
-            <View style={styles.divider} />
-            <WatchHrRow
-              watchHrEnabled={watchHrEnabled}
-              watchAvailability={watchAvailability}
-              latestAppleWatchHr={latestAppleWatchHr}
-              onEnable={() => void enableWatchHr()}
-              onDisable={() => void disableWatchHr()}
-            />
-          </>
-        ) : null}
-
-        <ActionButton
-          label="Disconnect Active Gear"
-          onPress={() => void handleDisconnect()}
-          variant="danger"
-          disabled={!bikeConnected && !hrConnected}
+        <PrimaryHrSourceRow
+          availableSources={availableSources}
+          effectivePrimary={effectivePrimary}
+          watchAvailability={watchAvailability}
+          savedHrSource={savedHrSource}
+          hrConnected={hrConnected}
+          bikeConnected={bikeConnected}
+          onSelect={(source) => void setPrimary(source)}
+          hrReconnectState={hrReconnectState}
+          onConnectHr={() => {
+            retryHr();
+          }}
+          onAddHr={() => router.push('/gear-setup?target=hr')}
+          onReplaceHr={() => router.push('/gear-setup?target=hr')}
+          onForgetHr={() => void forgetHr()}
+          hrManageOpen={hrManageOpen}
+          onToggleHrManage={() => setHrManageOpen((open) => !open)}
         />
       </SectionCard>
 
@@ -368,6 +549,9 @@ export function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
+  bikeSection: {
+    gap: 8,
+  },
   gearRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -390,6 +574,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
+  gearNameSelected: {
+    color: palette.primary,
+  },
   gearHint: {
     marginTop: 4,
     color: palette.textMuted,
@@ -398,6 +585,11 @@ const styles = StyleSheet.create({
   },
   gearActions: {
     flexDirection: 'row',
+    gap: 8,
+  },
+  gearActionsStacked: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
     gap: 8,
   },
   divider: {
@@ -416,5 +608,55 @@ const styles = StyleSheet.create({
     color: palette.danger,
     fontSize: 13,
     lineHeight: 18,
+  },
+  primaryHrContainer: {
+    gap: 8,
+  },
+  hrSourceOptions: {
+    gap: 6,
+  },
+  // GearTile styles
+  gearTile: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: palette.border,
+    overflow: 'hidden',
+    flexDirection: 'column',
+  },
+  gearTileSelected: {
+    borderColor: palette.primary,
+    backgroundColor: palette.primarySubtle,
+  },
+  gearTileAccentBar: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: 4,
+    backgroundColor: palette.primary,
+    zIndex: 1,
+  },
+  gearTileHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  gearTileBody: {
+    flex: 1,
+    padding: 10,
+    paddingLeft: 14,
+  },
+  gearTileStatus: { marginTop: 6 },
+  gearTileChevron: {
+    padding: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gearTileActions: {
+    paddingHorizontal: 10,
+    paddingBottom: 10,
+    paddingTop: 4,
+    gap: 8,
+    flexDirection: 'column',
+    alignItems: 'stretch',
   },
 });

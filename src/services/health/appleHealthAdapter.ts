@@ -149,8 +149,19 @@ function normalizeHealthKitError(error: unknown, fallbackMessage: string): Error
   return normalizedError;
 }
 
-function logHealthKitAuthorizationStatus(healthKit: HealthKitNativeModule, context: string): void {
+function logHealthKitAuthorizationStatus(context: string): void {
   if (!__DEV__) {
+    return;
+  }
+
+  // Dev-only visibility into the resulting grant state, read via
+  // react-native-health's getAuthStatus. Authorization itself no longer flows
+  // through that module, so if it happens to be absent we skip logging rather
+  // than fail the connect flow.
+  let healthKit: HealthKitNativeModule;
+  try {
+    healthKit = getHealthKit();
+  } catch {
     return;
   }
 
@@ -204,44 +215,32 @@ const PERMISSIONS: HealthKitPermissions = {
   },
 };
 
-function initBaseWritePermissions(healthKit: HealthKitNativeModule): Promise<void> {
-  return new Promise((resolve, reject) => {
-    appendAppleHealthDiagnostic('initHealthKit-permissions-payload', {
-      permissions: PERMISSIONS.permissions,
-      diagnosticsFile: getAppleHealthDiagnosticsRelativePath(),
-    });
-    if (__DEV__) {
-      console.warn('[appleHealthAdapter] initHealthKit permissions payload', PERMISSIONS.permissions);
-    }
-
-    healthKit.initHealthKit(PERMISSIONS, (error: HealthKitErrorLike) => {
-      if (error) {
-        appendAppleHealthDiagnostic('initHealthKit-error', {
-          error,
-          permissions: PERMISSIONS.permissions,
-        });
-        reject(normalizeHealthKitError(error, 'Failed to initialize Apple Health permissions.'));
-        return;
-      }
-      appendAppleHealthDiagnostic('initHealthKit-success', {
-        permissions: PERMISSIONS.permissions,
-      });
-      logHealthKitAuthorizationStatus(healthKit, 'after-init');
-      resolve();
-    });
+// Requests HealthKit authorization for every read + write type the app uses in
+// a SINGLE native sheet. The previous flow split this across two requests —
+// react-native-health's `initHealthKit` for the base types, then a separate
+// native request for the iOS 17+ cycling metric types (cyclingPower /
+// cyclingCadence / cyclingSpeed) that react-native-health does not know about.
+// On a fresh install that hung: iOS cannot present the second authorization
+// sheet while the first is still dismissing, so the second request's
+// completion handler never fired and the connect UI stuck on "Connecting..."
+// forever. The native module now owns the whole request — one sheet, no
+// presentation conflict.
+async function requestHealthKitAuthorization(): Promise<void> {
+  appendAppleHealthDiagnostic('requestAuthorization-payload', {
+    permissions: PERMISSIONS.permissions,
+    diagnosticsFile: getAppleHealthDiagnosticsRelativePath(),
   });
-}
+  if (__DEV__) {
+    console.warn('[appleHealthAdapter] requestHealthKitAuthorization payload', PERMISSIONS.permissions);
+  }
 
-// iOS 17+ cycling metric types (cyclingPower / cyclingCadence / cyclingSpeed)
-// are not represented in `react-native-health`'s permission-string bridge, so
-// our own native module requests their write authorization directly.
-async function initCyclingMetricPermissions(): Promise<void> {
   try {
-    await AppleHealthWorkout.requestCyclingMetricsAuthorization();
-    appendAppleHealthDiagnostic('cyclingMetrics-auth-success', {});
+    await AppleHealthWorkout.requestHealthKitAuthorization();
+    appendAppleHealthDiagnostic('requestAuthorization-success', {});
+    logHealthKitAuthorizationStatus('after-init');
   } catch (error: unknown) {
-    appendAppleHealthDiagnostic('cyclingMetrics-auth-error', { error });
-    throw normalizeHealthKitError(error, 'Failed to authorize Apple Health cycling metrics.');
+    appendAppleHealthDiagnostic('requestAuthorization-error', { error });
+    throw normalizeHealthKitError(error, 'Failed to authorize Apple Health.');
   }
 }
 
@@ -253,11 +252,7 @@ let initPromise: Promise<void> | null = null;
 
 export async function initWithWritePermissions(): Promise<void> {
   if (initPromise) return initPromise;
-  initPromise = (async () => {
-    const healthKit = getHealthKit();
-    await initBaseWritePermissions(healthKit);
-    await initCyclingMetricPermissions();
-  })().catch((error: unknown) => {
+  initPromise = requestHealthKitAuthorization().catch((error: unknown) => {
     initPromise = null;
     throw error;
   });
