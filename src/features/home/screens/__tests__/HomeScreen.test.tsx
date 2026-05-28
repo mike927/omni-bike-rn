@@ -51,6 +51,7 @@ const mockConnection = {
 const mockWatchHrControls = {
   watchAvailable: true,
   primary: null as null | 'watch' | 'bluetooth' | 'bike',
+  effectivePrimary: 'bike' as 'watch' | 'bluetooth' | 'bike',
   setPrimary: jest.fn(),
   availableSources: ['bike'] as ('watch' | 'bluetooth' | 'bike')[],
 };
@@ -116,6 +117,7 @@ describe('HomeScreen', () => {
     Object.assign(mockWatchHrControls, {
       watchAvailable: true,
       primary: null,
+      effectivePrimary: 'bike',
     });
     Object.assign(mockSavedGear, {
       savedBike: null,
@@ -176,10 +178,12 @@ describe('HomeScreen', () => {
     });
     Object.assign(mockConnection, { bikeConnected: true });
 
-    const { getByText } = render(<HomeScreen />);
+    const { getByText, getAllByText } = render(<HomeScreen />);
 
     expect(getByText('Zipro Rave')).toBeTruthy();
-    expect(getByText('Ready')).toBeTruthy();
+    // 'Ready' appears for the Smart Bike row and (since bike is the effective HR
+    // source by default) the Bike pulse row.
+    expect(getAllByText('Ready').length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows the Bluetooth HR source name with Ready status when saved and connected', () => {
@@ -290,18 +294,29 @@ describe('HomeScreen', () => {
   });
 
   describe('Apple Watch HR status line', () => {
-    it('shows the Apple Watch status line when the Watch is available and primary is watch', () => {
+    it('shows the Apple Watch status line when the Watch is available and is the effective primary', () => {
       Object.assign(mockConnection, { watchAvailability: 'connected' });
-      Object.assign(mockWatchHrControls, { watchAvailable: true, primary: 'watch' });
+      Object.assign(mockWatchHrControls, { watchAvailable: true, primary: 'watch', effectivePrimary: 'watch' });
 
       const { getByText } = render(<HomeScreen />);
 
       expect(getByText('Ready')).toBeTruthy();
     });
 
-    it('shows Off on the line when primary is not watch', () => {
+    it('shows the Apple Watch as Ready when it is the effective default (no explicit primary)', () => {
+      // Finding #1: a never-chosen user whose Watch is connected resolves to the
+      // Watch default — Home must reflect that, not show it Off.
       Object.assign(mockConnection, { watchAvailability: 'connected' });
-      Object.assign(mockWatchHrControls, { watchAvailable: true, primary: null });
+      Object.assign(mockWatchHrControls, { watchAvailable: true, primary: null, effectivePrimary: 'watch' });
+
+      const { getByText } = render(<HomeScreen />);
+
+      expect(getByText('Ready')).toBeTruthy();
+    });
+
+    it('shows Off on the line when the effective primary is not watch', () => {
+      Object.assign(mockConnection, { watchAvailability: 'connected' });
+      Object.assign(mockWatchHrControls, { watchAvailable: true, primary: 'bike', effectivePrimary: 'bike' });
 
       const { getByText } = render(<HomeScreen />);
 
@@ -309,11 +324,31 @@ describe('HomeScreen', () => {
     });
 
     it('omits the Apple Watch row entirely when the Watch is not available', () => {
-      Object.assign(mockWatchHrControls, { watchAvailable: false, primary: null });
+      Object.assign(mockWatchHrControls, { watchAvailable: false, primary: null, effectivePrimary: 'bike' });
 
       const { queryByText } = render(<HomeScreen />);
 
       expect(queryByText('Apple Watch')).toBeNull();
+    });
+  });
+
+  describe('Bike pulse HR row (finding #5)', () => {
+    it('surfaces a Bike pulse row with Ready when bike is the effective HR source and connected', () => {
+      Object.assign(mockConnection, { bikeConnected: true });
+      Object.assign(mockWatchHrControls, { watchAvailable: false, primary: 'bike', effectivePrimary: 'bike' });
+
+      const { getByText } = render(<HomeScreen />);
+
+      expect(getByText('Bike pulse')).toBeTruthy();
+    });
+
+    it('does not show the Bike pulse row when bike is not the effective HR source', () => {
+      Object.assign(mockConnection, { bikeConnected: true, watchAvailability: 'connected' });
+      Object.assign(mockWatchHrControls, { watchAvailable: true, primary: 'watch', effectivePrimary: 'watch' });
+
+      const { queryByText } = render(<HomeScreen />);
+
+      expect(queryByText('Bike pulse')).toBeNull();
     });
   });
 });

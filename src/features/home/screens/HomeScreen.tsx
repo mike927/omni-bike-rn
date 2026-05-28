@@ -6,7 +6,7 @@ import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
 import { bleDeviceStatus } from '../../../services/status/deviceStatus';
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { useWatchHrControls } from '../../gear/hooks/useWatchHrControls';
-import { watchHrStatus } from '../../../services/hr/hrStatus';
+import { hrSourceIdleReadiness, watchHrStatus } from '../../../services/hr/hrStatus';
 import { InterruptedSessionCard } from '../components/InterruptedSessionCard';
 import { useLatestWorkout } from '../../training/hooks/useLatestWorkout';
 import { useInterruptedSession } from '../../training/hooks/useInterruptedSession';
@@ -67,7 +67,7 @@ export function HomeScreen() {
   const session = useTrainingSession();
   const { interruptedSession, resumeInterruptedSession, discardInterruptedSession } = useInterruptedSession();
   const { bikeConnected, hrConnected, watchAvailability } = useDeviceConnection();
-  const { watchAvailable, primary } = useWatchHrControls();
+  const { watchAvailable, effectivePrimary } = useWatchHrControls();
   const { savedBike, savedHrSource } = useSavedGear();
   const { bikeReconnectState, hrReconnectState } = useAutoReconnect();
   const latestWorkout = useLatestWorkout();
@@ -156,7 +156,19 @@ export function HomeScreen() {
           <SourceRow
             showDivider
             label="Apple Watch"
-            status={watchHrStatus(primary === 'watch', watchAvailability ?? 'unavailable')}
+            status={watchHrStatus(effectivePrimary === 'watch', watchAvailability ?? 'unavailable')}
+          />
+        ) : null}
+        {effectivePrimary === 'bike' ? (
+          <SourceRow
+            showDivider
+            label="Bike pulse"
+            status={hrSourceIdleReadiness({
+              source: 'bike',
+              watchAvailability: watchAvailability ?? 'unavailable',
+              hrConnected,
+              bikeConnected,
+            })}
           />
         ) : null}
       </SectionCard>

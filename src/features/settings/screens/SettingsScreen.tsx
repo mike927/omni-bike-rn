@@ -146,7 +146,8 @@ function GearTile({
 
 interface PrimaryHrSourceRowProps {
   readonly availableSources: HrSource[];
-  readonly primary: HrSource | null;
+  /** The source shown as selected — the explicit primary or the resolved default. */
+  readonly effectivePrimary: HrSource;
   readonly watchAvailability: WatchAvailability;
   readonly savedHrSource: { name: string } | null;
   readonly hrConnected: boolean;
@@ -163,7 +164,7 @@ interface PrimaryHrSourceRowProps {
 
 function PrimaryHrSourceRow({
   availableSources,
-  primary,
+  effectivePrimary,
   watchAvailability,
   savedHrSource,
   hrConnected,
@@ -182,7 +183,7 @@ function PrimaryHrSourceRow({
       <Text style={styles.gearLabel}>Heart Rate Source</Text>
       <View style={styles.hrSourceOptions}>
         {availableSources.map((source) => {
-          const isSelected = primary === source;
+          const isSelected = effectivePrimary === source;
           const isStrap = source === 'bluetooth';
 
           const actions = isStrap ? (
@@ -249,7 +250,7 @@ export function SettingsScreen() {
   const userProfile = useUserProfileStore((s) => s.profile);
   const { bikeConnected, hrConnected, watchAvailability } = useDeviceConnection();
   const { bikeReconnectState, hrReconnectState, retryBike, retryHr } = useAutoReconnect();
-  const { primary, setPrimary, availableSources } = useWatchHrControls();
+  const { effectivePrimary, setPrimary, availableSources } = useWatchHrControls();
   const { savedBike, savedHrSource, forgetBike, forgetHr } = useSavedGear();
   const {
     isConnected: stravaConnected,
@@ -401,7 +402,7 @@ export function SettingsScreen() {
 
         <PrimaryHrSourceRow
           availableSources={availableSources}
-          primary={primary}
+          effectivePrimary={effectivePrimary}
           watchAvailability={watchAvailability}
           savedHrSource={savedHrSource}
           hrConnected={hrConnected}

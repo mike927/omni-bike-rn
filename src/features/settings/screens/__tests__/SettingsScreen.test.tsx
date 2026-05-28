@@ -2,6 +2,7 @@ import { render, fireEvent } from '@testing-library/react-native';
 
 import { SettingsScreen } from '../SettingsScreen';
 import { useSavedGearStore } from '../../../../store/savedGearStore';
+import type { HrSource } from '../../../../services/hr/hrSource';
 import type { WatchAvailability } from '../../../../types/watch';
 
 jest.mock('react-native-safe-area-context', () => {
@@ -56,9 +57,10 @@ const mockAutoReconnect = {
 
 const mockWatchHr = {
   watchAvailable: false,
-  primary: null as null | 'watch' | 'bluetooth' | 'bike',
+  primary: null as HrSource | null,
+  effectivePrimary: 'bike' as HrSource,
   setPrimary: jest.fn(),
-  availableSources: ['bike'] as ('watch' | 'bluetooth' | 'bike')[],
+  availableSources: ['bike'] as HrSource[],
 };
 
 const mockSavedGear = {
@@ -124,8 +126,9 @@ describe('SettingsScreen', () => {
     Object.assign(mockWatchHr, {
       watchAvailable: false,
       primary: null,
+      effectivePrimary: 'bike',
       setPrimary: jest.fn(),
-      availableSources: ['bike'] as ('watch' | 'bluetooth' | 'bike')[],
+      availableSources: ['bike'] as HrSource[],
     });
     useSavedGearStore.setState({ bikeReconnectState: 'idle', hrReconnectState: 'idle' });
   });
@@ -571,6 +574,7 @@ describe('SettingsScreen', () => {
       Object.assign(mockWatchHr, {
         availableSources: ['bike'],
         primary: 'bike',
+        effectivePrimary: 'bike',
       });
       const { getByTestId } = render(<SettingsScreen />);
       const bikeHrTile = getByTestId('hr-tile-bike');
@@ -582,10 +586,25 @@ describe('SettingsScreen', () => {
         watchAvailable: true,
         availableSources: ['watch', 'bike'],
         primary: 'bike',
+        effectivePrimary: 'bike',
       });
       const { getByTestId } = render(<SettingsScreen />);
       const watchTile = getByTestId('hr-tile-watch');
       expect(watchTile.props.accessibilityState).toMatchObject({ selected: false });
+    });
+
+    it('selects the effective-default tile when no explicit primary is set (finding #1)', () => {
+      // No explicit choice: the resolved default (Watch, here connected) is shown
+      // as selected so the UI never renders "nothing selected".
+      Object.assign(mockWatchHr, {
+        watchAvailable: true,
+        availableSources: ['watch', 'bike'],
+        primary: null,
+        effectivePrimary: 'watch',
+      });
+      const { getByTestId } = render(<SettingsScreen />);
+      expect(getByTestId('hr-tile-watch').props.accessibilityState).toMatchObject({ selected: true });
+      expect(getByTestId('hr-tile-bike').props.accessibilityState).toMatchObject({ selected: false });
     });
 
     it('bike tile body has accessibilityRole="button" (not a selectable)', () => {

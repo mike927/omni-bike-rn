@@ -3,6 +3,7 @@ import { act, renderHook } from '@testing-library/react-native';
 import { useWatchHrControls } from '../useWatchHrControls';
 import { useHrSourceStore } from '../../../../store/hrSourceStore';
 import { useSavedGearStore } from '../../../../store/savedGearStore';
+import { useDeviceConnectionStore } from '../../../../store/deviceConnectionStore';
 
 jest.mock('../../../../services/preferences/appPreferencesStorage', () => ({
   loadPrimaryHrSource: jest.fn().mockResolvedValue(null),
@@ -34,6 +35,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   useHrSourceStore.setState({ primary: null, hydrated: false });
   useSavedGearStore.setState({ savedHrSource: null, hydrated: false });
+  useDeviceConnectionStore.setState({ watchAvailability: 'unavailable' });
   getAppPreferencesMock().setPrimaryHrSource.mockResolvedValue(undefined);
   getIsAppleWatchAvailableMock().mockReturnValue(true);
 });
@@ -91,6 +93,36 @@ describe('useWatchHrControls', () => {
       });
       const { result } = renderHook(() => useWatchHrControls());
       expect(result.current.availableSources).toEqual(['watch', 'bluetooth', 'bike']);
+    });
+  });
+
+  describe('effectivePrimary', () => {
+    it('returns the explicit primary when it is still valid', () => {
+      useHrSourceStore.setState({ primary: 'bike', hydrated: true });
+      const { result } = renderHook(() => useWatchHrControls());
+      expect(result.current.effectivePrimary).toBe('bike');
+    });
+
+    it('resolves the availability-ranked default when no primary is set (Watch connected)', () => {
+      useHrSourceStore.setState({ primary: null, hydrated: true });
+      useDeviceConnectionStore.setState({ watchAvailability: 'connected' });
+      const { result } = renderHook(() => useWatchHrControls());
+      expect(result.current.effectivePrimary).toBe('watch');
+    });
+
+    it('resolves to bike when no primary is set and the Watch is unavailable with no strap', () => {
+      useHrSourceStore.setState({ primary: null, hydrated: true });
+      useDeviceConnectionStore.setState({ watchAvailability: 'unavailable' });
+      const { result } = renderHook(() => useWatchHrControls());
+      expect(result.current.effectivePrimary).toBe('bike');
+    });
+
+    it('falls through a stale bluetooth primary when no strap is saved', () => {
+      useHrSourceStore.setState({ primary: 'bluetooth', hydrated: true });
+      useSavedGearStore.setState({ savedHrSource: null, hydrated: true });
+      useDeviceConnectionStore.setState({ watchAvailability: 'connected' });
+      const { result } = renderHook(() => useWatchHrControls());
+      expect(result.current.effectivePrimary).toBe('watch');
     });
   });
 });
