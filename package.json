@@ -20,7 +20,7 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.{ts,tsx,js,jsx,mjs}": "eslint --fix"
+    "*.{ts,tsx,js,jsx,mjs}": "eslint --fix --max-warnings 0"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
