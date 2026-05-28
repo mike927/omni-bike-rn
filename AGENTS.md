@@ -16,6 +16,7 @@ superpowers is the workflow core — don't invent parallel flows.
 - **Rebuild over patch.** When a structure is wrong (e.g. status management), redesign it cleanly — even from scratch — rather than layering fixes on the broken shape.
 - **Simplest thing that holds.** No speculative abstraction or premature generality; solve the case in front of you.
 - **Feasible on real transport.** Confirm a design works over the actual watch ↔ app ↔ bike connectivity before building it.
+- **Idempotent teardown.** Release a resource by whether it exists, not by the current value of a mutable input that may have drifted since acquisition.
 
 ## Roadmap
 
@@ -39,7 +40,7 @@ Default to `npm run ios` (device build) when an iPhone is detected via `xcrun de
 
 ## Domain model
 
-- **HR source priority:** Watch → BLE HR monitor → bike pulse.
+- **HR source priority:** Watch → BLE HR monitor → bike pulse — the *default* when none is picked. Resolve the **effective** source only through `src/services/hr/hrSource.ts` (`resolveEffectivePrimary` / `resolveEffectiveHrSource`), in every screen, status surface, and the Watch lifecycle. Never branch on the raw stored `primaryHrSource`: it may be unset (`null`) or stale (a forgotten device). Status surfaces must render every source the resolver can return.
 - **Calorie source priority:** Watch-computed → HR + profile (Keytel) → power-based → bike-reported.
 - **Provider adapter contract:** external upload providers (Strava today, Garmin next) share one interface for save-and-upload. New providers slot into that contract — don't build parallel paths.
 - **Gear model:** one main bike + optional HR source. Extensible to other FTMS equipment types later, but bike-first today.

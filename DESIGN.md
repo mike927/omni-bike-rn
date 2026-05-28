@@ -140,7 +140,10 @@ Reusable label / device / status row for the Home cards (`src/ui/components/Sour
 category **label** on the left (e.g. `Bluetooth HR`, `Apple Watch`, or the bike name), an optional
 **device-name sub-line** beneath it (`textSoft`, single line, ellipsized), and a right-pinned
 `StatusPill`. When a card lists more than one source (the Heart Rate card), a hairline `border`
-divider separates the rows. The chip never truncates; the device name yields space.
+divider separates the rows. The chip never truncates; the device name yields space. The Home Heart
+Rate card always shows the **Bluetooth HR** row, the **Apple Watch** row when the Watch is a platform
+option, and a **Bike pulse** row when the bike is the effective HR source — so the source actually in
+effect is never invisible. The Apple Watch row reads `Off` unless the Watch is the effective primary.
 
 ## Gear / HR-Source Tiles
 
@@ -153,7 +156,11 @@ distinct interactions, two distinct affordances:
 
 - **Selection** (HR sources only): tap the tile body → it becomes the primary source, shown by a
   **4px leading accent bar** (`primary`) + `primarySubtle` tint + bold `primary` name. **No radio.**
-  Exactly one HR source selected at a time. a11y: `accessibilityState={{ selected }}`.
+  Exactly one HR source selected at a time. a11y: `accessibilityState={{ selected }}`. Until the
+  user picks one, the selected tile is the **effective default** — the availability-ranked fallback
+  `watch → bluetooth → bike` (`resolveEffectivePrimary`) — so a tile is always shown selected, never
+  "nothing selected". A primary that loses its backing device (e.g. a forgotten Bluetooth strap)
+  falls back to that default.
 - **Management** (only tiles that have actions — the Smart Bike and a Bluetooth strap): a **right-edge
   chevron** (`Ionicons` `chevron-down`/`chevron-up`, `textMuted` → `primary` when open) reveals
   Connect / Replace / Forget **inside** the tile on tap; the chevron rotates 180° when open.
