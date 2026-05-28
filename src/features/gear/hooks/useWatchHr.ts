@@ -6,6 +6,8 @@ import { WatchHrAdapter } from '../../../services/watch/WatchHrAdapter';
 import { isAppleWatchAvailable } from '../../../services/watch/isAppleWatchAvailable';
 import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
 import { useHrSourceStore } from '../../../store/hrSourceStore';
+import { useSavedGearStore } from '../../../store/savedGearStore';
+import { resolveEffectivePrimary } from '../../../services/hr/hrSource';
 import { useTrainingSessionStore } from '../../../store/trainingSessionStore';
 import { TrainingPhase } from '../../../types/training';
 import type { WatchSessionStateEvent } from '../../../types/watch';
@@ -40,12 +42,30 @@ export function useWatchHr(): void {
   const setActiveHrSource = useDeviceConnectionStore((s) => s.setActiveHrSource);
   const phase = useTrainingSessionStore((s) => s.phase);
   const primary = useHrSourceStore((s) => s.primary);
+  const hrSourceHydrated = useHrSourceStore((s) => s.hydrated);
   const hydrateHrSourcePref = useHrSourceStore((s) => s.hydrate);
+  const watchAvailability = useDeviceConnectionStore((s) => s.watchAvailability);
+  const savedHrSource = useSavedGearStore((s) => s.savedHrSource);
+
+  // The effective primary the engine also resolves to: the user's explicit
+  // choice when still valid, else the availability-ranked default. Resolved
+  // against runtime availability so the lifecycle starts/locks the same source
+  // the dashboard and engine display/read.
+  //
+  // Tolerates a pre-hydration `null` primary: until the persisted preference
+  // resolves we keep `null` so no watch stream starts prematurely (a non-watch
+  // primary would otherwise immediately tear it back down). The reachability-retry
+  // path recovers the stream if the Watch becomes reachable later.
+  const effectivePrimary = hrSourceHydrated
+    ? resolveEffectivePrimary({
+        primaryHrSource: primary,
+        watchSupported: watchAvailability !== 'unavailable',
+        savedHrStrapName: savedHrSource?.name ?? null,
+      })
+    : null;
 
   // Hydrate primary source unconditionally — non-watch primaries (bluetooth, bike) also
   // need to be known at workout start so the lock is correct on all platforms/configs.
-  // Tolerates a pre-hydration `null` primary: no watch stream starts until `primary`
-  // resolves; the reachability-retry path recovers it if the Watch becomes reachable later.
   useEffect(() => {
     void hydrateHrSourcePref();
   }, [hydrateHrSourcePref]);
@@ -59,17 +79,18 @@ export function useWatchHr(): void {
     return () => sub.remove();
   }, []);
 
-  // Session-level HR source lock — platform-independent, NOT gated on watch availability.
-  // Tracks `primary` while Active (consistent with the live `primary === 'watch'` watch gate):
-  // a mid-workout primary change retargets the locked source. Cleared when not training.
+  // Session-level HR source lock. Tracks the effective primary while Active so a
+  // mid-workout source change retargets the lock; an explicit choice is stable, while
+  // a never-chosen default follows availability (matching the engine's per-tick
+  // resolution). Null pre-hydration. Cleared when not training.
   useEffect(() => {
     if (phase === TrainingPhase.Active) {
-      setActiveHrSource(primary);
+      setActiveHrSource(effectivePrimary);
     } else if (phase === TrainingPhase.Idle || phase === TrainingPhase.Finished) {
       setActiveHrSource(null);
     }
     // Paused: leave the lock intact.
-  }, [phase, primary, setActiveHrSource]);
+  }, [phase, effectivePrimary, setActiveHrSource]);
 
   const startStream = useCallback(async () => {
     if (!watchAvailable) return;
@@ -88,7 +109,7 @@ export function useWatchHr(): void {
       const startWasSuperseded =
         streamGeneration !== streamGenerationRef.current ||
         phaseRef.current !== TrainingPhase.Active ||
-        primaryRef.current !== 'watch';
+        effectivePrimaryRef.current !== 'watch';
       if (startWasSuperseded) return;
       console.error('[useWatchHr] Failed to connect Watch HR:', err);
       return;
@@ -97,7 +118,7 @@ export function useWatchHr(): void {
     const startWasSuperseded =
       streamGeneration !== streamGenerationRef.current ||
       phaseRef.current !== TrainingPhase.Active ||
-      primaryRef.current !== 'watch';
+      effectivePrimaryRef.current !== 'watch';
     if (startWasSuperseded) {
       startingRef.current = false;
       logWc('startStream: superseded after connect — disconnecting');
@@ -148,15 +169,15 @@ export function useWatchHr(): void {
   // Refs shadow current values so the listener effect below stays mount-only.
   // Re-registering would trigger thousands of redundant `activate()` calls.
   const phaseRef = useRef(phase);
-  const primaryRef = useRef(primary);
+  const effectivePrimaryRef = useRef(effectivePrimary);
   const startStreamRef = useRef(startStream);
   const stopStreamRef = useRef(stopStream);
   useEffect(() => {
     phaseRef.current = phase;
   }, [phase]);
   useEffect(() => {
-    primaryRef.current = primary;
-  }, [primary]);
+    effectivePrimaryRef.current = effectivePrimary;
+  }, [effectivePrimary]);
   useEffect(() => {
     startStreamRef.current = startStream;
   }, [startStream]);
@@ -173,7 +194,7 @@ export function useWatchHr(): void {
     prevPhaseRef.current = phase;
 
     if (phase === TrainingPhase.Active) {
-      if (primary === 'watch') {
+      if (effectivePrimary === 'watch') {
         void startStream();
         if (prevPhase === TrainingPhase.Paused) {
           // Resuming: the stream is still connected; tell the Watch to resume its session.
@@ -183,24 +204,23 @@ export function useWatchHr(): void {
           });
         }
       } else {
-        // primary changed away from watch while session is active: tear down watch stream.
+        // effective primary is not watch while session is active: tear down watch stream.
         void stopStream();
       }
-    } else if (phase === TrainingPhase.Paused && primary === 'watch') {
+    } else if (phase === TrainingPhase.Paused && effectivePrimary === 'watch') {
       // Keep the stream alive but pause the Watch session so its workout timer and HR
       // collection stop in sync with the iPhone (the Watch owns the HKWorkoutSession).
       logWc('phase Active→Paused — sending pauseMirroredWorkout');
       void WatchConnectivity.pauseMirroredWorkout().catch((error: unknown) => {
         console.error('[useWatchHr] Failed to pause Watch workout:', error);
       });
-    } else if (phase === TrainingPhase.Finished) {
-      if (primary === 'watch') {
-        void stopStream();
-      }
-    } else if (phase === TrainingPhase.Idle) {
+    } else if (phase === TrainingPhase.Finished || phase === TrainingPhase.Idle) {
+      // Always tear down on Finish/Idle — `stopStream` is idempotent. Gating on the
+      // current primary would leak a Watch session that was paused and then had the
+      // primary switched away before finishing (finding #2).
       void stopStream();
     }
-  }, [phase, primary, startStream, stopStream, watchAvailable]);
+  }, [phase, effectivePrimary, startStream, stopStream, watchAvailable]);
 
   // Unmount-only cleanup, scoped away from phase transitions so Active→Paused
   // does not tear down the Watch workout session.
@@ -253,10 +273,13 @@ export function useWatchHr(): void {
         logWc(
           `event reachability reachable=${reachable} activationState=${activationState} paired=${paired} installed=${installed}`,
         );
-        // Mid-ride stream-retry when the Watch becomes reachable again.
+        // Mid-ride stream-retry when the Watch becomes reachable again. Gated on the
+        // app being foreground: `startWatchApp` cannot launch the Watch app from the
+        // background, so a re-wake probe there only throws and burns cycles.
         if (
           reachable &&
-          primaryRef.current === 'watch' &&
+          AppState.currentState === 'active' &&
+          effectivePrimaryRef.current === 'watch' &&
           phaseRef.current === TrainingPhase.Active &&
           !adapterRef.current &&
           !startingRef.current
