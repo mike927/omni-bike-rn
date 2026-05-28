@@ -57,7 +57,7 @@ export function TrainingDashboardScreen() {
     lastAppleWatchSampleAtMs,
     watchAvailability,
   } = useDeviceConnection();
-  const { savedHrSource } = useSavedGear();
+  const { savedBike, savedHrSource } = useSavedGear();
   const { bikeReconnectState } = useAutoReconnect();
   const [isFinishing, setIsFinishing] = useState(false);
 
@@ -110,7 +110,7 @@ export function TrainingDashboardScreen() {
   }, [hrTileName, hrTileStatus]);
 
   const bikeConnectionStatus = bleDeviceStatus({
-    hasSavedDevice: true,
+    hasSavedDevice: savedBike !== null,
     connected: bikeConnected,
     reconnect: bikeReconnectState,
   });

@@ -146,6 +146,26 @@ describe('TrainingDashboardScreen', () => {
     expect(() => render(<TrainingDashboardScreen />)).not.toThrow();
   });
 
+  describe('Smart Bike status pill', () => {
+    it('reads "Not set up" when no bike is saved (finding #4)', () => {
+      mockSavedGear.savedBike = null;
+      Object.assign(mockDeviceConnection, { bikeConnected: false });
+
+      const { getByLabelText } = render(<TrainingDashboardScreen />);
+
+      expect(getByLabelText('Bike: Not set up')).toBeTruthy();
+    });
+
+    it('reads "Unavailable" when a bike is saved but not connected', () => {
+      mockSavedGear.savedBike = { id: 'bike-1', name: 'Zipro Rave', type: 'bike' };
+      Object.assign(mockDeviceConnection, { bikeConnected: false });
+
+      const { getByLabelText } = render(<TrainingDashboardScreen />);
+
+      expect(getByLabelText('Bike: Unavailable')).toBeTruthy();
+    });
+  });
+
   it('shows disconnected-bike recovery actions before a workout starts', () => {
     const { getByText } = render(<TrainingDashboardScreen />);
 
