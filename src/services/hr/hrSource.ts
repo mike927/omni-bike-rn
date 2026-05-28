@@ -19,6 +19,44 @@ export function resolveDefaultPrimary(available: HrSource[]): HrSource {
   return PRIORITY.find((s) => available.includes(s)) ?? 'bike';
 }
 
+/**
+ * Whether a persisted primary preference still points at a real candidate.
+ *
+ * Only `bluetooth` can become stale: forgetting the saved strap removes its
+ * backing device, so a leftover `bluetooth` primary must be ignored (finding #3).
+ * `watch` stays a candidate on its platform even when transiently unavailable
+ * (backgrounded), so an explicit watch choice is never discarded here; `bike`
+ * is always present.
+ */
+function isPrimaryStillValid(primary: HrSource, savedHrStrapName: string | null): boolean {
+  if (primary === 'bluetooth') return savedHrStrapName !== null;
+  return true;
+}
+
+export interface ResolveEffectivePrimaryInput extends HrSourceAvailabilityInput {
+  readonly primaryHrSource: HrSource | null;
+}
+
+/**
+ * The effective *primary* HR source for display and the Watch lifecycle: the
+ * user's explicit choice when it is still a valid candidate, otherwise the
+ * availability-ranked default (watch → bluetooth → bike). Always non-null.
+ *
+ * Distinct from {@link resolveEffectiveHrSource}, which additionally honors the
+ * per-session lock. Settings selection, the Home HR card, and `useWatchHr` use
+ * this so they agree with what the engine resolves.
+ */
+export function resolveEffectivePrimary({
+  primaryHrSource,
+  watchSupported,
+  savedHrStrapName,
+}: ResolveEffectivePrimaryInput): HrSource {
+  if (primaryHrSource !== null && isPrimaryStillValid(primaryHrSource, savedHrStrapName)) {
+    return primaryHrSource;
+  }
+  return resolveDefaultPrimary(availableHrSources({ watchSupported, savedHrStrapName }));
+}
+
 export interface ResolveEffectiveHrSourceInput extends HrSourceAvailabilityInput {
   readonly activeHrSource: HrSource | null;
   readonly primaryHrSource: HrSource | null;
@@ -29,6 +67,8 @@ export interface ResolveEffectiveHrSourceInput extends HrSourceAvailabilityInput
  * dashboard and the MetronomeEngine.
  *
  * Priority: session-locked source → user-configured primary → hardware default.
+ * A stale primary (e.g. `bluetooth` after the strap is forgotten) falls through
+ * to the default — see {@link resolveEffectivePrimary}.
  */
 export function resolveEffectiveHrSource({
   activeHrSource,
@@ -36,9 +76,7 @@ export function resolveEffectiveHrSource({
   watchSupported,
   savedHrStrapName,
 }: ResolveEffectiveHrSourceInput): HrSource {
-  return (
-    activeHrSource ?? primaryHrSource ?? resolveDefaultPrimary(availableHrSources({ watchSupported, savedHrStrapName }))
-  );
+  return activeHrSource ?? resolveEffectivePrimary({ primaryHrSource, watchSupported, savedHrStrapName });
 }
 
 // Sustained loss before "No signal". Set above the slowest source cadence (Apple

@@ -1,6 +1,7 @@
 import {
   availableHrSources,
   resolveDefaultPrimary,
+  resolveEffectivePrimary,
   resolveEffectiveHrSource,
   resolveHrReading,
   HR_NO_SIGNAL_TIMEOUT_MS,
@@ -32,6 +33,44 @@ describe('resolveDefaultPrimary', () => {
   });
 });
 
+describe('resolveEffectivePrimary', () => {
+  it('returns an explicit primary when it is still a valid candidate', () => {
+    expect(
+      resolveEffectivePrimary({ primaryHrSource: 'bluetooth', watchSupported: true, savedHrStrapName: 'Polar H10' }),
+    ).toBe('bluetooth');
+    expect(resolveEffectivePrimary({ primaryHrSource: 'bike', watchSupported: false, savedHrStrapName: null })).toBe(
+      'bike',
+    );
+  });
+
+  it('keeps an explicit watch primary through transient unavailability', () => {
+    // The Watch is iOS-only but always a candidate there; a momentary
+    // unavailable (backgrounded) must NOT discard an explicit watch choice.
+    expect(resolveEffectivePrimary({ primaryHrSource: 'watch', watchSupported: false, savedHrStrapName: null })).toBe(
+      'watch',
+    );
+  });
+
+  it('falls through to the default when a bluetooth primary has no saved strap', () => {
+    // Finding #3: forgetting the strap must not leave a stale bluetooth primary.
+    expect(
+      resolveEffectivePrimary({ primaryHrSource: 'bluetooth', watchSupported: true, savedHrStrapName: null }),
+    ).toBe('watch');
+    expect(
+      resolveEffectivePrimary({ primaryHrSource: 'bluetooth', watchSupported: false, savedHrStrapName: null }),
+    ).toBe('bike');
+  });
+
+  it('resolves the availability-ranked default when no primary is set', () => {
+    expect(
+      resolveEffectivePrimary({ primaryHrSource: null, watchSupported: true, savedHrStrapName: 'Polar H10' }),
+    ).toBe('watch');
+    expect(resolveEffectivePrimary({ primaryHrSource: null, watchSupported: false, savedHrStrapName: null })).toBe(
+      'bike',
+    );
+  });
+});
+
 describe('resolveEffectiveHrSource', () => {
   const base = { watchSupported: false, savedHrStrapName: null };
 
@@ -43,6 +82,19 @@ describe('resolveEffectiveHrSource', () => {
         primaryHrSource: 'watch',
       }),
     ).toBe('bluetooth');
+  });
+
+  it('ignores a stale bluetooth primary once the strap is forgotten', () => {
+    // Finding #3: no saved strap → bluetooth is no longer a candidate, so the
+    // engine must re-resolve to the default rather than keep selecting bluetooth.
+    expect(
+      resolveEffectiveHrSource({
+        watchSupported: true,
+        savedHrStrapName: null,
+        activeHrSource: null,
+        primaryHrSource: 'bluetooth',
+      }),
+    ).toBe('watch');
   });
 
   it('primaryHrSource is used when activeHrSource is null', () => {
