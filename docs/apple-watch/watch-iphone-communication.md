@@ -117,8 +117,14 @@ Payload: `{ hr, sentAtMs, activeKcal? }` (kcal omitted until HealthKit produces 
 `onWatchActiveKcal` → `updateAppleWatchActiveKcal`.
 
 > **Why three?** T5 is the only channel that keeps delivering while the watch screen is
-> **dimmed/backgrounded mid-ride** (the reason `HKLiveWorkoutBuilder` is used as the sample
+> **dimmed** (app still frontmost — the reason `HKLiveWorkoutBuilder` is used as the sample
 > pipe). T2 is the snappy foreground path. T4 is the always-on coalesced fallback.
+>
+> **Caveat — true background ≠ dimmed.** When the watch app is left for the watch face (true
+> background), HR *collection* is suspend-and-batched by watchOS, so even T5 goes sparse
+> (gaps of 30 s–5 min) and the phone shows "No signal". Reliable ~5 s HR needs the watch app
+> frontmost/Always-On. Feasibility, evidence, and ruled-out fixes:
+> [`background-hr-feasibility.md`](background-hr-feasibility.md).
 
 ```mermaid
 sequenceDiagram
