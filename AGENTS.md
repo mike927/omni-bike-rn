@@ -10,6 +10,14 @@ Indoor cycling companion app. React Native / Expo, TypeScript, Drizzle + expo-sq
 
 superpowers is the workflow core — don't invent parallel flows.
 
+## Skill management
+
+- External skills are declared in `skills-lock.json`.
+- Custom repo-owned skills live in `ai/skills/**`.
+- Agent discovery directories (`.agents/skills/**`, `.claude/skills/**`, `.codex/skills/**`, `.cursor/skills/**`, `.gemini/skills/**`, `.windsurf/skills/**`) are generated; don't edit or commit skill files there.
+- Run `npm run skills:install` after changing `skills-lock.json` or adding/removing a custom skill.
+- Editing an existing `ai/skills/**` file does not require reinstall; restart or reload the agent session if it does not pick up the change.
+
 ## Engineering principles
 
 - **Canonical over clever.** Implement the recommended, documented approach — no workarounds, monkey-patches, or one-off shims.

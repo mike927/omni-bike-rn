@@ -8,6 +8,7 @@
     "ios": "expo run:ios --device",
     "ios:sim": "expo run:ios",
     "apple-health:pull-logs": "node scripts/pull-apple-health-diagnostics.mjs",
+    "skills:install": "node scripts/install-skills.mjs",
     "db:generate": "drizzle-kit generate && prettier --single-quote --write drizzle/migrations.js",
     "db:check": "drizzle-kit check",
     "lint": "eslint . --max-warnings 0",
@@ -17,6 +18,7 @@
     "test:changed": "jest --changedSince=main",
     "ci:gate": "npm run lint && npm run typecheck && npm test -- --ci --runInBand",
     "build:smoke": "expo prebuild && expo export -p ios -p android",
+    "postinstall": "node scripts/postinstall.mjs",
     "prepare": "husky"
   },
   "lint-staged": {

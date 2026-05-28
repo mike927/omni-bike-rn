@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "refine-prompt": {
+      "source": "iliaal/ai-skills",
+      "sourceType": "github",
+      "skillPath": "skills/refine-prompt/SKILL.md",
+      "computedHash": "01d3c582fd5cb944fb9c3f22f5faba1d3950a8c57ffbe57ce580bd57d6d0384f"
+    }
+  }
+}
