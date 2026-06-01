@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { kcalPerSecond } from '../services/calories/keytel';
+import { advanceSession } from '../services/training/sessionAccumulator';
 import {
   TrainingPhase,
   VALID_TRANSITIONS,
@@ -18,17 +18,6 @@ const INITIAL_METRICS: MetricSnapshot = {
   resistance: null,
   distance: null,
 };
-
-/** Joules-to-kcal conversion factor (1 kcal ≈ 4 186 J). */
-const JOULES_PER_KCAL = 4186;
-
-/**
- * Gross mechanical efficiency of human cycling.
- * The body converts roughly 20–25 % of metabolic energy into pedal power;
- * the rest is dissipated as heat. 0.25 is the standard value used by most
- * cycling computers (Garmin, Wahoo, Zwift).
- */
-const GROSS_MECHANICAL_EFFICIENCY = 0.25;
 
 export interface TrainingSessionStore {
   // ── State ──────────────────────────────────────────────
@@ -134,128 +123,7 @@ export const useTrainingSessionStore = create<TrainingSessionStore>((set, get) =
 
   // ── Tick (called by MetronomeEngine every 1 s) ─────────
   tick: (input) => {
-    const { metrics, bikeTotalEnergyKcal, watchActiveKcal, hasLiveExternalHr, keytelInputs } = input;
-    const {
-      phase,
-      elapsedSeconds,
-      totalDistance,
-      totalCalories,
-      initialDistance,
-      bikeCaloriesOffset,
-      lastBikeTotalEnergyKcal,
-      lastBikeDistance,
-      watchCaloriesOffset,
-      lastWatchActiveKcal,
-      lastCalorieSourceMode,
-    } = get();
-    if (phase !== TrainingPhase.Active) return;
-
-    // Distance logic: Prefer raw hardware output over derived speed integration
-    let newTotalDistance = totalDistance;
-    let newInitialDistance = initialDistance;
-    let nextLastBikeDistance = lastBikeDistance;
-
-    if (metrics.distance === null) {
-      // Fallback: Distance delta (speed is km/h → m/s = speed / 3.6 for 1s)
-      const distanceDelta = (metrics.speed / 3.6) * 1;
-      newTotalDistance += distanceDelta;
-    } else {
-      // Distance Rebase Logic: Detect if the bike counter reset (e.g. power cycle)
-      // or if this is the first data point for the session.
-      const shouldRebaseDistance =
-        initialDistance === null || (lastBikeDistance !== null && metrics.distance < lastBikeDistance);
-
-      if (shouldRebaseDistance) {
-        // Capture a new baseline. We subtract the current totalDistance from the hardware
-        // reading so that the calculated totalDistance remains monotonic and continuous.
-        newInitialDistance = metrics.distance - totalDistance;
-      }
-
-      newTotalDistance = metrics.distance - (newInitialDistance ?? metrics.distance);
-      nextLastBikeDistance = metrics.distance;
-    }
-
-    let nextTotalCalories = totalCalories;
-    let nextBikeCaloriesOffset = bikeCaloriesOffset;
-    let nextLastBikeTotalEnergyKcal: number | null = null;
-    let nextWatchCaloriesOffset = watchCaloriesOffset;
-    let nextLastWatchActiveKcal: number | null = null;
-    let nextCalorieSourceMode: CalorieSourceMode = 'none';
-
-    // Priority: Watch-computed active kcal > Keytel HR-based personalized
-    // formula > app-power formula > bike-reported energy > none. Watch must
-    // win even when `hasLiveExternalHr` is true, because the Watch typically
-    // provides HR as well. Keytel slots in between Watch and the generic power
-    // formula on the no-Watch + external-HR path; it requires sex / DOB /
-    // weight (passed in `keytelInputs`) and a live HR value, otherwise the
-    // chain falls through transparently to the power-based formula.
-    if (watchActiveKcal !== null) {
-      // Rebase on first watch tick, on any source switch into 'watch', and on
-      // a cumulative drop (Watch HK session was restarted mid-ride). The offset
-      // maps the Watch's session-scoped total onto the displayed totalCalories
-      // so transitions stay monotonic.
-      const shouldRebaseWatchCalories =
-        watchCaloriesOffset === null ||
-        lastCalorieSourceMode !== 'watch' ||
-        (lastWatchActiveKcal !== null && watchActiveKcal < lastWatchActiveKcal);
-
-      if (shouldRebaseWatchCalories) {
-        nextWatchCaloriesOffset = totalCalories - watchActiveKcal;
-      }
-
-      nextTotalCalories = watchActiveKcal + (nextWatchCaloriesOffset ?? 0);
-      nextLastWatchActiveKcal = watchActiveKcal;
-      nextBikeCaloriesOffset = null;
-      nextCalorieSourceMode = 'watch';
-    } else if (hasLiveExternalHr && keytelInputs !== null && metrics.heartRate !== null && metrics.heartRate > 0) {
-      const calorieDelta = kcalPerSecond({
-        sex: keytelInputs.sex,
-        ageYears: keytelInputs.ageYears,
-        weightKg: keytelInputs.weightKg,
-        heartRateBpm: metrics.heartRate,
-      });
-      nextTotalCalories = totalCalories + calorieDelta;
-      nextBikeCaloriesOffset = null;
-      nextWatchCaloriesOffset = null;
-      nextCalorieSourceMode = 'keytel';
-    } else if (hasLiveExternalHr) {
-      // Metabolic calorie delta: mechanical work adjusted for gross efficiency
-      const calorieDelta = metrics.power / JOULES_PER_KCAL / GROSS_MECHANICAL_EFFICIENCY;
-      nextTotalCalories = totalCalories + calorieDelta;
-      nextBikeCaloriesOffset = null;
-      nextWatchCaloriesOffset = null;
-      nextCalorieSourceMode = 'app';
-    } else if (bikeTotalEnergyKcal === null) {
-      nextBikeCaloriesOffset = null;
-      nextWatchCaloriesOffset = null;
-    } else {
-      const shouldRebaseBikeCalories =
-        bikeCaloriesOffset === null ||
-        lastCalorieSourceMode !== 'bike' ||
-        (lastBikeTotalEnergyKcal !== null && bikeTotalEnergyKcal < lastBikeTotalEnergyKcal);
-
-      if (shouldRebaseBikeCalories) {
-        nextBikeCaloriesOffset = totalCalories - bikeTotalEnergyKcal;
-      }
-
-      nextTotalCalories = bikeTotalEnergyKcal + (nextBikeCaloriesOffset ?? 0);
-      nextLastBikeTotalEnergyKcal = bikeTotalEnergyKcal;
-      nextWatchCaloriesOffset = null;
-      nextCalorieSourceMode = 'bike';
-    }
-
-    set({
-      elapsedSeconds: elapsedSeconds + 1,
-      totalDistance: newTotalDistance,
-      initialDistance: newInitialDistance,
-      totalCalories: nextTotalCalories,
-      bikeCaloriesOffset: nextBikeCaloriesOffset,
-      lastBikeTotalEnergyKcal: nextLastBikeTotalEnergyKcal,
-      lastBikeDistance: nextLastBikeDistance,
-      watchCaloriesOffset: nextWatchCaloriesOffset,
-      lastWatchActiveKcal: nextLastWatchActiveKcal,
-      lastCalorieSourceMode: nextCalorieSourceMode,
-      currentMetrics: metrics,
-    });
+    if (get().phase !== TrainingPhase.Active) return;
+    set(advanceSession(get(), input));
   },
 }));
