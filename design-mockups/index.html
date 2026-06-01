@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Omni Bike — Home Screen Theme Proposals</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0e1116;
+    color: #e8edf4;
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    padding: 40px 32px 24px;
+    border-bottom: 1px solid #232a35;
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(14,17,22,0.92);
+    backdrop-filter: blur(12px);
+  }
+  h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: -0.02em; font-weight: 800; }
+  .sub { margin: 0; color: #97a3b4; font-size: 14px; line-height: 1.5; max-width: 760px; }
+  .controls { margin-top: 18px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .controls button {
+    font: inherit; font-size: 13px; font-weight: 600;
+    color: #cdd6e2; background: #1a2029; border: 1px solid #2b333f;
+    padding: 7px 13px; border-radius: 999px; cursor: pointer; transition: .15s;
+  }
+  .controls button:hover { background: #232c38; color: #fff; }
+  .controls button[aria-pressed="true"] { background: #2e3dff; border-color: #2e3dff; color: #fff; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(430px, 1fr));
+    gap: 28px;
+    padding: 28px 32px 80px;
+  }
+  .card { display: flex; flex-direction: column; align-items: center; }
+  .frameWrap {
+    width: 100%;
+    border-radius: 22px;
+    overflow: hidden;
+    background: #000;
+    border: 1px solid #232a35;
+    box-shadow: 0 18px 50px -20px rgba(0,0,0,0.8);
+    position: relative;
+  }
+  /* 390x844 scaled into the column; iframe rendered at true size then transform-scaled */
+  .stage { width: 100%; aspect-ratio: 390 / 844; position: relative; overflow: hidden; }
+  iframe {
+    width: 390px; height: 844px; border: 0;
+    position: absolute; top: 0; left: 0;
+    transform-origin: top left;
+  }
+  .meta { width: 100%; margin-top: 14px; display: flex; align-items: baseline; gap: 10px; }
+  .num {
+    font-variant-numeric: tabular-nums; font-weight: 800; font-size: 13px;
+    color: #2e3dff; background: #161d28; border: 1px solid #232a35;
+    border-radius: 8px; padding: 3px 8px;
+  }
+  .name { font-weight: 700; font-size: 16px; letter-spacing: -0.01em; }
+  .tag { font-size: 12px; color: #8b97a8; margin-left: auto; text-transform: uppercase; letter-spacing: 0.08em; }
+  .tag.dark::before { content: "● "; color: #6b7686; }
+  .tag.light::before { content: "○ "; color: #c9d3e0; }
+  .open { font-size: 12px; color: #97a3b4; text-decoration: none; margin-left: 4px; }
+  .open:hover { color: #fff; }
+  .blurb { width: 100%; margin-top: 6px; font-size: 12.5px; line-height: 1.5; color: #8b97a8; }
+  footer { padding: 0 32px 60px; color: #6b7686; font-size: 12px; }
+  @media (max-width: 520px) { .grid { grid-template-columns: 1fr; padding: 20px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Omni Bike — Home Screen Theme Proposals</h1>
+  <p class="sub">Refined set built from your two favorites — <strong>Aurora Glass</strong> (dark glass) and <strong>Calm Fitness</strong> (light, restrained) — plus three variations that explore the space between them. Identical content across all five so you compare design systems fairly. Click a title to open it full-size.</p>
+  <div class="controls" id="filters">
+    <button data-filter="all" aria-pressed="true">All 5</button>
+    <button data-filter="light" aria-pressed="false">Light</button>
+    <button data-filter="dark" aria-pressed="false">Dark</button>
+  </div>
+</header>
+
+<main class="grid" id="grid"></main>
+
+<footer>Generated as design exploration · all mockups are static HTML/CSS · sample data is illustrative.</footer>
+
+<script>
+const THEMES = [
+  { n:"01", file:"theme-01-aurora-glass.html",  name:"Aurora Glass",  mode:"dark",  blurb:"★ Your pick. Frosted glass cards floating over a drifting indigo→violet→teal aurora. Vibrant, premium, futuristic." },
+  { n:"02", file:"theme-02-calm-fitness.html",  name:"Calm Fitness",  mode:"light", blurb:"★ Your pick. Apple-Fitness restraint: airy off-white, soft white cards, one indigo accent, an activity ring. Quiet & premium." },
+  { n:"03", file:"theme-03-aurora-light.html",  name:"Aurora Light",  mode:"light", blurb:"Light cousin of Aurora Glass — frosted white glass over soft pastel aurora blooms. The glass depth of 01 with the brightness of 02." },
+  { n:"04", file:"theme-04-calm-noir.html",     name:"Calm Noir",     mode:"dark",  blurb:"Dark cousin of Calm Fitness — same restraint, spacing and activity ring, rendered as an elegant premium dark mode." },
+  { n:"05", file:"theme-05-aurora-calm.html",   name:"Aurora Calm",   mode:"light", blurb:"The blend: one bold aurora-gradient hero (from 01) sitting atop calm restrained white cards (from 02). Drama up top, clarity below." },
+];
+
+const grid = document.getElementById("grid");
+THEMES.forEach(t => {
+  const card = document.createElement("section");
+  card.className = "card";
+  card.dataset.mode = t.mode;
+  card.innerHTML = `
+    <div class="frameWrap">
+      <div class="stage"><iframe loading="lazy" src="${t.file}" title="${t.name}"></iframe></div>
+    </div>
+    <div class="meta">
+      <span class="num">${t.n}</span>
+      <a class="name" href="${t.file}" target="_blank" rel="noopener">${t.name}</a>
+      <a class="open" href="${t.file}" target="_blank" rel="noopener">open ↗</a>
+      <span class="tag ${t.mode}">${t.mode}</span>
+    </div>
+    <p class="blurb">${t.blurb}</p>`;
+  grid.appendChild(card);
+});
+
+// Scale each 390px iframe to fit its column width responsively.
+function rescale() {
+  document.querySelectorAll(".stage").forEach(stage => {
+    const w = stage.clientWidth;
+    const scale = w / 390;
+    const iframe = stage.querySelector("iframe");
+    iframe.style.transform = `scale(${scale})`;
+  });
+}
+window.addEventListener("resize", rescale);
+window.addEventListener("load", rescale);
+// rescale again after iframes/layout settle
+setTimeout(rescale, 300);
+setTimeout(rescale, 1200);
+
+// Filters
+document.getElementById("filters").addEventListener("click", e => {
+  const btn = e.target.closest("button"); if (!btn) return;
+  const f = btn.dataset.filter;
+  document.querySelectorAll("#filters button").forEach(b => b.setAttribute("aria-pressed", b === btn));
+  document.querySelectorAll(".card").forEach(c => {
+    c.style.display = (f === "all" || c.dataset.mode === f) ? "" : "none";
+  });
+  rescale();
+});
+</script>
+</body>
+</html>
