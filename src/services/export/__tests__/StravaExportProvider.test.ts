@@ -30,6 +30,7 @@ jest.mock('../../strava/stravaGearService', () => ({
 
 jest.mock('../../strava/stravaConstants', () => ({
   STRAVA_CLIENT_ID: 'test-client-id',
+  STRAVA_RECONNECT_ERROR_MARKER: 'Reconnect Strava',
 }));
 
 jest.mock('../../../store/stravaConnectionStore', () => ({
@@ -172,5 +173,57 @@ describe('gear operations', () => {
     await provider.clearGearFromActivity?.('12345');
 
     expect(mockClearStravaGearFromActivity).toHaveBeenCalledWith('12345');
+  });
+});
+
+describe('reconcileGear', () => {
+  it('calls attachStravaGearToActivity and returns ok on success', async () => {
+    mockAttachStravaGearToActivity.mockResolvedValue(undefined);
+
+    const r = await provider.reconcileGear('act-1', 'gear-1');
+
+    expect(mockAttachStravaGearToActivity).toHaveBeenCalledWith('act-1', 'gear-1');
+    expect(mockClearStravaGearFromActivity).not.toHaveBeenCalled();
+    expect(r).toEqual({ status: 'ok' });
+  });
+
+  it('calls clearStravaGearFromActivity and returns ok when id is null', async () => {
+    mockClearStravaGearFromActivity.mockResolvedValue(undefined);
+
+    const r = await provider.reconcileGear('act-1', null);
+
+    expect(mockClearStravaGearFromActivity).toHaveBeenCalledWith('act-1');
+    expect(mockAttachStravaGearToActivity).not.toHaveBeenCalled();
+    expect(r).toEqual({ status: 'ok' });
+  });
+
+  it('returns warning with linkInvalid=true when attach throws a gear-not-found error', async () => {
+    mockAttachStravaGearToActivity.mockRejectedValue(new Error('Gear not found (404)'));
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    const r = await provider.reconcileGear('act-1', 'gear-1');
+
+    consoleSpy.mockRestore();
+    expect(r).toEqual({
+      status: 'warning',
+      linkInvalid: true,
+      message: 'Workout uploaded, but the linked bike could not be attached. Relink it in Settings.',
+    });
+  });
+
+  it('returns warning with linkInvalid=false when attach throws a reconnect-needed error', async () => {
+    mockAttachStravaGearToActivity.mockRejectedValue(
+      new Error('Reconnect Strava to grant private activity edit access.'),
+    );
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    const r = await provider.reconcileGear('act-1', 'gear-1');
+
+    consoleSpy.mockRestore();
+    expect(r).toEqual({
+      status: 'warning',
+      linkInvalid: false,
+      message: 'Workout uploaded, but Strava could not attach the linked bike. Reconnect Strava once, then try again.',
+    });
   });
 });
