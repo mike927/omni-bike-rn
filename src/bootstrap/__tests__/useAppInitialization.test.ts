@@ -92,7 +92,7 @@ describe('useAppInitialization', () => {
     await waitFor(() => expect(result.current.phase).toBe('error'));
     const errorState = result.current;
     if (errorState.phase !== 'error') throw new Error('expected error phase');
-    void act(() => errorState.retry());
+    await act(() => errorState.retry());
     await waitFor(() => expect(result.current.phase).toBe('ready'));
     expect(mockInit).toHaveBeenCalledTimes(2);
   });
