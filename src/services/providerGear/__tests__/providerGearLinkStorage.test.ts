@@ -1,7 +1,6 @@
 import Storage from 'expo-sqlite/kv-store';
 
 import {
-  clearProviderGearLinks,
   getProviderGearLink,
   loadProviderGearLinks,
   markProviderGearLinkStale,
@@ -19,7 +18,6 @@ jest.mock('expo-sqlite/kv-store', () => ({
 
 const mockGetItem = Storage.getItem as jest.Mock;
 const mockSetItem = Storage.setItem as jest.Mock;
-const mockRemoveItem = Storage.removeItem as jest.Mock;
 
 const BASE_LINK: LinkedProviderGear = {
   providerId: 'strava',
@@ -35,7 +33,6 @@ const BASE_LINK: LinkedProviderGear = {
 beforeEach(() => {
   jest.clearAllMocks();
   mockSetItem.mockResolvedValue(undefined);
-  mockRemoveItem.mockResolvedValue(undefined);
 });
 
 describe('providerGearLinkStorage', () => {
@@ -104,12 +101,6 @@ describe('providerGearLinkStorage', () => {
     await removeProviderGearLink('strava', 'bike-1', 'bike');
 
     expect(mockSetItem).toHaveBeenCalledWith('omni:providerGearLinks', JSON.stringify([]));
-  });
-
-  it('clears all provider gear links', async () => {
-    await clearProviderGearLinks();
-
-    expect(mockRemoveItem).toHaveBeenCalledWith('omni:providerGearLinks');
   });
 
   it("removes only the given provider's links, persisting the rest", async () => {

@@ -81,7 +81,3 @@ export async function getProviderGearLink(
   // rather than retrying an invalid providerGearId on every future upload.
   return link && !link.stale ? link : null;
 }
-
-export async function clearProviderGearLinks(): Promise<void> {
-  await Storage.removeItem(STORAGE_KEY);
-}
