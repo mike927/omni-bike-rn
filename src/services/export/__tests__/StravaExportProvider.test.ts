@@ -210,4 +210,21 @@ describe('reconcileGear', () => {
       message: 'Workout uploaded, but Strava could not attach the linked bike. Reconnect Strava once, then try again.',
     });
   });
+
+  it('returns warning (never linkInvalid) when clearing gear throws', async () => {
+    mockClearStravaGearFromActivity.mockRejectedValue(
+      new Error('Reconnect Strava to grant private activity edit access.'),
+    );
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    const r = await provider.reconcileGear('act-1', null);
+
+    consoleSpy.mockRestore();
+    expect(mockClearStravaGearFromActivity).toHaveBeenCalledWith('act-1');
+    expect(r).toEqual({
+      status: 'warning',
+      linkInvalid: false,
+      message: 'Workout uploaded, but Strava could not clear its default bike. Reconnect Strava once, then try again.',
+    });
+  });
 });
