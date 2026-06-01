@@ -1,10 +1,9 @@
 import { useDeviceConnectionStore } from '../../store/deviceConnectionStore';
-import { useHrSourceStore } from '../../store/hrSourceStore';
-import { useSavedGearStore } from '../../store/savedGearStore';
 import { useTrainingSessionStore } from '../../store/trainingSessionStore';
 import { useUserProfileStore } from '../../store/userProfileStore';
 import type { BikeMetrics } from '../ble/BikeAdapter';
-import { resolveEffectiveHrSource, resolveHrReading, type HrReading } from '../hr/hrSource';
+import { resolveHrReading, type HrReading } from '../hr/hrSource';
+import { getEffectiveHrSource } from '../hr/useEffectiveHrSource';
 import type { MetricSnapshot, TrainingTickInput } from '../../types/training';
 import { toKeytelInputs } from '../../types/userProfile';
 
@@ -57,23 +56,9 @@ export class MetronomeEngine {
       latestAppleWatchHr,
       latestAppleWatchActiveKcal,
       lastAppleWatchSampleAtMs,
-      activeHrSource,
-      watchAvailability,
     } = useDeviceConnectionStore.getState();
 
-    const { savedHrSource } = useSavedGearStore.getState();
-    const { primary: primaryHrSource } = useHrSourceStore.getState();
-
-    // Resolve the effective HR source for this tick using the shared resolver.
-    // Priority: session-locked source → user-configured primary → hardware default.
-    const watchSupported = watchAvailability !== 'unavailable';
-    const savedHrStrapName = savedHrSource?.name ?? null;
-    const effectiveSource = resolveEffectiveHrSource({
-      activeHrSource,
-      primaryHrSource,
-      watchSupported,
-      savedHrStrapName,
-    });
+    const effectiveSource = getEffectiveHrSource();
 
     const nowMs = Date.now();
     const reading = resolveHrReading({
