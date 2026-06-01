@@ -14,7 +14,7 @@ import {
   deviceStatusTone,
   type DeviceStatus,
   type DeviceStatusTone,
-} from '../../services/status/deviceStatus';
+} from '../../types/deviceStatus';
 import { palette } from '../theme';
 
 interface ToneColors {

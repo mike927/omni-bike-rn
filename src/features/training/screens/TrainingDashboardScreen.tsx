@@ -5,7 +5,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useDeviceConnection } from '../hooks/useDeviceConnection';
 import { useTrainingSession } from '../hooks/useTrainingSession';
 import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
-import { bleDeviceStatus, deviceStatusLabel } from '../../../services/status/deviceStatus';
+import { bleDeviceStatus, deviceStatusLabel } from '../../../types/deviceStatus';
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { buildTrainingSummaryRoute, POST_FINISH_TRAINING_SUMMARY_SOURCE } from '../navigation/trainingSummaryRoute';
 import { resolveHrSourceSummary } from '../../../services/hr/hrStatus';

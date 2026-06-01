@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import type { DeviceStatus } from '../../../services/status/deviceStatus';
+import type { DeviceStatus } from '../../../types/deviceStatus';
 import { StatusPill } from '../../../ui/components/StatusPill';
 import { palette } from '../../../ui/theme';
 

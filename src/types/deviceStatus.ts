@@ -1,4 +1,4 @@
-import type { ReconnectState } from '../../types/gear';
+import type { ReconnectState } from './gear';
 
 /**
  * The single, app-wide vocabulary for how a device or HR source reports its

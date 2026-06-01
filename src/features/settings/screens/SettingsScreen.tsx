@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
-import { bleDeviceStatus, deviceStatusLabel, type DeviceStatus } from '../../../services/status/deviceStatus';
+import { bleDeviceStatus, deviceStatusLabel, type DeviceStatus } from '../../../types/deviceStatus';
 import { useProviderBikeLinking } from '../../integrations/hooks/useProviderBikeLinking';
 import { useDeviceConnection } from '../../training/hooks/useDeviceConnection';
 import { useAppleHealthConnection } from '../../integrations/hooks/useAppleHealthConnection';
