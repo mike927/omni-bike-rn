@@ -42,6 +42,7 @@ const mockDeviceConnection = {
 const mockDeviceConnectionStoreState = {
   activeHrSource: null as string | null,
   lastBluetoothHrSampleAtMs: null as number | null,
+  watchAvailability: 'unavailable' as string,
 };
 
 const mockHrSourceStoreState = {
@@ -136,6 +137,7 @@ describe('TrainingDashboardScreen', () => {
     Object.assign(mockDeviceConnectionStoreState, {
       activeHrSource: null,
       lastBluetoothHrSampleAtMs: null,
+      watchAvailability: 'unavailable',
     });
     Object.assign(mockHrSourceStoreState, {
       primary: null,

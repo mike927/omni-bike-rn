@@ -2,10 +2,10 @@ import { useCallback } from 'react';
 import { Platform } from 'react-native';
 
 import { isAppleWatchAvailable } from '../../../services/watch/isAppleWatchAvailable';
-import { availableHrSources, resolveEffectivePrimary, type HrSource } from '../../../services/hr/hrSource';
+import { availableHrSources, type HrSource } from '../../../services/hr/hrSource';
+import { useEffectivePrimary } from '../../../services/hr/useEffectiveHrSource';
 import { useHrSourceStore } from '../../../store/hrSourceStore';
 import { useSavedGearStore } from '../../../store/savedGearStore';
-import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
 
 interface WatchHrControls {
   readonly watchAvailable: boolean;
@@ -38,7 +38,6 @@ export function useWatchHrControls(): WatchHrControls {
   const hrSourceSetPrimary = useHrSourceStore((s) => s.setPrimary);
 
   const savedHrSource = useSavedGearStore((s) => s.savedHrSource);
-  const watchAvailability = useDeviceConnectionStore((s) => s.watchAvailability);
 
   const savedHrStrapName = savedHrSource?.name ?? null;
 
@@ -51,11 +50,7 @@ export function useWatchHrControls(): WatchHrControls {
     savedHrStrapName,
   });
 
-  const effectivePrimary = resolveEffectivePrimary({
-    primaryHrSource: primary,
-    watchSupported: watchAvailability !== 'unavailable',
-    savedHrStrapName,
-  });
+  const effectivePrimary = useEffectivePrimary();
 
   const setPrimary = useCallback(
     async (source: HrSource) => {
