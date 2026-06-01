@@ -28,6 +28,4 @@ export interface ExportProvider {
    * Owns provider-specific failure classification; the caller stays provider-agnostic.
    */
   reconcileGear?: (activityId: string, desiredProviderGearId: string | null) => Promise<GearReconcileOutcome>;
-  attachGearToActivity?: (activityId: string, providerGearId: string) => Promise<void>;
-  clearGearFromActivity?: (activityId: string) => Promise<void>;
 }

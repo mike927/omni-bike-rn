@@ -76,14 +76,6 @@ export class StravaExportProvider implements ExportProvider {
     return listStravaGear(gearType);
   }
 
-  async attachGearToActivity(activityId: string, providerGearId: string): Promise<void> {
-    await attachStravaGearToActivity(activityId, providerGearId);
-  }
-
-  async clearGearFromActivity(activityId: string): Promise<void> {
-    await clearStravaGearFromActivity(activityId);
-  }
-
   async reconcileGear(activityId: string, desiredProviderGearId: string | null): Promise<GearReconcileOutcome> {
     const isClear = desiredProviderGearId === null;
 

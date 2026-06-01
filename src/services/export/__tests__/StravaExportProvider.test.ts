@@ -158,22 +158,6 @@ describe('gear operations', () => {
       { providerId: 'strava', gearType: 'bike', id: 'gear-1', name: 'Rave', isPrimary: true },
     ]);
   });
-
-  it('attaches gear via the Strava gear service', async () => {
-    mockAttachStravaGearToActivity.mockResolvedValue(undefined);
-
-    await provider.attachGearToActivity('12345', 'gear-1');
-
-    expect(mockAttachStravaGearToActivity).toHaveBeenCalledWith('12345', 'gear-1');
-  });
-
-  it('clears gear via the Strava gear service', async () => {
-    mockClearStravaGearFromActivity.mockResolvedValue(undefined);
-
-    await provider.clearGearFromActivity?.('12345');
-
-    expect(mockClearStravaGearFromActivity).toHaveBeenCalledWith('12345');
-  });
 });
 
 describe('reconcileGear', () => {
