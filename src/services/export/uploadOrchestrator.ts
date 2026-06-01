@@ -7,6 +7,7 @@ import {
   updateProviderUploadState,
 } from '../db/providerUploadRepository';
 import { getProviderGearLink, markProviderGearLinkStale } from '../providerGear/providerGearLinkStorage';
+import type { GearReconcileOutcome } from './ExportProvider';
 
 export interface UploadSessionResult {
   providerId: string;
@@ -21,10 +22,7 @@ async function applyGearReconciliation(
   providerId: string,
   activityId: string,
   bikeId: string,
-  reconcileGear: (
-    activityId: string,
-    gearId: string | null,
-  ) => Promise<{ status: string; linkInvalid?: boolean; message?: string }>,
+  reconcileGear: (activityId: string, gearId: string | null) => Promise<GearReconcileOutcome>,
 ): Promise<string | undefined> {
   const linkedGear = await getProviderGearLink(providerId, bikeId, 'bike');
   const outcome = await reconcileGear(activityId, linkedGear?.providerGearId ?? null);
@@ -113,6 +111,8 @@ export async function uploadSessionToProvider(sessionId: string, providerId: str
         providerId,
         uploadState: 'uploaded',
         externalId: result.externalId ?? null,
+        // Gear-reconciliation warnings are surfaced once via the return value but not stored
+        // permanently, so the upload record stays clean and doesn't block future retries.
         errorMessage: null,
       });
       return { providerId, success: true, externalId: result.externalId, warningMessage };
