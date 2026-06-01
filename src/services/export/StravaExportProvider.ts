@@ -1,7 +1,8 @@
-import type { ExportProvider, ExportResult } from './ExportProvider';
+import type { ExportProvider, ExportResult, GearReconcileOutcome } from './ExportProvider';
 import { serializeSessionToTcx } from './formats/tcxSerializer';
 import { getValidAccessToken } from '../strava/stravaAuthService';
 import { attachStravaGearToActivity, clearStravaGearFromActivity, listStravaGear } from '../strava/stravaGearService';
+import { classifyStravaGearFailure } from '../strava/stravaGearReconcile';
 import { uploadActivity, waitForProcessing } from '../strava/stravaApiClient';
 import { STRAVA_CLIENT_ID } from '../strava/stravaConstants';
 import { useStravaConnectionStore } from '../../store/stravaConnectionStore';
@@ -81,5 +82,29 @@ export class StravaExportProvider implements ExportProvider {
 
   async clearGearFromActivity(activityId: string): Promise<void> {
     await clearStravaGearFromActivity(activityId);
+  }
+
+  async reconcileGear(activityId: string, desiredProviderGearId: string | null): Promise<GearReconcileOutcome> {
+    const isClear = desiredProviderGearId === null;
+
+    try {
+      if (isClear) {
+        await clearStravaGearFromActivity(activityId);
+      } else {
+        await attachStravaGearToActivity(activityId, desiredProviderGearId);
+      }
+      return { status: 'ok' };
+    } catch (error: unknown) {
+      const rawMessage =
+        error instanceof Error
+          ? error.message
+          : isClear
+            ? 'Failed to clear provider gear.'
+            : 'Failed to attach provider gear.';
+      console.error(`[StravaExportProvider] Gear reconciliation failed for activity "${activityId}":`, error);
+
+      const { linkInvalid, message } = classifyStravaGearFailure({ isClear, rawMessage });
+      return { status: 'warning', linkInvalid, message };
+    }
   }
 }
