@@ -65,6 +65,11 @@ export async function markProviderGearLinkStale(
   await persistProviderGearLinks(next);
 }
 
+export async function removeProviderGearLinksForProvider(providerId: string): Promise<void> {
+  const current = await loadProviderGearLinks();
+  await persistProviderGearLinks(current.filter((item) => item.providerId !== providerId));
+}
+
 export async function getProviderGearLink(
   providerId: string,
   localGearId: string,

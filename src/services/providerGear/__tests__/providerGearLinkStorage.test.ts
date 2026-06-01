@@ -6,6 +6,7 @@ import {
   loadProviderGearLinks,
   markProviderGearLinkStale,
   removeProviderGearLink,
+  removeProviderGearLinksForProvider,
   saveProviderGearLink,
 } from '../providerGearLinkStorage';
 import type { LinkedProviderGear } from '../../../types/providerGear';
@@ -109,5 +110,18 @@ describe('providerGearLinkStorage', () => {
     await clearProviderGearLinks();
 
     expect(mockRemoveItem).toHaveBeenCalledWith('omni:providerGearLinks');
+  });
+
+  it("removes only the given provider's links, persisting the rest", async () => {
+    mockGetItem.mockResolvedValue(
+      JSON.stringify([BASE_LINK, { ...BASE_LINK, providerId: 'garmin', providerGearId: 'g-2' }]),
+    );
+
+    await removeProviderGearLinksForProvider('strava');
+
+    expect(mockSetItem).toHaveBeenCalledWith(
+      'omni:providerGearLinks',
+      JSON.stringify([{ ...BASE_LINK, providerId: 'garmin', providerGearId: 'g-2' }]),
+    );
   });
 });
