@@ -62,6 +62,26 @@ export interface TrainingTickInput {
 
 export type CalorieSourceMode = 'keytel' | 'app' | 'bike' | 'watch' | 'none';
 
+/**
+ * The running-total state the MetronomeEngine advances once per active second.
+ * This is the subset of the training session store that the pure
+ * `advanceSession` reducer reads and returns; the store holds it plus `phase`
+ * and the action methods.
+ */
+export interface SessionAccumulator {
+  elapsedSeconds: number;
+  totalDistance: number; // meters
+  totalCalories: number; // kcal
+  currentMetrics: MetricSnapshot;
+  initialDistance: number | null;
+  bikeCaloriesOffset: number | null;
+  lastBikeTotalEnergyKcal: number | null;
+  lastBikeDistance: number | null;
+  watchCaloriesOffset: number | null;
+  lastWatchActiveKcal: number | null;
+  lastCalorieSourceMode: CalorieSourceMode;
+}
+
 /** Allowed transitions for the training state machine. */
 export const VALID_TRANSITIONS: Readonly<Record<TrainingPhase, readonly TrainingPhase[]>> = {
   [TrainingPhase.Idle]: [TrainingPhase.Active],
