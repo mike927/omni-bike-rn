@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 
 import {
-  clearProviderGearLinks,
   loadProviderGearLinks,
   markProviderGearLinkStale,
   removeProviderGearLink,
+  removeProviderGearLinksForProvider,
   saveProviderGearLink,
 } from '../services/providerGear/providerGearLinkStorage';
 import type { GearType } from '../types/gear';
@@ -21,62 +21,35 @@ export interface ProviderGearLinkStore {
   clearLinksForProvider: (providerId: string) => Promise<void>;
 }
 
-function isSameLink(
-  item: LinkedProviderGear,
-  providerId: string,
-  localGearId: string,
-  localGearType: GearType,
-): boolean {
-  return item.providerId === providerId && item.localGearId === localGearId && item.localGearType === localGearType;
-}
-
-function updateLinks(links: LinkedProviderGear[], nextLink: LinkedProviderGear): LinkedProviderGear[] {
-  return [
-    ...links.filter(
-      (item) =>
-        !(
-          item.providerId === nextLink.providerId &&
-          item.localGearId === nextLink.localGearId &&
-          item.localGearType === nextLink.localGearType
-        ),
-    ),
-    nextLink,
-  ];
-}
-
+// Storage owns all list + identity logic. This store is a thin reactive cache:
+// every mutation delegates to storage, then re-derives `links` from disk so the
+// in-memory copy can never diverge from the source of truth.
 export const useProviderGearLinkStore = create<ProviderGearLinkStore>((set, get) => ({
   links: [],
   hydrated: false,
 
   hydrate: async () => {
     if (get().hydrated) return;
-    const links = await loadProviderGearLinks();
-    set({ links, hydrated: true });
+    set({ links: await loadProviderGearLinks(), hydrated: true });
   },
 
   upsertLink: async (link) => {
     await saveProviderGearLink(link);
-    set((state) => ({ links: updateLinks(state.links, link) }));
+    set({ links: await loadProviderGearLinks() });
   },
 
   removeLink: async (providerId, localGearId, localGearType) => {
     await removeProviderGearLink(providerId, localGearId, localGearType);
-    set((state) => ({
-      links: state.links.filter((item) => !isSameLink(item, providerId, localGearId, localGearType)),
-    }));
+    set({ links: await loadProviderGearLinks() });
   },
 
   markLinkStale: async (providerId, localGearId, localGearType) => {
     await markProviderGearLinkStale(providerId, localGearId, localGearType);
-    set((state) => ({
-      links: state.links.map((item) =>
-        isSameLink(item, providerId, localGearId, localGearType) ? { ...item, stale: true } : item,
-      ),
-    }));
+    set({ links: await loadProviderGearLinks() });
   },
 
   clearLinksForProvider: async (providerId) => {
-    await clearProviderGearLinks();
-    set((state) => ({ links: state.links.filter((item) => item.providerId !== providerId) }));
+    await removeProviderGearLinksForProvider(providerId);
+    set({ links: await loadProviderGearLinks() });
   },
 }));
