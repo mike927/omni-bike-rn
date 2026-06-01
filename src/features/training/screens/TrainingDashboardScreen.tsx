@@ -9,9 +9,9 @@ import { bleDeviceStatus, deviceStatusLabel } from '../../../services/status/dev
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { buildTrainingSummaryRoute, POST_FINISH_TRAINING_SUMMARY_SOURCE } from '../navigation/trainingSummaryRoute';
 import { resolveHrSourceSummary } from '../../../services/hr/hrStatus';
-import { resolveHrReading, resolveEffectiveHrSource } from '../../../services/hr/hrSource';
+import { resolveHrReading } from '../../../services/hr/hrSource';
+import { useEffectiveHrSource } from '../../../services/hr/useEffectiveHrSource';
 import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
-import { useHrSourceStore } from '../../../store/hrSourceStore';
 import { TrainingPhase } from '../../../types/training';
 import { ActionButton } from '../../../ui/components/ActionButton';
 import { MetricTile } from '../../../ui/components/MetricTile';
@@ -62,20 +62,12 @@ export function TrainingDashboardScreen() {
   const [isFinishing, setIsFinishing] = useState(false);
 
   const activeHrSource = useDeviceConnectionStore((s) => s.activeHrSource);
-  const primaryHrSourceFromStore = useHrSourceStore((s) => s.primary);
   const lastBluetoothHrSampleAtMs = useDeviceConnectionStore((s) => s.lastBluetoothHrSampleAtMs);
 
-  // watchSupported mirrors MetronomeEngine: watch is supported when it is not unavailable.
   const savedHrName = savedHrSource?.name ?? null;
-  const watchSupported = (watchAvailability ?? 'unavailable') !== 'unavailable';
 
-  // Single shared resolver: session-locked source → user-configured primary → hardware default.
-  const effectiveHrSource = resolveEffectiveHrSource({
-    activeHrSource,
-    primaryHrSource: primaryHrSourceFromStore,
-    watchSupported,
-    savedHrStrapName: savedHrName,
-  });
+  // Single shared reactive hook: session-locked source → user-configured primary → hardware default.
+  const effectiveHrSource = useEffectiveHrSource();
 
   const reading = resolveHrReading({
     activeSource: effectiveHrSource,

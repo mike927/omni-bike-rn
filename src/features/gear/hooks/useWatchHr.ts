@@ -6,8 +6,7 @@ import { WatchHrAdapter } from '../../../services/watch/WatchHrAdapter';
 import { isAppleWatchAvailable } from '../../../services/watch/isAppleWatchAvailable';
 import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
 import { useHrSourceStore } from '../../../store/hrSourceStore';
-import { useSavedGearStore } from '../../../store/savedGearStore';
-import { resolveEffectivePrimary } from '../../../services/hr/hrSource';
+import { useEffectivePrimary } from '../../../services/hr/useEffectiveHrSource';
 import { useTrainingSessionStore } from '../../../store/trainingSessionStore';
 import { TrainingPhase } from '../../../types/training';
 import type { WatchSessionStateEvent } from '../../../types/watch';
@@ -41,28 +40,13 @@ export function useWatchHr(): void {
   const setWatchAvailability = useDeviceConnectionStore((s) => s.setWatchAvailability);
   const setActiveHrSource = useDeviceConnectionStore((s) => s.setActiveHrSource);
   const phase = useTrainingSessionStore((s) => s.phase);
-  const primary = useHrSourceStore((s) => s.primary);
   const hrSourceHydrated = useHrSourceStore((s) => s.hydrated);
   const hydrateHrSourcePref = useHrSourceStore((s) => s.hydrate);
-  const watchAvailability = useDeviceConnectionStore((s) => s.watchAvailability);
-  const savedHrSource = useSavedGearStore((s) => s.savedHrSource);
 
-  // The effective primary the engine also resolves to: the user's explicit
-  // choice when still valid, else the availability-ranked default. Resolved
-  // against runtime availability so the lifecycle starts/locks the same source
-  // the dashboard and engine display/read.
-  //
-  // Tolerates a pre-hydration `null` primary: until the persisted preference
-  // resolves we keep `null` so no watch stream starts prematurely (a non-watch
-  // primary would otherwise immediately tear it back down). The reachability-retry
-  // path recovers the stream if the Watch becomes reachable later.
-  const effectivePrimary = hrSourceHydrated
-    ? resolveEffectivePrimary({
-        primaryHrSource: primary,
-        watchSupported: watchAvailability !== 'unavailable',
-        savedHrStrapName: savedHrSource?.name ?? null,
-      })
-    : null;
+  const resolvedPrimary = useEffectivePrimary();
+  // Until the persisted preference hydrates, keep null so no watch stream starts
+  // prematurely (a non-watch primary would immediately tear it back down).
+  const effectivePrimary = hrSourceHydrated ? resolvedPrimary : null;
 
   // Hydrate primary source unconditionally — non-watch primaries (bluetooth, bike) also
   // need to be known at workout start so the lock is correct on all platforms/configs.
