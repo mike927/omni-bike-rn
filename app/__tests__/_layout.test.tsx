@@ -8,6 +8,8 @@ import { useSavedGearStore } from '../../src/store/savedGearStore';
 import { useAppPreferencesStore } from '../../src/store/appPreferencesStore';
 import { useProviderGearLinkStore } from '../../src/store/providerGearLinkStore';
 import { useStravaConnectionStore } from '../../src/store/stravaConnectionStore';
+import { useAppleHealthConnectionStore } from '../../src/store/appleHealthConnectionStore';
+import { useUserProfileStore } from '../../src/store/userProfileStore';
 
 const mockUseSegments = jest.fn();
 const mockReactNative = jest.requireActual<typeof ReactNative>('react-native');
@@ -68,6 +70,26 @@ jest.mock('../../src/store/stravaConnectionStore', () => ({
   useStravaConnectionStore: jest.fn(),
 }));
 
+jest.mock('../../src/store/appleHealthConnectionStore', () => ({
+  useAppleHealthConnectionStore: jest.fn(),
+}));
+
+jest.mock('../../src/store/userProfileStore', () => ({
+  useUserProfileStore: jest.fn(),
+}));
+
+jest.mock('../../src/services/export/registerExportProviders', () => ({
+  registerExportProviders: jest.fn(),
+}));
+
+jest.mock('../../src/features/integrations/hooks/useAppleHealthPermissionsRefresh', () => ({
+  useAppleHealthPermissionsRefresh: jest.fn(),
+}));
+
+jest.mock('../../src/features/training/hooks/useKeepAwakeDuringTraining', () => ({
+  useKeepAwakeDuringTraining: jest.fn(),
+}));
+
 jest.mock('../../src/features/training/hooks/useTrainingSessionPersistence', () => ({
   useTrainingSessionPersistence: jest.fn(),
 }));
@@ -78,6 +100,14 @@ jest.mock('../../src/features/training/hooks/useInterruptedSessionRecovery', () 
 
 jest.mock('../../src/features/gear/hooks/useWatchHr', () => ({
   useWatchHr: jest.fn(),
+}));
+
+jest.mock('expo-drizzle-studio-plugin', () => ({
+  useDrizzleStudio: jest.fn(),
+}));
+
+jest.mock('../../src/services/db/database', () => ({
+  getSQLiteDatabase: jest.fn(),
 }));
 
 describe('RootLayout onboarding gate', () => {
@@ -101,6 +131,16 @@ describe('RootLayout onboarding gate', () => {
     hydrated: true,
   };
 
+  const appleHealthConnectionState = {
+    hydrate: jest.fn().mockResolvedValue(undefined),
+    hydrated: true,
+  };
+
+  const userProfileState = {
+    hydrate: jest.fn().mockResolvedValue(undefined),
+    hydrated: true,
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     (initializeDatabase as jest.Mock).mockResolvedValue(undefined);
@@ -116,6 +156,12 @@ describe('RootLayout onboarding gate', () => {
     );
     (useStravaConnectionStore as unknown as jest.Mock).mockImplementation((selector: (state: object) => unknown) =>
       selector(stravaConnectionState),
+    );
+    (useAppleHealthConnectionStore as unknown as jest.Mock).mockImplementation((selector: (state: object) => unknown) =>
+      selector(appleHealthConnectionState),
+    );
+    (useUserProfileStore as unknown as jest.Mock).mockImplementation((selector: (state: object) => unknown) =>
+      selector(userProfileState),
     );
   });
 
