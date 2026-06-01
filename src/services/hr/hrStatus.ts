@@ -1,6 +1,6 @@
 import type { HrSource, HrReading } from './hrSource';
 import type { WatchAvailability } from '../../types/watch';
-import type { DeviceStatus } from '../status/deviceStatus';
+import type { DeviceStatus } from '../../types/deviceStatus';
 import { TrainingPhase } from '../../types/training';
 
 /**

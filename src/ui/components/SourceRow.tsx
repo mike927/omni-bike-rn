@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { deviceStatusLabel, type DeviceStatus } from '../../services/status/deviceStatus';
+import { deviceStatusLabel, type DeviceStatus } from '../../types/deviceStatus';
 import { palette } from '../theme';
 import { StatusPill } from './StatusPill';
 

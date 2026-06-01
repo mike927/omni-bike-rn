@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { Alert, StyleSheet, Text } from 'react-native';
 
 import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
-import { bleDeviceStatus } from '../../../services/status/deviceStatus';
+import { bleDeviceStatus } from '../../../types/deviceStatus';
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { useWatchHrControls } from '../../gear/hooks/useWatchHrControls';
 import { hrSourceIdleReadiness, watchHrStatus } from '../../../services/hr/hrStatus';
