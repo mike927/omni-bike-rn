@@ -50,7 +50,7 @@ Default to `npm run ios` (device build) when an iPhone is detected via `xcrun de
 
 - **HR source priority:** Watch → BLE HR monitor → bike pulse — the *default* when none is picked. Resolve the **effective** source only through `src/services/hr/hrSource.ts` (`resolveEffectivePrimary` / `resolveEffectiveHrSource`), in every screen, status surface, and the Watch lifecycle. Never branch on the raw stored `primaryHrSource`: it may be unset (`null`) or stale (a forgotten device). Status surfaces must render every source the resolver can return.
 - **Calorie source priority:** Watch-computed → HR + profile (Keytel) → power-based → bike-reported.
-- **Provider adapter contract:** external upload providers (Strava today, Garmin next) share one interface for save-and-upload. New providers slot into that contract — don't build parallel paths.
+- **Provider adapter contract:** external upload providers (Strava today, Garmin next) share one interface (`ExportProvider`) for save-and-upload. New providers slot into that contract — don't build parallel paths. Provider-specific failure handling stays behind the seam: a provider classifies its own gear-reconciliation failures via `reconcileGear`, which returns a provider-agnostic `GearReconcileOutcome` (`ok` | `warning` with `linkInvalid` + user message). The upload orchestrator owns only the local provider-gear-link state and the upload state machine — never provider error strings.
 - **Gear model:** one main bike + optional HR source. Extensible to other FTMS equipment types later, but bike-first today.
 
 ## Runtime

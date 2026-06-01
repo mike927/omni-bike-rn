@@ -307,178 +307,62 @@ describe('uploadOrchestrator', () => {
     });
   });
 
-  it('attaches linked gear after a successful upload when a provider mapping exists', async () => {
-    const attachGearToActivity = jest.fn().mockResolvedValue(undefined);
-    const provider = createMockProvider({ attachGearToActivity });
+  const LINKED_GEAR = {
+    providerId: 'strava',
+    localGearId: 'bike-1',
+    localGearType: 'bike' as const,
+    providerGearId: 'gear-1',
+    providerGearName: 'Rave',
+    providerGearType: 'bike' as const,
+    stale: false,
+    lastSyncedAtMs: 1,
+  };
+
+  const SESSION_WITH_BIKE = {
+    ...FINISHED_SESSION,
+    savedBikeSnapshot: { id: 'bike-1', name: 'Rave' },
+  };
+
+  function arrangeUpload(provider: ExportProvider) {
     mockGetExportProvider.mockReturnValue(provider);
-    mockGetSessionById.mockReturnValue({
-      ...FINISHED_SESSION,
-      savedBikeSnapshot: { id: 'bike-1', name: 'Rave' },
-    });
+    mockGetSessionById.mockReturnValue(SESSION_WITH_BIKE);
     mockGetOrCreateProviderUpload.mockReturnValue(READY_UPLOAD);
-    mockClaimProviderUpload.mockReturnValue({
-      ...READY_UPLOAD,
-      uploadState: 'uploading',
-    });
+    mockClaimProviderUpload.mockReturnValue({ ...READY_UPLOAD, uploadState: 'uploading' });
     mockGetSamplesBySessionId.mockReturnValue([]);
-    mockGetProviderGearLink.mockResolvedValue({
-      providerId: 'strava',
-      localGearId: 'bike-1',
-      localGearType: 'bike',
-      providerGearId: 'gear-1',
-      providerGearName: 'Rave',
-      providerGearType: 'bike',
-      stale: false,
-      lastSyncedAtMs: 1,
-    });
+  }
+
+  it('reconciles linked gear after a successful upload when a link exists', async () => {
+    const reconcileGear = jest.fn().mockResolvedValue({ status: 'ok' });
+    arrangeUpload(createMockProvider({ reconcileGear }));
+    mockGetProviderGearLink.mockResolvedValue(LINKED_GEAR);
 
     const result = await uploadSessionToProvider('session-1', 'strava');
 
-    expect(result).toEqual({
-      providerId: 'strava',
-      success: true,
-      externalId: 'ext-123',
-    });
+    expect(result).toEqual({ providerId: 'strava', success: true, externalId: 'ext-123' });
     expect(mockGetProviderGearLink).toHaveBeenCalledWith('strava', 'bike-1', 'bike');
-    expect(attachGearToActivity).toHaveBeenCalledWith('ext-123', 'gear-1');
-    expect(mockUpdateProviderUploadState).toHaveBeenLastCalledWith({
-      sessionId: 'session-1',
-      providerId: 'strava',
-      uploadState: 'uploaded',
-      externalId: 'ext-123',
-      errorMessage: null,
-    });
+    expect(reconcileGear).toHaveBeenCalledWith('ext-123', 'gear-1');
+    expect(mockMarkProviderGearLinkStale).not.toHaveBeenCalled();
   });
 
-  it('clears provider gear after upload when no link exists and the provider supports explicit clearing', async () => {
-    const clearGearFromActivity = jest.fn().mockResolvedValue(undefined);
-    const provider = createMockProvider({ clearGearFromActivity });
-    mockGetExportProvider.mockReturnValue(provider);
-    mockGetSessionById.mockReturnValue({
-      ...FINISHED_SESSION,
-      savedBikeSnapshot: { id: 'bike-1', name: 'Rave' },
-    });
-    mockGetOrCreateProviderUpload.mockReturnValue(READY_UPLOAD);
-    mockClaimProviderUpload.mockReturnValue({ ...READY_UPLOAD, uploadState: 'uploading' });
-    mockGetSamplesBySessionId.mockReturnValue([]);
+  it('reconciles with a null gear id when no link exists', async () => {
+    const reconcileGear = jest.fn().mockResolvedValue({ status: 'ok' });
+    arrangeUpload(createMockProvider({ reconcileGear }));
     mockGetProviderGearLink.mockResolvedValue(null);
 
     const result = await uploadSessionToProvider('session-1', 'strava');
 
-    expect(result).toEqual({
-      providerId: 'strava',
-      success: true,
-      externalId: 'ext-123',
-    });
-    expect(clearGearFromActivity).toHaveBeenCalledWith('ext-123');
-    expect(mockUpdateProviderUploadState).toHaveBeenLastCalledWith({
-      sessionId: 'session-1',
-      providerId: 'strava',
-      uploadState: 'uploaded',
-      externalId: 'ext-123',
-      errorMessage: null,
-    });
+    expect(result).toEqual({ providerId: 'strava', success: true, externalId: 'ext-123' });
+    expect(reconcileGear).toHaveBeenCalledWith('ext-123', null);
   });
 
-  it('keeps upload successful and stores a warning when explicit gear clearing fails', async () => {
-    const clearGearFromActivity = jest
-      .fn()
-      .mockRejectedValue(new Error('Reconnect Strava to grant private activity edit access.'));
-    const provider = createMockProvider({ clearGearFromActivity });
-    mockGetExportProvider.mockReturnValue(provider);
-    mockGetSessionById.mockReturnValue({
-      ...FINISHED_SESSION,
-      savedBikeSnapshot: { id: 'bike-1', name: 'Rave' },
+  it('surfaces the reconcile warning without marking the link when linkInvalid is false', async () => {
+    const reconcileGear = jest.fn().mockResolvedValue({
+      status: 'warning',
+      linkInvalid: false,
+      message: 'Workout uploaded, but Strava could not attach the linked bike. Reconnect Strava once, then try again.',
     });
-    mockGetOrCreateProviderUpload.mockReturnValue(READY_UPLOAD);
-    mockClaimProviderUpload.mockReturnValue({ ...READY_UPLOAD, uploadState: 'uploading' });
-    mockGetSamplesBySessionId.mockReturnValue([]);
-    mockGetProviderGearLink.mockResolvedValue(null);
-
-    const result = await uploadSessionToProvider('session-1', 'strava');
-
-    expect(result).toEqual({
-      providerId: 'strava',
-      success: true,
-      externalId: 'ext-123',
-      warningMessage:
-        'Workout uploaded, but Strava could not clear its default bike. Reconnect Strava once, then try again.',
-    });
-    expect(mockUpdateProviderUploadState).toHaveBeenLastCalledWith({
-      sessionId: 'session-1',
-      providerId: 'strava',
-      uploadState: 'uploaded',
-      externalId: 'ext-123',
-      errorMessage: null,
-    });
-  });
-
-  it('keeps upload successful and stores a warning when gear attachment fails', async () => {
-    const attachGearToActivity = jest.fn().mockRejectedValue(new Error('Gear not found (404)'));
-    const provider = createMockProvider({ attachGearToActivity });
-    mockGetExportProvider.mockReturnValue(provider);
-    mockGetSessionById.mockReturnValue({
-      ...FINISHED_SESSION,
-      savedBikeSnapshot: { id: 'bike-1', name: 'Rave' },
-    });
-    mockGetOrCreateProviderUpload.mockReturnValue(READY_UPLOAD);
-    mockClaimProviderUpload.mockReturnValue({
-      ...READY_UPLOAD,
-      uploadState: 'uploading',
-    });
-    mockGetSamplesBySessionId.mockReturnValue([]);
-    mockGetProviderGearLink.mockResolvedValue({
-      providerId: 'strava',
-      localGearId: 'bike-1',
-      localGearType: 'bike',
-      providerGearId: 'gear-1',
-      providerGearName: 'Rave',
-      providerGearType: 'bike',
-      stale: false,
-      lastSyncedAtMs: 1,
-    });
-
-    const result = await uploadSessionToProvider('session-1', 'strava');
-
-    expect(result).toEqual({
-      providerId: 'strava',
-      success: true,
-      externalId: 'ext-123',
-      warningMessage: 'Workout uploaded, but the linked bike could not be attached. Relink it in Settings.',
-    });
-    expect(mockMarkProviderGearLinkStale).toHaveBeenCalledWith('strava', 'bike-1', 'bike');
-    expect(mockUpdateProviderUploadState).toHaveBeenLastCalledWith({
-      sessionId: 'session-1',
-      providerId: 'strava',
-      uploadState: 'uploaded',
-      externalId: 'ext-123',
-      errorMessage: null,
-    });
-  });
-
-  it('keeps the link intact and asks for Strava reconnect when the activity cannot be updated', async () => {
-    const attachGearToActivity = jest
-      .fn()
-      .mockRejectedValue(new Error('Reconnect Strava to grant private activity edit access.'));
-    const provider = createMockProvider({ attachGearToActivity });
-    mockGetExportProvider.mockReturnValue(provider);
-    mockGetSessionById.mockReturnValue({
-      ...FINISHED_SESSION,
-      savedBikeSnapshot: { id: 'bike-1', name: 'Rave' },
-    });
-    mockGetOrCreateProviderUpload.mockReturnValue(READY_UPLOAD);
-    mockClaimProviderUpload.mockReturnValue({ ...READY_UPLOAD, uploadState: 'uploading' });
-    mockGetSamplesBySessionId.mockReturnValue([]);
-    mockGetProviderGearLink.mockResolvedValue({
-      providerId: 'strava',
-      localGearId: 'bike-1',
-      localGearType: 'bike',
-      providerGearId: 'gear-1',
-      providerGearName: 'Rave',
-      providerGearType: 'bike',
-      stale: false,
-      lastSyncedAtMs: 1,
-    });
+    arrangeUpload(createMockProvider({ reconcileGear }));
+    mockGetProviderGearLink.mockResolvedValue(LINKED_GEAR);
 
     const result = await uploadSessionToProvider('session-1', 'strava');
 
@@ -490,36 +374,36 @@ describe('uploadOrchestrator', () => {
         'Workout uploaded, but Strava could not attach the linked bike. Reconnect Strava once, then try again.',
     });
     expect(mockMarkProviderGearLinkStale).not.toHaveBeenCalled();
-    expect(mockUpdateProviderUploadState).toHaveBeenLastCalledWith({
-      sessionId: 'session-1',
-      providerId: 'strava',
-      uploadState: 'uploaded',
-      externalId: 'ext-123',
-      errorMessage: null,
-    });
   });
 
-  it('keeps upload successful even when marking a stale link fails', async () => {
-    const attachGearToActivity = jest.fn().mockRejectedValue(new Error('Gear not found (404)'));
-    const provider = createMockProvider({ attachGearToActivity });
-    mockGetExportProvider.mockReturnValue(provider);
-    mockGetSessionById.mockReturnValue({
-      ...FINISHED_SESSION,
-      savedBikeSnapshot: { id: 'bike-1', name: 'Rave' },
+  it('marks the link stale and surfaces the warning when linkInvalid is true', async () => {
+    const reconcileGear = jest.fn().mockResolvedValue({
+      status: 'warning',
+      linkInvalid: true,
+      message: 'Workout uploaded, but the linked bike could not be attached. Relink it in Settings.',
     });
-    mockGetOrCreateProviderUpload.mockReturnValue(READY_UPLOAD);
-    mockClaimProviderUpload.mockReturnValue({ ...READY_UPLOAD, uploadState: 'uploading' });
-    mockGetSamplesBySessionId.mockReturnValue([]);
-    mockGetProviderGearLink.mockResolvedValue({
+    arrangeUpload(createMockProvider({ reconcileGear }));
+    mockGetProviderGearLink.mockResolvedValue(LINKED_GEAR);
+
+    const result = await uploadSessionToProvider('session-1', 'strava');
+
+    expect(result).toEqual({
       providerId: 'strava',
-      localGearId: 'bike-1',
-      localGearType: 'bike',
-      providerGearId: 'gear-1',
-      providerGearName: 'Rave',
-      providerGearType: 'bike',
-      stale: false,
-      lastSyncedAtMs: 1,
+      success: true,
+      externalId: 'ext-123',
+      warningMessage: 'Workout uploaded, but the linked bike could not be attached. Relink it in Settings.',
     });
+    expect(mockMarkProviderGearLinkStale).toHaveBeenCalledWith('strava', 'bike-1', 'bike');
+  });
+
+  it('keeps the upload successful even when marking the link stale throws', async () => {
+    const reconcileGear = jest.fn().mockResolvedValue({
+      status: 'warning',
+      linkInvalid: true,
+      message: 'Workout uploaded, but the linked bike could not be attached. Relink it in Settings.',
+    });
+    arrangeUpload(createMockProvider({ reconcileGear }));
+    mockGetProviderGearLink.mockResolvedValue(LINKED_GEAR);
     mockMarkProviderGearLinkStale.mockRejectedValue(new Error('storage failure'));
 
     const result = await uploadSessionToProvider('session-1', 'strava');
@@ -537,5 +421,16 @@ describe('uploadOrchestrator', () => {
       externalId: 'ext-123',
       errorMessage: null,
     });
+  });
+
+  it('skips gear reconciliation when the provider does not support it', async () => {
+    const provider = createMockProvider(); // no reconcileGear
+    arrangeUpload(provider);
+    mockGetProviderGearLink.mockResolvedValue(LINKED_GEAR);
+
+    const result = await uploadSessionToProvider('session-1', 'strava');
+
+    expect(result).toEqual({ providerId: 'strava', success: true, externalId: 'ext-123' });
+    expect(mockMarkProviderGearLinkStale).not.toHaveBeenCalled();
   });
 });

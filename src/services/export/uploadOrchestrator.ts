@@ -1,6 +1,5 @@
 import { getExportProvider } from './exportProviderRegistry';
 import { getSessionById, getSamplesBySessionId } from '../db/trainingSessionRepository';
-import { STRAVA_RECONNECT_ERROR_MARKER } from '../strava/stravaConstants';
 import {
   claimProviderUpload,
   getOrCreateProviderUpload,
@@ -8,6 +7,7 @@ import {
   updateProviderUploadState,
 } from '../db/providerUploadRepository';
 import { getProviderGearLink, markProviderGearLinkStale } from '../providerGear/providerGearLinkStorage';
+import type { GearReconcileOutcome } from './ExportProvider';
 
 export interface UploadSessionResult {
   providerId: string;
@@ -17,29 +17,34 @@ export interface UploadSessionResult {
   warningMessage?: string;
 }
 
-function shouldMarkLinkedGearStale(message: string): boolean {
-  const lowerMessage = message.toLowerCase();
+async function applyGearReconciliation(
+  sessionId: string,
+  providerId: string,
+  activityId: string,
+  bikeId: string,
+  reconcileGear: (activityId: string, gearId: string | null) => Promise<GearReconcileOutcome>,
+): Promise<string | undefined> {
+  const linkedGear = await getProviderGearLink(providerId, bikeId, 'bike');
+  const outcome = await reconcileGear(activityId, linkedGear?.providerGearId ?? null);
 
-  if (lowerMessage.includes('"resource":"activity"') || lowerMessage.includes('private activity edit access')) {
-    return false;
+  if (outcome.status !== 'warning') {
+    return undefined;
   }
 
-  return (
-    lowerMessage.includes('"resource":"gear"') ||
-    lowerMessage.includes('gear_id') ||
-    lowerMessage.includes('gear not found')
-  );
-}
-
-function logProviderGearAttach(message: string, payload: Record<string, unknown>): void {
-  if (!__DEV__) {
-    return;
+  if (outcome.linkInvalid) {
+    try {
+      await markProviderGearLinkStale(providerId, bikeId, 'bike');
+    } catch (markError: unknown) {
+      console.error(
+        `[uploadOrchestrator] Failed to mark provider gear link stale for session "${sessionId}":`,
+        markError,
+      );
+    }
   }
 
-  console.warn(`[uploadOrchestrator] ${message}`, payload);
+  return outcome.message;
 }
 
-// eslint-disable-next-line sonarjs/cognitive-complexity -- orchestrator with multi-step error handling; refactor tracked separately
 export async function uploadSessionToProvider(sessionId: string, providerId: string): Promise<UploadSessionResult> {
   const provider = getExportProvider(providerId);
   if (!provider) {
@@ -90,78 +95,15 @@ export async function uploadSessionToProvider(sessionId: string, providerId: str
     if (result.success) {
       let warningMessage: string | undefined = result.warningMessage;
 
-      if (result.externalId && session.savedBikeSnapshot) {
-        const linkedGear = await getProviderGearLink(providerId, session.savedBikeSnapshot.id, 'bike');
-
-        if (linkedGear && provider.attachGearToActivity) {
-          logProviderGearAttach('Found linked provider gear for upload', {
-            providerId,
+      if (result.externalId && session.savedBikeSnapshot && provider.reconcileGear) {
+        warningMessage =
+          (await applyGearReconciliation(
             sessionId,
-            activityId: result.externalId,
-            localBikeId: session.savedBikeSnapshot.id,
-            providerGearId: linkedGear.providerGearId,
-            providerGearName: linkedGear.providerGearName,
-          });
-
-          try {
-            await provider.attachGearToActivity(result.externalId, linkedGear.providerGearId);
-          } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : 'Failed to attach provider gear.';
-            console.error(
-              `[uploadOrchestrator] Upload to "${providerId}" succeeded but provider gear attach failed for session "${sessionId}":`,
-              error,
-            );
-
-            if (shouldMarkLinkedGearStale(message)) {
-              try {
-                await markProviderGearLinkStale(providerId, session.savedBikeSnapshot.id, 'bike');
-              } catch (markError: unknown) {
-                console.error(
-                  `[uploadOrchestrator] Failed to mark provider gear link stale for session "${sessionId}":`,
-                  markError,
-                );
-              }
-            }
-
-            warningMessage = message.includes(STRAVA_RECONNECT_ERROR_MARKER)
-              ? 'Workout uploaded, but Strava could not attach the linked bike. Reconnect Strava once, then try again.'
-              : 'Workout uploaded, but the linked bike could not be attached. Relink it in Settings.';
-          }
-        } else if (!linkedGear && provider.clearGearFromActivity) {
-          logProviderGearAttach('No linked provider gear found; clearing provider gear from uploaded activity', {
             providerId,
-            sessionId,
-            activityId: result.externalId,
-            localBikeId: session.savedBikeSnapshot.id,
-          });
-
-          try {
-            await provider.clearGearFromActivity(result.externalId);
-            logProviderGearAttach('Cleared provider gear from uploaded activity', {
-              providerId,
-              sessionId,
-              activityId: result.externalId,
-              localBikeId: session.savedBikeSnapshot.id,
-            });
-          } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : 'Failed to clear provider gear.';
-            console.error(
-              `[uploadOrchestrator] Upload to "${providerId}" succeeded but clearing provider gear failed for session "${sessionId}":`,
-              error,
-            );
-
-            warningMessage = message.includes(STRAVA_RECONNECT_ERROR_MARKER)
-              ? 'Workout uploaded, but Strava could not clear its default bike. Reconnect Strava once, then try again.'
-              : 'Workout uploaded, but Strava may still apply its default bike. Check your Strava gear settings.';
-          }
-        } else if (!linkedGear) {
-          logProviderGearAttach('No linked provider gear found; provider does not support explicit gear clearing', {
-            providerId,
-            sessionId,
-            activityId: result.externalId,
-            localBikeId: session.savedBikeSnapshot.id,
-          });
-        }
+            result.externalId,
+            session.savedBikeSnapshot.id,
+            provider.reconcileGear.bind(provider),
+          )) ?? warningMessage;
       }
 
       updateProviderUploadState({
@@ -169,7 +111,7 @@ export async function uploadSessionToProvider(sessionId: string, providerId: str
         providerId,
         uploadState: 'uploaded',
         externalId: result.externalId ?? null,
-        // Gear-attach warnings are surfaced once via the return value but not stored
+        // Gear-reconciliation warnings are surfaced once via the return value but not stored
         // permanently, so the upload record stays clean and doesn't block future retries.
         errorMessage: null,
       });
