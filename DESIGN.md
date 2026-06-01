@@ -87,7 +87,7 @@ Larger paddings used at screen scaffolding edges: `60` (top inset), `80` / `152`
 ## Device & Connection Status Vocabulary
 
 Canonical, app-wide status labels for devices and HR sources — defined once in
-`src/services/status/deviceStatus.ts` (`DeviceStatus` + `DEVICE_STATUS_LABELS`) and rendered
+`src/types/deviceStatus.ts` (`DeviceStatus` + `DEVICE_STATUS_LABELS`) and rendered
 identically on every surface (Home, Settings, Training). **One label per state; never invent
 ad-hoc wording.** Always rendered as a color-coded **status pill** (`StatusPill` — see below),
 never as plain `Name · Status` text. The device name and its status never share a single line.
@@ -113,7 +113,7 @@ device vocabulary.
 The single component for rendering any `DeviceStatus` on a read-only surface
 (`src/ui/components/StatusPill.tsx`). A `pill`-radius chip: a colored dot + the
 `deviceStatusLabel` text on a tinted background. Each status maps to one of four **tones** via
-`deviceStatusTone(status)` (`src/services/status/deviceStatus.ts`); the tone resolves to palette
+`deviceStatusTone(status)` (`src/types/deviceStatus.ts`); the tone resolves to palette
 tokens — no raw hex in the component. Per tone: **dot** = `success` / `warning` / `danger` /
 `tabInactive`; **text** = `successInk` / `warningInk` / `dangerInk` / `tabInactive`; **background**
 = that tone's color at ~16% alpha, except `inactive` which uses `surfaceMuted` (the designated pill
