@@ -23,3 +23,26 @@ it('renders the hr glyph when target is hr', () => {
   );
   expect(getByTestId('hr-glyph')).toBeTruthy();
 });
+
+it('shows a connecting status (no Select) while connecting', () => {
+  const { getByText, queryByText } = render(
+    <NearbyDeviceRow name="KICKR" deviceId="D4" target="bike" state="connecting" onSelect={jest.fn()} />,
+  );
+  expect(getByText('Connecting...')).toBeTruthy();
+  expect(queryByText('Select')).toBeNull();
+});
+
+it('shows an inline error message and a Retry affordance on error', () => {
+  const { getByText } = render(
+    <NearbyDeviceRow
+      name="Generic 5C2"
+      deviceId="X"
+      target="bike"
+      state="error"
+      errorMessage="Not an FTMS bike."
+      onSelect={jest.fn()}
+    />,
+  );
+  expect(getByText('Not an FTMS bike.')).toBeTruthy();
+  expect(getByText('Retry')).toBeTruthy();
+});

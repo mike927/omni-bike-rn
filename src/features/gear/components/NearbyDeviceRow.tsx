@@ -1,53 +1,76 @@
+import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { GearType } from '../../../types/gear';
 import { noir } from '../../../ui/theme';
 import { BikeGlyph } from './BikeGlyph';
 import { HrGlyph } from './HrGlyph';
+import { NoirStatusPill } from './NoirStatusPill';
+
+export type NearbyDeviceRowState = 'idle' | 'connecting' | 'error';
 
 interface NearbyDeviceRowProps {
   readonly name: string | null;
   readonly deviceId: string;
   readonly target: GearType;
   readonly onSelect: () => void;
+  readonly state?: NearbyDeviceRowState;
+  readonly errorMessage?: string | null;
+  readonly children?: ReactNode;
 }
 
-export function NearbyDeviceRow({ name, deviceId, target, onSelect }: NearbyDeviceRowProps) {
+export function NearbyDeviceRow({
+  name,
+  deviceId,
+  target,
+  onSelect,
+  state = 'idle',
+  errorMessage,
+  children,
+}: NearbyDeviceRowProps) {
   const Glyph = target === 'hr' ? HrGlyph : BikeGlyph;
+  const isConnecting = state === 'connecting';
+  const isError = state === 'error';
+  const iconColor = isError ? noir.dangerSoft : isConnecting ? noir.indigoSoft : noir.ink3;
+
   return (
-    <View style={styles.row}>
-      <View style={styles.icon}>
-        <Glyph color={noir.ink3} testID={target === 'hr' ? 'hr-glyph' : 'bike-glyph'} />
-      </View>
-      <View style={styles.meta}>
-        <Text style={styles.name} numberOfLines={1}>
-          {name ?? 'Unknown Device'}
-        </Text>
-        <Text style={styles.id} numberOfLines={1}>
-          ID · {deviceId}
-        </Text>
-      </View>
-      <Pressable
-        accessibilityRole="button"
-        onPress={onSelect}
-        style={({ pressed }) => [styles.selectBtn, pressed && styles.pressed]}>
-        <Text style={styles.selectLabel}>Select</Text>
+    <View style={[styles.wrap, isConnecting && styles.wrapActive, isError && styles.wrapError]}>
+      <Pressable accessibilityRole="button" disabled={isConnecting} onPress={onSelect} style={styles.row}>
+        <View style={styles.icon}>
+          <Glyph color={iconColor} testID={target === 'hr' ? 'hr-glyph' : 'bike-glyph'} />
+        </View>
+        <View style={styles.meta}>
+          <Text style={[styles.name, isError && styles.nameError]} numberOfLines={1}>
+            {name ?? 'Unknown Device'}
+          </Text>
+          <Text style={styles.id} numberOfLines={1}>
+            ID · {deviceId}
+          </Text>
+        </View>
+        {isConnecting ? (
+          <NoirStatusPill status="connecting" />
+        ) : (
+          <Text style={styles.action}>{isError ? 'Retry' : 'Select'}</Text>
+        )}
       </Pressable>
+      {isError && errorMessage ? <Text style={styles.errorMsg}>{errorMessage}</Text> : null}
+      {children}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 13,
+  wrap: {
     backgroundColor: noir.card,
     borderWidth: 1,
     borderColor: noir.hairline,
     borderRadius: 20,
     padding: 14,
+    gap: 10,
   },
+  wrapActive: { borderColor: 'rgba(46,61,255,0.4)' },
+  wrapError: { borderColor: 'rgba(239,75,92,0.4)' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 13 },
   icon: {
     width: 42,
     height: 42,
@@ -58,17 +81,8 @@ const styles = StyleSheet.create({
   },
   meta: { flex: 1, minWidth: 0 },
   name: { fontSize: 15, fontWeight: '700', color: noir.ink },
+  nameError: { color: noir.dangerSoft },
   id: { fontSize: 12.5, color: noir.ink3, marginTop: 2 },
-  selectBtn: {
-    backgroundColor: noir.card3,
-    borderWidth: 1,
-    borderColor: noir.hairline,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    minHeight: 38,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pressed: { backgroundColor: '#232c3d' },
-  selectLabel: { fontSize: 13, fontWeight: '700', color: noir.indigoSoft },
+  action: { fontSize: 13, fontWeight: '700', color: noir.indigoSoft, paddingHorizontal: 6 },
+  errorMsg: { fontSize: 12.5, lineHeight: 18, color: noir.dangerSoft },
 });

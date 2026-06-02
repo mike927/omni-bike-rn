@@ -59,8 +59,7 @@ describe('GearSetupScreen', () => {
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
     mockStartScan.mockResolvedValue('denied');
 
-    const { getByText } = render(<GearSetupScreen target="bike" />);
-    fireEvent.press(getByText('Search for Smart Bike'));
+    render(<GearSetupScreen target="bike" />); // scanning starts automatically on mount
 
     await waitFor(() => {
       expect(alertSpy).toHaveBeenCalledWith(
@@ -75,6 +74,7 @@ describe('GearSetupScreen', () => {
     it('shows the Garmin/Polar broadcast hint when HR validation fails with missing_hr_service', () => {
       Object.assign(mockGearSetupState, {
         step: 'error',
+        devices: [{ id: 'AB:CD', name: 'Garmin Venu' }],
         selectedDevice: { id: 'AB:CD', name: 'Garmin Venu' },
         validationError: 'missing_hr_service',
       });
@@ -89,6 +89,7 @@ describe('GearSetupScreen', () => {
     it('expands the broadcast hint step list when tapped', () => {
       Object.assign(mockGearSetupState, {
         step: 'error',
+        devices: [{ id: 'AB:CD', name: 'Garmin Venu' }],
         selectedDevice: { id: 'AB:CD', name: 'Garmin Venu' },
         validationError: 'missing_hr_service',
       });
@@ -108,42 +109,41 @@ describe('GearSetupScreen', () => {
     });
   });
 
-  it('shows the live hero with placeholders while awaiting a signal', () => {
+  it('shows a connecting status on the selected device row while connecting', () => {
     Object.assign(mockGearSetupState, {
-      step: 'awaiting_signal',
+      step: 'connecting',
+      devices: [{ id: 'D4:9F', name: 'Wahoo KICKR Bike' }],
       selectedDevice: { id: 'D4:9F', name: 'Wahoo KICKR Bike' },
-      signalConfirmed: false,
-    });
-    const { getByText, getAllByText } = render(<GearSetupScreen target="bike" />);
-    expect(getByText('Wahoo KICKR Bike')).toBeTruthy();
-    expect(getByText('Waiting for signal…')).toBeTruthy();
-    expect(getAllByText('—').length).toBe(4);
-  });
-
-  it('shows live metrics and enables save when the signal is confirmed', () => {
-    Object.assign(mockGearSetupState, {
-      step: 'ready',
-      selectedDevice: { id: 'D4:9F', name: 'Wahoo KICKR Bike' },
-      signalConfirmed: true,
-      latestBikeMetrics: { speed: 31.4, cadence: 91, power: 124, distance: 200 },
     });
     const { getByText } = render(<GearSetupScreen target="bike" />);
-    expect(getByText('124')).toBeTruthy();
-    // Save fires persistence + back
-    fireEvent.press(getByText('Use This Smart Bike'));
-    expect(mockGearSetupState.save).toHaveBeenCalled();
+    expect(getByText('Wahoo KICKR Bike')).toBeTruthy();
+    expect(getByText('Connecting...')).toBeTruthy();
   });
 
-  it('shows the FTMS error callout and a Choose Another action on error', () => {
+  it('auto-saves and navigates back once a live signal is confirmed', async () => {
+    Object.assign(mockGearSetupState, {
+      step: 'ready',
+      devices: [{ id: 'D4:9F', name: 'Wahoo KICKR Bike' }],
+      selectedDevice: { id: 'D4:9F', name: 'Wahoo KICKR Bike' },
+      signalConfirmed: true,
+    });
+    render(<GearSetupScreen target="bike" />);
+    await waitFor(() => {
+      expect(mockGearSetupState.save).toHaveBeenCalled();
+      expect(mockBack).toHaveBeenCalled();
+    });
+  });
+
+  it('shows the FTMS error inline on the device row on validation failure', () => {
     Object.assign(mockGearSetupState, {
       step: 'error',
+      devices: [{ id: 'X', name: 'Generic Fitness 5C2' }],
       selectedDevice: { id: 'X', name: 'Generic Fitness 5C2' },
       validationError: 'missing_indoor_bike_characteristic',
     });
     const { getByText } = render(<GearSetupScreen target="bike" />);
     expect(getByText(/does not broadcast indoor bike data/i)).toBeTruthy();
-    fireEvent.press(getByText('Choose Another Bike'));
-    expect(mockGearSetupState.reset).toHaveBeenCalled();
+    expect(getByText('Retry')).toBeTruthy();
   });
 
   describe('HR sensor transparency', () => {
