@@ -76,9 +76,9 @@ Larger paddings used at screen scaffolding edges: `60` (top inset), `80` / `152`
 
 | Token | Value | Usage |
 |---|---|---|
-| xs | 12 | History row, inline chip |
+| xs | 12 | Inline chip |
 | sm | 14 | Compact tile, micro card |
-| md | 16 | Metric tile, callout |
+| md | 16 | Metric tile, callout, history row, summary strip |
 | lg | 20 | Input, device row, tab bar |
 | xl | 24 | Section card |
 | 2xl | 28 | Hero card |
@@ -204,16 +204,35 @@ distinct interactions, two distinct affordances:
   The no-bike state is **＋ Set Up Smart Bike**. (The no-strap HR state still uses the plain
   full-width **Add Bluetooth HR** `ActionButton`.)
 
+## History list
+
+History (`src/features/history/`, mockup `design-mockups/app/screen-06-history.html`) is fully Calm Noir.
+
+- **Screen head** — in-screen `History` title + `Your completed rides.` subline (the tab uses
+  `headerShown: false`); the screen owns its `SafeAreaView` over `noir.bg`.
+- **Summary strip** (`HistorySummaryStrip`) — one `noir.card` strip split into three hairline-divided
+  cells (`This Month` rides · `Distance` km · `Time`), aggregated over the **current calendar month**
+  via the pure `deriveHistorySummary(sessions, now)`.
+- **History row** (`WorkoutHistoryListItem`) — `noir.card`, radius `md`, showing date
+  (`Sat, May 30`) + a compact metrics line (`18.4 km · 1h 2m · 512 kcal`), provider icons, and a
+  trailing chevron. **Tap** opens the ride summary; **long press** confirms delete (no inline trash
+  button, keeping the row clean — the `accessibilityHint` advertises the long-press action).
+- **Provider status icons** (`ProviderStatusIcons`) — every row shows *all* known providers using
+  their real glyphs (Strava `FontAwesome5 strava`, Apple Health `Ionicons heart`) but recoloured to
+  the app palette: **`noir.mintSoft` when synced, `noir.ink3` when not**. Brand colours (e.g. Strava
+  orange `#FC4C02`) are never used — the colour means "synced / not synced", not the brand.
+
 ## Illustration Style
 
 Flat illustration with soft gradients in the brand palette. No photorealism. No text inside illustrations. Square aspect for hero illustrations. Consistent line weight and color treatment across all screens — illustrations in the same flow MUST share style.
 
 ## Dark / Light Migration Status
 
-The **Home screen** and the **bottom tab bar** are fully migrated to the Calm Noir dark theme.
-History and Settings screens remain on the original light palette pending a fast-follow restyle.
-Because `app/(tabs)/_layout.tsx` sets a dark (`noir.bg`) header as the global default, those two
-screens **explicitly override `headerStyle`/`headerTintColor`/`sceneStyle` back to the light palette**
-(`LIGHT_SCREEN_OPTIONS`) so a light body never sits under a dark header. Only the shared **tab bar
-chrome** (background, borders, icon tints) is dark; each light screen renders its content above that
-dark tab bar until its own migration lands.
+The **Home screen**, the **History screen**, and the **bottom tab bar** are fully migrated to the
+Calm Noir dark theme. Home and History use `headerShown: false` and render their own in-screen
+headers over `noir.bg`. The **Settings** screen remains on the original light palette pending a
+fast-follow restyle. Because `app/(tabs)/_layout.tsx` sets a dark (`noir.bg`) header as the global
+default, Settings **explicitly overrides `headerStyle`/`headerTintColor`/`sceneStyle` back to the
+light palette** (`LIGHT_SCREEN_OPTIONS`) so a light body never sits under a dark header. Only the
+shared **tab bar chrome** (background, borders, icon tints) is dark; the light Settings screen
+renders its content above that dark tab bar until its own migration lands.

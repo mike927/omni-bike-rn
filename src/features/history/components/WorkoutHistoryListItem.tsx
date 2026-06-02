@@ -1,12 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View, type GestureResponderEvent } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { formatDistanceKm, formatDuration, formatSessionDate } from '../../../ui/formatters';
-import { palette } from '../../../ui/theme';
+import { formatCompactDuration, formatDistanceKmShort, formatHistoryDate } from '../../../ui/formatters';
+import { noir } from '../../../ui/theme';
 import { ProviderStatusIcons } from './ProviderStatusIcons';
 import type { WorkoutHistoryListItemProps } from './WorkoutHistoryListItem.types';
 
-const TRASH_ICON_SIZE = 20;
+function formatMetricsLine(session: WorkoutHistoryListItemProps['session']): string {
+  const distance = formatDistanceKmShort(session.totalDistanceMeters);
+  const duration = formatCompactDuration(session.elapsedSeconds);
+  const energy = `${Math.round(session.totalCaloriesKcal)} kcal`;
+  return `${distance} · ${duration} · ${energy}`;
+}
 
 export function WorkoutHistoryListItem({
   session,
@@ -14,74 +19,61 @@ export function WorkoutHistoryListItem({
   onPress,
   onDelete,
 }: Readonly<WorkoutHistoryListItemProps>) {
-  const handleDeletePress = (event?: GestureResponderEvent) => {
-    event?.stopPropagation?.();
-    onDelete();
-  };
-
   return (
     <Pressable
-      style={({ pressed }) => [styles.container, pressed && styles.containerPressed]}
+      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
       onPress={onPress}
+      onLongPress={onDelete}
       accessibilityRole="button"
-      accessibilityLabel={`Workout on ${formatSessionDate(session.startedAtMs)}`}>
-      <View style={styles.leftColumn}>
-        <Text style={styles.dateText}>{formatSessionDate(session.startedAtMs)}</Text>
-        <Text style={styles.metricsText}>
-          {formatDistanceKm(session.totalDistanceMeters)} • {formatDuration(session.elapsedSeconds)} •{' '}
-          {session.totalCaloriesKcal.toFixed(0)} kcal
-        </Text>
+      accessibilityLabel={`Workout on ${formatHistoryDate(session.startedAtMs)}`}
+      accessibilityHint="Opens the ride summary. Long press to delete.">
+      <View style={styles.main}>
+        <Text style={styles.date}>{formatHistoryDate(session.startedAtMs)}</Text>
+        <Text style={styles.metrics}>{formatMetricsLine(session)}</Text>
       </View>
-      <View style={styles.rightColumn}>
+      <View style={styles.providers}>
         <ProviderStatusIcons uploadedProviderIds={uploadedProviderIds} />
-        <Pressable
-          style={({ pressed }) => [styles.deleteButton, pressed && styles.deleteButtonPressed]}
-          onPress={handleDeletePress}
-          accessibilityRole="button"
-          accessibilityLabel="Delete workout"
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Ionicons name="trash-outline" size={TRASH_ICON_SIZE} color={palette.danger} />
-        </Pressable>
+        <Ionicons name="chevron-forward" size={18} color={noir.ink3} />
       </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: palette.surface,
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
+    gap: 14,
+    backgroundColor: noir.card,
+    borderWidth: 1,
+    borderColor: noir.hairline,
+    borderRadius: 16,
+    paddingVertical: 15,
+    paddingHorizontal: 16,
   },
-  containerPressed: {
-    opacity: 0.7,
+  rowPressed: {
+    transform: [{ scale: 0.99 }],
+    borderColor: '#2a323f',
   },
-  leftColumn: {
+  main: {
     flex: 1,
-    gap: 4,
+    minWidth: 0,
   },
-  dateText: {
-    color: palette.text,
-    fontSize: 16,
-    fontWeight: '600',
+  date: {
+    color: noir.ink,
+    fontSize: 15.5,
+    fontWeight: '700',
+    letterSpacing: -0.1,
   },
-  metricsText: {
-    color: palette.textMuted,
-    fontSize: 14,
+  metrics: {
+    color: noir.ink3,
+    fontSize: 13,
+    marginTop: 3,
+    fontVariant: ['tabular-nums'],
   },
-  rightColumn: {
+  providers: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-  },
-  deleteButton: {
-    padding: 8,
-  },
-  deleteButtonPressed: {
-    opacity: 0.5,
+    gap: 6,
   },
 });
