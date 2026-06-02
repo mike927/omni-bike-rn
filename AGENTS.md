@@ -26,6 +26,12 @@ superpowers is the workflow core — don't invent parallel flows.
 - **Feasible on real transport.** Confirm a design works over the actual watch ↔ app ↔ bike connectivity before building it.
 - **Idempotent teardown.** Release a resource by whether it exists, not by the current value of a mutable input that may have drifted since acquisition.
 
+## Icons & assets
+
+- Never hand-author or approximate icon SVG path data. Fetch the real SVG from a license-clean free set and use it as-is.
+- Icon sources: Ionicons (RN app), Streamline (onboarding), or Lucide / Feather / Tabler / Heroicons.
+- Mockups follow the same rule.
+
 ## Roadmap
 
 Active work tracked in `ROADMAP.md`. Update states (`[ ] [~] [x] [-]`) as work progresses. Unresolved or exploratory items live in its **Future Considerations** section at the bottom.

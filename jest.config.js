@@ -20,6 +20,7 @@ module.exports = {
     '^expo-auth-session$': '<rootDir>/src/__mocks__/expo-auth-session.ts',
     '^expo-file-system$': '<rootDir>/src/__mocks__/expo-file-system.ts',
     '^@expo/vector-icons$': '<rootDir>/src/__mocks__/@expo/vector-icons.tsx',
+    '^expo-linear-gradient$': '<rootDir>/src/__mocks__/expo-linear-gradient.tsx',
   },
   roots: ['<rootDir>/src'],
   testMatch: ['**/*.test.ts', '**/*.test.tsx'],

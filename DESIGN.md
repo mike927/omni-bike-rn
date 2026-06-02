@@ -134,6 +134,20 @@ fill).
   Settings `GearTile`, and the Training Smart Bike-status pill + `HeartRateSourceTile`. Never re-style the status
   inline — always render `StatusPill`.
 
+### Calm Noir StatusPill tones
+
+On dark surfaces (Home screen, tab bar chrome) pass `scheme="noir"` to `StatusPill`. The component
+selects `noirPillTones` (`src/ui/theme.ts`) instead of the default light `TONE_COLORS`. All four
+tones map to the same logical meaning; only the exact hex values differ to read well on `noir.bg`
+(`#0b0e13`).
+
+| Tone | Statuses | Background | Foreground (text + dot accent) | Dot |
+|---|---|---|---|---|
+| `good` | `ready` | `rgba(16, 181, 164, 0.12)` | `#4fd8c8` (mintSoft) | `#10b5a4` (mint) |
+| `working` | `connecting` | `rgba(245, 165, 36, 0.12)` | `#f7c065` (amber light) | `#f5a524` (amber) |
+| `attention` | `noSignal` | `rgba(239, 75, 92, 0.14)` | `#f4818d` (coral light) | `#ef4b5c` (coral) |
+| `inactive` | `unavailable`, `off`, `paused`, `notSetUp` | `rgba(255, 255, 255, 0.04)` | `#6b7384` (ink3) | `#4a5260` (dim) |
+
 ## Source Row (`SourceRow`)
 
 Reusable label / device / status row for the Home cards (`src/ui/components/SourceRow.tsx`): a muted
@@ -144,6 +158,22 @@ divider separates the rows. The chip never truncates; the device name yields spa
 Rate card always shows the **Bluetooth HR** row, the **Apple Watch** row when the Watch is a platform
 option, and a **Bike pulse** row when the bike is the effective HR source — so the source actually in
 effect is never invisible. The Apple Watch row reads `Off` unless the Watch is the effective primary.
+
+## Home Device Card (`DeviceCard`)
+
+The noir-first pattern for representing a device on the Home screen (`src/features/home/components/DeviceCard.tsx`).
+Each card shows: a **rounded icon box** (Ionicons glyph, `indigoSoft` tint), the device **name** in
+primary ink (bold, single line, ellipsized), a **kind** sub-label (`ink3`, e.g. `Smart Bike`,
+`Heart Rate · Chest strap`), and a right-pinned `StatusPill` with `scheme="noir"`. When the device
+is not set up or not the effective source, the card is **muted**: the icon box and name shift to
+`ink3`/`#1d222b` to signal it is present but inactive.
+
+Resolver-driven visibility (same rules as `SourceRow`):
+- **Apple Watch** card is rendered only when the Watch is a platform option (`watchAvailable` from
+  `useWatchHrControls`).
+- **Bike pulse** card is rendered only when the bike is the effective primary HR source
+  (`effectivePrimary === 'bike'` from `useWatchHrControls`).
+- Smart Bike and Bluetooth HR cards are always present (muted when not saved).
 
 ## Gear / HR-Source Tiles
 
@@ -177,3 +207,13 @@ distinct interactions, two distinct affordances:
 ## Illustration Style
 
 Flat illustration with soft gradients in the brand palette. No photorealism. No text inside illustrations. Square aspect for hero illustrations. Consistent line weight and color treatment across all screens — illustrations in the same flow MUST share style.
+
+## Dark / Light Migration Status
+
+The **Home screen** and the **bottom tab bar** are fully migrated to the Calm Noir dark theme.
+History and Settings screens remain on the original light palette pending a fast-follow restyle.
+Because `app/(tabs)/_layout.tsx` sets a dark (`noir.bg`) header as the global default, those two
+screens **explicitly override `headerStyle`/`headerTintColor`/`sceneStyle` back to the light palette**
+(`LIGHT_SCREEN_OPTIONS`) so a light body never sits under a dark header. Only the shared **tab bar
+chrome** (background, borders, icon tints) is dark; each light screen renders its content above that
+dark tab bar until its own migration lands.

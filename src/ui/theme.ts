@@ -55,4 +55,14 @@ export const noirGradient = {
   hero: ['#2e3dff', '#1a1f8f', '#0e1230'] as const,
   // soft mint glow layered bottom-right
   heroGlow: ['rgba(16,181,164,0.55)', 'rgba(16,181,164,0)'] as const,
+  // primary CTA hero — bright indigo sweep
+  cta: ['#2e3dff', '#3a47ff', '#5663ff'] as const,
+} as const;
+
+// Calm Noir StatusPill tones — dark-surface equivalents of TONE_COLORS.
+export const noirPillTones = {
+  good: { bg: 'rgba(16, 181, 164, 0.12)', fg: '#4fd8c8', dot: '#10b5a4' },
+  working: { bg: 'rgba(245, 165, 36, 0.12)', fg: '#f7c065', dot: '#f5a524' },
+  attention: { bg: 'rgba(239, 75, 92, 0.14)', fg: '#f4818d', dot: '#ef4b5c' },
+  inactive: { bg: 'rgba(255, 255, 255, 0.04)', fg: '#6b7384', dot: '#4a5260' },
 } as const;
