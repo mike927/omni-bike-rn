@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Omni Bike · Training (live)</title>
+<link rel="stylesheet" href="calm-noir.css" />
+<style>
+  /* screen-specific one-offs (reuse tokens) */
+  .timer-card { position: relative; overflow: hidden; }
+  .timer-card .live-dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--mint); margin-right: 7px; vertical-align: middle;
+    box-shadow: 0 0 0 0 rgba(16,181,164,.5); animation: pulse 2.4s ease-out infinite;
+  }
+  .timer-card::after {
+    content: ""; position: absolute; left: 50%; top: -30%;
+    width: 260px; height: 260px; transform: translateX(-50%);
+    background: radial-gradient(circle, rgba(46,61,255,.16), rgba(46,61,255,0) 70%);
+    pointer-events: none;
+    animation: glowpulse 2.8s ease-in-out infinite;
+  }
+  @keyframes glowpulse { 0%,100%{opacity:.55} 50%{opacity:1} }
+  .timer-value { position: relative; z-index: 1; }
+  .timer-phase { position: relative; z-index: 1; }
+  .timer-cap { position: relative; z-index: 1; }
+
+  /* 2 + 2 + 1 metric arrangement: last tile spans full width */
+  .metric-grid .metric.span-2 { grid-column: 1 / -1; }
+  .metric.span-2 { display: flex; align-items: baseline; justify-content: space-between; }
+  .metric.span-2 .v { margin-top: 0; }
+
+  /* connection row block */
+  .conn-card { padding: 4px 16px; }
+  .conn-row { display: flex; align-items: center; gap: 12px; padding: 14px 0; }
+  .conn-row + .conn-row { border-top: 1px solid var(--hairline); }
+  .conn-meta { flex: 1 1 auto; min-width: 0; }
+  .conn-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+  .conn-value { margin-top: 3px; font-size: 15px; font-weight: 700; letter-spacing: -.01em; color: var(--ink); }
+
+  /* large prominent ride controls */
+  .control-row > .btn { min-height: 56px; font-size: 15px; border-radius: var(--r-lg); }
+</style>
+</head>
+<body>
+  <div class="device">
+    <div class="screen">
+
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="glyphs">
+          <svg width="18" height="12" viewBox="0 0 18 12" fill="none">
+            <rect x="0" y="8" width="3" height="4" rx="1" fill="#eef1f6"/>
+            <rect x="5" y="5" width="3" height="7" rx="1" fill="#eef1f6"/>
+            <rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#eef1f6"/>
+            <rect x="15" y="0" width="3" height="12" rx="1" fill="#eef1f6"/>
+          </svg>
+          <svg width="17" height="12" viewBox="0 0 17 12" fill="none">
+            <path d="M8.5 2.2c2.7 0 5.2 1 7.1 2.8l-1.5 1.6A7.9 7.9 0 0 0 8.5 4.3 7.9 7.9 0 0 0 2.9 6.6L1.4 5C3.3 3.2 5.8 2.2 8.5 2.2Z" fill="#eef1f6"/>
+            <path d="M8.5 6.1c1.6 0 3.1.6 4.2 1.7l-1.6 1.6A3.7 3.7 0 0 0 8.5 8.3c-1 0-2 .4-2.7 1.1L4.3 7.8A6 6 0 0 1 8.5 6.1Z" fill="#eef1f6"/>
+            <circle cx="8.5" cy="11" r="1.3" fill="#eef1f6"/>
+          </svg>
+          <svg width="26" height="13" viewBox="0 0 26 13" fill="none">
+            <rect x="0.5" y="0.5" width="22" height="12" rx="3.5" stroke="#eef1f6" stroke-opacity="0.4"/>
+            <rect x="2" y="2" width="17" height="9" rx="2" fill="#eef1f6"/>
+            <rect x="24" y="4" width="1.6" height="5" rx="0.8" fill="#eef1f6" fill-opacity="0.45"/>
+          </svg>
+        </span>
+      </div>
+
+      <div class="navbar">
+        <div class="nav-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="nav-title">Training</div>
+        <div></div>
+      </div>
+
+      <div class="content pad-bottom">
+
+        <!-- Timer hero -->
+        <div class="card timer-card reveal d1">
+          <div class="timer-phase"><span class="live-dot"></span>RIDE IN PROGRESS</div>
+          <div class="timer-value">42:18</div>
+          <div class="timer-cap">Elapsed</div>
+        </div>
+
+        <!-- Metric grid: 2 + 2 + 1 -->
+        <div class="section-label tight reveal d2">
+          <h2>Live metrics</h2>
+        </div>
+        <div class="metric-grid reveal d3">
+          <div class="metric">
+            <div class="k">Speed</div>
+            <div class="v">18.4<span class="u">km/h</span></div>
+          </div>
+          <div class="metric">
+            <div class="k">Distance</div>
+            <div class="v">18.4<span class="u">km</span></div>
+          </div>
+          <div class="metric accent">
+            <div class="k">Power</div>
+            <div class="v">187<span class="u">W</span></div>
+          </div>
+          <div class="metric">
+            <div class="k">Heart Rate</div>
+            <div class="v">142<span class="u">bpm</span></div>
+          </div>
+          <div class="metric span-2">
+            <div class="k">Calories</div>
+            <div class="v">512<span class="u">kcal</span></div>
+          </div>
+        </div>
+
+        <!-- Connection block -->
+        <div class="section-label reveal d4">
+          <h2>Connections</h2>
+        </div>
+        <div class="card conn-card reveal d5">
+          <div class="conn-row">
+            <div class="conn-meta">
+              <div class="conn-eyebrow">Smart Bike</div>
+              <div class="conn-value">Wahoo KICKR Bike</div>
+            </div>
+            <span class="pill good"><span class="dot"></span>Ready</span>
+          </div>
+          <div class="conn-row">
+            <div class="conn-meta">
+              <div class="conn-eyebrow">Heart Rate Source</div>
+              <div class="conn-value">Polar H10</div>
+            </div>
+            <span class="pill good"><span class="dot"></span>Ready</span>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="card reveal d6" style="margin-top:18px;">
+          <div class="btn-row control-row">
+            <button class="btn btn-secondary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="6" y="5" width="4" height="14" rx="1.4" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1.4" fill="currentColor"/></svg>
+              Pause
+            </button>
+            <button class="btn btn-danger">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg>
+              Finish
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+  <div class="caption"><b>04 · Training (live)</b> · dark</div>
+</body>
+</html>

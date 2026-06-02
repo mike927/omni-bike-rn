@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Omni Bike · Gear Setup</title>
+<link rel="stylesheet" href="calm-noir.css" />
+<style>
+  /* screen-specific one-offs */
+  .signal-line { display: flex; align-items: center; gap: 6px; margin-top: 5px;
+    font-size: 12.5px; font-weight: 700; letter-spacing: -.01em; color: var(--mint-soft); }
+  .signal-line svg { display: block; }
+  .scan-status { display: flex; align-items: center; gap: 9px; padding: 14px 4px 4px; }
+  .scan-status .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--amber);
+    box-shadow: 0 0 0 0 rgba(245,165,36,.5); animation: pulse-amber 1.4s ease-out infinite; }
+  .scan-status .scan-text { font-size: 13px; font-weight: 500; color: var(--ink-3); }
+</style>
+</head>
+<body>
+  <div class="device">
+    <div class="screen">
+
+      <!-- STATUS BAR -->
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="glyphs">
+          <svg width="18" height="12" viewBox="0 0 18 12" fill="none">
+            <rect x="0" y="8" width="3" height="4" rx="1" fill="#eef1f6"/>
+            <rect x="5" y="5" width="3" height="7" rx="1" fill="#eef1f6"/>
+            <rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#eef1f6"/>
+            <rect x="15" y="0" width="3" height="12" rx="1" fill="#eef1f6"/>
+          </svg>
+          <svg width="17" height="12" viewBox="0 0 17 12" fill="none">
+            <path d="M8.5 2.2c2.7 0 5.2 1 7.1 2.8l-1.5 1.6A7.9 7.9 0 0 0 8.5 4.3 7.9 7.9 0 0 0 2.9 6.6L1.4 5C3.3 3.2 5.8 2.2 8.5 2.2Z" fill="#eef1f6"/>
+            <path d="M8.5 6.1c1.6 0 3.1.6 4.2 1.7l-1.6 1.6A3.7 3.7 0 0 0 8.5 8.3c-1 0-2 .4-2.7 1.1L4.3 7.8A6 6 0 0 1 8.5 6.1Z" fill="#eef1f6"/>
+            <circle cx="8.5" cy="11" r="1.3" fill="#eef1f6"/>
+          </svg>
+          <svg width="26" height="13" viewBox="0 0 26 13" fill="none">
+            <rect x="0.5" y="0.5" width="22" height="12" rx="3.5" stroke="#eef1f6" stroke-opacity="0.4"/>
+            <rect x="2" y="2" width="17" height="9" rx="2" fill="#eef1f6"/>
+            <rect x="24" y="4" width="1.6" height="5" rx="0.8" fill="#eef1f6" fill-opacity="0.45"/>
+          </svg>
+        </span>
+      </div>
+
+      <!-- NAVBAR (pushed screen) -->
+      <div class="navbar">
+        <div class="nav-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="nav-title">Select Smart Bike</div>
+        <div></div>
+      </div>
+
+      <!-- CONTENT -->
+      <div class="content">
+
+        <!-- in-content sub header -->
+        <p class="h-sub reveal d1">Choose your FTMS-compatible Smart Bike. A live signal is required before saving.</p>
+
+        <!-- Scan Controls -->
+        <div class="section-label reveal d2">
+          <h2>Scan Controls</h2>
+        </div>
+        <button class="btn btn-secondary btn-block reveal d2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor"/></svg>
+          Stop Scan
+        </button>
+
+        <!-- Nearby Devices -->
+        <div class="section-label reveal d3">
+          <h2>Nearby Devices</h2>
+        </div>
+        <div class="row-list reveal d3">
+
+          <!-- 1: selected, signal confirmed -->
+          <div class="dev-card selected">
+            <div class="dev-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="6.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><circle cx="17.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M6.5 16.5 10 8h4l3.5 8.5M10 8l-2-3m6 3 3-1.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="dev-meta">
+              <div class="dev-name">Wahoo KICKR Bike</div>
+              <div class="dev-kind">ID · D4:9F:…2A1</div>
+              <div class="signal-line">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Signal received
+              </div>
+            </div>
+            <span class="pill good"><span class="dot"></span>Ready</span>
+          </div>
+
+          <!-- 2 -->
+          <div class="dev-card">
+            <div class="dev-icon muted">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="6.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><circle cx="17.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M6.5 16.5 10 8h4l3.5 8.5M10 8l-2-3m6 3 3-1.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="dev-meta">
+              <div class="dev-name">KICKR CORE 8A22</div>
+              <div class="dev-kind">ID · F1:0C:…8B4</div>
+            </div>
+            <button class="btn btn-secondary btn-sm">Select</button>
+          </div>
+
+          <!-- 3 -->
+          <div class="dev-card">
+            <div class="dev-icon muted">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="6.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><circle cx="17.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M6.5 16.5 10 8h4l3.5 8.5M10 8l-2-3m6 3 3-1.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="dev-meta">
+              <div class="dev-name">TACX NEO 2T</div>
+              <div class="dev-kind">ID · 9C:55:…310</div>
+            </div>
+            <button class="btn btn-secondary btn-sm">Select</button>
+          </div>
+
+        </div>
+
+        <!-- live scanning line -->
+        <div class="scan-status reveal d4">
+          <span class="live-dot"></span>
+          <span class="scan-text">Scanning for nearby devices…</span>
+        </div>
+
+      </div>
+
+      <!-- ACTION BAR (primary, enabled) -->
+      <div class="action-bar">
+        <button class="btn btn-primary btn-block reveal d5">Use This Smart Bike</button>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+  <div class="caption"><b>03 · Gear Setup</b> · dark</div>
+</body>
+</html>

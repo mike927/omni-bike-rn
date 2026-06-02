@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Omni Bike · Link Provider Bike</title>
+<link rel="stylesheet" href="calm-noir.css" />
+<style>
+  /* screen-specific one-offs */
+  .strava-dot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: #fc5200;
+    box-shadow: 0 0 0 3px rgba(252,82,0,.16); }
+  .dev-name-row { display: flex; align-items: center; gap: 8px; }
+  .dev-card .btn { flex: 0 0 auto; }
+  .muted-note { margin: 0 4px 12px; font-size: 12.5px; color: var(--ink-3); line-height: 1.45; }
+</style>
+</head>
+<body>
+  <div class="device">
+    <div class="screen">
+
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="glyphs">
+          <svg width="18" height="12" viewBox="0 0 18 12" fill="none">
+            <rect x="0" y="8" width="3" height="4" rx="1" fill="#eef1f6"/>
+            <rect x="5" y="5" width="3" height="7" rx="1" fill="#eef1f6"/>
+            <rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#eef1f6"/>
+            <rect x="15" y="0" width="3" height="12" rx="1" fill="#eef1f6"/>
+          </svg>
+          <svg width="17" height="12" viewBox="0 0 17 12" fill="none">
+            <path d="M8.5 2.2c2.7 0 5.2 1 7.1 2.8l-1.5 1.6A7.9 7.9 0 0 0 8.5 4.3 7.9 7.9 0 0 0 2.9 6.6L1.4 5C3.3 3.2 5.8 2.2 8.5 2.2Z" fill="#eef1f6"/>
+            <path d="M8.5 6.1c1.6 0 3.1.6 4.2 1.7l-1.6 1.6A3.7 3.7 0 0 0 8.5 8.3c-1 0-2 .4-2.7 1.1L4.3 7.8A6 6 0 0 1 8.5 6.1Z" fill="#eef1f6"/>
+            <circle cx="8.5" cy="11" r="1.3" fill="#eef1f6"/>
+          </svg>
+          <svg width="26" height="13" viewBox="0 0 26 13" fill="none">
+            <rect x="0.5" y="0.5" width="22" height="12" rx="3.5" stroke="#eef1f6" stroke-opacity="0.4"/>
+            <rect x="2" y="2" width="17" height="9" rx="2" fill="#eef1f6"/>
+            <rect x="24" y="4" width="1.6" height="5" rx="0.8" fill="#eef1f6" fill-opacity="0.45"/>
+          </svg>
+        </span>
+      </div>
+
+      <div class="navbar">
+        <div class="nav-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="nav-title">Link Provider Bike</div>
+        <div></div>
+      </div>
+
+      <div class="content">
+
+        <p class="h-sub reveal d1">Attach a provider bike to “Wahoo KICKR Bike” for future uploads.</p>
+
+        <div class="section-label reveal d2">
+          <h2>Your Omni Bike</h2>
+        </div>
+        <div class="card reveal d2">
+          <div class="card-title">Wahoo KICKR Bike</div>
+          <div class="card-desc">No provider bike linked yet.</div>
+        </div>
+
+        <div class="section-label reveal d3">
+          <h2>Available Provider Bikes</h2>
+        </div>
+        <p class="muted-note reveal d3">Possible matches for Wahoo KICKR Bike are labeled below. You can still choose any provider bike.</p>
+
+        <div class="row-list">
+
+          <div class="dev-card selected reveal d4">
+            <div class="dev-icon"><span class="strava-dot"></span></div>
+            <div class="dev-meta">
+              <div class="dev-name">Wahoo Kickr Bike</div>
+              <div class="dev-kind">Possible match · Primary bike in provider account</div>
+            </div>
+            <button class="btn btn-primary btn-sm disabled" disabled>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Selected
+            </button>
+          </div>
+
+          <div class="dev-card reveal d5">
+            <div class="dev-icon"><span class="strava-dot"></span></div>
+            <div class="dev-meta">
+              <div class="dev-name">Tacx Neo Smart</div>
+              <div class="dev-kind">Provider bike</div>
+            </div>
+            <button class="btn btn-secondary btn-sm">Choose</button>
+          </div>
+
+          <div class="dev-card reveal d6">
+            <div class="dev-icon"><span class="strava-dot"></span></div>
+            <div class="dev-meta">
+              <div class="dev-name">Canyon Aeroad</div>
+              <div class="dev-kind">Provider bike</div>
+            </div>
+            <button class="btn btn-secondary btn-sm">Choose</button>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="action-bar reveal d7">
+        <button class="btn btn-primary btn-block">Link Bike</button>
+        <button class="btn btn-ghost btn-block">Skip for Now</button>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+  <div class="caption"><b>09 · Link Provider Bike</b> · dark</div>
+</body>
+</html>

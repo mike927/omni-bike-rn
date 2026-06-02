@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Omni Bike · History</title>
+<link rel="stylesheet" href="calm-noir.css" />
+<style>
+  /* screen-specific one-offs */
+  .summary-strip {
+    display: flex; align-items: stretch; gap: 0;
+    background: var(--card); border: 1px solid var(--hairline);
+    border-radius: var(--r-md); box-shadow: var(--shadow-soft);
+    padding: 14px 4px; margin-bottom: 6px;
+  }
+  .summary-strip .cell { flex: 1; text-align: center; padding: 0 8px; }
+  .summary-strip .cell + .cell { border-left: 1px solid var(--hairline); }
+  .summary-strip .k { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3); }
+  .summary-strip .v { margin-top: 5px; font-size: 18px; font-weight: 800; letter-spacing: -.02em; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1; }
+  .summary-strip .v .u { font-size: 11px; font-weight: 600; color: var(--ink-3); margin-left: 2px; letter-spacing: 0; }
+
+  .hist-row { cursor: pointer; transition: transform .15s ease, border-color .18s ease; }
+  .hist-row:active { transform: scale(.99); }
+  .prov { display: inline-flex; align-items: center; justify-content: center; }
+  .hist-providers .chev { margin-left: 2px; }
+</style>
+</head>
+<body>
+  <div class="device">
+    <div class="screen">
+
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="glyphs">
+          <svg width="18" height="12" viewBox="0 0 18 12" fill="none">
+            <rect x="0" y="8" width="3" height="4" rx="1" fill="#eef1f6"/>
+            <rect x="5" y="5" width="3" height="7" rx="1" fill="#eef1f6"/>
+            <rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#eef1f6"/>
+            <rect x="15" y="0" width="3" height="12" rx="1" fill="#eef1f6"/>
+          </svg>
+          <svg width="17" height="12" viewBox="0 0 17 12" fill="none">
+            <path d="M8.5 2.2c2.7 0 5.2 1 7.1 2.8l-1.5 1.6A7.9 7.9 0 0 0 8.5 4.3 7.9 7.9 0 0 0 2.9 6.6L1.4 5C3.3 3.2 5.8 2.2 8.5 2.2Z" fill="#eef1f6"/>
+            <path d="M8.5 6.1c1.6 0 3.1.6 4.2 1.7l-1.6 1.6A3.7 3.7 0 0 0 8.5 8.3c-1 0-2 .4-2.7 1.1L4.3 7.8A6 6 0 0 1 8.5 6.1Z" fill="#eef1f6"/>
+            <circle cx="8.5" cy="11" r="1.3" fill="#eef1f6"/>
+          </svg>
+          <svg width="26" height="13" viewBox="0 0 26 13" fill="none">
+            <rect x="0.5" y="0.5" width="22" height="12" rx="3.5" stroke="#eef1f6" stroke-opacity="0.4"/>
+            <rect x="2" y="2" width="17" height="9" rx="2" fill="#eef1f6"/>
+            <rect x="24" y="4" width="1.6" height="5" rx="0.8" fill="#eef1f6" fill-opacity="0.45"/>
+          </svg>
+        </span>
+      </div>
+
+      <div class="content">
+
+        <div class="screen-head reveal d1">
+          <div class="h-title">History</div>
+          <div class="h-sub">Your completed rides.</div>
+        </div>
+
+        <div class="summary-strip reveal d2">
+          <div class="cell">
+            <div class="k">This Month</div>
+            <div class="v">12<span class="u">rides</span></div>
+          </div>
+          <div class="cell">
+            <div class="k">Distance</div>
+            <div class="v">214<span class="u">km</span></div>
+          </div>
+          <div class="cell">
+            <div class="k">Time</div>
+            <div class="v">9h 40m</div>
+          </div>
+        </div>
+
+        <div class="section-label tight reveal d3">
+          <h2>Recent rides</h2>
+        </div>
+
+        <div class="row-list">
+
+          <!-- 1 -->
+          <div class="hist-row reveal d3">
+            <div class="hist-main">
+              <div class="hist-date">Sat, May 30</div>
+              <div class="hist-metrics">18.4 km · 1h 2m · 512 kcal</div>
+            </div>
+            <div class="hist-providers">
+              <span class="prov" title="Uploaded to Strava">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="11" fill="rgba(16,181,164,.14)" stroke="currentColor" stroke-opacity=".55"/>
+                  <path d="M7.5 12.2l3 3 6-6.4" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <span class="prov" title="Synced to Apple Health">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="11" fill="rgba(16,181,164,.14)" stroke="currentColor" stroke-opacity=".55"/>
+                  <path d="M7.5 12.2l3 3 6-6.4" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <span class="chev"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            </div>
+          </div>
+
+          <!-- 2 -->
+          <div class="hist-row reveal d4">
+            <div class="hist-main">
+              <div class="hist-date">Thu, May 28</div>
+              <div class="hist-metrics">12.1 km · 38m · 318 kcal</div>
+            </div>
+            <div class="hist-providers">
+              <span class="prov" title="Uploaded to Strava">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="11" fill="rgba(16,181,164,.14)" stroke="currentColor" stroke-opacity=".55"/>
+                  <path d="M7.5 12.2l3 3 6-6.4" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <span class="prov muted" title="Not synced to Apple Health">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="11" fill="rgba(255,255,255,.03)" stroke="currentColor" stroke-opacity=".5"/>
+                  <path d="M7.5 12.2l3 3 6-6.4" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <span class="chev"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            </div>
+          </div>
+
+          <!-- 3 -->
+          <div class="hist-row reveal d5">
+            <div class="hist-main">
+              <div class="hist-date">Tue, May 26</div>
+              <div class="hist-metrics">24.0 km · 1h 14m · 642 kcal</div>
+            </div>
+            <div class="hist-providers">
+              <span class="prov" title="Uploaded to Strava">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="11" fill="rgba(16,181,164,.14)" stroke="currentColor" stroke-opacity=".55"/>
+                  <path d="M7.5 12.2l3 3 6-6.4" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <span class="prov" title="Synced to Apple Health">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="11" fill="rgba(16,181,164,.14)" stroke="currentColor" stroke-opacity=".55"/>
+                  <path d="M7.5 12.2l3 3 6-6.4" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <span class="chev"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            </div>
+          </div>
+
+          <!-- 4 -->
+          <div class="hist-row reveal d6">
+            <div class="hist-main">
+              <div class="hist-date">Sun, May 24</div>
+              <div class="hist-metrics">8.6 km · 26m · 210 kcal</div>
+            </div>
+            <div class="hist-providers">
+              <span class="prov muted" title="Not uploaded to Strava">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="11" fill="rgba(255,255,255,.03)" stroke="currentColor" stroke-opacity=".5"/>
+                  <path d="M7.5 12.2l3 3 6-6.4" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <span class="prov muted" title="Not synced to Apple Health">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="11" fill="rgba(255,255,255,.03)" stroke="currentColor" stroke-opacity=".5"/>
+                  <path d="M7.5 12.2l3 3 6-6.4" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <span class="chev"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            </div>
+          </div>
+
+          <!-- 5 -->
+          <div class="hist-row reveal d7">
+            <div class="hist-main">
+              <div class="hist-date">Fri, May 22</div>
+              <div class="hist-metrics">31.2 km · 1h 33m · 808 kcal</div>
+            </div>
+            <div class="hist-providers">
+              <span class="prov" title="Uploaded to Strava">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="11" fill="rgba(16,181,164,.14)" stroke="currentColor" stroke-opacity=".55"/>
+                  <path d="M7.5 12.2l3 3 6-6.4" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <span class="prov" title="Synced to Apple Health">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="11" fill="rgba(16,181,164,.14)" stroke="currentColor" stroke-opacity=".55"/>
+                  <path d="M7.5 12.2l3 3 6-6.4" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <span class="chev"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            </div>
+          </div>
+
+          <!-- 6 -->
+          <div class="hist-row reveal d8">
+            <div class="hist-main">
+              <div class="hist-date">Wed, May 20</div>
+              <div class="hist-metrics">15.5 km · 47m · 402 kcal</div>
+            </div>
+            <div class="hist-providers">
+              <span class="prov" title="Uploaded to Strava">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="11" fill="rgba(16,181,164,.14)" stroke="currentColor" stroke-opacity=".55"/>
+                  <path d="M7.5 12.2l3 3 6-6.4" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <span class="prov muted" title="Not synced to Apple Health">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="11" fill="rgba(255,255,255,.03)" stroke="currentColor" stroke-opacity=".5"/>
+                  <path d="M7.5 12.2l3 3 6-6.4" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <span class="chev"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="tabbar">
+        <div class="tab">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 11l8-6.5L20 11v8a1.5 1.5 0 0 1-1.5 1.5H15v-5h-6v5H5.5A1.5 1.5 0 0 1 4 19v-8Z" fill="currentColor"/></svg>
+          Home
+        </div>
+        <div class="tab active">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M3 3v5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M12 7.5v5l3.5 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          History
+        </div>
+        <div class="tab">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M19.4 13a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-2.92 1.2V20a2 2 0 1 1-4 0v-.06a1.7 1.7 0 0 0-2.92-1.2l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 13a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.06A1.7 1.7 0 0 0 4.6 6.4l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 11 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.06a1.7 1.7 0 0 0 2.92 1.2l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 11a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.06a1.7 1.7 0 0 0-1.54 1Z" stroke="currentColor" stroke-width="1.5"/>
+          </svg>
+          Settings
+        </div>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+  <div class="caption"><b>06 · History</b> · dark</div>
+</body>
+</html>

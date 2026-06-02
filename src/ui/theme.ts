@@ -28,3 +28,27 @@ export const gradient = {
   aurora: ['#2e3dff', '#8b5cf6', '#10b5a4'] as const,
   cool: ['#10b5a4', '#2e3dff'] as const,
 } as const;
+
+// --- Calm Noir (dark) — onboarding is the first surface; reused app-wide later.
+export const noir = {
+  bg: '#0b0e13',
+  card: '#161b24',
+  cardAlt: '#1b212c',
+  card3: '#1f2735',
+  ink: '#eef1f6',
+  ink2: '#9aa3b2',
+  ink3: '#6b7384',
+  hairline: '#232a35',
+  indigo: '#2e3dff',
+  indigoSoft: '#5663ff',
+  indigoPress: '#2330d8',
+  mint: '#10b5a4',
+  mintSoft: '#4fd8c8',
+} as const;
+
+export const noirGradient = {
+  // illustration circle: indigo top-left → deep navy
+  hero: ['#2e3dff', '#1a1f8f', '#0e1230'] as const,
+  // soft mint glow layered bottom-right
+  heroGlow: ['rgba(16,181,164,0.55)', 'rgba(16,181,164,0)'] as const,
+} as const;

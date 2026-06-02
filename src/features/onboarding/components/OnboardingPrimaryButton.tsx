@@ -1,8 +1,7 @@
-import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
-import { gradient, palette } from '../../../ui/theme';
+import { noir } from '../../../ui/theme';
 
 interface OnboardingPrimaryButtonProps {
   readonly label: string;
@@ -34,10 +33,9 @@ export function OnboardingPrimaryButton({ label, onPress, testID }: OnboardingPr
         onPressOut={() => {
           scale.value = withTiming(1, { duration: RELEASE_DURATION, easing: Easing.out(Easing.quad) });
         }}
-        onPress={onPress}>
-        <LinearGradient colors={[...gradient.cool]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.button}>
-          <Text style={styles.label}>{label}</Text>
-        </LinearGradient>
+        onPress={onPress}
+        style={({ pressed }) => [styles.button, pressed && styles.pressed]}>
+        <Text style={styles.label}>{label}</Text>
       </Pressable>
     </Animated.View>
   );
@@ -47,12 +45,16 @@ const styles = StyleSheet.create({
   button: {
     height: 56,
     borderRadius: 999,
+    backgroundColor: noir.indigo,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
   },
+  pressed: {
+    backgroundColor: noir.indigoPress,
+  },
   label: {
-    color: palette.surface,
+    color: noir.ink,
     fontSize: 18,
     fontWeight: '700',
   },
