@@ -16,6 +16,8 @@ const DEFAULT_MOCK_STATE: UseGearSetupMockState = {
   selectedDevice: null,
   validationError: null,
   signalConfirmed: false,
+  latestBikeMetrics: null,
+  latestBluetoothHr: null,
   startScan: (...args) => mockStartScan(...args),
   stopScan: jest.fn(),
   selectDevice: jest.fn(),
@@ -27,6 +29,7 @@ const mockGearSetupState: UseGearSetupMockState = { ...DEFAULT_MOCK_STATE };
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ back: mockBack }),
+  Stack: { Screen: () => null },
 }));
 
 jest.mock('react-native-safe-area-context', () => {
@@ -56,8 +59,7 @@ describe('GearSetupScreen', () => {
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
     mockStartScan.mockResolvedValue('denied');
 
-    const { getByText } = render(<GearSetupScreen target="bike" />);
-    fireEvent.press(getByText('Start Scan'));
+    render(<GearSetupScreen target="bike" />); // scanning starts automatically on mount
 
     await waitFor(() => {
       expect(alertSpy).toHaveBeenCalledWith(
@@ -72,6 +74,8 @@ describe('GearSetupScreen', () => {
     it('shows the Garmin/Polar broadcast hint when HR validation fails with missing_hr_service', () => {
       Object.assign(mockGearSetupState, {
         step: 'error',
+        devices: [{ id: 'AB:CD', name: 'Garmin Venu' }],
+        selectedDevice: { id: 'AB:CD', name: 'Garmin Venu' },
         validationError: 'missing_hr_service',
       });
 
@@ -85,6 +89,8 @@ describe('GearSetupScreen', () => {
     it('expands the broadcast hint step list when tapped', () => {
       Object.assign(mockGearSetupState, {
         step: 'error',
+        devices: [{ id: 'AB:CD', name: 'Garmin Venu' }],
+        selectedDevice: { id: 'AB:CD', name: 'Garmin Venu' },
         validationError: 'missing_hr_service',
       });
 
@@ -101,6 +107,76 @@ describe('GearSetupScreen', () => {
       expect(getByText(/top-right button on Venu/)).toBeTruthy();
       expect(getByText(/Sensors & Accessories/)).toBeTruthy();
     });
+  });
+
+  it('shows a connecting status on the selected device row while connecting', () => {
+    Object.assign(mockGearSetupState, {
+      step: 'connecting',
+      devices: [{ id: 'D4:9F', name: 'Wahoo KICKR Bike' }],
+      selectedDevice: { id: 'D4:9F', name: 'Wahoo KICKR Bike' },
+    });
+    const { getByText } = render(<GearSetupScreen target="bike" />);
+    expect(getByText('Wahoo KICKR Bike')).toBeTruthy();
+    expect(getByText('Connecting...')).toBeTruthy();
+  });
+
+  it('auto-saves and navigates back once a live signal is confirmed', async () => {
+    Object.assign(mockGearSetupState, {
+      step: 'ready',
+      devices: [{ id: 'D4:9F', name: 'Wahoo KICKR Bike' }],
+      selectedDevice: { id: 'D4:9F', name: 'Wahoo KICKR Bike' },
+      signalConfirmed: true,
+    });
+    render(<GearSetupScreen target="bike" />);
+    await waitFor(() => {
+      expect(mockGearSetupState.save).toHaveBeenCalled();
+      expect(mockBack).toHaveBeenCalled();
+    });
+  });
+
+  it('shows the FTMS error inline on the device row on validation failure', () => {
+    Object.assign(mockGearSetupState, {
+      step: 'error',
+      devices: [{ id: 'X', name: 'Generic Fitness 5C2' }],
+      selectedDevice: { id: 'X', name: 'Generic Fitness 5C2' },
+      validationError: 'missing_indoor_bike_characteristic',
+    });
+    const { getByText } = render(<GearSetupScreen target="bike" />);
+    expect(getByText(/does not broadcast indoor bike data/i)).toBeTruthy();
+    expect(getByText('Retry')).toBeTruthy();
+  });
+
+  it('locks the other device rows while one device is connecting', () => {
+    const selectDevice = jest.fn();
+    Object.assign(mockGearSetupState, {
+      step: 'connecting',
+      devices: [
+        { id: 'A', name: 'Wahoo KICKR Bike' },
+        { id: 'B', name: 'TACX NEO 2T' },
+      ],
+      selectedDevice: { id: 'A', name: 'Wahoo KICKR Bike' },
+      selectDevice,
+    });
+    const { getByText } = render(<GearSetupScreen target="bike" />);
+    // Device A shows "Connecting...", so the only "Select" belongs to the idle
+    // row B — which must be locked while a pairing is in flight.
+    fireEvent.press(getByText('Select'));
+    expect(selectDevice).not.toHaveBeenCalled();
+  });
+
+  it('alerts and does not navigate back when saving the paired device fails', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+    Object.assign(mockGearSetupState, {
+      step: 'ready',
+      devices: [{ id: 'D4:9F', name: 'Wahoo KICKR Bike' }],
+      selectedDevice: { id: 'D4:9F', name: 'Wahoo KICKR Bike' },
+      signalConfirmed: true,
+      save: jest.fn().mockRejectedValue(new Error('persist failed')),
+    });
+    render(<GearSetupScreen target="bike" />);
+    await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+    expect(alertSpy.mock.calls[0]?.[0]).toMatch(/Save Device/);
+    expect(mockBack).not.toHaveBeenCalled();
   });
 
   describe('HR sensor transparency', () => {
