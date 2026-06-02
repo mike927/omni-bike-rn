@@ -20,7 +20,11 @@ export function ProfileCard({ summary, onEdit }: ProfileCardProps) {
           <Text style={styles.summary}>{summary}</Text>
           <Text style={styles.hint}>Used for calorie accuracy</Text>
         </View>
-        <ActionButton label="Edit" onPress={onEdit} variant="secondary" scheme="noir" size="sm" />
+        {/* Wrap so the row's center alignment applies — the sm ActionButton sets
+            alignSelf:'flex-start', which would otherwise top-align it. */}
+        <View>
+          <ActionButton label="Edit" onPress={onEdit} variant="secondary" scheme="noir" size="sm" />
+        </View>
       </View>
     </View>
   );

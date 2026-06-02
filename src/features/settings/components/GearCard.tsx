@@ -128,8 +128,12 @@ export function GearCard({
           </View>
         </TouchableOpacity>
         <View style={styles.trailing}>
+          {/* Wrap the pill so the row's center alignment applies — StatusPill itself
+              sets alignSelf:'flex-start', which would otherwise top-align it. */}
           {showStatus ? (
-            <StatusPill status={status} scheme="noir" accessibilityLabel={`${name}: ${deviceStatusLabel(status)}`} />
+            <View style={styles.pillSlot}>
+              <StatusPill status={status} scheme="noir" accessibilityLabel={`${name}: ${deviceStatusLabel(status)}`} />
+            </View>
           ) : null}
           {/* Reserve the chevron column on every card so the status pills right-align
               and the chevrons share one column, whether or not a card is expandable. */}
@@ -178,6 +182,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+  },
+  pillSlot: {
+    justifyContent: 'center',
   },
   body: {
     flex: 1,
