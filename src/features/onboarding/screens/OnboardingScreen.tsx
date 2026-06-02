@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAppPreferencesStore } from '../../../store/appPreferencesStore';
 import { useSavedGearStore } from '../../../store/savedGearStore';
-import { palette } from '../../../ui/theme';
+import { noir } from '../../../ui/theme';
 import { OnboardingPrimaryButton } from '../components/OnboardingPrimaryButton';
 import { OnboardingProgressBar } from '../components/OnboardingProgressBar';
 import { OnboardingSecondaryButton } from '../components/OnboardingSecondaryButton';
@@ -45,8 +45,7 @@ const ONBOARDING_PAGES: readonly OnboardingPage[] = [
   },
   {
     headline: 'Train to your heart rate',
-    subtitle:
-      'Connect a Bluetooth chest strap or other compatible heart-rate sensor. Optional — you can add one anytime.',
+    subtitle: 'Connect a Bluetooth chest strap or another compatible heart-rate sensor.',
     Illustration: Page2HrIllustration,
     illustrationTestID: 'onboarding-illustration-hr',
     primaryLabel: 'Pair Device',
@@ -206,6 +205,9 @@ function OnboardingPageContent({ page, index, scrollX, pageWidth }: OnboardingPa
 
   return (
     <View style={[styles.page, { width: pageWidth }]}>
+      <Animated.View style={[styles.illustration, illustrationStyle]}>
+        <page.Illustration testID={page.illustrationTestID} />
+      </Animated.View>
       <Animated.View style={[styles.textBlock, textStyle]}>
         <Text style={styles.headline} numberOfLines={2}>
           {page.headline}
@@ -214,9 +216,6 @@ function OnboardingPageContent({ page, index, scrollX, pageWidth }: OnboardingPa
           {page.subtitle}
         </Text>
       </Animated.View>
-      <Animated.View style={[styles.illustration, illustrationStyle]}>
-        <page.Illustration testID={page.illustrationTestID} />
-      </Animated.View>
     </View>
   );
 }
@@ -224,7 +223,7 @@ function OnboardingPageContent({ page, index, scrollX, pageWidth }: OnboardingPa
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: palette.surface,
+    backgroundColor: noir.bg,
   },
   topBar: {
     flexDirection: 'row',
@@ -244,6 +243,8 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 36,
   },
   textBlock: {
     alignItems: 'center',
@@ -252,7 +253,7 @@ const styles = StyleSheet.create({
     maxWidth: 448,
   },
   headline: {
-    color: palette.text,
+    color: noir.ink,
     fontSize: 30,
     fontWeight: '700',
     lineHeight: 36,
@@ -261,14 +262,13 @@ const styles = StyleSheet.create({
     minHeight: 72,
   },
   subtitle: {
-    color: palette.textMuted,
+    color: noir.ink2,
     fontSize: 16,
     lineHeight: 26,
     textAlign: 'center',
     minHeight: 78,
   },
   illustration: {
-    flex: 1,
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',

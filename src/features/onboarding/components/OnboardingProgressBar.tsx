@@ -2,7 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, View } from 'react-native';
 import Animated, { interpolate, useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
 
-import { gradient, palette } from '../../../ui/theme';
+import { gradient, noir } from '../../../ui/theme';
 
 interface OnboardingProgressBarProps {
   readonly total: number;
@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 6,
     borderRadius: 999,
-    backgroundColor: palette.border,
+    backgroundColor: noir.hairline,
     overflow: 'hidden',
   },
 });
