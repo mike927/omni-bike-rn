@@ -44,6 +44,10 @@ export const noir = {
   indigoPress: '#2330d8',
   mint: '#10b5a4',
   mintSoft: '#4fd8c8',
+  amber: '#f5a524',
+  amberSoft: '#f7c46b',
+  danger: '#ef4b5c',
+  dangerSoft: '#ff8a93',
 } as const;
 
 export const noirGradient = {
