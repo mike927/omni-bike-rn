@@ -29,6 +29,7 @@ const mockGearSetupState: UseGearSetupMockState = { ...DEFAULT_MOCK_STATE };
 
 jest.mock('expo-router', () => ({
   useRouter: () => ({ back: mockBack }),
+  Stack: { Screen: () => null },
 }));
 
 jest.mock('react-native-safe-area-context', () => {

@@ -86,6 +86,9 @@ export default function RootLayout() {
           },
           headerTintColor: palette.surface,
           headerShadowVisible: false,
+          // Unified back control across all pushed screens: chevron only, no
+          // route-name/group label (e.g. avoids a raw "(tabs)" back title).
+          headerBackButtonDisplayMode: 'minimal',
           contentStyle: {
             backgroundColor: palette.background,
           },
@@ -96,20 +99,8 @@ export default function RootLayout() {
         <Stack.Screen name="summary" options={{ title: 'Summary' }} />
         <Stack.Screen name="gear-setup" options={{ title: 'Select Device' }} />
         <Stack.Screen name="onboarding-gear-setup" options={{ presentation: 'modal', title: 'Select Device' }} />
-        <Stack.Screen
-          name="provider-gear-link"
-          options={{
-            title: 'Link Provider Bike',
-            headerBackTitle: 'Settings',
-          }}
-        />
-        <Stack.Screen
-          name="user-profile"
-          options={{
-            title: 'User Profile',
-            headerBackTitle: 'Settings',
-          }}
-        />
+        <Stack.Screen name="provider-gear-link" options={{ title: 'Link Provider Bike' }} />
+        <Stack.Screen name="user-profile" options={{ title: 'User Profile' }} />
         <Stack.Screen name="localhost/oauth/callback" options={{ headerShown: false }} />
       </Stack>
     </>

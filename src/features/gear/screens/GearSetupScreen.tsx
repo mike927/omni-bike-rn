@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -220,14 +220,14 @@ export function GearSetupScreen({ target }: Readonly<GearSetupScreenProps>) {
   };
 
   return (
-    <SafeAreaView edges={['top', 'left', 'right', 'bottom']} style={styles.safeArea}>
-      <View style={styles.navbar}>
-        <Pressable accessibilityRole="button" onPress={() => router.back()} hitSlop={10} style={styles.navBtn}>
-          <Text style={styles.navChevron}>‹</Text>
-        </Pressable>
-        <Text style={styles.navTitle}>{title}</Text>
-        <View style={styles.navBtn} />
-      </View>
+    <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeArea}>
+      <Stack.Screen
+        options={{
+          title,
+          headerStyle: { backgroundColor: noir.bg },
+          headerTintColor: noir.ink,
+        }}
+      />
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {isPicked ? (
@@ -258,17 +258,7 @@ export function GearSetupScreen({ target }: Readonly<GearSetupScreenProps>) {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: noir.bg },
-  navbar: {
-    height: 50,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-  },
-  navBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  navChevron: { color: noir.ink, fontSize: 30, lineHeight: 30, marginTop: -4 },
-  navTitle: { flex: 1, textAlign: 'center', color: noir.ink, fontSize: 17, fontWeight: '800' },
-  content: { paddingHorizontal: 22, paddingTop: 4, paddingBottom: 24, gap: 12 },
+  content: { paddingHorizontal: 22, paddingTop: 8, paddingBottom: 24, gap: 12 },
   subtitle: { color: noir.ink2, fontSize: 14.5, lineHeight: 20, marginTop: 6 },
   sectionLabel: { color: noir.ink, fontSize: 14, fontWeight: '700', marginTop: 10 },
   rowGap: { marginTop: 0 },
