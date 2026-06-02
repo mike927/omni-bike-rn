@@ -39,6 +39,11 @@ export function deriveRideHero(input: RideHeroInput): RideHeroModel {
     };
   }
 
+  // TrainingPhase.Finished is transient — `finishAndDisconnect()` navigates away
+  // and resets the phase to Idle, and `session.start()` self-guards on `phase !== Idle`.
+  // We intentionally let it fall through to the Start/Setup logic below rather than
+  // adding a flash of a dedicated Finished state.
+
   if (!hasSavedBike) {
     return {
       variant: 'setup',

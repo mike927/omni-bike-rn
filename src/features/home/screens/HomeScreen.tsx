@@ -110,7 +110,11 @@ export function HomeScreen() {
 
         <View style={styles.sectionLabel}>
           <Text style={styles.sectionTitle}>Connected</Text>
-          <Text style={styles.sectionLink} onPress={() => router.push(SETTINGS_ROUTE)}>
+          <Text
+            style={styles.sectionLink}
+            accessibilityRole="button"
+            accessibilityLabel="Manage connected gear"
+            onPress={() => router.push(SETTINGS_ROUTE)}>
             Manage
           </Text>
         </View>
@@ -160,7 +164,11 @@ export function HomeScreen() {
         <View style={styles.sectionLabel}>
           <Text style={styles.sectionTitle}>Latest ride</Text>
           {latestWorkout ? (
-            <Text style={styles.sectionLink} onPress={() => router.push('/(tabs)/history')}>
+            <Text
+              style={styles.sectionLink}
+              accessibilityRole="button"
+              accessibilityLabel="View workout history"
+              onPress={() => router.push('/(tabs)/history')}>
               History
             </Text>
           ) : null}
