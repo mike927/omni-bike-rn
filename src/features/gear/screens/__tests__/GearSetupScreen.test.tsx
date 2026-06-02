@@ -16,6 +16,8 @@ const DEFAULT_MOCK_STATE: UseGearSetupMockState = {
   selectedDevice: null,
   validationError: null,
   signalConfirmed: false,
+  latestBikeMetrics: null,
+  latestBluetoothHr: null,
   startScan: (...args) => mockStartScan(...args),
   stopScan: jest.fn(),
   selectDevice: jest.fn(),

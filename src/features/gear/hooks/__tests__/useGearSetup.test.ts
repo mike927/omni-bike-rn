@@ -84,6 +84,24 @@ describe('scan service filter', () => {
   });
 });
 
+describe('live metrics exposure', () => {
+  it('exposes the latest bike metrics from the device connection store', () => {
+    useDeviceConnectionStore.getState().updateBikeMetrics({ speed: 30, cadence: 90, power: 120 });
+
+    const { result } = renderHook(() => useGearSetup('bike'));
+
+    expect(result.current.latestBikeMetrics).toEqual({ speed: 30, cadence: 90, power: 120 });
+  });
+
+  it('exposes the latest bluetooth HR from the device connection store', () => {
+    useDeviceConnectionStore.getState().updateBluetoothHr(142);
+
+    const { result } = renderHook(() => useGearSetup('hr'));
+
+    expect(result.current.latestBluetoothHr).toBe(142);
+  });
+});
+
 describe('valid device flow (bike)', () => {
   it('transitions through validating → connecting → awaiting_signal → ready on live signal', async () => {
     mockValidateBike.mockResolvedValue({ valid: true });

@@ -10,6 +10,7 @@ import { validateBikeDevice, validateHrDevice } from '../../../services/ble/bleD
 import { BIKE_SCAN_SERVICE_UUIDS } from '../../../services/ble/bleUuids';
 import { isLikelyHrCandidate } from '../../../services/ble/scanFilters';
 import type { GearType, ValidationFailureReason } from '../../../types/gear';
+import type { BikeMetrics } from '../../../services/ble/BikeAdapter';
 
 // HR scan intentionally uses no service-UUID filter.
 //
@@ -49,6 +50,8 @@ interface UseGearSetupReturn {
   selectedDevice: Device | null;
   validationError: ValidationFailureReason | null;
   signalConfirmed: boolean;
+  latestBikeMetrics: BikeMetrics | null;
+  latestBluetoothHr: number | null;
   startScan: () => Promise<BlePermissionStatus>;
   stopScan: () => void;
   selectDevice: (device: Device) => Promise<void>;
@@ -71,6 +74,8 @@ export function useGearSetup(target: GearType): UseGearSetupReturn {
   const { connectBike, connectHr, disconnectBike, disconnectHr } = useDeviceConnection();
   const persistBike = useSavedGearStore((s) => s.persistBike);
   const persistHr = useSavedGearStore((s) => s.persistHr);
+  const latestBikeMetrics = useDeviceConnectionStore((s) => s.latestBikeMetrics);
+  const latestBluetoothHr = useDeviceConnectionStore((s) => s.latestBluetoothHr);
 
   const [step, setStep] = useState<GearSetupStep>('scanning');
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
@@ -186,10 +191,10 @@ export function useGearSetup(target: GearType): UseGearSetupReturn {
   useEffect(() => {
     if (step !== 'awaiting_signal') return;
 
-    const latestBikeMetrics = useDeviceConnectionStore.getState().latestBikeMetrics;
-    const latestBluetoothHr = useDeviceConnectionStore.getState().latestBluetoothHr;
+    const currentBikeMetrics = useDeviceConnectionStore.getState().latestBikeMetrics;
+    const currentBluetoothHr = useDeviceConnectionStore.getState().latestBluetoothHr;
 
-    const hasSignal = target === 'bike' ? latestBikeMetrics !== null : latestBluetoothHr !== null;
+    const hasSignal = target === 'bike' ? currentBikeMetrics !== null : currentBluetoothHr !== null;
     if (hasSignal) {
       clearSignalTimeout();
       signalConfirmedRef.current = true;
@@ -243,6 +248,8 @@ export function useGearSetup(target: GearType): UseGearSetupReturn {
     selectedDevice,
     validationError,
     signalConfirmed,
+    latestBikeMetrics,
+    latestBluetoothHr,
     startScan,
     stopScan,
     selectDevice,
