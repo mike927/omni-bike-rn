@@ -1,4 +1,4 @@
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 
 interface BikeGlyphProps {
   readonly color: string;
@@ -6,18 +6,28 @@ interface BikeGlyphProps {
   readonly testID?: string;
 }
 
+// Shape matches the onboarding bike icon (`src/features/onboarding/illustrations/icons/BikeIcon.tsx`),
+// rendered single-color so it tints with the row/chip state color.
 export function BikeGlyph({ color, size = 22, testID }: BikeGlyphProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" testID={testID}>
-      <Circle cx={6.5} cy={16.5} r={3.5} stroke={color} strokeWidth={1.8} />
-      <Circle cx={17.5} cy={16.5} r={3.5} stroke={color} strokeWidth={1.8} />
       <Path
-        d="M6.5 16.5 10 8h4l3.5 8.5M10 8l-2-3m6 3 3-1.5"
         stroke={color}
-        strokeWidth={1.8}
+        strokeWidth={1.5}
         strokeLinecap="round"
         strokeLinejoin="round"
+        d="M11.4 13.2c-0.2794 -0.3726 -0.6418 -0.675 -1.0584 -0.8833C9.92507 12.1084 9.46574 12 9 12H6c-1.39239 0 -2.72774 0.5531 -3.71231 1.5377C1.30312 14.5223 0.75 15.8576 0.75 17.25c0 1.3924 0.55312 2.7277 1.53769 3.7123C3.27226 21.9469 4.60761 22.5 6 22.5h15c0.5967 0 1.169 -0.2371 1.591 -0.659 0.4219 -0.422 0.659 -0.9943 0.659 -1.591s-0.2371 -1.169 -0.659 -1.591C22.169 18.2371 21.5967 18 21 18h-4.5c-0.4657 0 -0.9251 -0.1084 -1.3416 -0.3167 -0.4166 -0.2083 -0.779 -0.5107 -1.0584 -0.8833l-2.7 -3.6Z"
       />
+      <Path stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" d="m6.75 16.5 2.25 3" />
+      <Path
+        stroke={color}
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="m13.433 15.911 1.922 -6.964c0.1134 -0.41566 0.3604 -0.78248 0.7028 -1.04396 0.3424 -0.26148 0.7613 -0.4031 1.1922 -0.40304h3c0.7956 0 1.5587 -0.31607 2.1213 -0.87868 0.5626 -0.56261 0.8787 -1.32567 0.8787 -2.12132s-0.3161 -1.55871 -0.8787 -2.12132C21.8087 1.81607 21.0456 1.5 20.25 1.5h-6"
+      />
+      <Path stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" d="M2.25 7.5h6" />
+      <Path stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" d="m4.5 7.5 3 4.5" />
     </Svg>
   );
 }
