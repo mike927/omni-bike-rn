@@ -1,6 +1,7 @@
 import { render } from '@testing-library/react-native';
 
 import { StatusPill } from '../StatusPill';
+import { noirPillTones } from '../../theme';
 
 describe('StatusPill', () => {
   it.each([
@@ -34,4 +35,12 @@ describe('StatusPill', () => {
     expect(getByText('Ready')).toBeTruthy();
     expect(queryByText('Connecting...')).toBeNull();
   });
+});
+
+it('renders noir tone colors when scheme is noir', () => {
+  const { getByTestId } = render(<StatusPill status="ready" scheme="noir" testID="pill" />);
+  const pill = getByTestId('pill');
+  expect(pill.props.style).toEqual(
+    expect.arrayContaining([expect.objectContaining({ backgroundColor: noirPillTones.good.bg })]),
+  );
 });

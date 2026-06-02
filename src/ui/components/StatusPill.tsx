@@ -15,7 +15,7 @@ import {
   type DeviceStatus,
   type DeviceStatusTone,
 } from '../../types/deviceStatus';
-import { palette } from '../theme';
+import { noirPillTones, palette } from '../theme';
 
 interface ToneColors {
   readonly bg: string;
@@ -31,15 +31,18 @@ const TONE_COLORS: Record<DeviceStatusTone, ToneColors> = {
   inactive: { bg: palette.surfaceMuted, fg: palette.tabInactive, dot: palette.tabInactive },
 };
 
+const NOIR_TONE_COLORS: Record<DeviceStatusTone, ToneColors> = noirPillTones;
+
 export interface StatusPillProps {
   readonly status: DeviceStatus;
+  readonly scheme?: 'light' | 'noir';
   readonly accessibilityLabel?: string;
   readonly testID?: string;
 }
 
-export function StatusPill({ status, accessibilityLabel, testID }: StatusPillProps) {
+export function StatusPill({ status, scheme = 'light', accessibilityLabel, testID }: StatusPillProps) {
   const tone = deviceStatusTone(status);
-  const colors = TONE_COLORS[tone];
+  const colors = (scheme === 'noir' ? NOIR_TONE_COLORS : TONE_COLORS)[tone];
   const label = deviceStatusLabel(status);
 
   const opacity = useSharedValue(1);
