@@ -17,6 +17,8 @@
   .illus svg { position: absolute; inset: 0; margin: auto; z-index: 1; }
   .ob-text { margin-top: 36px; }
   .h-title.center, .h-sub.center { text-align: center; }
+  /* reserve two lines for the title so the subtitle aligns across all steps */
+  .ob-text .h-title { min-height: 63px; display: flex; align-items: center; justify-content: center; }
   .h-sub.center { margin-left: auto; margin-right: auto; max-width: 300px; }
   .ob-actions {
     margin-top: auto; padding: 18px 0 30px;
