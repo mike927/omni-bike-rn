@@ -1,5 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { ActionButton } from '../../../ui/components/ActionButton';
+import { Ionicons } from '@expo/vector-icons';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { noir } from '../../../ui/theme';
 
 export interface LinkedBikeBlockProps {
@@ -54,36 +54,36 @@ export function LinkedBikeBlock({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.eyebrow}>Linked Strava bike</Text>
-      <Text style={styles.title}>{titleText}</Text>
-      <Text style={styles.body}>{bodyText}</Text>
-      {errorMessage && !needsReconnect ? <Text style={styles.error}>{errorMessage}</Text> : null}
+      <View style={styles.meta}>
+        <Text style={styles.eyebrow}>Linked Strava bike</Text>
+        <Text style={styles.title}>{titleText}</Text>
+        <Text style={styles.body}>{bodyText}</Text>
+        {savedBikeName && status === 'no_provider_gear' ? (
+          <Text style={styles.link} accessibilityRole="button" onPress={onOpenProviderGear}>
+            Open Strava Gear
+          </Text>
+        ) : null}
+        {errorMessage && !needsReconnect ? <Text style={styles.error}>{errorMessage}</Text> : null}
+      </View>
+      {/* The relink/link action is a trailing gear icon, sharing the column the gear-card
+          chevrons sit in. */}
       {savedBikeName ? (
-        <View style={styles.actions}>
-          <ActionButton
-            label={currentLink ? 'Relink Bike' : 'Link Bike'}
-            onPress={onLink}
-            variant="secondary"
-            scheme="noir"
-            size="sm"
-          />
-          {status === 'no_provider_gear' ? (
-            <ActionButton
-              label="Open Strava Gear"
-              onPress={onOpenProviderGear}
-              variant="ghost"
-              scheme="noir"
-              size="sm"
-            />
-          ) : null}
-        </View>
+        <TouchableOpacity
+          style={styles.gearButton}
+          onPress={onLink}
+          accessibilityRole="button"
+          accessibilityLabel={currentLink ? 'Relink Strava bike' : 'Link Strava bike'}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Ionicons name="settings-outline" size={20} color={noir.indigoSoft} />
+        </TouchableOpacity>
       ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { gap: 6 },
+  container: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  meta: { flex: 1, gap: 6 },
   eyebrow: {
     color: noir.ink3,
     fontSize: 11,
@@ -93,6 +93,7 @@ const styles = StyleSheet.create({
   },
   title: { color: noir.ink, fontSize: 14, fontWeight: '700' },
   body: { color: noir.ink2, fontSize: 13, lineHeight: 19 },
+  link: { color: noir.indigoSoft, fontSize: 13, fontWeight: '700' },
   error: { color: noir.dangerSoft, fontSize: 13 },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 2 },
+  gearButton: { width: 22, alignItems: 'center', justifyContent: 'center' },
 });

@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react-native';
+import { render, fireEvent } from '@testing-library/react-native';
 import { LinkedBikeBlock } from '../LinkedBikeBlock';
 
 const defaults = {
@@ -6,8 +6,8 @@ const defaults = {
   onOpenProviderGear: jest.fn(),
 };
 
-it('branch 1: savedBikeName null → shows "Save a bike first", no Link button', () => {
-  const { getByText, queryByText } = render(
+it('branch 1: savedBikeName null → shows "Save a bike first", no relink/link gear icon', () => {
+  const { getByText, queryByLabelText } = render(
     <LinkedBikeBlock
       savedBikeName={null}
       currentLink={null}
@@ -18,12 +18,12 @@ it('branch 1: savedBikeName null → shows "Save a bike first", no Link button',
     />,
   );
   expect(getByText('Save a bike first')).toBeTruthy();
-  expect(queryByText('Link Bike')).toBeNull();
-  expect(queryByText('Relink Bike')).toBeNull();
+  expect(queryByLabelText('Link Strava bike')).toBeNull();
+  expect(queryByLabelText('Relink Strava bike')).toBeNull();
 });
 
-it('branch 2: linked → shows "Linked to Canyon Aeroad" and "Relink Bike" button', () => {
-  const { getByText } = render(
+it('branch 2: linked → shows "Linked to Canyon Aeroad" and a Relink gear icon', () => {
+  const { getByText, getByLabelText } = render(
     <LinkedBikeBlock
       savedBikeName="Zipro"
       currentLink={{ providerGearName: 'Canyon Aeroad', stale: false }}
@@ -34,11 +34,11 @@ it('branch 2: linked → shows "Linked to Canyon Aeroad" and "Relink Bike" butto
     />,
   );
   expect(getByText('Linked to Canyon Aeroad')).toBeTruthy();
-  expect(getByText('Relink Bike')).toBeTruthy();
+  expect(getByLabelText('Relink Strava bike')).toBeTruthy();
 });
 
-it('branch 3: not linked → shows "Not linked" and "Link Bike" button', () => {
-  const { getByText } = render(
+it('branch 3: not linked → shows "Not linked" and a Link gear icon', () => {
+  const { getByText, getByLabelText } = render(
     <LinkedBikeBlock
       savedBikeName="Zipro"
       currentLink={null}
@@ -49,10 +49,10 @@ it('branch 3: not linked → shows "Not linked" and "Link Bike" button', () => {
     />,
   );
   expect(getByText('Not linked')).toBeTruthy();
-  expect(getByText('Link Bike')).toBeTruthy();
+  expect(getByLabelText('Link Strava bike')).toBeTruthy();
 });
 
-it('branch 4: no_provider_gear → shows "No Strava bikes found" and "Open Strava Gear" button', () => {
+it('branch 4: no_provider_gear → shows "No Strava bikes found" and "Open Strava Gear" link', () => {
   const { getByText } = render(
     <LinkedBikeBlock
       savedBikeName="Zipro"
@@ -65,4 +65,21 @@ it('branch 4: no_provider_gear → shows "No Strava bikes found" and "Open Strav
   );
   expect(getByText('No Strava bikes found')).toBeTruthy();
   expect(getByText('Open Strava Gear')).toBeTruthy();
+});
+
+it('pressing the gear icon calls onLink', () => {
+  const onLink = jest.fn();
+  const { getByLabelText } = render(
+    <LinkedBikeBlock
+      savedBikeName="Zipro"
+      currentLink={{ providerGearName: 'Canyon Aeroad', stale: false }}
+      status="linked"
+      needsReconnect={false}
+      errorMessage={null}
+      onLink={onLink}
+      onOpenProviderGear={jest.fn()}
+    />,
+  );
+  fireEvent.press(getByLabelText('Relink Strava bike'));
+  expect(onLink).toHaveBeenCalled();
 });
