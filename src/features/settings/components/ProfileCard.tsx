@@ -20,12 +20,7 @@ export function ProfileCard({ summary, onEdit }: ProfileCardProps) {
           <Text style={styles.summary}>{summary}</Text>
           <Text style={styles.hint}>Used for calorie accuracy</Text>
         </View>
-        {/* Reserve the same trailing chevron column the gear cards use, so Edit
-            right-aligns to the same vertical line as the gear pills. */}
-        <View style={styles.trailing}>
-          <ActionButton label="Edit" onPress={onEdit} variant="secondary" scheme="noir" size="sm" />
-          <View style={styles.chevronPlaceholder} />
-        </View>
+        <ActionButton label="Edit" onPress={onEdit} variant="secondary" scheme="noir" size="sm" />
       </View>
     </View>
   );
@@ -54,8 +49,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   meta: { flex: 1, minWidth: 0 },
-  trailing: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  chevronPlaceholder: { width: 22, height: 22 },
   title: { color: noir.ink, fontSize: 15, fontWeight: '700' },
   summary: { color: noir.ink3, fontSize: 12.5, marginTop: 2 },
   hint: { color: noir.ink3, fontSize: 11.5, marginTop: 4 },
