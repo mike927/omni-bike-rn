@@ -1,8 +1,10 @@
 import { Pressable, StyleSheet, Text, type TextStyle, type ViewStyle } from 'react-native';
 
-import { palette } from '../theme';
+import { noir, palette } from '../theme';
 
 type ActionButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
+type ActionButtonScheme = 'light' | 'noir';
+type ActionButtonSize = 'md' | 'sm';
 
 interface ActionButtonProps {
   label: string;
@@ -10,7 +12,48 @@ interface ActionButtonProps {
   variant?: ActionButtonVariant;
   disabled?: boolean;
   fullWidth?: boolean;
+  scheme?: ActionButtonScheme;
+  size?: ActionButtonSize;
 }
+
+const NOIR_VARIANT_STYLES: Record<ActionButtonVariant, { container: ViewStyle; label: TextStyle }> = {
+  primary: {
+    container: {
+      backgroundColor: noir.indigo,
+      borderColor: noir.indigo,
+    },
+    label: {
+      color: '#fff',
+    },
+  },
+  secondary: {
+    container: {
+      backgroundColor: noir.card3,
+      borderColor: noir.hairline,
+    },
+    label: {
+      color: noir.indigoSoft,
+    },
+  },
+  danger: {
+    container: {
+      backgroundColor: 'rgba(239,75,92,0.12)',
+      borderColor: 'rgba(239,75,92,0.28)',
+    },
+    label: {
+      color: noir.dangerSoft,
+    },
+  },
+  ghost: {
+    container: {
+      backgroundColor: 'transparent',
+      borderColor: 'transparent',
+    },
+    label: {
+      color: noir.ink2,
+    },
+  },
+};
 
 const variantStyles: Record<ActionButtonVariant, { container: ViewStyle; label: TextStyle }> = {
   primary: {
@@ -57,8 +100,11 @@ export function ActionButton({
   variant = 'primary',
   disabled = false,
   fullWidth = false,
+  scheme = 'light',
+  size = 'md',
 }: Readonly<ActionButtonProps>) {
-  const selectedVariant = variantStyles[variant];
+  const schemeStyles = scheme === 'noir' ? NOIR_VARIANT_STYLES : variantStyles;
+  const selectedVariant = schemeStyles[variant];
 
   return (
     <Pressable
@@ -71,10 +117,11 @@ export function ActionButton({
         styles.button,
         selectedVariant.container,
         fullWidth ? styles.fullWidth : styles.autoWidth,
+        size === 'sm' ? styles.buttonSm : null,
         disabled ? styles.disabled : null,
         pressed && !disabled ? styles.pressed : null,
       ]}>
-      <Text style={[styles.label, selectedVariant.label]}>{label}</Text>
+      <Text style={[styles.label, selectedVariant.label, size === 'sm' ? styles.labelSm : null]}>{label}</Text>
     </Pressable>
   );
 }
@@ -104,5 +151,14 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.82,
+  },
+  buttonSm: {
+    minHeight: 38,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+  },
+  labelSm: {
+    fontSize: 13,
   },
 });

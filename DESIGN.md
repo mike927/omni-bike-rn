@@ -177,12 +177,15 @@ Resolver-driven visibility (same rules as `SourceRow`):
 
 ## Gear / HR-Source Tiles
 
-Pattern for device & HR-source rows in Settings → "My Gear" (`SettingsScreen.tsx` `GearTile`).
-One tile per device (never list a device twice). The tile body shows the device **name** with its
-**`StatusPill`** directly beneath it (replacing the old plain-text status hint). The trainer device
-is labelled **Smart Bike** everywhere it appears (Home card title, this section's label, the
-Training connection pill); the bike-derived HR source keeps its distinct name **Bike pulse**. Two
-distinct interactions, two distinct affordances:
+Pattern for device & HR-source rows in Settings → "My Gear" — the icon-led **`GearCard`**
+(`src/features/settings/components/GearCard.tsx`), rendered in Calm Noir under flat section labels
+(`SectionLabel` / `Eyebrow`, no `SectionCard` box). One tile per device (never list a device twice).
+Each tile shows a **leading Ionicons icon box** (mirroring Home's `DeviceCard`), the device **name**,
+a **`kind`** sub-label, and a right-pinned **`StatusPill`** (`scheme="noir"`). The selected HR
+source's kind reads "`<kind> · primary`" — an explicit selection cue alongside the accent bar. The
+trainer device is labelled **Smart Bike** everywhere it appears (Home card title, this section's
+label, the Training connection pill); the bike-derived HR source keeps its distinct name **Bike
+pulse**. Two distinct interactions, two distinct affordances:
 
 - **Selection** (HR sources only): tap the tile body → it becomes the primary source, shown by a
   **4px leading accent bar** (`primary`) + `primarySubtle` tint + bold `primary` name. **No radio.**
@@ -228,11 +231,9 @@ Flat illustration with soft gradients in the brand palette. No photorealism. No 
 
 ## Dark / Light Migration Status
 
-The **Home screen**, the **History screen**, and the **bottom tab bar** are fully migrated to the
-Calm Noir dark theme. Home and History use `headerShown: false` and render their own in-screen
-headers over `noir.bg`. The **Settings** screen remains on the original light palette pending a
-fast-follow restyle. Because `app/(tabs)/_layout.tsx` sets a dark (`noir.bg`) header as the global
-default, Settings **explicitly overrides `headerStyle`/`headerTintColor`/`sceneStyle` back to the
-light palette** (`LIGHT_SCREEN_OPTIONS`) so a light body never sits under a dark header. Only the
-shared **tab bar chrome** (background, borders, icon tints) is dark; the light Settings screen
-renders its content above that dark tab bar until its own migration lands.
+The **Home**, **History**, and **Settings** screens — and the **bottom tab bar** — are all fully
+migrated to the Calm Noir dark theme. Every tab screen hides the navigation header
+(`headerShown: false`) and renders its own in-content Calm Noir header over `noir.bg`; the shared
+**tab bar chrome** (background, borders, icon tints) is the dark bar. No tab screen needs a
+light-header override anymore, so the former `LIGHT_SCREEN_OPTIONS` in `app/(tabs)/_layout.tsx` has
+been removed.
