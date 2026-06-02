@@ -21,11 +21,6 @@ jest.mock('react-native-safe-area-context', () => {
   };
 });
 
-jest.mock('expo-linear-gradient', () => {
-  const { View } = jest.requireActual('react-native');
-  return { LinearGradient: View };
-});
-
 jest.mock('../../../gear/hooks/useAutoReconnect');
 jest.mock('../../../gear/hooks/useSavedGear');
 jest.mock('../../../training/hooks/useTrainingSession');
