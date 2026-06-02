@@ -146,6 +146,39 @@ describe('GearSetupScreen', () => {
     expect(getByText('Retry')).toBeTruthy();
   });
 
+  it('locks the other device rows while one device is connecting', () => {
+    const selectDevice = jest.fn();
+    Object.assign(mockGearSetupState, {
+      step: 'connecting',
+      devices: [
+        { id: 'A', name: 'Wahoo KICKR Bike' },
+        { id: 'B', name: 'TACX NEO 2T' },
+      ],
+      selectedDevice: { id: 'A', name: 'Wahoo KICKR Bike' },
+      selectDevice,
+    });
+    const { getByText } = render(<GearSetupScreen target="bike" />);
+    // Device A shows "Connecting...", so the only "Select" belongs to the idle
+    // row B — which must be locked while a pairing is in flight.
+    fireEvent.press(getByText('Select'));
+    expect(selectDevice).not.toHaveBeenCalled();
+  });
+
+  it('alerts and does not navigate back when saving the paired device fails', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+    Object.assign(mockGearSetupState, {
+      step: 'ready',
+      devices: [{ id: 'D4:9F', name: 'Wahoo KICKR Bike' }],
+      selectedDevice: { id: 'D4:9F', name: 'Wahoo KICKR Bike' },
+      signalConfirmed: true,
+      save: jest.fn().mockRejectedValue(new Error('persist failed')),
+    });
+    render(<GearSetupScreen target="bike" />);
+    await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+    expect(alertSpy.mock.calls[0]?.[0]).toMatch(/Save Device/);
+    expect(mockBack).not.toHaveBeenCalled();
+  });
+
   describe('HR sensor transparency', () => {
     it('does not surface any watch-specific guidance on HR gear setup in the default state', () => {
       // Regression guard: the HR gear-setup screen must treat chest straps

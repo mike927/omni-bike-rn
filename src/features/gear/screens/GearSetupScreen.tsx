@@ -87,6 +87,7 @@ export function GearSetupScreen({ target }: Readonly<GearSetupScreenProps>) {
   } = useGearSetup(target);
   const [broadcastHintExpanded, setBroadcastHintExpanded] = useState(false);
   const savedRef = useRef(false);
+  const savingRef = useRef(false);
 
   const runScan = useCallback(async () => {
     const permission = await startScan();
@@ -104,16 +105,40 @@ export function GearSetupScreen({ target }: Readonly<GearSetupScreenProps>) {
   }, [runScan]);
 
   // Pairing completes the moment a selected device connects and streams a live
-  // signal: save it and leave. No manual confirmation step.
-  useEffect(() => {
-    if (step === 'ready' && signalConfirmed && !savedRef.current) {
+  // signal: save it and leave. No manual confirmation step. The completion guard
+  // is only set once the save actually succeeds, so a persistence failure resets
+  // it and the user can retry rather than being stuck on a dead-end screen.
+  const pair = useCallback(async () => {
+    try {
+      await save();
       savedRef.current = true;
-      void (async () => {
-        await save();
-        router.back();
-      })();
+      router.back();
+    } catch {
+      savingRef.current = false;
+      Alert.alert('Couldn’t Save Device', 'Saving this device failed. Please try again.', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Try Again',
+          onPress: () => {
+            savingRef.current = true;
+            void pair();
+          },
+        },
+      ]);
     }
-  }, [step, signalConfirmed, save, router]);
+  }, [save, router]);
+
+  useEffect(() => {
+    if (step === 'ready' && signalConfirmed && !savedRef.current && !savingRef.current) {
+      savingRef.current = true;
+      void pair();
+    }
+  }, [step, signalConfirmed, pair]);
+
+  // A pairing is in flight while the selected device is validating/connecting/
+  // awaiting its first signal. While busy, every other row is locked so a second
+  // selectDevice() can't race the first against shared hook state.
+  const isBusy = CONNECTING_STEPS.has(step);
 
   const deviceState = (id: string): NearbyDeviceRowState => {
     if (selectedDevice?.id !== id) return 'idle';
@@ -186,6 +211,7 @@ export function GearSetupScreen({ target }: Readonly<GearSetupScreenProps>) {
                 deviceId={device.id}
                 target={target}
                 state={rowState}
+                disabled={isBusy && rowState === 'idle'}
                 errorMessage={
                   rowState === 'error' && validationError ? INCOMPATIBILITY_MESSAGES[validationError] : null
                 }

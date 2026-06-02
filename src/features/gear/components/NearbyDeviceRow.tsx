@@ -16,6 +16,8 @@ interface NearbyDeviceRowProps {
   readonly onSelect: () => void;
   readonly state?: NearbyDeviceRowState;
   readonly errorMessage?: string | null;
+  /** Disable selection while another device's pairing is in flight. */
+  readonly disabled?: boolean;
   readonly children?: ReactNode;
 }
 
@@ -26,16 +28,26 @@ export function NearbyDeviceRow({
   onSelect,
   state = 'idle',
   errorMessage,
+  disabled = false,
   children,
 }: NearbyDeviceRowProps) {
   const Glyph = target === 'hr' ? HrGlyph : BikeGlyph;
   const isConnecting = state === 'connecting';
   const isError = state === 'error';
   const iconColor = isError ? noir.dangerSoft : isConnecting ? noir.indigoSoft : noir.ink3;
+  // The connecting row shows its own status; any other row is locked while a
+  // pairing is in flight so two selections can't race on shared hook state.
+  const pressDisabled = isConnecting || disabled;
 
   return (
-    <View style={[styles.wrap, isConnecting && styles.wrapActive, isError && styles.wrapError]}>
-      <Pressable accessibilityRole="button" disabled={isConnecting} onPress={onSelect} style={styles.row}>
+    <View
+      style={[
+        styles.wrap,
+        isConnecting && styles.wrapActive,
+        isError && styles.wrapError,
+        disabled && styles.wrapDisabled,
+      ]}>
+      <Pressable accessibilityRole="button" disabled={pressDisabled} onPress={onSelect} style={styles.row}>
         <View style={styles.icon}>
           <Glyph color={iconColor} testID={target === 'hr' ? 'hr-glyph' : 'bike-glyph'} />
         </View>
@@ -70,6 +82,7 @@ const styles = StyleSheet.create({
   },
   wrapActive: { borderColor: 'rgba(46,61,255,0.4)' },
   wrapError: { borderColor: 'rgba(239,75,92,0.4)' },
+  wrapDisabled: { opacity: 0.45 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 13 },
   icon: {
     width: 42,
