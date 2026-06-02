@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Omni Bike · Home · Calm Noir (proposed)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0b0e13;
+    --card: #161b24;
+    --card-2: #1b212c;
+    --card-3: #1f2735;
+    --ink: #eef1f6;
+    --ink-2: #9aa3b2;
+    --ink-3: #6b7384;
+    --indigo: #2e3dff;
+    --indigo-soft: #5663ff;
+    --indigo-press: #2330d8;
+    --mint: #10b5a4;
+    --mint-soft: #4fd8c8;
+    --hairline: #232a35;
+    --hairline-2: #2a323f;
+    --radius: 26px;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 18px 40px -20px rgba(0,0,0,.75);
+    --shadow-soft: 0 1px 2px rgba(0,0,0,.35), 0 10px 26px -16px rgba(0,0,0,.7);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: "Hanken Grotesk", sans-serif;
+    background: radial-gradient(130% 90% at 50% -10%, #11151d 0%, #0a0d12 55%, #07090d 100%);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 56px;
+    flex-wrap: wrap;
+    padding: 56px 40px 90px;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .frame-wrap { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .frame-caption {
+    font-size: 13px; font-weight: 600; letter-spacing: .03em; color: #8b93a7;
+  }
+  .frame-caption span { color: #5a6273; font-weight: 500; }
+
+  .device {
+    position: relative;
+    width: 390px;
+    height: 844px;
+    border-radius: 56px;
+    background: linear-gradient(160deg, #20242e, #0a0c10 62%);
+    padding: 11px;
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,.04),
+      inset 0 0 0 1px rgba(255,255,255,.05),
+      0 2px 6px rgba(0,0,0,.5),
+      0 48px 90px -30px rgba(0,0,0,.85),
+      0 18px 40px -24px rgba(0,0,0,.7);
+  }
+  .screen {
+    position: relative; width: 100%; height: 100%;
+    background: var(--bg); border-radius: 45px; overflow: hidden;
+    display: flex; flex-direction: column; isolation: isolate;
+  }
+  .screen::before {
+    content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(110% 60% at 50% -8%, rgba(46,61,255,.10), transparent 55%),
+      radial-gradient(120% 80% at 50% 108%, rgba(16,181,164,.05), transparent 60%),
+      radial-gradient(140% 100% at 50% 50%, transparent 55%, rgba(0,0,0,.35) 100%);
+  }
+
+  /* status bar */
+  .statusbar {
+    position: relative; z-index: 2; flex: 0 0 auto; height: 54px;
+    padding: 0 30px 0 34px; display: flex; align-items: center; justify-content: space-between;
+    font-size: 15px; font-weight: 700; letter-spacing: .01em; color: var(--ink);
+  }
+  .statusbar .glyphs { display: flex; align-items: center; gap: 7px; }
+
+  /* scroll body */
+  .content { position: relative; z-index: 2; flex: 1 1 auto; overflow: hidden; padding: 4px 22px 0; }
+
+  /* header */
+  .header { padding: 10px 4px 18px; }
+  .kicker { font-size: 13px; font-weight: 600; letter-spacing: .02em; color: var(--ink-3); margin-bottom: 7px; }
+  .kicker .app { color: var(--indigo-soft); font-weight: 700; }
+  .greet { font-size: 34px; line-height: 1.02; font-weight: 800; letter-spacing: -.025em; color: var(--ink); }
+  .greet .light { color: var(--ink-2); font-weight: 300; }
+  .subgreet { margin-top: 9px; font-size: 14.5px; font-weight: 400; color: var(--ink-2); line-height: 1.35; max-width: 300px; }
+
+  /* interrupted-session banner (conditional) */
+  .resume-banner {
+    display: flex; align-items: center; gap: 12px;
+    background: rgba(245,165,36,.10); border: 1px solid rgba(245,165,36,.30);
+    border-radius: 18px; padding: 13px 15px; margin-bottom: 14px;
+  }
+  .resume-banner .ic {
+    flex: 0 0 auto; width: 34px; height: 34px; border-radius: 11px;
+    background: rgba(245,165,36,.16); color: #f5a524;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .resume-banner .txt { flex: 1 1 auto; min-width: 0; }
+  .resume-banner .t1 { font-size: 14px; font-weight: 700; color: var(--ink); }
+  .resume-banner .t2 { font-size: 12.5px; color: var(--ink-2); margin-top: 1px; }
+  .resume-banner .go { font-size: 13px; font-weight: 700; color: #f5a524; }
+
+  /* CTA hero */
+  .cta {
+    position: relative; width: 100%; border: none; cursor: pointer;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, #2e3dff 0%, #3a47ff 55%, #5663ff 100%);
+    color: #fff; padding: 22px 24px; text-align: left; overflow: hidden;
+    box-shadow: 0 1px 2px rgba(0,0,0,.4), 0 22px 40px -16px rgba(46,61,255,.55), inset 0 1px 0 rgba(255,255,255,.18);
+    font-family: inherit;
+  }
+  .cta::after {
+    content: ""; position: absolute; top: -40%; right: -10%; width: 220px; height: 220px;
+    background: radial-gradient(circle, rgba(255,255,255,.22), rgba(255,255,255,0) 70%); pointer-events: none;
+  }
+  .cta-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; position: relative; z-index: 1; }
+  .cta-label { font-size: 13px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; color: rgba(255,255,255,.78); }
+  .cta-title { margin-top: 4px; font-size: 25px; font-weight: 800; letter-spacing: -.02em; }
+  .cta-sub { margin-top: 5px; font-size: 13.5px; font-weight: 400; color: rgba(255,255,255,.82); }
+  .cta-go {
+    flex: 0 0 auto; width: 56px; height: 56px; border-radius: 50%;
+    background: rgba(255,255,255,.16); display: flex; align-items: center; justify-content: center;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.28);
+  }
+
+  /* CTA — setup variant (no gear): outlined, calmer */
+  .cta.setup {
+    background: var(--card); border: 1px dashed var(--hairline-2);
+    box-shadow: var(--shadow-soft);
+  }
+  .cta.setup .cta-label { color: var(--indigo-soft); }
+  .cta.setup .cta-title { color: var(--ink); }
+  .cta.setup .cta-sub { color: var(--ink-2); }
+  .cta.setup .cta-go { background: rgba(86,99,255,.14); box-shadow: inset 0 0 0 1px rgba(86,99,255,.4); color: var(--indigo-soft); }
+
+  /* section label */
+  .section-label { display: flex; align-items: center; justify-content: space-between; margin: 22px 4px 12px; }
+  .section-label h2 { font-size: 14px; font-weight: 700; letter-spacing: .01em; color: var(--ink); }
+  .section-label .link { font-size: 13px; font-weight: 600; color: var(--indigo-soft); }
+
+  /* connected — icon-led device cards */
+  .card { background: var(--card); border: 1px solid var(--hairline); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .devices { display: flex; flex-direction: column; gap: 10px; }
+  .dev-card {
+    background: var(--card); border: 1px solid var(--hairline); border-radius: 20px;
+    padding: 14px 16px; display: flex; align-items: center; gap: 13px; box-shadow: var(--shadow-soft);
+  }
+  .dev-icon {
+    flex: 0 0 auto; width: 42px; height: 42px; border-radius: 13px; background: var(--card-3);
+    display: flex; align-items: center; justify-content: center; color: var(--indigo-soft);
+  }
+  .dev-icon.muted { color: var(--ink-3); background: #1d222b; }
+  .dev-meta { flex: 1 1 auto; min-width: 0; }
+  .dev-name { font-size: 15px; font-weight: 700; letter-spacing: -.01em; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dev-kind { font-size: 12.5px; font-weight: 400; color: var(--ink-3); margin-top: 2px; }
+
+  .pill {
+    flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12.5px; font-weight: 600; color: var(--mint-soft);
+    background: rgba(16,181,164,.12); border: 1px solid rgba(16,181,164,.24);
+    padding: 6px 11px 6px 9px; border-radius: 999px;
+  }
+  .pill .dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--mint);
+    box-shadow: 0 0 0 0 rgba(16,181,164,.5); animation: pulse 2.4s ease-out infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(16,181,164,.5); }
+    70% { box-shadow: 0 0 0 6px rgba(16,181,164,0); }
+    100% { box-shadow: 0 0 0 0 rgba(16,181,164,0); }
+  }
+  .pill.inactive { color: var(--ink-3); background: rgba(255,255,255,.04); border-color: var(--hairline); }
+  .pill.inactive .dot { background: #4a5260; animation: none; box-shadow: none; }
+  .pill.working { color: #f7c065; background: rgba(245,165,36,.12); border-color: rgba(245,165,36,.26); }
+  .pill.working .dot { background: #f5a524; }
+
+  /* latest ride card */
+  .recap { padding: 18px; }
+  .recap-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+  .recap-tag { font-size: 11.5px; font-weight: 600; letter-spacing: .03em; color: var(--indigo-soft); text-transform: uppercase; }
+  .recap-date { font-size: 17px; font-weight: 800; letter-spacing: -.02em; margin-top: 4px; color: var(--ink); }
+  .recap-pin { width: 34px; height: 34px; border-radius: 11px; background: var(--card-3); color: var(--indigo-soft); display: flex; align-items: center; justify-content: center; }
+  .recap-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px 10px; }
+  .recap-grid .cell .v { font-size: 19px; font-weight: 800; letter-spacing: -.03em; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1; }
+  .recap-grid .cell .v .u { font-size: 11.5px; font-weight: 600; color: var(--ink-3); margin-left: 2px; letter-spacing: 0; }
+  .recap-grid .cell .k { font-size: 10.5px; font-weight: 500; color: var(--ink-3); margin-top: 5px; letter-spacing: .03em; }
+  .recap-cta {
+    margin-top: 16px; border: 1px solid var(--hairline); width: 100%; background: var(--card-2);
+    color: var(--indigo-soft); font-family: inherit; font-size: 14px; font-weight: 700; padding: 12px;
+    border-radius: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+
+  /* empty latest-ride */
+  .recap.empty { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+  .recap.empty .t1 { font-size: 15px; font-weight: 700; color: var(--ink); }
+  .recap.empty .t2 { font-size: 13.5px; color: var(--ink-2); line-height: 1.4; }
+
+  /* tab bar */
+  .tabbar {
+    position: relative; z-index: 2; flex: 0 0 auto; height: 86px;
+    background: rgba(11,14,19,.82); backdrop-filter: blur(18px) saturate(1.4);
+    border-top: 1px solid rgba(255,255,255,.05);
+    display: flex; align-items: flex-start; justify-content: space-around; padding: 12px 30px 0;
+  }
+  .tab { display: flex; flex-direction: column; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; letter-spacing: .02em; color: var(--ink-3); min-width: 56px; }
+  .tab.active { color: var(--indigo-soft); }
+  .home-indicator { position: absolute; z-index: 2; bottom: 8px; left: 50%; transform: translateX(-50%); width: 134px; height: 5px; border-radius: 3px; background: rgba(238,241,246,.22); }
+
+  .note { max-width: 360px; font-size: 12.5px; line-height: 1.5; color: #7a8298; }
+</style>
+</head>
+<body>
+
+  <!-- ============ FRAME A: ready to ride ============ -->
+  <div class="frame-wrap">
+    <div class="device"><div class="screen">
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="glyphs">
+          <svg width="18" height="12" viewBox="0 0 18 12" fill="none"><rect x="0" y="8" width="3" height="4" rx="1" fill="#eef1f6"/><rect x="5" y="5" width="3" height="7" rx="1" fill="#eef1f6"/><rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#eef1f6"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#eef1f6"/></svg>
+          <svg width="26" height="13" viewBox="0 0 26 13" fill="none"><rect x="0.5" y="0.5" width="22" height="12" rx="3.5" stroke="#eef1f6" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="9" rx="2" fill="#eef1f6"/><rect x="24" y="4" width="1.6" height="5" rx="0.8" fill="#eef1f6" fill-opacity="0.45"/></svg>
+        </span>
+      </div>
+
+      <div class="content">
+        <!-- header -->
+        <div class="header">
+          <div class="kicker"><span class="app">Omni Bike</span> · Mon, Jun 2</div>
+          <div class="greet">Ready to ride?</div>
+          <div class="subgreet">Your Smart Bike and heart-rate strap are linked and ready.</div>
+        </div>
+
+        <!-- hero: START RIDE -->
+        <button class="cta">
+          <div class="cta-row">
+            <div>
+              <div class="cta-label">Ready when you are</div>
+              <div class="cta-title">Start Ride</div>
+              <div class="cta-sub">Wahoo KICKR Bike · Polar H10</div>
+            </div>
+            <div class="cta-go">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M8 5l8 7-8 7" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+          </div>
+        </button>
+
+        <!-- connected -->
+        <div class="section-label"><h2>Connected</h2><span class="link">Manage</span></div>
+        <div class="devices">
+          <div class="dev-card">
+            <div class="dev-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="5.5" cy="17" r="3.2" stroke="currentColor" stroke-width="1.7"/><circle cx="18.5" cy="17" r="3.2" stroke="currentColor" stroke-width="1.7"/><path d="M5.5 17l4-7h5l4 7M9.5 10l2.5 7M14.5 7h2.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="dev-meta">
+              <div class="dev-name">Wahoo KICKR Bike</div>
+              <div class="dev-kind">Smart Bike · Power &amp; cadence</div>
+            </div>
+            <span class="pill"><span class="dot"></span>Ready</span>
+          </div>
+          <div class="dev-card">
+            <div class="dev-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 20s-7-4.4-7-9.3A3.7 3.7 0 0 1 12 8a3.7 3.7 0 0 1 7 2.7C19 15.6 12 20 12 20Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M6 12.5h2l1.3-2.2 1.7 3.4 1.5-2.6.9 1.4H18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="dev-meta">
+              <div class="dev-name">Polar H10</div>
+              <div class="dev-kind">Heart Rate · Chest strap</div>
+            </div>
+            <span class="pill"><span class="dot"></span>Ready</span>
+          </div>
+          <div class="dev-card">
+            <div class="dev-icon muted">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="7" y="7" width="10" height="10" rx="3" stroke="currentColor" stroke-width="1.7"/><path d="M9 7l.6-2.4A1.5 1.5 0 0 1 11 3.4h2a1.5 1.5 0 0 1 1.4 1.2L15 7M9 17l.6 2.4a1.5 1.5 0 0 0 1.4 1.2h2a1.5 1.5 0 0 0 1.4-1.2L15 17" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="dev-meta">
+              <div class="dev-name">Apple Watch</div>
+              <div class="dev-kind">Heart Rate · Secondary source</div>
+            </div>
+            <span class="pill inactive"><span class="dot"></span>Off</span>
+          </div>
+        </div>
+
+        <!-- latest ride -->
+        <div class="section-label"><h2>Latest ride</h2><span class="link">History</span></div>
+        <div class="card recap">
+          <div class="recap-head">
+            <div>
+              <div class="recap-tag">Latest ride</div>
+              <div class="recap-date">Sat, May 30</div>
+            </div>
+            <div class="recap-pin">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.5V12l3 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+          </div>
+          <div class="recap-grid">
+            <div class="cell"><div class="v">42:18</div><div class="k">DURATION</div></div>
+            <div class="cell"><div class="v">18.4<span class="u">km</span></div><div class="k">DISTANCE</div></div>
+            <div class="cell"><div class="v">512<span class="u">kcal</span></div><div class="k">ENERGY</div></div>
+          </div>
+          <button class="recap-cta">
+            View summary
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="tabbar">
+        <div class="tab active"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 11l8-6.5L20 11v8a1.5 1.5 0 0 1-1.5 1.5H15v-5h-6v5H5.5A1.5 1.5 0 0 1 4 19v-8Z" fill="currentColor"/></svg>Home</div>
+        <div class="tab"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 3v5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 7.5v5l3.5 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>History</div>
+        <div class="tab"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V15a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Settings</div>
+      </div>
+      <div class="home-indicator"></div>
+    </div></div>
+    <div class="frame-caption">A · <span>Ready to ride (gear connected)</span></div>
+  </div>
+
+  <!-- ============ FRAME B: first run / resume ============ -->
+  <div class="frame-wrap">
+    <div class="device"><div class="screen">
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="glyphs">
+          <svg width="18" height="12" viewBox="0 0 18 12" fill="none"><rect x="0" y="8" width="3" height="4" rx="1" fill="#eef1f6"/><rect x="5" y="5" width="3" height="7" rx="1" fill="#eef1f6"/><rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#eef1f6"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#eef1f6"/></svg>
+          <svg width="26" height="13" viewBox="0 0 26 13" fill="none"><rect x="0.5" y="0.5" width="22" height="12" rx="3.5" stroke="#eef1f6" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="9" rx="2" fill="#eef1f6"/><rect x="24" y="4" width="1.6" height="5" rx="0.8" fill="#eef1f6" fill-opacity="0.45"/></svg>
+        </span>
+      </div>
+
+      <div class="content">
+        <div class="header">
+          <div class="kicker"><span class="app">Omni Bike</span> · Mon, Jun 2</div>
+          <div class="greet">Let's get<br/>set up</div>
+          <div class="subgreet">Pair your Smart Bike to start your first ride.</div>
+        </div>
+
+        <!-- interrupted-session banner (conditional, shown here as example) -->
+        <div class="resume-banner">
+          <div class="ic">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4l2.5 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="txt">
+            <div class="t1">Resume interrupted ride</div>
+            <div class="t2">14:02 · stopped unexpectedly</div>
+          </div>
+          <div class="go">Resume ›</div>
+        </div>
+
+        <!-- hero: SET UP variant -->
+        <button class="cta setup">
+          <div class="cta-row">
+            <div>
+              <div class="cta-label">Get started</div>
+              <div class="cta-title">Set up your Smart Bike</div>
+              <div class="cta-sub">Connect an FTMS trainer to ride</div>
+            </div>
+            <div class="cta-go">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+          </div>
+        </button>
+
+        <!-- connected (empty) -->
+        <div class="section-label"><h2>Connected</h2><span class="link">Manage</span></div>
+        <div class="devices">
+          <div class="dev-card">
+            <div class="dev-icon muted">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="5.5" cy="17" r="3.2" stroke="currentColor" stroke-width="1.7"/><circle cx="18.5" cy="17" r="3.2" stroke="currentColor" stroke-width="1.7"/><path d="M5.5 17l4-7h5l4 7M9.5 10l2.5 7M14.5 7h2.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="dev-meta">
+              <div class="dev-name" style="color:var(--ink-3);">No bike yet</div>
+              <div class="dev-kind">Smart Bike</div>
+            </div>
+            <span class="pill inactive"><span class="dot"></span>Not set up</span>
+          </div>
+          <div class="dev-card">
+            <div class="dev-icon muted">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 20s-7-4.4-7-9.3A3.7 3.7 0 0 1 12 8a3.7 3.7 0 0 1 7 2.7C19 15.6 12 20 12 20Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M6 12.5h2l1.3-2.2 1.7 3.4 1.5-2.6.9 1.4H18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="dev-meta">
+              <div class="dev-name" style="color:var(--ink-3);">No strap yet</div>
+              <div class="dev-kind">Heart Rate</div>
+            </div>
+            <span class="pill inactive"><span class="dot"></span>Not set up</span>
+          </div>
+        </div>
+
+        <!-- latest ride (empty) -->
+        <div class="section-label"><h2>Latest ride</h2></div>
+        <div class="card recap empty">
+          <div class="t1">No rides yet</div>
+          <div class="t2">Complete a ride and your recap will show up here.</div>
+        </div>
+      </div>
+
+      <div class="tabbar">
+        <div class="tab active"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 11l8-6.5L20 11v8a1.5 1.5 0 0 1-1.5 1.5H15v-5h-6v5H5.5A1.5 1.5 0 0 1 4 19v-8Z" fill="currentColor"/></svg>Home</div>
+        <div class="tab"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 3v5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 7.5v5l3.5 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>History</div>
+        <div class="tab"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V15a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Settings</div>
+      </div>
+      <div class="home-indicator"></div>
+    </div></div>
+    <div class="frame-caption">B · <span>First run — no gear, with resume banner</span></div>
+  </div>
+
+</body>
+</html>
