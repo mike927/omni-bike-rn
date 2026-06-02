@@ -1,19 +1,23 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import type { GearType } from '../../../types/gear';
 import { noir } from '../../../ui/theme';
 import { BikeGlyph } from './BikeGlyph';
+import { HrGlyph } from './HrGlyph';
 
 interface NearbyDeviceRowProps {
   readonly name: string | null;
   readonly deviceId: string;
+  readonly target: GearType;
   readonly onSelect: () => void;
 }
 
-export function NearbyDeviceRow({ name, deviceId, onSelect }: NearbyDeviceRowProps) {
+export function NearbyDeviceRow({ name, deviceId, target, onSelect }: NearbyDeviceRowProps) {
+  const Glyph = target === 'hr' ? HrGlyph : BikeGlyph;
   return (
     <View style={styles.row}>
       <View style={styles.icon}>
-        <BikeGlyph color={noir.ink3} />
+        <Glyph color={noir.ink3} testID={target === 'hr' ? 'hr-glyph' : 'bike-glyph'} />
       </View>
       <View style={styles.meta}>
         <Text style={styles.name} numberOfLines={1}>

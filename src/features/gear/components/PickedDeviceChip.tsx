@@ -1,22 +1,29 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { DeviceStatus } from '../../../types/deviceStatus';
+import type { GearType } from '../../../types/gear';
 import { noir } from '../../../ui/theme';
 import { BikeGlyph } from './BikeGlyph';
+import { HrGlyph } from './HrGlyph';
 import { NoirStatusPill } from './NoirStatusPill';
 
 interface PickedDeviceChipProps {
   readonly name: string;
   readonly status: DeviceStatus;
+  readonly target: GearType;
   readonly onSwap: () => void;
   readonly errored?: boolean;
 }
 
-export function PickedDeviceChip({ name, status, onSwap, errored }: PickedDeviceChipProps) {
+export function PickedDeviceChip({ name, status, target, onSwap, errored }: PickedDeviceChipProps) {
+  const Glyph = target === 'hr' ? HrGlyph : BikeGlyph;
   return (
     <View style={[styles.chip, errored ? styles.chipError : styles.chipOk]}>
       <View style={styles.icon}>
-        <BikeGlyph color={errored ? noir.dangerSoft : noir.indigoSoft} />
+        <Glyph
+          color={errored ? noir.dangerSoft : noir.indigoSoft}
+          testID={target === 'hr' ? 'hr-glyph' : 'bike-glyph'}
+        />
       </View>
       <View style={styles.meta}>
         <Text style={[styles.name, errored && styles.nameError]} numberOfLines={1}>

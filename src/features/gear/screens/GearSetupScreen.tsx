@@ -131,7 +131,6 @@ export function GearSetupScreen({ target }: Readonly<GearSetupScreenProps>) {
     router.back();
   };
 
-  const title = target === 'bike' ? 'Select Smart Bike' : 'Select Bluetooth HR Source';
   const subtitle =
     target === 'bike'
       ? 'Pick your FTMS bike. We confirm it by showing live data before you save.'
@@ -141,6 +140,13 @@ export function GearSetupScreen({ target }: Readonly<GearSetupScreenProps>) {
 
   const isPicked = selectedDevice !== null && step !== 'scanning';
   const isError = step === 'error';
+
+  let title: string;
+  if (isPicked) {
+    title = target === 'bike' ? 'Confirm Smart Bike' : 'Confirm HR Source';
+  } else {
+    title = target === 'bike' ? 'Select Smart Bike' : 'Select Bluetooth HR Source';
+  }
 
   const renderPickedBody = () =>
     isError && validationError ? (
@@ -170,7 +176,12 @@ export function GearSetupScreen({ target }: Readonly<GearSetupScreenProps>) {
     ) : (
       devices.map((device) => (
         <View key={device.id} style={styles.rowGap}>
-          <NearbyDeviceRow name={device.name} deviceId={device.id} onSelect={() => void selectDevice(device)} />
+          <NearbyDeviceRow
+            name={device.name}
+            deviceId={device.id}
+            target={target}
+            onSelect={() => void selectDevice(device)}
+          />
         </View>
       ))
     );
@@ -224,6 +235,7 @@ export function GearSetupScreen({ target }: Readonly<GearSetupScreenProps>) {
             <PickedDeviceChip
               name={selectedDevice?.name ?? selectedDevice?.id ?? 'Selected device'}
               status={STEP_STATUS(step)}
+              target={target}
               errored={isError}
               onSwap={reset}
             />
