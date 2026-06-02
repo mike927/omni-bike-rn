@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useGearSetup } from '../hooks/useGearSetup';
-import { ActionButton } from '../../../ui/components/ActionButton';
-import { SectionCard } from '../../../ui/components/SectionCard';
-import { AppScreen } from '../../../ui/layout/AppScreen';
-import { palette } from '../../../ui/theme';
+import { LiveSignalHero } from '../components/LiveSignalHero';
+import { NearbyDeviceRow } from '../components/NearbyDeviceRow';
+import { PickedDeviceChip } from '../components/PickedDeviceChip';
+import { noir } from '../../../ui/theme';
 import type { GearType, ValidationFailureReason } from '../../../types/gear';
 
 const INCOMPATIBILITY_MESSAGES: Record<ValidationFailureReason, string> = {
@@ -46,6 +47,8 @@ const SAVE_LABEL: Record<GearType, string> = {
   hr: 'Use This HR Source',
 };
 
+const STEP_STATUS = (step: string): 'connecting' | 'ready' => (step === 'ready' ? 'ready' : 'connecting');
+
 interface GearSetupScreenProps {
   target: GearType;
 }
@@ -84,6 +87,8 @@ export function GearSetupScreen({ target }: Readonly<GearSetupScreenProps>) {
     selectedDevice,
     validationError,
     signalConfirmed,
+    latestBikeMetrics,
+    latestBluetoothHr,
     startScan,
     stopScan,
     selectDevice,
@@ -129,163 +134,170 @@ export function GearSetupScreen({ target }: Readonly<GearSetupScreenProps>) {
   const title = target === 'bike' ? 'Select Smart Bike' : 'Select Bluetooth HR Source';
   const subtitle =
     target === 'bike'
-      ? 'Choose your FTMS-compatible Smart Bike. A live signal is required before saving.'
-      : 'Choose a Bluetooth HR monitor or a watch in broadcast or HR sensor mode. A live signal is required before saving.';
+      ? 'Pick your FTMS bike. We confirm it by showing live data before you save.'
+      : 'Pick a Bluetooth HR monitor or a watch in broadcast mode. We confirm it with a live signal before saving.';
+  const scanLabel = target === 'bike' ? 'Search for Smart Bike' : 'Search for HR Source';
+  const chooseAnotherLabel = target === 'bike' ? 'Choose Another Bike' : 'Choose Another Device';
+
+  const isPicked = selectedDevice !== null && step !== 'scanning';
+  const isError = step === 'error';
+
+  const renderPickedBody = () =>
+    isError && validationError ? (
+      <View style={styles.errorCallout}>
+        <Text style={styles.errorTitle}>This device can’t be used</Text>
+        <Text style={styles.errorBody}>{INCOMPATIBILITY_MESSAGES[validationError]}</Text>
+        {showBroadcastHint ? renderBroadcastHint('broadcast-hint-card') : null}
+      </View>
+    ) : (
+      <View style={styles.heroGap}>
+        <LiveSignalHero
+          target={target}
+          confirmed={signalConfirmed}
+          bikeMetrics={latestBikeMetrics}
+          hrBpm={latestBluetoothHr}
+        />
+      </View>
+    );
+
+  const renderScanList = () =>
+    devices.length === 0 ? (
+      <View style={styles.emptyRow}>
+        <Text style={styles.emptyText}>
+          {isScanning ? 'Scanning for nearby devices…' : 'No devices yet — keep your bike awake.'}
+        </Text>
+      </View>
+    ) : (
+      devices.map((device) => (
+        <View key={device.id} style={styles.rowGap}>
+          <NearbyDeviceRow name={device.name} deviceId={device.id} onSelect={() => void selectDevice(device)} />
+        </View>
+      ))
+    );
+
+  const renderSaveAction = () => (
+    <Pressable
+      accessibilityRole="button"
+      disabled={!signalConfirmed}
+      onPress={() => void handleSave()}
+      style={({ pressed }) => [
+        styles.primaryBtn,
+        !signalConfirmed && styles.primaryDisabled,
+        pressed && styles.primaryPressed,
+      ]}>
+      <Text style={[styles.primaryLabel, !signalConfirmed && styles.primaryLabelDisabled]}>{SAVE_LABEL[target]}</Text>
+    </Pressable>
+  );
+
+  const renderTextAction = (label: string, onPress: () => void) => (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.primaryBtn, pressed && styles.primaryPressed]}>
+      <Text style={styles.primaryLabel}>{label}</Text>
+    </Pressable>
+  );
+
+  const renderAction = () => {
+    if (!isPicked) {
+      return renderTextAction(isScanning ? 'Stop' : scanLabel, isScanning ? stopScan : () => void handleScanPress());
+    }
+    if (isError) {
+      return renderTextAction(chooseAnotherLabel, reset);
+    }
+    return renderSaveAction();
+  };
 
   return (
-    <AppScreen title={title} subtitle={subtitle}>
-      <SectionCard title="Scan Controls">
-        {scanError ? <Text style={styles.errorText}>{scanError}</Text> : null}
-        <ActionButton
-          label={isScanning ? 'Stop Scan' : 'Start Scan'}
-          onPress={isScanning ? stopScan : handleScanPress}
-          fullWidth
-        />
-      </SectionCard>
+    <SafeAreaView edges={['top', 'left', 'right', 'bottom']} style={styles.safeArea}>
+      <View style={styles.navbar}>
+        <Pressable accessibilityRole="button" onPress={() => router.back()} hitSlop={10} style={styles.navBtn}>
+          <Text style={styles.navChevron}>‹</Text>
+        </Pressable>
+        <Text style={styles.navTitle}>{title}</Text>
+        <View style={styles.navBtn} />
+      </View>
 
-      {devices.length === 0 && !isScanning ? null : (
-        <SectionCard title="Nearby Devices">
-          {devices.length === 0 ? (
-            <Text style={styles.emptyText}>Scanning for nearby devices…</Text>
-          ) : (
-            devices.map((device) => {
-              const isSelected = selectedDevice?.id === device.id;
-              const showError = isSelected && validationError !== null;
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {isPicked ? (
+          <>
+            <PickedDeviceChip
+              name={selectedDevice?.name ?? selectedDevice?.id ?? 'Selected device'}
+              status={STEP_STATUS(step)}
+              errored={isError}
+              onSwap={reset}
+            />
+            {renderPickedBody()}
+          </>
+        ) : (
+          <>
+            <Text style={styles.subtitle}>{subtitle}</Text>
+            {scanError ? <Text style={styles.errorText}>{scanError}</Text> : null}
+            <Text style={styles.sectionLabel}>Nearby Devices</Text>
+            {renderScanList()}
+          </>
+        )}
+      </ScrollView>
 
-              return (
-                <View key={device.id} style={styles.deviceRow}>
-                  <View style={styles.deviceText}>
-                    <Text style={styles.deviceName}>{device.name ?? 'Unknown Device'}</Text>
-                    <Text style={styles.deviceId}>{device.id}</Text>
-                    {showError && validationError ? (
-                      <Text style={styles.incompatibilityText}>{INCOMPATIBILITY_MESSAGES[validationError]}</Text>
-                    ) : null}
-                    {showError && showBroadcastHint ? renderBroadcastHint('broadcast-hint-inline') : null}
-                    {isSelected && step === 'validating' ? (
-                      <Text style={styles.statusText}>Validating device…</Text>
-                    ) : null}
-                    {isSelected && step === 'connecting' ? <Text style={styles.statusText}>Connecting…</Text> : null}
-                    {isSelected && step === 'awaiting_signal' ? (
-                      <Text style={styles.statusText}>Waiting for live signal…</Text>
-                    ) : null}
-                    {isSelected && signalConfirmed ? <Text style={styles.signalText}>Signal received ✓</Text> : null}
-                  </View>
-                  {!isSelected || step === 'error' ? (
-                    <ActionButton
-                      label="Select"
-                      onPress={() => void selectDevice(device)}
-                      variant="ghost"
-                      disabled={step === 'validating' || step === 'connecting' || step === 'awaiting_signal'}
-                    />
-                  ) : null}
-                </View>
-              );
-            })
-          )}
-        </SectionCard>
-      )}
-
-      {step === 'error' && validationError ? (
-        <SectionCard title="Device Issue">
-          <Text style={styles.errorText}>{INCOMPATIBILITY_MESSAGES[validationError]}</Text>
-          {showBroadcastHint ? renderBroadcastHint('broadcast-hint-card') : null}
-          <ActionButton label="Try Another Device" onPress={reset} fullWidth />
-        </SectionCard>
-      ) : null}
-
-      <ActionButton
-        label={SAVE_LABEL[target]}
-        onPress={() => void handleSave()}
-        disabled={!signalConfirmed}
-        fullWidth
-      />
-    </AppScreen>
+      <View style={styles.actionBar}>{renderAction()}</View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  deviceRow: {
-    gap: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: palette.border,
-    backgroundColor: palette.surfaceMuted,
-    padding: 14,
-  },
-  deviceText: {
-    gap: 4,
-  },
-  deviceName: {
-    color: palette.text,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  deviceId: {
-    color: palette.textMuted,
-    fontSize: 12,
-  },
-  incompatibilityText: {
-    color: palette.danger,
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 4,
-  },
-  statusText: {
-    color: palette.textMuted,
-    fontSize: 13,
-    marginTop: 4,
-  },
-  signalText: {
-    color: palette.success,
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  errorText: {
-    color: palette.danger,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  emptyText: {
-    color: palette.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  hintContainer: {
-    marginTop: 4,
-    gap: 6,
-  },
-  hintToggleRow: {
+  safeArea: { flex: 1, backgroundColor: noir.bg },
+  navbar: {
+    height: 50,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 14,
+  },
+  navBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  navChevron: { color: noir.ink, fontSize: 30, lineHeight: 30, marginTop: -4 },
+  navTitle: { flex: 1, textAlign: 'center', color: noir.ink, fontSize: 17, fontWeight: '800' },
+  content: { paddingHorizontal: 22, paddingTop: 4, paddingBottom: 24, gap: 12 },
+  subtitle: { color: noir.ink2, fontSize: 14.5, lineHeight: 20, marginTop: 6 },
+  sectionLabel: { color: noir.ink, fontSize: 14, fontWeight: '700', marginTop: 10 },
+  rowGap: { marginTop: 0 },
+  heroGap: { marginTop: 2 },
+  emptyRow: {
+    backgroundColor: noir.card,
+    borderWidth: 1,
+    borderColor: noir.hairline,
+    borderRadius: 20,
+    padding: 16,
+    alignItems: 'center',
+  },
+  emptyText: { color: noir.ink3, fontSize: 13 },
+  errorCallout: {
+    backgroundColor: 'rgba(239,75,92,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(239,75,92,0.22)',
+    borderRadius: 20,
+    padding: 16,
     gap: 8,
   },
-  hintHeadline: {
-    color: palette.textMuted,
-    fontSize: 13,
-    fontWeight: '600',
-    flexShrink: 1,
+  errorTitle: { color: noir.ink, fontSize: 15, fontWeight: '700' },
+  errorBody: { color: noir.ink2, fontSize: 13.5, lineHeight: 19 },
+  errorText: { color: noir.dangerSoft, fontSize: 14, lineHeight: 20 },
+  actionBar: { paddingHorizontal: 22, paddingTop: 14, paddingBottom: 22, gap: 10 },
+  primaryBtn: {
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: noir.indigo,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  hintCaret: {
-    color: palette.textMuted,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  hintBody: {
-    gap: 6,
-    marginTop: 4,
-  },
-  hintStep: {
-    color: palette.textMuted,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  hintFooter: {
-    color: palette.textMuted,
-    fontSize: 12,
-    fontStyle: 'italic',
-    lineHeight: 16,
-    marginTop: 2,
-  },
+  primaryPressed: { backgroundColor: noir.indigoPress },
+  primaryDisabled: { backgroundColor: '#1b2230' },
+  primaryLabel: { color: noir.ink, fontSize: 15, fontWeight: '700' },
+  primaryLabelDisabled: { color: noir.ink3 },
+  hintContainer: { marginTop: 4, gap: 6 },
+  hintToggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  hintHeadline: { color: noir.ink2, fontSize: 13, fontWeight: '600', flexShrink: 1 },
+  hintCaret: { color: noir.ink2, fontSize: 13, fontWeight: '600' },
+  hintBody: { gap: 6, marginTop: 4 },
+  hintStep: { color: noir.ink2, fontSize: 13, lineHeight: 18 },
+  hintFooter: { color: noir.ink3, fontSize: 12, fontStyle: 'italic', lineHeight: 16, marginTop: 2 },
 });

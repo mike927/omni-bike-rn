@@ -59,7 +59,7 @@ describe('GearSetupScreen', () => {
     mockStartScan.mockResolvedValue('denied');
 
     const { getByText } = render(<GearSetupScreen target="bike" />);
-    fireEvent.press(getByText('Start Scan'));
+    fireEvent.press(getByText('Search for Smart Bike'));
 
     await waitFor(() => {
       expect(alertSpy).toHaveBeenCalledWith(
@@ -74,6 +74,7 @@ describe('GearSetupScreen', () => {
     it('shows the Garmin/Polar broadcast hint when HR validation fails with missing_hr_service', () => {
       Object.assign(mockGearSetupState, {
         step: 'error',
+        selectedDevice: { id: 'AB:CD', name: 'Garmin Venu' },
         validationError: 'missing_hr_service',
       });
 
@@ -87,6 +88,7 @@ describe('GearSetupScreen', () => {
     it('expands the broadcast hint step list when tapped', () => {
       Object.assign(mockGearSetupState, {
         step: 'error',
+        selectedDevice: { id: 'AB:CD', name: 'Garmin Venu' },
         validationError: 'missing_hr_service',
       });
 
@@ -103,6 +105,44 @@ describe('GearSetupScreen', () => {
       expect(getByText(/top-right button on Venu/)).toBeTruthy();
       expect(getByText(/Sensors & Accessories/)).toBeTruthy();
     });
+  });
+
+  it('shows the live hero with placeholders while awaiting a signal', () => {
+    Object.assign(mockGearSetupState, {
+      step: 'awaiting_signal',
+      selectedDevice: { id: 'D4:9F', name: 'Wahoo KICKR Bike' },
+      signalConfirmed: false,
+    });
+    const { getByText, getAllByText } = render(<GearSetupScreen target="bike" />);
+    expect(getByText('Wahoo KICKR Bike')).toBeTruthy();
+    expect(getByText('Waiting for signal…')).toBeTruthy();
+    expect(getAllByText('—').length).toBe(4);
+  });
+
+  it('shows live metrics and enables save when the signal is confirmed', () => {
+    Object.assign(mockGearSetupState, {
+      step: 'ready',
+      selectedDevice: { id: 'D4:9F', name: 'Wahoo KICKR Bike' },
+      signalConfirmed: true,
+      latestBikeMetrics: { speed: 31.4, cadence: 91, power: 124, distance: 200 },
+    });
+    const { getByText } = render(<GearSetupScreen target="bike" />);
+    expect(getByText('124')).toBeTruthy();
+    // Save fires persistence + back
+    fireEvent.press(getByText('Use This Smart Bike'));
+    expect(mockGearSetupState.save).toHaveBeenCalled();
+  });
+
+  it('shows the FTMS error callout and a Choose Another action on error', () => {
+    Object.assign(mockGearSetupState, {
+      step: 'error',
+      selectedDevice: { id: 'X', name: 'Generic Fitness 5C2' },
+      validationError: 'missing_indoor_bike_characteristic',
+    });
+    const { getByText } = render(<GearSetupScreen target="bike" />);
+    expect(getByText(/does not broadcast indoor bike data/i)).toBeTruthy();
+    fireEvent.press(getByText('Choose Another Bike'));
+    expect(mockGearSetupState.reset).toHaveBeenCalled();
   });
 
   describe('HR sensor transparency', () => {
