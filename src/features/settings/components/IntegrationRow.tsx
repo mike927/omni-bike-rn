@@ -34,7 +34,12 @@ export function IntegrationRow({
         </View>
         <Text style={[styles.status, { color: connected ? noir.mintSoft : noir.ink3 }]}>{statusLabel}</Text>
       </View>
-      <View>{action}</View>
+      {/* Reserve the same trailing chevron column the gear cards use, so this
+          action button right-aligns to the same vertical line as the gear pills. */}
+      <View style={styles.trailing}>
+        {action}
+        <View style={styles.chevronPlaceholder} />
+      </View>
     </View>
   );
 
@@ -76,6 +81,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   meta: { flex: 1, minWidth: 0 },
+  trailing: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  chevronPlaceholder: { width: 22, height: 22 },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   name: { color: noir.ink, fontSize: 15, fontWeight: '700' },
   brandDot: { width: 7, height: 7, borderRadius: 3.5 },
