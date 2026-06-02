@@ -211,6 +211,9 @@ Flat illustration with soft gradients in the brand palette. No photorealism. No 
 ## Dark / Light Migration Status
 
 The **Home screen** and the **bottom tab bar** are fully migrated to the Calm Noir dark theme.
-History and Settings screens (and their headers) remain on the original light palette pending a
-fast-follow restyle. The tab bar chrome (background, borders, icon tints) is already dark; each
-light screen simply renders its content under a dark tab bar until its own migration lands.
+History and Settings screens remain on the original light palette pending a fast-follow restyle.
+Because `app/(tabs)/_layout.tsx` sets a dark (`noir.bg`) header as the global default, those two
+screens **explicitly override `headerStyle`/`headerTintColor`/`sceneStyle` back to the light palette**
+(`LIGHT_SCREEN_OPTIONS`) so a light body never sits under a dark header. Only the shared **tab bar
+chrome** (background, borders, icon tints) is dark; each light screen renders its content above that
+dark tab bar until its own migration lands.
