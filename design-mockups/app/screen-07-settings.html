@@ -14,6 +14,9 @@
   .status-line.off { color: var(--ink-3); }
   .brand-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
   .brand-dot.strava { background: #fc4c02; box-shadow: 0 0 0 3px rgba(252,76,2,.16); }
+  /* Reserve a fixed chevron column so status pills right-align and the chevrons
+     share one column across every gear card — even the ones with no chevron. */
+  .dev-card .chev { flex: 0 0 22px; display: flex; align-items: center; justify-content: center; }
   /* nested "linked Strava bike" sub-row, revealed under a connected integration */
   .linked-sub { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--hairline); }
   .linked-icon { flex: 0 0 auto; width: 34px; height: 34px; border-radius: 10px; background: var(--card-3); color: var(--ink-2); display: flex; align-items: center; justify-content: center; }
@@ -116,6 +119,7 @@
               <div class="dev-kind">Wrist sensor</div>
             </div>
             <span class="pill off"><span class="dot"></span>Off</span>
+            <span class="chev" aria-hidden="true"></span>
           </div>
 
           <div class="dev-card">
@@ -128,6 +132,7 @@
               <div class="dev-kind">Built-in grip sensor</div>
             </div>
             <span class="pill inactive"><span class="dot"></span>Off</span>
+            <span class="chev" aria-hidden="true"></span>
           </div>
         </div>
 

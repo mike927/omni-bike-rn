@@ -127,12 +127,18 @@ export function GearCard({
             </Text>
           </View>
         </TouchableOpacity>
-        {showStatus ? (
-          <StatusPill status={status} scheme="noir" accessibilityLabel={`${name}: ${deviceStatusLabel(status)}`} />
-        ) : null}
-        {expandable ? (
-          <GearCardChevron expanded={expanded} onToggle={onToggleExpand} testID={chevronTestId} name={name} />
-        ) : null}
+        <View style={styles.trailing}>
+          {showStatus ? (
+            <StatusPill status={status} scheme="noir" accessibilityLabel={`${name}: ${deviceStatusLabel(status)}`} />
+          ) : null}
+          {/* Reserve the chevron column on every card so the status pills right-align
+              and the chevrons share one column, whether or not a card is expandable. */}
+          {expandable ? (
+            <GearCardChevron expanded={expanded} onToggle={onToggleExpand} testID={chevronTestId} name={name} />
+          ) : (
+            <View style={styles.chevronPlaceholder} />
+          )}
+        </View>
       </View>
       {expanded && actions !== undefined ? <View style={styles.actions}>{actions}</View> : null}
     </View>
@@ -164,9 +170,14 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 13,
+    gap: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,
+  },
+  trailing: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   body: {
     flex: 1,
@@ -190,9 +201,14 @@ const styles = StyleSheet.create({
   nameSelected: { color: noir.indigoSoft },
   kind: { color: noir.ink3, fontSize: 12.5, marginTop: 2 },
   chevron: {
-    padding: 10,
+    width: 22,
+    paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  chevronPlaceholder: {
+    width: 22,
+    height: 22,
   },
   actions: {
     paddingHorizontal: 10,
