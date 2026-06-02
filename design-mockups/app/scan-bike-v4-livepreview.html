@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Omni Bike · Scan Smart Bike — V4 Live Preview</title>
+<link rel="stylesheet" href="calm-noir.css" />
+<style>
+  body { flex-wrap: wrap; gap: 40px; align-content: center; }
+
+  /* compact picked-bike chip (collapsed list once one is chosen) */
+  .picked { display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius: var(--r-lg);
+    background: linear-gradient(0deg, var(--indigo-tint), var(--indigo-tint)), var(--card);
+    border:1px solid rgba(46,61,255,.4); box-shadow: inset 4px 0 0 var(--indigo), var(--shadow-soft); }
+  .picked .pi { width:42px;height:42px;border-radius:13px;background:var(--card-3);display:flex;align-items:center;justify-content:center;color:var(--indigo-soft);flex:0 0 auto; }
+  .picked .pn { flex:1 1 auto;min-width:0; }
+  .picked .pn .a { font-size:15px;font-weight:700;color:var(--indigo-soft); }
+  .picked .pn .b { font-size:12.5px;color:var(--ink-3);margin-top:2px; }
+  .picked .swap { font-size:13px;font-weight:700;color:var(--indigo-soft);cursor:pointer; }
+
+  /* big live readout */
+  .live-hero { margin-top:14px; background: var(--card); border:1px solid var(--hairline); border-radius: var(--r-2xl);
+    box-shadow: var(--shadow); padding: 22px; }
+  .live-hero .lh-head { display:flex; align-items:center; justify-content:space-between; }
+  .live-hero .lh-title { font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3); }
+  .lh-grid { margin-top:16px; display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .lh-cell .k { font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3); }
+  .lh-cell .v { margin-top:6px; font-size:34px; font-weight:800; letter-spacing:-.03em; color:var(--ink); font-variant-numeric:tabular-nums; line-height:1; }
+  .lh-cell .v .u { font-size:13px;font-weight:600;color:var(--ink-3);margin-left:4px; }
+  .lh-cell.hero .v { color:var(--mint-soft); font-size:40px; }
+  /* live waveform bar */
+  .wave { margin-top:18px; display:flex; align-items:flex-end; gap:3px; height:34px; }
+  .wave i { flex:1; border-radius:2px; background: linear-gradient(180deg, var(--mint-soft), rgba(16,181,164,.25));
+    animation: bob 1.1s ease-in-out infinite; }
+  @keyframes bob { 0%,100%{transform:scaleY(.4)} 50%{transform:scaleY(1)} }
+  .wave i:nth-child(2n){animation-delay:.15s}.wave i:nth-child(3n){animation-delay:.3s}.wave i:nth-child(4n){animation-delay:.45s}.wave i:nth-child(5n){animation-delay:.6s}
+
+  .waiting-shimmer .v { color: var(--ink-3); }
+  .scan-status { display:flex;align-items:center;gap:9px;padding:14px 4px 4px; }
+  .scan-status .live-dot { width:8px;height:8px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 0 rgba(245,165,36,.5);animation:pulse-amber 1.4s ease-out infinite; }
+  .scan-status .scan-text { font-size:13px;font-weight:500;color:var(--ink-3); }
+  .incompat-box { margin-top:14px; }
+</style>
+</head>
+<body>
+
+  <!-- ============ FRAME 1 — SEARCHING / LIST ============ -->
+  <div class="device"><div class="screen">
+    <div class="statusbar"><span>9:41</span><span class="glyphs">
+      <svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="#eef1f6"/><rect x="5" y="5" width="3" height="7" rx="1" fill="#eef1f6"/><rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#eef1f6"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#eef1f6"/></svg>
+      <svg width="26" height="13" viewBox="0 0 26 13"><rect x="0.5" y="0.5" width="22" height="12" rx="3.5" stroke="#eef1f6" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="9" rx="2" fill="#eef1f6"/><rect x="24" y="4" width="1.6" height="5" rx="0.8" fill="#eef1f6" fill-opacity="0.45"/></svg>
+    </span></div>
+    <div class="navbar">
+      <div class="nav-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="nav-title">Select Smart Bike</div><div></div>
+    </div>
+    <div class="content">
+      <p class="h-sub reveal d1" style="padding-top:6px">Pick your FTMS bike. We confirm it by showing live data before you save.</p>
+      <div class="section-label reveal d2"><h2>Nearby Devices</h2></div>
+      <div class="row-list reveal d2">
+        <div class="dev-card">
+          <div class="dev-icon muted"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="6.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><circle cx="17.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M6.5 16.5 10 8h4l3.5 8.5M10 8l-2-3m6 3 3-1.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="dev-meta"><div class="dev-name">Wahoo KICKR Bike</div><div class="dev-kind">ID · D4:9F:…2A1</div></div>
+          <button class="btn btn-secondary btn-sm">Select</button>
+        </div>
+        <div class="dev-card">
+          <div class="dev-icon muted"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="6.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><circle cx="17.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M6.5 16.5 10 8h4l3.5 8.5M10 8l-2-3m6 3 3-1.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="dev-meta"><div class="dev-name">TACX NEO 2T</div><div class="dev-kind">ID · 9C:55:…310</div></div>
+          <button class="btn btn-secondary btn-sm">Select</button>
+        </div>
+      </div>
+      <div class="scan-status reveal d3"><span class="live-dot"></span><span class="scan-text">Scanning for nearby devices…</span></div>
+    </div>
+    <div class="action-bar"><button class="btn btn-primary btn-block disabled">Use This Smart Bike</button></div>
+    <div class="home-indicator"></div>
+  </div></div>
+
+  <!-- ============ FRAME 2 — SELECTED, AWAITING SIGNAL ============ -->
+  <div class="device"><div class="screen">
+    <div class="statusbar"><span>9:41</span><span class="glyphs">
+      <svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="#eef1f6"/><rect x="5" y="5" width="3" height="7" rx="1" fill="#eef1f6"/><rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#eef1f6"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#eef1f6"/></svg>
+      <svg width="26" height="13" viewBox="0 0 26 13"><rect x="0.5" y="0.5" width="22" height="12" rx="3.5" stroke="#eef1f6" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="9" rx="2" fill="#eef1f6"/><rect x="24" y="4" width="1.6" height="5" rx="0.8" fill="#eef1f6" fill-opacity="0.45"/></svg>
+    </span></div>
+    <div class="navbar">
+      <div class="nav-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="nav-title">Confirm Smart Bike</div><div></div>
+    </div>
+    <div class="content">
+      <div class="picked reveal d1">
+        <div class="pi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="6.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><circle cx="17.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M6.5 16.5 10 8h4l3.5 8.5M10 8l-2-3m6 3 3-1.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="pn"><div class="a">Wahoo KICKR Bike</div><div class="b">Connecting…</div></div>
+        <span class="pill working"><span class="dot"></span>Connecting</span>
+      </div>
+
+      <div class="live-hero reveal d2 waiting-shimmer">
+        <div class="lh-head"><span class="lh-title">Live data</span><span class="scan-text" style="color:var(--amber-soft);font-weight:600">Waiting for signal…</span></div>
+        <div class="lh-grid">
+          <div class="lh-cell hero"><div class="k">Power</div><div class="v">— <span class="u">W</span></div></div>
+          <div class="lh-cell"><div class="k">Cadence</div><div class="v">— <span class="u">rpm</span></div></div>
+          <div class="lh-cell"><div class="k">Speed</div><div class="v">— <span class="u">km/h</span></div></div>
+          <div class="lh-cell"><div class="k">Distance</div><div class="v">— <span class="u">km</span></div></div>
+        </div>
+        <div class="callout info" style="margin-top:18px;padding:13px 14px"><div class="callout-body" style="margin:0">Start pedalling — numbers appear the moment the bike streams.</div></div>
+      </div>
+    </div>
+    <div class="action-bar"><button class="btn btn-primary btn-block disabled">Waiting for live signal…</button></div>
+    <div class="home-indicator"></div>
+  </div></div>
+
+  <!-- ============ FRAME 3 — LIVE / CONFIRMED ============ -->
+  <div class="device"><div class="screen">
+    <div class="statusbar"><span>9:41</span><span class="glyphs">
+      <svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="#eef1f6"/><rect x="5" y="5" width="3" height="7" rx="1" fill="#eef1f6"/><rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#eef1f6"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#eef1f6"/></svg>
+      <svg width="26" height="13" viewBox="0 0 26 13"><rect x="0.5" y="0.5" width="22" height="12" rx="3.5" stroke="#eef1f6" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="9" rx="2" fill="#eef1f6"/><rect x="24" y="4" width="1.6" height="5" rx="0.8" fill="#eef1f6" fill-opacity="0.45"/></svg>
+    </span></div>
+    <div class="navbar">
+      <div class="nav-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="nav-title">Confirm Smart Bike</div><div></div>
+    </div>
+    <div class="content">
+      <div class="picked reveal d1">
+        <div class="pi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="6.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><circle cx="17.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M6.5 16.5 10 8h4l3.5 8.5M10 8l-2-3m6 3 3-1.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="pn"><div class="a">Wahoo KICKR Bike</div><div class="b">Live signal confirmed</div></div>
+        <span class="swap">Swap</span>
+      </div>
+
+      <div class="live-hero reveal d2">
+        <div class="lh-head"><span class="lh-title">Live data</span><span class="pill good"><span class="dot"></span>Ready</span></div>
+        <div class="lh-grid">
+          <div class="lh-cell hero"><div class="k">Power</div><div class="v">124 <span class="u">W</span></div></div>
+          <div class="lh-cell"><div class="k">Cadence</div><div class="v">91 <span class="u">rpm</span></div></div>
+          <div class="lh-cell"><div class="k">Speed</div><div class="v">31.4 <span class="u">km/h</span></div></div>
+          <div class="lh-cell"><div class="k">Distance</div><div class="v">0.2 <span class="u">km</span></div></div>
+        </div>
+        <div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
+    </div>
+    <div class="action-bar"><button class="btn btn-primary btn-block">Use This Smart Bike</button></div>
+    <div class="home-indicator"></div>
+  </div></div>
+
+  <!-- ============ FRAME 4 — INCOMPATIBLE ERROR ============ -->
+  <div class="device"><div class="screen">
+    <div class="statusbar"><span>9:41</span><span class="glyphs">
+      <svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="#eef1f6"/><rect x="5" y="5" width="3" height="7" rx="1" fill="#eef1f6"/><rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#eef1f6"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#eef1f6"/></svg>
+      <svg width="26" height="13" viewBox="0 0 26 13"><rect x="0.5" y="0.5" width="22" height="12" rx="3.5" stroke="#eef1f6" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="9" rx="2" fill="#eef1f6"/><rect x="24" y="4" width="1.6" height="5" rx="0.8" fill="#eef1f6" fill-opacity="0.45"/></svg>
+    </span></div>
+    <div class="navbar">
+      <div class="nav-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="nav-title">Confirm Smart Bike</div><div></div>
+    </div>
+    <div class="content">
+      <div class="picked reveal d1" style="border-color:rgba(239,75,92,.4);box-shadow:inset 4px 0 0 var(--danger),var(--shadow-soft);background:linear-gradient(0deg,rgba(239,75,92,.1),rgba(239,75,92,.1)),var(--card)">
+        <div class="pi" style="color:var(--danger-soft)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="6.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><circle cx="17.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M6.5 16.5 10 8h4l3.5 8.5M10 8l-2-3m6 3 3-1.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="pn"><div class="a" style="color:var(--danger-soft)">Generic Fitness 5C2</div><div class="b">Can't be used</div></div>
+        <span class="pill attention"><span class="dot"></span>Unsupported</span>
+      </div>
+
+      <div class="callout warn incompat-box reveal d2">
+        <div class="callout-title">No indoor-bike data (FTMS)</div>
+        <div class="callout-body">This device connected but doesn't broadcast the Fitness Machine Service Omni Bike needs to stream power, cadence and speed. It may be a different kind of fitness machine.</div>
+      </div>
+    </div>
+    <div class="action-bar">
+      <button class="btn btn-primary btn-block">Choose Another Bike</button>
+      <button class="btn btn-ghost btn-block">What's FTMS?</button>
+    </div>
+    <div class="home-indicator"></div>
+  </div></div>
+
+  <div class="caption"><b>Scan · V4 Live Preview</b> · searching → awaiting → live → error</div>
+</body>
+</html>

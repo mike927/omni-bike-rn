@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Omni Bike · Scan Smart Bike — V1 Radar Focus</title>
+<link rel="stylesheet" href="calm-noir.css" />
+<style>
+  body { flex-wrap: wrap; gap: 40px; align-content: center; }
+
+  /* ---- radar hero ---- */
+  .radar {
+    position: relative; width: 100%; aspect-ratio: 1/1; max-height: 230px;
+    margin: 6px auto 2px; display: flex; align-items: center; justify-content: center;
+  }
+  .radar .ring {
+    position: absolute; border-radius: 50%; border: 1.5px solid rgba(46,61,255,.35);
+    width: 60px; height: 60px;
+  }
+  .radar.scanning .ring { animation: radar-out 2.6s ease-out infinite; }
+  .radar .ring.r2 { animation-delay: .65s; }
+  .radar .ring.r3 { animation-delay: 1.3s; }
+  .radar .ring.r4 { animation-delay: 1.95s; }
+  @keyframes radar-out {
+    0%   { width: 60px; height: 60px; opacity: .9; border-color: rgba(46,61,255,.55); }
+    100% { width: 230px; height: 230px; opacity: 0; border-color: rgba(16,181,164,.0); }
+  }
+  .radar .core {
+    position: relative; z-index: 2; width: 96px; height: 96px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; color: var(--ink);
+    background: radial-gradient(120% 120% at 30% 25%, #2e3dff 0%, #1a1f8f 45%, #0e1230 80%);
+    box-shadow: 0 0 0 1px rgba(255,255,255,.06), 0 18px 40px -16px rgba(46,61,255,.7);
+  }
+  .radar.confirmed .core {
+    background: radial-gradient(120% 120% at 30% 25%, #10b5a4 0%, #0a7d72 50%, #06322d 85%);
+    box-shadow: 0 0 0 1px rgba(16,181,164,.18), 0 18px 40px -16px rgba(16,181,164,.7);
+  }
+  .radar.confirmed .ring { border-color: rgba(16,181,164,.45); }
+  .radar.error .core {
+    background: radial-gradient(120% 120% at 30% 25%, #ef4b5c 0%, #7c1d27 55%, #2a0c10 85%);
+    box-shadow: 0 0 0 1px rgba(239,75,92,.2), 0 18px 40px -16px rgba(239,75,92,.6);
+  }
+  .radar-cap { text-align: center; margin: 2px 0 4px; }
+  .radar-cap .t { font-size: 15px; font-weight: 700; color: var(--ink); letter-spacing: -.01em; }
+  .radar-cap .s { margin-top: 3px; font-size: 12.5px; color: var(--ink-3); }
+
+  /* skeleton placeholder rows while searching */
+  .skel { height: 64px; border-radius: var(--r-lg); border: 1px solid var(--hairline);
+    background: linear-gradient(100deg, var(--card) 30%, var(--card-2) 50%, var(--card) 70%);
+    background-size: 220% 100%; animation: shimmer 1.6s linear infinite; }
+  @keyframes shimmer { to { background-position: -220% 0; } }
+
+  .signal-line { display: flex; align-items: center; gap: 6px; margin-top: 5px;
+    font-size: 12.5px; font-weight: 700; color: var(--mint-soft); }
+  .incompat { margin-top: 7px; font-size: 12.5px; line-height: 1.4; color: var(--danger-soft); }
+  .row-progress { margin-top: 7px; height: 4px; border-radius: 3px; background: var(--hairline); overflow: hidden; }
+  .row-progress i { display: block; height: 100%; width: 64%; border-radius: 3px;
+    background: linear-gradient(90deg, var(--amber), var(--amber-soft)); }
+</style>
+</head>
+<body>
+
+  <!-- ============ FRAME 1 — SEARCHING ============ -->
+  <div class="device">
+    <div class="screen">
+      <div class="statusbar"><span>9:41</span><span class="glyphs">
+        <svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="#eef1f6"/><rect x="5" y="5" width="3" height="7" rx="1" fill="#eef1f6"/><rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#eef1f6"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#eef1f6"/></svg>
+        <svg width="26" height="13" viewBox="0 0 26 13"><rect x="0.5" y="0.5" width="22" height="12" rx="3.5" stroke="#eef1f6" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="9" rx="2" fill="#eef1f6"/><rect x="24" y="4" width="1.6" height="5" rx="0.8" fill="#eef1f6" fill-opacity="0.45"/></svg>
+      </span></div>
+
+      <div class="navbar">
+        <div class="nav-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="nav-title">Smart Bike</div>
+        <div class="nav-right-link">Stop</div>
+      </div>
+
+      <div class="content">
+        <div class="radar scanning reveal d1">
+          <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div><div class="ring r4"></div>
+          <div class="core">
+            <svg width="38" height="38" viewBox="0 0 24 24" fill="none"><circle cx="6.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.6"/><circle cx="17.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.6"/><path d="M6.5 16.5 10 8h4l3.5 8.5M10 8l-2-3m6 3 3-1.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+        <div class="radar-cap reveal d2">
+          <div class="t">Searching for Smart Bikes…</div>
+          <div class="s">Wake your trainer and start pedalling so it advertises.</div>
+        </div>
+
+        <div class="section-label reveal d3"><h2>Nearby</h2></div>
+        <div class="row-list reveal d3">
+          <div class="skel"></div>
+          <div class="skel" style="animation-delay:.3s"></div>
+        </div>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+  <!-- ============ FRAME 2 — FOUND + CONNECTING ============ -->
+  <div class="device">
+    <div class="screen">
+      <div class="statusbar"><span>9:41</span><span class="glyphs">
+        <svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="#eef1f6"/><rect x="5" y="5" width="3" height="7" rx="1" fill="#eef1f6"/><rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#eef1f6"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#eef1f6"/></svg>
+        <svg width="26" height="13" viewBox="0 0 26 13"><rect x="0.5" y="0.5" width="22" height="12" rx="3.5" stroke="#eef1f6" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="9" rx="2" fill="#eef1f6"/><rect x="24" y="4" width="1.6" height="5" rx="0.8" fill="#eef1f6" fill-opacity="0.45"/></svg>
+      </span></div>
+
+      <div class="navbar">
+        <div class="nav-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="nav-title">Smart Bike</div>
+        <div class="nav-right-link">Stop</div>
+      </div>
+
+      <div class="content">
+        <div class="radar scanning reveal d1" style="max-height:150px">
+          <div class="ring r1"></div><div class="ring r2"></div>
+          <div class="core" style="width:78px;height:78px">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none"><circle cx="6.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.6"/><circle cx="17.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.6"/><path d="M6.5 16.5 10 8h4l3.5 8.5M10 8l-2-3m6 3 3-1.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+
+        <div class="section-label reveal d2"><h2>Nearby</h2><span class="link">2 found</span></div>
+        <div class="row-list reveal d2">
+
+          <!-- connecting -->
+          <div class="dev-card selected">
+            <div class="dev-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="6.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><circle cx="17.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M6.5 16.5 10 8h4l3.5 8.5M10 8l-2-3m6 3 3-1.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="dev-meta">
+              <div class="dev-name">Wahoo KICKR Bike</div>
+              <div class="dev-kind">Connecting…</div>
+              <div class="row-progress"><i></i></div>
+            </div>
+            <span class="pill working"><span class="dot"></span>Connecting</span>
+          </div>
+
+          <!-- idle -->
+          <div class="dev-card">
+            <div class="dev-icon muted">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="6.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><circle cx="17.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M6.5 16.5 10 8h4l3.5 8.5M10 8l-2-3m6 3 3-1.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="dev-meta">
+              <div class="dev-name">TACX NEO 2T</div>
+              <div class="dev-kind">ID · 9C:55:…310</div>
+            </div>
+            <button class="btn btn-secondary btn-sm">Select</button>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="action-bar reveal d3">
+        <button class="cta disabled">
+          <div class="cta-row"><div><div class="cta-label">Live signal required</div><div class="cta-title" style="font-size:18px">Connecting…</div></div>
+          <div class="cta-go"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+        </button>
+      </div>
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+  <!-- ============ FRAME 3 — SIGNAL CONFIRMED ============ -->
+  <div class="device">
+    <div class="screen">
+      <div class="statusbar"><span>9:41</span><span class="glyphs">
+        <svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="#eef1f6"/><rect x="5" y="5" width="3" height="7" rx="1" fill="#eef1f6"/><rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#eef1f6"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#eef1f6"/></svg>
+        <svg width="26" height="13" viewBox="0 0 26 13"><rect x="0.5" y="0.5" width="22" height="12" rx="3.5" stroke="#eef1f6" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="9" rx="2" fill="#eef1f6"/><rect x="24" y="4" width="1.6" height="5" rx="0.8" fill="#eef1f6" fill-opacity="0.45"/></svg>
+      </span></div>
+
+      <div class="navbar">
+        <div class="nav-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="nav-title">Smart Bike</div>
+        <div></div>
+      </div>
+
+      <div class="content">
+        <div class="radar confirmed reveal d1" style="max-height:200px">
+          <div class="ring r1"></div><div class="ring r2"></div>
+          <div class="core">
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7" stroke="#eef1f6" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+        <div class="radar-cap reveal d2">
+          <div class="t">Live signal received</div>
+          <div class="s">Wahoo KICKR Bike is streaming. You're ready to save.</div>
+        </div>
+
+        <div class="section-label reveal d3"><h2>Connected bike</h2></div>
+        <div class="row-list reveal d3">
+          <div class="dev-card selected">
+            <div class="dev-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="6.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><circle cx="17.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M6.5 16.5 10 8h4l3.5 8.5M10 8l-2-3m6 3 3-1.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="dev-meta">
+              <div class="dev-name">Wahoo KICKR Bike</div>
+              <div class="signal-line"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Signal received · 92 W · 86 rpm</div>
+            </div>
+            <span class="pill good"><span class="dot"></span>Ready</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="action-bar reveal d4">
+        <button class="cta">
+          <div class="cta-row"><div><div class="cta-label">Confirmed</div><div class="cta-title" style="font-size:20px">Use This Smart Bike</div></div>
+          <div class="cta-go"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+        </button>
+      </div>
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+  <!-- ============ FRAME 4 — INCOMPATIBLE ERROR ============ -->
+  <div class="device">
+    <div class="screen">
+      <div class="statusbar"><span>9:41</span><span class="glyphs">
+        <svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="#eef1f6"/><rect x="5" y="5" width="3" height="7" rx="1" fill="#eef1f6"/><rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#eef1f6"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#eef1f6"/></svg>
+        <svg width="26" height="13" viewBox="0 0 26 13"><rect x="0.5" y="0.5" width="22" height="12" rx="3.5" stroke="#eef1f6" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="9" rx="2" fill="#eef1f6"/><rect x="24" y="4" width="1.6" height="5" rx="0.8" fill="#eef1f6" fill-opacity="0.45"/></svg>
+      </span></div>
+
+      <div class="navbar">
+        <div class="nav-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="nav-title">Smart Bike</div>
+        <div class="nav-right-link">Stop</div>
+      </div>
+
+      <div class="content">
+        <div class="radar error reveal d1" style="max-height:150px">
+          <div class="core" style="width:78px;height:78px">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="M12 8v5M12 16.5v.01" stroke="#eef1f6" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="12" r="9" stroke="#eef1f6" stroke-width="1.6" opacity=".5"/></svg>
+          </div>
+        </div>
+
+        <div class="section-label reveal d2"><h2>Nearby</h2></div>
+        <div class="row-list reveal d2">
+          <div class="dev-card" style="border-color:rgba(239,75,92,.32)">
+            <div class="dev-icon" style="color:var(--danger-soft)">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="6.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><circle cx="17.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M6.5 16.5 10 8h4l3.5 8.5M10 8l-2-3m6 3 3-1.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="dev-meta">
+              <div class="dev-name">Generic Fitness 5C2</div>
+              <div class="incompat">Doesn't broadcast indoor-bike data (FTMS). It may be a different kind of fitness machine.</div>
+            </div>
+            <span class="pill attention"><span class="dot"></span>Unsupported</span>
+          </div>
+
+          <div class="dev-card">
+            <div class="dev-icon muted">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="6.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><circle cx="17.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M6.5 16.5 10 8h4l3.5 8.5M10 8l-2-3m6 3 3-1.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="dev-meta">
+              <div class="dev-name">TACX NEO 2T</div>
+              <div class="dev-kind">ID · 9C:55:…310</div>
+            </div>
+            <button class="btn btn-secondary btn-sm">Select</button>
+          </div>
+        </div>
+
+        <div class="callout warn reveal d3" style="margin-top:16px">
+          <div class="callout-title">Only FTMS Smart Bikes work</div>
+          <div class="callout-body">Omni Bike streams from trainers that broadcast the Fitness Machine Service. Pick another device, or keep scanning.</div>
+        </div>
+      </div>
+
+      <div class="action-bar reveal d4">
+        <button class="btn btn-secondary btn-block">Keep Scanning</button>
+      </div>
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+
+  <div class="caption"><b>Scan · V1 Radar Focus</b> · searching → connecting → confirmed → error</div>
+</body>
+</html>

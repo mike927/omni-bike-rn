@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Omni Bike · Scan Smart Bike — V3 Guided Card</title>
+<link rel="stylesheet" href="calm-noir.css" />
+<style>
+  body { flex-wrap: wrap; gap: 40px; align-content: center; }
+
+  .stage { display:flex; flex-direction:column; height:100%; }
+  .stage-center { flex:1 1 auto; display:flex; flex-direction:column; justify-content:center; }
+
+  .focal { background: var(--card); border: 1px solid var(--hairline); border-radius: var(--r-2xl);
+    box-shadow: var(--shadow); padding: 26px 22px; text-align:center; }
+  .focal .badge { width:84px;height:84px;border-radius:24px;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;
+    background: radial-gradient(120% 120% at 30% 25%, #2e3dff 0%, #1a1f8f 50%, #0e1230 85%); color:var(--ink);
+    box-shadow: 0 0 0 1px rgba(255,255,255,.06), 0 16px 36px -16px rgba(46,61,255,.7); position:relative; }
+  .focal .badge.spin::before { content:""; position:absolute; inset:-6px; border-radius:28px;
+    border:2px solid transparent; border-top-color: var(--indigo-soft); animation: rot 1s linear infinite; }
+  @keyframes rot { to { transform: rotate(360deg); } }
+  .focal .badge.ok { background: radial-gradient(120% 120% at 30% 25%, #10b5a4 0%, #0a7d72 50%, #06322d 85%);
+    box-shadow: 0 0 0 1px rgba(16,181,164,.18), 0 16px 36px -16px rgba(16,181,164,.7); }
+  .focal .badge.err { background: radial-gradient(120% 120% at 30% 25%, #ef4b5c 0%, #7c1d27 55%, #2a0c10 85%);
+    box-shadow: 0 0 0 1px rgba(239,75,92,.2), 0 16px 36px -16px rgba(239,75,92,.6); }
+  .focal .step-k { font-size: 12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color: var(--ink-3); }
+  .focal .step-t { margin-top:8px; font-size:23px; font-weight:800; letter-spacing:-.02em; color:var(--ink); }
+  .focal .step-s { margin-top:9px; font-size:14px; color:var(--ink-2); line-height:1.45; max-width:280px; margin-left:auto;margin-right:auto; }
+
+  .picklist { margin-top: 18px; display:flex; flex-direction:column; gap:9px; text-align:left; }
+  .pick { display:flex;align-items:center;gap:12px; padding:13px 14px; border-radius: var(--r-md);
+    background: var(--card-2); border:1px solid var(--hairline); cursor:pointer; }
+  .pick:active { background: var(--card-3); }
+  .pick .pi { width:36px;height:36px;border-radius:11px;background:var(--card-3);display:flex;align-items:center;justify-content:center;color:var(--indigo-soft);flex:0 0 auto; }
+  .pick .pn { flex:1 1 auto;min-width:0; }
+  .pick .pn .a { font-size:14.5px;font-weight:700;color:var(--ink); }
+  .pick .pn .b { font-size:12px;color:var(--ink-3);margin-top:1px; }
+  .pick .chev { color: var(--ink-3); }
+
+  .mini-metrics { margin-top:18px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:9px; }
+  .mini-metrics .m { background:var(--card-2); border:1px solid var(--hairline); border-radius:var(--r-sm); padding:11px 8px; }
+  .mini-metrics .m .k { font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3); }
+  .mini-metrics .m .v { margin-top:5px;font-size:18px;font-weight:800;letter-spacing:-.02em;color:var(--mint-soft);font-variant-numeric:tabular-nums; }
+
+  .step-dots { display:flex; gap:7px; justify-content:center; padding:16px 0 4px; }
+  .step-dots i { width:7px;height:7px;border-radius:50%;background:var(--hairline); }
+  .step-dots i.on { background:var(--indigo-soft); width:20px;border-radius:4px; }
+</style>
+</head>
+<body>
+
+  <!-- ============ FRAME 1 — SEARCHING ============ -->
+  <div class="device"><div class="screen">
+    <div class="statusbar"><span>9:41</span><span class="glyphs">
+      <svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="#eef1f6"/><rect x="5" y="5" width="3" height="7" rx="1" fill="#eef1f6"/><rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#eef1f6"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#eef1f6"/></svg>
+      <svg width="26" height="13" viewBox="0 0 26 13"><rect x="0.5" y="0.5" width="22" height="12" rx="3.5" stroke="#eef1f6" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="9" rx="2" fill="#eef1f6"/><rect x="24" y="4" width="1.6" height="5" rx="0.8" fill="#eef1f6" fill-opacity="0.45"/></svg>
+    </span></div>
+    <div class="navbar">
+      <div class="nav-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="nav-title">Smart Bike Setup</div><div></div>
+    </div>
+    <div class="content">
+      <div class="stage">
+        <div class="stage-center">
+          <div class="focal reveal d1">
+            <div class="badge spin">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none"><circle cx="6.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.6"/><circle cx="17.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.6"/><path d="M6.5 16.5 10 8h4l3.5 8.5M10 8l-2-3m6 3 3-1.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div class="step-k">Step 1 of 3</div>
+            <div class="step-t">Searching for your bike</div>
+            <div class="step-s">Wake your FTMS trainer and start pedalling so it broadcasts to Omni Bike.</div>
+          </div>
+          <div class="step-dots reveal d2"><i class="on"></i><i></i><i></i></div>
+        </div>
+      </div>
+    </div>
+    <div class="action-bar"><button class="btn btn-ghost btn-block">Cancel</button></div>
+    <div class="home-indicator"></div>
+  </div></div>
+
+  <!-- ============ FRAME 2 — CHOOSE / CONNECTING ============ -->
+  <div class="device"><div class="screen">
+    <div class="statusbar"><span>9:41</span><span class="glyphs">
+      <svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="#eef1f6"/><rect x="5" y="5" width="3" height="7" rx="1" fill="#eef1f6"/><rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#eef1f6"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#eef1f6"/></svg>
+      <svg width="26" height="13" viewBox="0 0 26 13"><rect x="0.5" y="0.5" width="22" height="12" rx="3.5" stroke="#eef1f6" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="9" rx="2" fill="#eef1f6"/><rect x="24" y="4" width="1.6" height="5" rx="0.8" fill="#eef1f6" fill-opacity="0.45"/></svg>
+    </span></div>
+    <div class="navbar">
+      <div class="nav-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="nav-title">Smart Bike Setup</div><div></div>
+    </div>
+    <div class="content">
+      <div class="stage">
+        <div class="stage-center">
+          <div class="focal reveal d1">
+            <div class="step-k">Step 2 of 3</div>
+            <div class="step-t">Choose your bike</div>
+            <div class="step-s">2 trainers nearby. Tap yours to connect.</div>
+            <div class="picklist">
+              <div class="pick" style="border-color:rgba(46,61,255,.4);background:var(--indigo-tint)">
+                <div class="pi"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="6.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><circle cx="17.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M6.5 16.5 10 8h4l3.5 8.5M10 8l-2-3m6 3 3-1.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                <div class="pn"><div class="a" style="color:var(--indigo-soft)">Wahoo KICKR Bike</div><div class="b">Connecting…</div></div>
+                <span class="pill working"><span class="dot"></span>Connecting</span>
+              </div>
+              <div class="pick">
+                <div class="pi" style="color:var(--ink-3)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="6.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><circle cx="17.5" cy="16.5" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="M6.5 16.5 10 8h4l3.5 8.5M10 8l-2-3m6 3 3-1.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                <div class="pn"><div class="a">TACX NEO 2T</div><div class="b">ID · 9C:55:…310</div></div>
+                <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+            </div>
+          </div>
+          <div class="step-dots reveal d2"><i></i><i class="on"></i><i></i></div>
+        </div>
+      </div>
+    </div>
+    <div class="action-bar"><button class="btn btn-ghost btn-block">Cancel</button></div>
+    <div class="home-indicator"></div>
+  </div></div>
+
+  <!-- ============ FRAME 3 — LIVE / CONFIRMED ============ -->
+  <div class="device"><div class="screen">
+    <div class="statusbar"><span>9:41</span><span class="glyphs">
+      <svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="#eef1f6"/><rect x="5" y="5" width="3" height="7" rx="1" fill="#eef1f6"/><rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#eef1f6"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#eef1f6"/></svg>
+      <svg width="26" height="13" viewBox="0 0 26 13"><rect x="0.5" y="0.5" width="22" height="12" rx="3.5" stroke="#eef1f6" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="9" rx="2" fill="#eef1f6"/><rect x="24" y="4" width="1.6" height="5" rx="0.8" fill="#eef1f6" fill-opacity="0.45"/></svg>
+    </span></div>
+    <div class="navbar"><div></div><div class="nav-title">Smart Bike Setup</div><div></div></div>
+    <div class="content">
+      <div class="stage">
+        <div class="stage-center">
+          <div class="focal reveal d1">
+            <div class="badge ok"><svg width="40" height="40" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7" stroke="#eef1f6" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <div class="step-k" style="color:var(--mint-soft)">Step 3 of 3</div>
+            <div class="step-t">Wahoo KICKR Bike is live</div>
+            <div class="step-s">Streaming now. Save it and your next ride starts from Home.</div>
+            <div class="mini-metrics">
+              <div class="m"><div class="k">Power</div><div class="v">124<span style="font-size:11px;color:var(--ink-3)"> W</span></div></div>
+              <div class="m"><div class="k">Cadence</div><div class="v">91<span style="font-size:11px;color:var(--ink-3)"> rpm</span></div></div>
+              <div class="m"><div class="k">Speed</div><div class="v">31<span style="font-size:11px;color:var(--ink-3)"> km/h</span></div></div>
+            </div>
+          </div>
+          <div class="step-dots reveal d2"><i></i><i></i><i class="on"></i></div>
+        </div>
+      </div>
+    </div>
+    <div class="action-bar">
+      <button class="btn btn-primary btn-block">Use This Smart Bike</button>
+      <button class="btn btn-ghost btn-block">Choose a different bike</button>
+    </div>
+    <div class="home-indicator"></div>
+  </div></div>
+
+  <!-- ============ FRAME 4 — INCOMPATIBLE ERROR ============ -->
+  <div class="device"><div class="screen">
+    <div class="statusbar"><span>9:41</span><span class="glyphs">
+      <svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="#eef1f6"/><rect x="5" y="5" width="3" height="7" rx="1" fill="#eef1f6"/><rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#eef1f6"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#eef1f6"/></svg>
+      <svg width="26" height="13" viewBox="0 0 26 13"><rect x="0.5" y="0.5" width="22" height="12" rx="3.5" stroke="#eef1f6" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="9" rx="2" fill="#eef1f6"/><rect x="24" y="4" width="1.6" height="5" rx="0.8" fill="#eef1f6" fill-opacity="0.45"/></svg>
+    </span></div>
+    <div class="navbar">
+      <div class="nav-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="nav-title">Smart Bike Setup</div><div></div>
+    </div>
+    <div class="content">
+      <div class="stage">
+        <div class="stage-center">
+          <div class="focal reveal d1">
+            <div class="badge err"><svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="M12 8v5M12 16.5v.01" stroke="#eef1f6" stroke-width="2.4" stroke-linecap="round"/></svg></div>
+            <div class="step-k" style="color:var(--danger-soft)">Can't use this device</div>
+            <div class="step-t">Not an FTMS Smart Bike</div>
+            <div class="step-s">“Generic Fitness 5C2” doesn't broadcast indoor-bike data. Omni Bike only streams from FTMS trainers.</div>
+          </div>
+          <div class="step-dots reveal d2"><i></i><i class="on"></i><i></i></div>
+        </div>
+      </div>
+    </div>
+    <div class="action-bar">
+      <button class="btn btn-primary btn-block">Choose Another Bike</button>
+      <button class="btn btn-ghost btn-block">What's FTMS?</button>
+    </div>
+    <div class="home-indicator"></div>
+  </div></div>
+
+  <div class="caption"><b>Scan · V3 Guided Card</b> · searching → connecting → confirmed → error</div>
+</body>
+</html>
