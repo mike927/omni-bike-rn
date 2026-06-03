@@ -4,7 +4,7 @@ Primary contract is `AGENTS.md`. This file covers Codex-specific project notes o
 
 ## Superpowers
 
-Required Codex plugin, declared in `AGENTS.md`:
+Required Codex plugin:
 
 - `superpowers@openai-curated`
 
