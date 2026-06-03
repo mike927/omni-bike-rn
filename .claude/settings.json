@@ -6,5 +6,18 @@
     "swift-lsp@claude-plugins-official": true,
     "frontend-design@claude-plugins-official": true,
     "context7@claude-plugins-official": true
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path // empty' 2>/dev/null); case \"$(basename \"$f\")\" in AGENTS.md|CLAUDE.md|GEMINI.md|CODEX.md) jq -n '{hookSpecificOutput:{hookEventName:\"PreToolUse\",additionalContext:\"You are editing a harness instruction file. REQUIRED: follow the writing-agent-instructions skill — terse imperative directives, one rule per line, no inline rationale (route the why to a commit or ADR), match the existing voice, cut any line that does not change agent behavior.\"}}' ;; esac"
+          }
+        ]
+      }
+    ]
   }
 }

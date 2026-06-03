@@ -2,14 +2,30 @@ import { NativeModule, requireNativeModule } from 'expo-modules-core';
 
 export type WatchHrPayload = { hr: number };
 export type WatchActiveKcalPayload = { activeKcal: number };
-export type WatchReachabilityPayload = { reachable: boolean };
+export type WatchReachabilityPayload = {
+  reachable: boolean;
+  activationState?: number;
+  paired?: boolean;
+  installed?: boolean;
+};
 export type WatchSessionStatePayload = { state: 'started' | 'ended' | 'failed'; sentAtMs: number };
+/** Stable presence of the companion: the Watch is paired and the app is installed. */
+export type WatchCompanionStatePayload = {
+  available: boolean;
+  paired?: boolean;
+  installed?: boolean;
+  activationState?: number;
+  reachable?: boolean;
+};
+export type WatchAppStatePayload = { state: string };
 
 type WatchConnectivityModuleEvents = {
   onWatchHr: (payload: WatchHrPayload) => void;
   onWatchActiveKcal: (payload: WatchActiveKcalPayload) => void;
   onReachabilityChange: (payload: WatchReachabilityPayload) => void;
   onWatchSessionState: (payload: WatchSessionStatePayload) => void;
+  onWatchCompanionStateChange: (payload: WatchCompanionStatePayload) => void;
+  onWatchAppState: (payload: WatchAppStatePayload) => void;
 };
 
 declare class WatchConnectivityNativeModule extends NativeModule<WatchConnectivityModuleEvents> {
@@ -27,6 +43,14 @@ declare class WatchConnectivityNativeModule extends NativeModule<WatchConnectivi
    * command is queued for later delivery.
    */
   endMirroredWorkout(): Promise<void>;
+  /**
+   * Tells the paired Watch to pause its active workout session. The Watch owns the
+   * HKWorkoutSession, so only it can pause — pausing stops its workout timer and HR
+   * collection. Queued via transferUserInfo when the Watch is unreachable.
+   */
+  pauseMirroredWorkout(): Promise<void>;
+  /** Tells the paired Watch to resume its paused workout session. */
+  resumeMirroredWorkout(): Promise<void>;
   /**
    * Sends a message dictionary to the paired Watch. Returns `true` if the message was
    * delivered to the WC layer, `false` if the session was not activated or the Watch

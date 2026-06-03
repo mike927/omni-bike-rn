@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { palette } from '../theme';
 
@@ -7,18 +8,31 @@ interface SectionCardProps {
   title: string;
   description?: string;
   children: ReactNode;
+  onPress?: () => void;
 }
 
-export function SectionCard({ title, description, children }: Readonly<SectionCardProps>) {
-  return (
-    <View style={styles.card}>
+export function SectionCard({ title, description, children, onPress }: Readonly<SectionCardProps>) {
+  const inner = (
+    <>
       <View style={styles.header}>
-        <Text style={styles.title}>{title}</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>{title}</Text>
+          {onPress ? <Ionicons name="settings-outline" size={20} color={palette.textMuted} /> : null}
+        </View>
         {description ? <Text style={styles.description}>{description}</Text> : null}
       </View>
       <View style={styles.content}>{children}</View>
-    </View>
+    </>
   );
+
+  if (onPress) {
+    return (
+      <Pressable accessibilityRole="button" onPress={onPress} style={styles.card}>
+        {inner}
+      </Pressable>
+    );
+  }
+  return <View style={styles.card}>{inner}</View>;
 }
 
 const styles = StyleSheet.create({
@@ -32,6 +46,12 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: 4,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
   },
   title: {
     color: palette.text,

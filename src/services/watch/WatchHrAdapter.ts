@@ -1,5 +1,6 @@
 import { WatchConnectivity } from 'watch-connectivity';
-import type { HrAdapter } from '../ble/HrAdapter';
+import type { HrAdapter, HrSubscription } from '../ble/HrAdapter';
+import { logWc } from './wcLog';
 
 /**
  * HrAdapter implementation for Apple Watch HR streaming via WatchConnectivity.
@@ -13,15 +14,18 @@ import type { HrAdapter } from '../ble/HrAdapter';
  */
 export class WatchHrAdapter implements HrAdapter {
   async connect(): Promise<void> {
+    logWc('adapter.connect: activate + startWatchApp');
     await WatchConnectivity.activate();
     await WatchConnectivity.startWatchApp();
+    logWc('adapter.connect: startWatchApp resolved');
   }
 
   async disconnect(): Promise<void> {
+    logWc('adapter.disconnect: endMirroredWorkout');
     await WatchConnectivity.endMirroredWorkout();
   }
 
-  subscribeToHeartRate(callback: (hr: number) => void): { remove: () => void } {
+  subscribeToHeartRate(callback: (hr: number) => void): HrSubscription {
     const subscription = WatchConnectivity.addListener('onWatchHr', ({ hr }) => {
       callback(hr);
     });
@@ -33,7 +37,7 @@ export class WatchHrAdapter implements HrAdapter {
    * Emitted at the same ~1 Hz cadence as HR and piggy-backed on the same WC
    * payload; subscribers receive the session-to-date kcal, not a per-tick delta.
    */
-  subscribeToActiveKcal(callback: (kcal: number) => void): { remove: () => void } {
+  subscribeToActiveKcal(callback: (kcal: number) => void): HrSubscription {
     const subscription = WatchConnectivity.addListener('onWatchActiveKcal', ({ activeKcal }) => {
       callback(activeKcal);
     });

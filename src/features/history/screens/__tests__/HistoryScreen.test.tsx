@@ -7,7 +7,7 @@ import {
 } from '../../../training/navigation/trainingSummaryRoute';
 import { STRAVA_PROVIDER_ID } from '../../../../services/export/providerIds';
 import { HistoryScreen } from '../HistoryScreen';
-import { formatSessionDate } from '../../../../ui/formatters';
+import { formatHistoryDate } from '../../../../ui/formatters';
 import type { PersistedTrainingSession } from '../../../../types/sessionPersistence';
 
 const mockPush = jest.fn();
@@ -82,14 +82,14 @@ describe('HistoryScreen', () => {
     });
 
     const { getByLabelText } = render(<HistoryScreen />);
-    fireEvent.press(getByLabelText(`Workout on ${formatSessionDate(session.startedAtMs)}`));
+    fireEvent.press(getByLabelText(`Workout on ${formatHistoryDate(session.startedAtMs)}`));
 
     expect(mockPush).toHaveBeenCalledWith(
       buildTrainingSummaryRoute('session-7', SAVED_SESSION_TRAINING_SUMMARY_SOURCE, '/history'),
     );
   });
 
-  it('prompts before deleting a workout from the list', () => {
+  it('prompts before deleting a workout via long press', () => {
     const session = buildSession('session-7');
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_, __, buttons) => {
       buttons?.[1]?.onPress?.();
@@ -103,7 +103,7 @@ describe('HistoryScreen', () => {
     });
 
     const { getByLabelText } = render(<HistoryScreen />);
-    fireEvent.press(getByLabelText('Delete workout'));
+    fireEvent(getByLabelText(`Workout on ${formatHistoryDate(session.startedAtMs)}`), 'longPress');
 
     expect(mockDeleteWorkout).toHaveBeenCalledWith('session-7');
     expect(mockPush).not.toHaveBeenCalled();
@@ -116,7 +116,7 @@ describe('HistoryScreen', () => {
     alertSpy.mockRestore();
   });
 
-  it('shows the provider status icon for an uploaded session', () => {
+  it('shows the provider sync state for an uploaded session', () => {
     const session = buildSession('session-7');
 
     mockUseWorkoutHistory.mockReturnValue({
@@ -128,7 +128,23 @@ describe('HistoryScreen', () => {
 
     const { getByLabelText } = render(<HistoryScreen />);
 
-    expect(getByLabelText('Exported to Strava')).toBeTruthy();
-    expect(getByLabelText('Delete workout')).toBeTruthy();
+    expect(getByLabelText('Uploaded to Strava')).toBeTruthy();
+    expect(getByLabelText('Not synced to Apple Health')).toBeTruthy();
+  });
+
+  it('renders the monthly summary strip and recent-rides section', () => {
+    const session = buildSession('session-7');
+
+    mockUseWorkoutHistory.mockReturnValue({
+      items: [{ session, uploadedProviderIds: [] }],
+      isLoading: false,
+      refresh: jest.fn(),
+      deleteWorkout: mockDeleteWorkout,
+    });
+
+    const { getByText } = render(<HistoryScreen />);
+
+    expect(getByText('This Month')).toBeTruthy();
+    expect(getByText('Recent rides')).toBeTruthy();
   });
 });

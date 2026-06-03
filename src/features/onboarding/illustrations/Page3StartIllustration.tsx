@@ -1,6 +1,5 @@
-import { StyleSheet, View } from 'react-native';
-
-import { IconCard } from '../components/IconCard';
+import { OnboardingHero } from '../components/OnboardingHero';
+import { PlayIcon } from './icons/PlayIcon';
 
 interface Page3StartIllustrationProps {
   readonly testID?: string;
@@ -8,16 +7,8 @@ interface Page3StartIllustrationProps {
 
 export function Page3StartIllustration({ testID }: Page3StartIllustrationProps) {
   return (
-    <View style={styles.row} testID={testID}>
-      <IconCard icon="bolt" />
-    </View>
+    <OnboardingHero testID={testID}>
+      <PlayIcon />
+    </OnboardingHero>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

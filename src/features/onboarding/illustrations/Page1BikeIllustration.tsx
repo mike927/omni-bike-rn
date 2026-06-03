@@ -1,7 +1,5 @@
-import { StyleSheet, View } from 'react-native';
-
-import { BluetoothConnector } from '../components/BluetoothConnector';
-import { IconCard } from '../components/IconCard';
+import { OnboardingHero } from '../components/OnboardingHero';
+import { BikeIcon } from './icons/BikeIcon';
 
 interface Page1BikeIllustrationProps {
   readonly testID?: string;
@@ -9,19 +7,8 @@ interface Page1BikeIllustrationProps {
 
 export function Page1BikeIllustration({ testID }: Page1BikeIllustrationProps) {
   return (
-    <View style={styles.row} testID={testID}>
-      <IconCard icon="vibration" />
-      <BluetoothConnector />
-      <IconCard icon="directions-bike" />
-    </View>
+    <OnboardingHero testID={testID}>
+      <BikeIcon />
+    </OnboardingHero>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-});

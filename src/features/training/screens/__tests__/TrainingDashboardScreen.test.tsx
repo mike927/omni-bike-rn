@@ -1,5 +1,6 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, waitFor, within } from '@testing-library/react-native';
 
+import type { SavedDevice } from '../../../../types/gear';
 import { buildTrainingSummaryRoute, POST_FINISH_TRAINING_SUMMARY_SOURCE } from '../../navigation/trainingSummaryRoute';
 import { TrainingDashboardScreen } from '../TrainingDashboardScreen';
 
@@ -11,7 +12,14 @@ const mockSession = {
   elapsedSeconds: 0,
   totalDistance: 0,
   totalCalories: 0,
-  currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: null },
+  currentMetrics: {
+    speed: 0,
+    cadence: 0,
+    power: 0,
+    heartRate: null,
+    resistance: null,
+    distance: null,
+  },
   start: jest.fn(),
   pause: jest.fn(),
   resume: jest.fn(),
@@ -23,8 +31,37 @@ const mockSession = {
 const mockDeviceConnection = {
   bikeConnected: false,
   hrConnected: false,
-  latestBikeMetrics: null,
+  latestBikeMetrics: null as null | { heartRate?: number },
   latestBluetoothHr: null,
+  latestAppleWatchHr: null,
+  lastAppleWatchSampleAtMs: null,
+  watchAvailability: 'unavailable',
+};
+
+// Mutable store state for deviceConnectionStore fields not exposed by useDeviceConnection
+const mockDeviceConnectionStoreState = {
+  activeHrSource: null as string | null,
+  lastBluetoothHrSampleAtMs: null as number | null,
+  watchAvailability: 'unavailable' as string,
+};
+
+const mockHrSourceStoreState = {
+  primary: null as string | null,
+};
+
+const mockSavedGear: {
+  savedBike: SavedDevice | null;
+  savedHrSource: SavedDevice | null;
+} = {
+  savedBike: null,
+  savedHrSource: null,
+};
+
+const mockAutoReconnect = {
+  bikeReconnectState: 'idle' as const,
+  hrReconnectState: 'idle' as const,
+  retryBike: jest.fn(),
+  retryHr: jest.fn(),
 };
 
 jest.mock('expo-router', () => ({
@@ -47,6 +84,23 @@ jest.mock('../../hooks/useDeviceConnection', () => ({
   useDeviceConnection: () => mockDeviceConnection,
 }));
 
+jest.mock('../../../gear/hooks/useSavedGear', () => ({
+  useSavedGear: () => mockSavedGear,
+}));
+
+jest.mock('../../../gear/hooks/useAutoReconnect', () => ({
+  useAutoReconnect: () => mockAutoReconnect,
+}));
+
+jest.mock('../../../../store/deviceConnectionStore', () => ({
+  useDeviceConnectionStore: (selector: (s: typeof mockDeviceConnectionStoreState) => unknown) =>
+    selector(mockDeviceConnectionStoreState),
+}));
+
+jest.mock('../../../../store/hrSourceStore', () => ({
+  useHrSourceStore: (selector: (s: typeof mockHrSourceStoreState) => unknown) => selector(mockHrSourceStoreState),
+}));
+
 describe('TrainingDashboardScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -55,7 +109,14 @@ describe('TrainingDashboardScreen', () => {
       elapsedSeconds: 0,
       totalDistance: 0,
       totalCalories: 0,
-      currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: null },
+      currentMetrics: {
+        speed: 0,
+        cadence: 0,
+        power: 0,
+        heartRate: null,
+        resistance: null,
+        distance: null,
+      },
       finishAndDisconnect: jest.fn().mockResolvedValue('session-1'),
     });
     Object.assign(mockDeviceConnection, {
@@ -63,6 +124,23 @@ describe('TrainingDashboardScreen', () => {
       hrConnected: false,
       latestBikeMetrics: null,
       latestBluetoothHr: null,
+      latestAppleWatchHr: null,
+      lastAppleWatchSampleAtMs: null,
+      watchAvailability: 'unavailable',
+    });
+    mockSavedGear.savedBike = null;
+    mockSavedGear.savedHrSource = null;
+    Object.assign(mockAutoReconnect, {
+      bikeReconnectState: 'idle',
+      hrReconnectState: 'idle',
+    });
+    Object.assign(mockDeviceConnectionStoreState, {
+      activeHrSource: null,
+      lastBluetoothHrSampleAtMs: null,
+      watchAvailability: 'unavailable',
+    });
+    Object.assign(mockHrSourceStoreState, {
+      primary: null,
     });
   });
 
@@ -70,15 +148,35 @@ describe('TrainingDashboardScreen', () => {
     expect(() => render(<TrainingDashboardScreen />)).not.toThrow();
   });
 
+  describe('Smart Bike status pill', () => {
+    it('reads "Not set up" when no bike is saved (finding #4)', () => {
+      mockSavedGear.savedBike = null;
+      Object.assign(mockDeviceConnection, { bikeConnected: false });
+
+      const { getByLabelText } = render(<TrainingDashboardScreen />);
+
+      expect(getByLabelText('Bike: Not set up')).toBeTruthy();
+    });
+
+    it('reads "Unavailable" when a bike is saved but not connected', () => {
+      mockSavedGear.savedBike = { id: 'bike-1', name: 'Zipro Rave', type: 'bike' };
+      Object.assign(mockDeviceConnection, { bikeConnected: false });
+
+      const { getByLabelText } = render(<TrainingDashboardScreen />);
+
+      expect(getByLabelText('Bike: Unavailable')).toBeTruthy();
+    });
+  });
+
   it('shows disconnected-bike recovery actions before a workout starts', () => {
     const { getByText } = render(<TrainingDashboardScreen />);
 
-    expect(getByText('Bike connection required')).toBeTruthy();
+    expect(getByText('Smart Bike connection required')).toBeTruthy();
 
     fireEvent.press(getByText('Start Ride'));
     expect(mockSession.start).not.toHaveBeenCalled();
 
-    fireEvent.press(getByText('Set Up Bike'));
+    fireEvent.press(getByText('Set Up Smart Bike'));
     expect(mockPush).toHaveBeenCalledWith('/gear-setup?target=bike');
 
     fireEvent.press(getByText('Back Home'));
@@ -100,12 +198,22 @@ describe('TrainingDashboardScreen', () => {
       elapsedSeconds: 321,
       totalCalories: 45.6,
       totalDistance: 1234,
-      currentMetrics: { speed: 31.2, cadence: 92, power: 248, heartRate: 151, resistance: 7, distance: 1234 },
+      currentMetrics: {
+        speed: 31.2,
+        cadence: 92,
+        power: 248,
+        heartRate: 151,
+        resistance: 7,
+        distance: 1234,
+      },
     });
     Object.assign(mockDeviceConnection, {
       bikeConnected: true,
       hrConnected: true,
       latestBluetoothHr: 144,
+    });
+    Object.assign(mockDeviceConnectionStoreState, {
+      activeHrSource: 'bluetooth',
     });
 
     const { getByText, queryByText } = render(<TrainingDashboardScreen />);
@@ -121,7 +229,14 @@ describe('TrainingDashboardScreen', () => {
     Object.assign(mockSession, {
       phase: 'active',
       totalCalories: 123.4,
-      currentMetrics: { speed: 28, cadence: 85, power: 210, heartRate: 140, resistance: 6, distance: 1000 },
+      currentMetrics: {
+        speed: 28,
+        cadence: 85,
+        power: 210,
+        heartRate: 140,
+        resistance: 6,
+        distance: 1000,
+      },
     });
     Object.assign(mockDeviceConnection, { bikeConnected: true });
 
@@ -148,9 +263,9 @@ describe('TrainingDashboardScreen', () => {
 
     const { getByText } = render(<TrainingDashboardScreen />);
 
-    expect(getByText('Bike connection required')).toBeTruthy();
+    expect(getByText('Smart Bike connection required')).toBeTruthy();
     expect(
-      getByText('Reconnect your saved bike or choose one in setup before you resume this interrupted workout.'),
+      getByText('Reconnect your saved Smart Bike or choose one in setup before you resume this interrupted workout.'),
     ).toBeTruthy();
   });
 
@@ -195,19 +310,179 @@ describe('TrainingDashboardScreen', () => {
     });
   });
 
-  it('falls back to the latest HR source when the merged session value is unavailable', () => {
+  it('shows the session HR from the engine as the big Heart Rate metric', () => {
     Object.assign(mockSession, {
       phase: 'active',
-      currentMetrics: { speed: 29.4, cadence: 86, power: 211, heartRate: null, resistance: 5, distance: 950 },
+      currentMetrics: {
+        speed: 29.4,
+        cadence: 86,
+        power: 211,
+        heartRate: 151,
+        resistance: 5,
+        distance: 950,
+      },
     });
     Object.assign(mockDeviceConnection, {
       bikeConnected: true,
       hrConnected: true,
       latestBluetoothHr: 142,
     });
+    Object.assign(mockDeviceConnectionStoreState, {
+      activeHrSource: 'bluetooth',
+    });
 
     const { getByText } = render(<TrainingDashboardScreen />);
 
-    expect(getByText('142 bpm')).toBeTruthy();
+    // Engine HR wins; raw latestBluetoothHr is not surfaced separately
+    expect(getByText('151 bpm')).toBeTruthy();
+  });
+
+  it('shows -- for Heart Rate when session HR is null (engine has no value)', () => {
+    Object.assign(mockSession, {
+      phase: 'active',
+      currentMetrics: {
+        speed: 29.4,
+        cadence: 86,
+        power: 211,
+        heartRate: null,
+        resistance: 5,
+        distance: 950,
+      },
+    });
+    Object.assign(mockDeviceConnection, { bikeConnected: true });
+
+    const { getByText } = render(<TrainingDashboardScreen />);
+
+    expect(getByText('--')).toBeTruthy();
+  });
+
+  // HR tile read-only tests
+
+  it('shows "Apple Watch · Ready" when watch is locked as activeHrSource and sample is fresh', () => {
+    Object.assign(mockSession, {
+      phase: 'active',
+      currentMetrics: {
+        speed: 30,
+        cadence: 90,
+        power: 220,
+        heartRate: 150,
+        resistance: 6,
+        distance: 1100,
+      },
+    });
+    Object.assign(mockDeviceConnection, {
+      bikeConnected: true,
+      latestAppleWatchHr: 150,
+      lastAppleWatchSampleAtMs: Date.now(),
+      watchAvailability: 'connected',
+    });
+    Object.assign(mockDeviceConnectionStoreState, { activeHrSource: 'watch' });
+
+    const { getByTestId } = render(<TrainingDashboardScreen />);
+
+    const hrTile = within(getByTestId('hr-source-tile'));
+    expect(hrTile.getByText('Apple Watch')).toBeTruthy();
+    expect(hrTile.getByText('Ready')).toBeTruthy();
+  });
+
+  it('shows "Apple Watch · No signal" when watch is locked but sample is stale', () => {
+    Object.assign(mockSession, {
+      phase: 'active',
+      currentMetrics: {
+        speed: 30,
+        cadence: 90,
+        power: 220,
+        heartRate: null,
+        resistance: 6,
+        distance: 1100,
+      },
+    });
+    Object.assign(mockDeviceConnection, {
+      bikeConnected: true,
+      latestAppleWatchHr: 150,
+      lastAppleWatchSampleAtMs: Date.now() - 20_000, // stale > 15s timeout
+      watchAvailability: 'connected',
+    });
+    Object.assign(mockDeviceConnectionStoreState, { activeHrSource: 'watch' });
+
+    const { getByTestId } = render(<TrainingDashboardScreen />);
+
+    const hrTile = within(getByTestId('hr-source-tile'));
+    expect(hrTile.getByText('Apple Watch')).toBeTruthy();
+    expect(hrTile.getByText('No signal')).toBeTruthy();
+  });
+
+  it('shows "Polar H10 · Ready" when BLE is locked as activeHrSource', () => {
+    Object.assign(mockDeviceConnection, {
+      bikeConnected: true,
+      hrConnected: true,
+      latestBluetoothHr: 142,
+      lastBluetoothHrSampleAtMs: Date.now(),
+    });
+    Object.assign(mockDeviceConnectionStoreState, {
+      activeHrSource: 'bluetooth',
+      lastBluetoothHrSampleAtMs: Date.now(),
+    });
+    mockSavedGear.savedHrSource = { id: 'x', name: 'Polar H10', type: 'hr' };
+
+    const { getByTestId } = render(<TrainingDashboardScreen />);
+
+    const hrTile = within(getByTestId('hr-source-tile'));
+    expect(hrTile.getByText('Polar H10')).toBeTruthy();
+    expect(hrTile.getByText('Ready')).toBeTruthy();
+  });
+
+  it('shows "Bike pulse · Ready" in idle when no primary, watch unavailable, no saved gear, bike connected', () => {
+    // Bike pulse becomes the idle default; ready only when bike is connected.
+    Object.assign(mockDeviceConnection, { bikeConnected: true });
+    const { getByTestId } = render(<TrainingDashboardScreen />);
+
+    const hrTile = within(getByTestId('hr-source-tile'));
+    expect(hrTile.getByText('Bike pulse')).toBeTruthy();
+    expect(hrTile.getByText('Ready')).toBeTruthy();
+  });
+
+  it('shows "Bike pulse · Unavailable" in idle when bike is not connected', () => {
+    // Bike pulse becomes the idle default; shows Unavailable when bike is disconnected.
+    Object.assign(mockDeviceConnection, { bikeConnected: false });
+    const { getByTestId } = render(<TrainingDashboardScreen />);
+
+    const hrTile = within(getByTestId('hr-source-tile'));
+    expect(hrTile.getByText('Bike pulse')).toBeTruthy();
+    expect(hrTile.getByText('Unavailable')).toBeTruthy();
+  });
+
+  it('does not show Watch when bluetooth is locked mid-ride (locked source wins)', () => {
+    Object.assign(mockSession, {
+      phase: 'active',
+      currentMetrics: {
+        speed: 30,
+        cadence: 90,
+        power: 220,
+        heartRate: 142,
+        resistance: 6,
+        distance: 1100,
+      },
+    });
+    Object.assign(mockDeviceConnection, {
+      bikeConnected: true,
+      hrConnected: true,
+      latestBluetoothHr: 142,
+      lastAppleWatchSampleAtMs: Date.now(), // fresh watch, but BLE is locked
+      latestAppleWatchHr: 150,
+      watchAvailability: 'connected',
+    });
+    Object.assign(mockDeviceConnectionStoreState, {
+      activeHrSource: 'bluetooth',
+      lastBluetoothHrSampleAtMs: Date.now(),
+    });
+    mockSavedGear.savedHrSource = { id: 'y', name: 'Polar H10', type: 'hr' };
+
+    const { getByTestId, queryByText } = render(<TrainingDashboardScreen />);
+
+    const hrTile = within(getByTestId('hr-source-tile'));
+    expect(hrTile.getByText('Polar H10')).toBeTruthy();
+    expect(hrTile.getByText('Ready')).toBeTruthy();
+    expect(queryByText(/Apple Watch/)).toBeNull();
   });
 });

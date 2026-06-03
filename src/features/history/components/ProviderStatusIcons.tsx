@@ -8,13 +8,28 @@ import {
   STRAVA_PROVIDER_ID,
   type KnownProviderId,
 } from '../../../services/export/providerIds';
-import { palette } from '../../../ui/theme';
+import { noir } from '../../../ui/theme';
 import type { ProviderStatusIconsProps } from './ProviderStatusIcons.types';
 
-const STRAVA_BRAND_ORANGE = '#FC4C02';
 const ICON_SIZE = 18;
 
-function renderProviderIcon(providerId: KnownProviderId): ReactElement {
+/**
+ * Calm Noir keeps the real provider glyphs but recolours them to the app palette: synced rides
+ * use the mint accent, un-synced ones the muted ink. Brand colours (e.g. Strava orange) are never used.
+ */
+export function providerIconColor(uploaded: boolean): string {
+  return uploaded ? noir.mintSoft : noir.ink3;
+}
+
+const PROVIDER_LABELS: Record<KnownProviderId, { readonly uploaded: string; readonly missing: string }> = {
+  [STRAVA_PROVIDER_ID]: { uploaded: 'Uploaded to Strava', missing: 'Not uploaded to Strava' },
+  [APPLE_HEALTH_PROVIDER_ID]: { uploaded: 'Synced to Apple Health', missing: 'Not synced to Apple Health' },
+};
+
+function renderProviderIcon(providerId: KnownProviderId, uploaded: boolean): ReactElement {
+  const color = providerIconColor(uploaded);
+  const accessibilityLabel = uploaded ? PROVIDER_LABELS[providerId].uploaded : PROVIDER_LABELS[providerId].missing;
+
   switch (providerId) {
     case STRAVA_PROVIDER_ID:
       return (
@@ -22,9 +37,9 @@ function renderProviderIcon(providerId: KnownProviderId): ReactElement {
           key={providerId}
           name="strava"
           size={ICON_SIZE}
-          color={STRAVA_BRAND_ORANGE}
+          color={color}
           accessibilityRole="image"
-          accessibilityLabel="Exported to Strava"
+          accessibilityLabel={accessibilityLabel}
         />
       );
     case APPLE_HEALTH_PROVIDER_ID:
@@ -33,9 +48,9 @@ function renderProviderIcon(providerId: KnownProviderId): ReactElement {
           key={providerId}
           name="heart"
           size={ICON_SIZE}
-          color={palette.danger}
+          color={color}
           accessibilityRole="image"
-          accessibilityLabel="Exported to Apple Health"
+          accessibilityLabel={accessibilityLabel}
         />
       );
     default: {
@@ -45,15 +60,18 @@ function renderProviderIcon(providerId: KnownProviderId): ReactElement {
   }
 }
 
+/**
+ * Shows every known provider on every row (mockup `screen-06-history`): synced ones lit in mint,
+ * the rest dimmed — so a glance tells you where a ride was published.
+ */
 export function ProviderStatusIcons({ uploadedProviderIds }: Readonly<ProviderStatusIconsProps>) {
   const uploadedSet = new Set<KnownProviderId>(uploadedProviderIds);
-  const iconsInOrder = KNOWN_PROVIDER_DISPLAY_ORDER.filter((providerId) => uploadedSet.has(providerId));
 
-  if (iconsInOrder.length === 0) {
-    return null;
-  }
-
-  return <View style={styles.container}>{iconsInOrder.map(renderProviderIcon)}</View>;
+  return (
+    <View style={styles.container}>
+      {KNOWN_PROVIDER_DISPLAY_ORDER.map((providerId) => renderProviderIcon(providerId, uploadedSet.has(providerId)))}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({

@@ -1,7 +1,12 @@
+import { useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
+import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
+import { bleDeviceStatus } from '../../../types/deviceStatus';
 import { useProviderBikeLinking } from '../../integrations/hooks/useProviderBikeLinking';
 import { useDeviceConnection } from '../../training/hooks/useDeviceConnection';
 import { useAppleHealthConnection } from '../../integrations/hooks/useAppleHealthConnection';
@@ -9,64 +14,28 @@ import { useStravaConnection } from '../../integrations/hooks/useStravaConnectio
 import { useWatchHrControls } from '../../gear/hooks/useWatchHrControls';
 import { useUserProfileStore } from '../../../store/userProfileStore';
 import { ActionButton } from '../../../ui/components/ActionButton';
-import { SectionCard } from '../../../ui/components/SectionCard';
-import { AppScreen } from '../../../ui/layout/AppScreen';
-import { palette } from '../../../ui/theme';
+import { AddGearTile } from '../../../ui/components/AddGearTile';
+import { noir } from '../../../ui/theme';
 import type { UserProfile } from '../../../types/userProfile';
-import type { WatchAvailability } from '../../../types/watch';
+import type { HrSource } from '../../../services/hr/hrSource';
+import { hrSourceName, hrSourceIdleReadiness } from '../../../services/hr/hrStatus';
+import { SettingsHeader } from '../components/SettingsHeader';
+import { SectionLabel, Eyebrow } from '../components/SectionLabel';
+import { GearCard } from '../components/GearCard';
+import { ProfileCard } from '../components/ProfileCard';
+import { IntegrationRow } from '../components/IntegrationRow';
+import { LinkedBikeBlock } from '../components/LinkedBikeBlock';
 
-interface WatchHrRowProps {
-  readonly watchHrEnabled: boolean;
-  readonly watchAvailability: WatchAvailability;
-  readonly latestAppleWatchHr: number | null;
-  readonly onEnable: () => void;
-  readonly onDisable: () => void;
-}
+const HR_ICON = { bluetooth: 'heart', watch: 'watch', bike: 'pulse' } as const;
+const HR_KIND = {
+  bluetooth: 'Chest strap',
+  watch: 'Wrist sensor',
+  bike: 'Built-in grip sensor',
+} as const;
 
-const WATCH_HR_INSTALL_HINT =
-  'Open the Omni Bike app on your Apple Watch. If it is not installed yet, add it from the iPhone Watch app.';
-
-function getWatchHrStatusLabel(
-  watchHrEnabled: boolean,
-  watchAvailability: WatchAvailability,
-  latestAppleWatchHr: number | null,
-): string {
-  if (!watchHrEnabled) return 'Disabled';
-  if (watchAvailability === 'unavailable') return 'Unavailable';
-  if (watchAvailability === 'idle') return 'Idle';
-  return latestAppleWatchHr === null ? 'In Progress' : `In Progress · ${latestAppleWatchHr} bpm`;
-}
-
-function getWatchHrHint(watchHrEnabled: boolean, watchAvailability: WatchAvailability): string | null {
-  if (!watchHrEnabled || watchAvailability !== 'unavailable') {
-    return null;
-  }
-
-  return WATCH_HR_INSTALL_HINT;
-}
-
-function WatchHrRow({ watchHrEnabled, watchAvailability, latestAppleWatchHr, onEnable, onDisable }: WatchHrRowProps) {
-  const watchHrHint = getWatchHrHint(watchHrEnabled, watchAvailability);
-
-  return (
-    <View style={styles.gearRow}>
-      <View style={styles.gearInfo}>
-        <Text style={styles.gearLabel}>Apple Watch HR</Text>
-        <Text style={styles.gearName}>
-          {getWatchHrStatusLabel(watchHrEnabled, watchAvailability, latestAppleWatchHr)}
-        </Text>
-        {watchHrHint ? <Text style={styles.gearHint}>{watchHrHint}</Text> : null}
-      </View>
-      <View style={styles.gearActions}>
-        {watchHrEnabled ? (
-          <ActionButton label="Disable" onPress={onDisable} variant="danger" />
-        ) : (
-          <ActionButton label="Enable" onPress={onEnable} variant="secondary" />
-        )}
-      </View>
-    </View>
-  );
-}
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 function summarizeProfile(profile: UserProfile): string {
   const parts: string[] = [];
@@ -78,12 +47,16 @@ function summarizeProfile(profile: UserProfile): string {
   return parts.join(' · ');
 }
 
-// eslint-disable-next-line sonarjs/cognitive-complexity -- large screen component; refactor tracked separately
+// ---------------------------------------------------------------------------
+// SettingsScreen
+// ---------------------------------------------------------------------------
+
 export function SettingsScreen() {
   const router = useRouter();
   const userProfile = useUserProfileStore((s) => s.profile);
-  const { bikeConnected, hrConnected, latestAppleWatchHr, watchAvailability, disconnectAll } = useDeviceConnection();
-  const { watchAvailable, watchHrEnabled, enableWatchHr, disableWatchHr } = useWatchHrControls();
+  const { bikeConnected, hrConnected, watchAvailability } = useDeviceConnection();
+  const { bikeReconnectState, hrReconnectState, retryBike, retryHr } = useAutoReconnect();
+  const { effectivePrimary, setPrimary, availableSources } = useWatchHrControls();
   const { savedBike, savedHrSource, forgetBike, forgetHr } = useSavedGear();
   const {
     isConnected: stravaConnected,
@@ -105,6 +78,10 @@ export function SettingsScreen() {
     errorMessage: providerBikeErrorMessage,
     openProviderGearManagement,
   } = useProviderBikeLinking('strava', savedBike);
+
+  // Expand/collapse state for gear tiles
+  const [bikeManageOpen, setBikeManageOpen] = useState(false);
+  const [hrManageOpen, setHrManageOpen] = useState(false);
 
   const handleStravaConnect = async () => {
     const result = await connect();
@@ -173,248 +150,282 @@ export function SettingsScreen() {
     );
   };
 
-  const handleDisconnect = async () => {
-    try {
-      await disconnectAll({ suppressAutoReconnect: true });
-      Alert.alert('Disconnected', 'Cleared the active bike and heart-rate connections.');
-    } catch (err: unknown) {
-      console.error('[SettingsScreen] Disconnect error:', err);
-      Alert.alert('Disconnect Failed', err instanceof Error ? err.message : String(err));
-    }
-  };
+  // Bike tile actions (revealed when expanded)
+  const bikeActions = savedBike ? (
+    <View style={styles.stackedActions}>
+      {bikeConnected ? null : (
+        <ActionButton
+          label={bikeReconnectState === 'connecting' ? 'Connecting...' : 'Connect'}
+          onPress={() => {
+            retryBike();
+          }}
+          variant="primary"
+          scheme="noir"
+          disabled={bikeReconnectState === 'connecting'}
+          fullWidth
+        />
+      )}
+      <ActionButton
+        label="Replace"
+        onPress={() => router.push('/gear-setup?target=bike')}
+        variant="secondary"
+        scheme="noir"
+        fullWidth
+      />
+      <ActionButton label="Forget" onPress={() => void forgetBike()} variant="danger" scheme="noir" fullWidth />
+    </View>
+  ) : undefined;
+
+  function renderHrSources() {
+    return availableSources.map((source: HrSource) => {
+      const isStrap = source === 'bluetooth';
+
+      const actions = isStrap ? (
+        <View style={styles.stackedActions}>
+          {savedHrSource !== null && !hrConnected ? (
+            <ActionButton
+              label={hrReconnectState === 'connecting' ? 'Connecting...' : 'Connect'}
+              onPress={() => {
+                retryHr();
+              }}
+              variant="primary"
+              scheme="noir"
+              disabled={hrReconnectState === 'connecting'}
+              fullWidth
+            />
+          ) : null}
+          <ActionButton
+            label="Replace"
+            onPress={() => router.push('/gear-setup?target=hr')}
+            variant="secondary"
+            scheme="noir"
+            fullWidth
+          />
+          <ActionButton label="Forget" onPress={() => void forgetHr()} variant="danger" scheme="noir" fullWidth />
+        </View>
+      ) : undefined;
+
+      return (
+        <GearCard
+          key={source}
+          icon={HR_ICON[source]}
+          name={hrSourceName(source, savedHrSource?.name ?? null)}
+          kind={HR_KIND[source]}
+          status={hrSourceIdleReadiness({ source, watchAvailability, hrConnected, bikeConnected })}
+          selected={effectivePrimary === source}
+          onSelectPress={() => void setPrimary(source)}
+          headerTestId={`hr-tile-${source}`}
+          expandable={isStrap}
+          expanded={isStrap ? hrManageOpen : false}
+          onToggleExpand={isStrap ? () => setHrManageOpen((open) => !open) : undefined}
+          chevronTestId={isStrap ? 'hr-strap-chevron' : undefined}
+          actions={actions}
+        />
+      );
+    });
+  }
 
   return (
-    <AppScreen title="Settings" subtitle="Manage your saved gear and active connections.">
-      <SectionCard title="My Gear">
-        <View style={styles.gearRow}>
-          <View style={styles.gearInfo}>
-            <Text style={styles.gearLabel}>Bike</Text>
-            <Text style={styles.gearName}>{savedBike ? savedBike.name : 'Not set'}</Text>
-          </View>
-          <View style={styles.gearActions}>
-            <ActionButton
-              label={savedBike ? 'Replace' : 'Set Up'}
-              onPress={() => router.push('/gear-setup?target=bike')}
-              variant="secondary"
-            />
-            {savedBike ? <ActionButton label="Forget" onPress={() => void forgetBike()} variant="danger" /> : null}
-          </View>
-        </View>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <SettingsHeader title="Settings" subtitle="Manage your saved gear and active connections." />
+
+        <SectionLabel title="My Gear" />
+
+        <Eyebrow>Smart Bike</Eyebrow>
+        {savedBike ? (
+          <GearCard
+            icon="bicycle"
+            name={savedBike.name}
+            kind="Smart trainer"
+            status={bleDeviceStatus({
+              hasSavedDevice: true,
+              connected: bikeConnected,
+              reconnect: bikeReconnectState,
+            })}
+            expandable
+            expanded={bikeManageOpen}
+            onToggleExpand={() => setBikeManageOpen((open) => !open)}
+            headerTestId="bike-tile-header"
+            chevronTestId="bike-tile-chevron"
+            actions={bikeActions}
+          />
+        ) : (
+          <AddGearTile
+            scheme="noir"
+            label="Set Up Smart Bike"
+            onPress={() => router.push('/gear-setup?target=bike')}
+            testID="bike-setup-cta"
+          />
+        )}
+
+        <Eyebrow>Heart Rate Source</Eyebrow>
+        <View style={styles.gearList}>{renderHrSources()}</View>
+        {savedHrSource === null ? (
+          <ActionButton
+            label="Add Bluetooth HR"
+            onPress={() => router.push('/gear-setup?target=hr')}
+            variant="secondary"
+            scheme="noir"
+            fullWidth
+          />
+        ) : null}
 
         <View style={styles.divider} />
 
-        <View style={styles.gearRow}>
-          <View style={styles.gearInfo}>
-            <Text style={styles.gearLabel}>Bluetooth HR</Text>
-            <Text style={styles.gearName}>{savedHrSource ? savedHrSource.name : 'Not set'}</Text>
-          </View>
-          <View style={styles.gearActions}>
-            <ActionButton
-              label={savedHrSource ? 'Replace' : 'Add Bluetooth HR'}
-              onPress={() => router.push('/gear-setup?target=hr')}
-              variant="secondary"
-            />
-            {savedHrSource ? <ActionButton label="Forget" onPress={() => void forgetHr()} variant="danger" /> : null}
-          </View>
-        </View>
+        <SectionLabel title="Personal" />
+        <ProfileCard summary={summarizeProfile(userProfile)} onEdit={() => router.push('/user-profile')} />
 
-        {watchAvailable ? (
-          <>
-            <View style={styles.divider} />
-            <WatchHrRow
-              watchHrEnabled={watchHrEnabled}
-              watchAvailability={watchAvailability}
-              latestAppleWatchHr={latestAppleWatchHr}
-              onEnable={() => void enableWatchHr()}
-              onDisable={() => void disableWatchHr()}
-            />
-          </>
-        ) : null}
-
-        <ActionButton
-          label="Disconnect Active Gear"
-          onPress={() => void handleDisconnect()}
-          variant="danger"
-          disabled={!bikeConnected && !hrConnected}
+        <SectionLabel title="Integrations" />
+        <IntegrationsSection
+          stravaConnected={stravaConnected}
+          stravaLoading={stravaLoading}
+          athleteName={athleteName}
+          onStravaConnect={() => void handleStravaConnect()}
+          onStravaDisconnect={() => void handleStravaDisconnect()}
+          savedBikeName={savedBike?.name ?? null}
+          currentLink={
+            currentLink ? { providerGearName: currentLink.providerGearName, stale: currentLink.stale } : null
+          }
+          providerBikeStatus={providerBikeStatus}
+          providerBikeNeedsReconnect={providerBikeNeedsReconnect}
+          providerBikeErrorMessage={providerBikeErrorMessage}
+          onLinkBike={() => router.push('/provider-gear-link?provider=strava')}
+          onOpenProviderGear={() => void openProviderGearManagement()}
+          appleHealthConnected={appleHealthConnected}
+          appleHealthLoading={appleHealthLoading}
+          onAppleHealthConnect={() => void handleAppleHealthConnect()}
+          onAppleHealthDisconnect={() => void handleAppleHealthDisconnect()}
         />
-      </SectionCard>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
 
-      <SectionCard title="Personal">
-        <View style={styles.gearRow}>
-          <View style={styles.gearInfo}>
-            <Text style={styles.gearLabel}>User Profile</Text>
-            <Text style={styles.gearName}>{summarizeProfile(userProfile)}</Text>
-            <Text style={styles.gearHint}>Sex, age, weight, height — used for calorie accuracy</Text>
-          </View>
-          <View style={styles.gearActions}>
-            <ActionButton label="Edit" onPress={() => router.push('/user-profile')} variant="secondary" />
-          </View>
-        </View>
-      </SectionCard>
+// ---------------------------------------------------------------------------
+// IntegrationsSection — Strava + Apple Health rows
+// ---------------------------------------------------------------------------
 
-      <SectionCard title="Integrations">
-        <View style={styles.gearRow}>
-          <View style={styles.gearInfo}>
-            <Text style={styles.gearLabel}>Strava</Text>
-            <Text style={styles.gearName}>
-              {stravaConnected && athleteName ? athleteName : stravaConnected ? 'Connected' : 'Not connected'}
-            </Text>
-          </View>
-          <View style={styles.gearActions}>
-            {stravaConnected ? (
-              <ActionButton
-                label="Disconnect"
-                onPress={() => void handleStravaDisconnect()}
-                variant="danger"
-                disabled={stravaLoading}
-              />
-            ) : (
-              <ActionButton
-                label={stravaLoading ? 'Connecting...' : 'Connect Strava'}
-                onPress={() => void handleStravaConnect()}
-                variant="secondary"
-                disabled={stravaLoading}
-              />
-            )}
-          </View>
-        </View>
+interface IntegrationsSectionProps {
+  readonly stravaConnected: boolean;
+  readonly stravaLoading: boolean;
+  readonly athleteName: string | null;
+  readonly onStravaConnect: () => void;
+  readonly onStravaDisconnect: () => void;
+  readonly savedBikeName: string | null;
+  readonly currentLink: { providerGearName: string; stale: boolean } | null;
+  readonly providerBikeStatus: string;
+  readonly providerBikeNeedsReconnect: boolean;
+  readonly providerBikeErrorMessage: string | null;
+  readonly onLinkBike: () => void;
+  readonly onOpenProviderGear: () => void;
+  readonly appleHealthConnected: boolean;
+  readonly appleHealthLoading: boolean;
+  readonly onAppleHealthConnect: () => void;
+  readonly onAppleHealthDisconnect: () => void;
+}
 
-        {stravaConnected ? <View style={styles.divider} /> : null}
+function IntegrationsSection({
+  stravaConnected,
+  stravaLoading,
+  athleteName,
+  onStravaConnect,
+  onStravaDisconnect,
+  savedBikeName,
+  currentLink,
+  providerBikeStatus,
+  providerBikeNeedsReconnect,
+  providerBikeErrorMessage,
+  onLinkBike,
+  onOpenProviderGear,
+  appleHealthConnected,
+  appleHealthLoading,
+  onAppleHealthConnect,
+  onAppleHealthDisconnect,
+}: IntegrationsSectionProps) {
+  const stravaStatusLabel = stravaConnected
+    ? athleteName
+      ? `Connected as ${athleteName}`
+      : 'Connected'
+    : 'Not connected';
 
+  const stravaAction = stravaConnected ? (
+    <ActionButton
+      label="Disconnect"
+      variant="danger"
+      scheme="noir"
+      size="sm"
+      disabled={stravaLoading}
+      onPress={onStravaDisconnect}
+    />
+  ) : (
+    <ActionButton
+      label={stravaLoading ? 'Connecting...' : 'Connect Strava'}
+      variant="secondary"
+      scheme="noir"
+      size="sm"
+      disabled={stravaLoading}
+      onPress={onStravaConnect}
+    />
+  );
+
+  const appleHealthAction = appleHealthConnected ? (
+    <ActionButton
+      label="Disconnect"
+      variant="danger"
+      scheme="noir"
+      size="sm"
+      disabled={appleHealthLoading}
+      onPress={onAppleHealthDisconnect}
+    />
+  ) : (
+    <ActionButton
+      label={appleHealthLoading ? 'Connecting...' : 'Connect Apple Health'}
+      variant="secondary"
+      scheme="noir"
+      size="sm"
+      disabled={appleHealthLoading}
+      onPress={onAppleHealthConnect}
+    />
+  );
+
+  return (
+    <>
+      <IntegrationRow
+        icon={<FontAwesome5 name="strava" size={20} color="#FC4C02" />}
+        name="Strava"
+        brandDotColor="#fc4c02"
+        connected={stravaConnected}
+        statusLabel={stravaStatusLabel}
+        action={stravaAction}>
         {stravaConnected ? (
-          <View style={styles.integrationBlock}>
-            <Text style={styles.gearLabel}>Linked Bike</Text>
-            {savedBike ? (
-              <>
-                <Text style={styles.gearName}>
-                  {currentLink
-                    ? currentLink.stale
-                      ? `Relink ${savedBike.name}`
-                      : `Linked to ${currentLink.providerGearName}`
-                    : providerBikeStatus === 'no_provider_gear'
-                      ? 'No Strava bikes found'
-                      : 'Not linked'}
-                </Text>
-                <Text style={styles.integrationBody}>
-                  {providerBikeNeedsReconnect
-                    ? 'Reconnect Strava once to grant bike-linking access.'
-                    : providerBikeStatus === 'no_provider_gear'
-                      ? 'Uploads can continue without gear. Create a bike in Strava if you want it attached automatically.'
-                      : currentLink?.stale
-                        ? 'The previously linked Strava bike is no longer available.'
-                        : currentLink
-                          ? 'Future Strava uploads will attach this bike automatically.'
-                          : 'Pick which Strava bike should be attached to future uploads from this Omni Bike.'}
-                </Text>
-                <View style={styles.gearActions}>
-                  <ActionButton
-                    label={currentLink ? 'Relink Bike' : 'Link Bike'}
-                    onPress={() => router.push('/provider-gear-link?provider=strava')}
-                    variant="secondary"
-                  />
-                  {providerBikeStatus === 'no_provider_gear' ? (
-                    <ActionButton
-                      label="Open Strava Gear"
-                      onPress={() => {
-                        void openProviderGearManagement();
-                      }}
-                      variant="ghost"
-                    />
-                  ) : null}
-                </View>
-              </>
-            ) : (
-              <>
-                <Text style={styles.gearName}>Save a bike first</Text>
-                <Text style={styles.integrationBody}>
-                  Set up your bike in My Gear before linking provider gear for uploads.
-                </Text>
-              </>
-            )}
-            {providerBikeErrorMessage && !providerBikeNeedsReconnect ? (
-              <Text style={styles.integrationErrorText}>{providerBikeErrorMessage}</Text>
-            ) : null}
-          </View>
+          <LinkedBikeBlock
+            savedBikeName={savedBikeName}
+            currentLink={currentLink}
+            status={providerBikeStatus}
+            needsReconnect={providerBikeNeedsReconnect}
+            errorMessage={providerBikeErrorMessage}
+            onLink={onLinkBike}
+            onOpenProviderGear={onOpenProviderGear}
+          />
         ) : null}
+      </IntegrationRow>
 
-        <View style={styles.divider} />
-
-        <View style={styles.gearRow}>
-          <View style={styles.gearInfo}>
-            <Text style={styles.gearLabel}>Apple Health</Text>
-            <Text style={styles.gearName}>{appleHealthConnected ? 'Connected' : 'Not connected'}</Text>
-          </View>
-          <View style={styles.gearActions}>
-            {appleHealthConnected ? (
-              <ActionButton
-                label="Disconnect"
-                onPress={() => void handleAppleHealthDisconnect()}
-                variant="danger"
-                disabled={appleHealthLoading}
-              />
-            ) : (
-              <ActionButton
-                label={appleHealthLoading ? 'Connecting...' : 'Connect Apple Health'}
-                onPress={() => void handleAppleHealthConnect()}
-                variant="secondary"
-                disabled={appleHealthLoading}
-              />
-            )}
-          </View>
-        </View>
-      </SectionCard>
-    </AppScreen>
+      <IntegrationRow
+        icon={<Ionicons name="heart" size={22} color={noir.ink3} />}
+        name="Apple Health"
+        connected={appleHealthConnected}
+        statusLabel={appleHealthConnected ? 'Connected' : 'Not connected'}
+        action={appleHealthAction}
+      />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  gearRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  gearInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  gearLabel: {
-    color: palette.textMuted,
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  gearName: {
-    color: palette.text,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  gearHint: {
-    marginTop: 4,
-    color: palette.textMuted,
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  gearActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: palette.border,
-  },
-  integrationBlock: {
-    gap: 8,
-  },
-  integrationBody: {
-    color: palette.textMuted,
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  integrationErrorText: {
-    color: palette.danger,
-    fontSize: 13,
-    lineHeight: 18,
-  },
+  safeArea: { flex: 1, backgroundColor: noir.bg },
+  content: { paddingHorizontal: 22, paddingTop: 4, paddingBottom: 32, gap: 12 },
+  divider: { height: 1, backgroundColor: noir.hairline, marginVertical: 4 },
+  gearList: { gap: 10 },
+  stackedActions: { flexDirection: 'column', alignItems: 'stretch', gap: 8 },
 });

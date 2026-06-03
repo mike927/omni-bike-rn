@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Omni Bike — Calm Noir · App Screen Mockups</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap" />
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Hanken Grotesk", -apple-system, sans-serif; background: #07090d; color: #eef1f6; -webkit-font-smoothing: antialiased; }
+  header { padding: 40px 36px 26px; border-bottom: 1px solid #1c222c; position: sticky; top: 0; z-index: 10; background: rgba(7,9,13,.93); backdrop-filter: blur(12px); }
+  h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: -.02em; font-weight: 800; }
+  h1 .accent { color: #5663ff; }
+  .sub { margin: 0; color: #9aa3b2; font-size: 14px; line-height: 1.55; max-width: 820px; }
+  .legend { margin-top: 14px; display: flex; gap: 18px; flex-wrap: wrap; font-size: 12.5px; color: #6b7384; }
+  .legend b { color: #9aa3b2; font-weight: 700; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 30px; padding: 30px 36px 90px; }
+  .card { display: flex; flex-direction: column; }
+  .frameWrap { width: 100%; border-radius: 22px; overflow: hidden; background: #000; border: 1px solid #1c222c; box-shadow: 0 22px 60px -24px rgba(0,0,0,.9); }
+  .stage { width: 100%; aspect-ratio: 390 / 844; position: relative; overflow: hidden; }
+  .stage.wide { aspect-ratio: 1290 / 924; }      /* onboarding: 3 frames wide */
+  iframe { border: 0; position: absolute; top: 0; left: 0; transform-origin: top left; }
+  .meta { margin-top: 14px; display: flex; align-items: baseline; gap: 10px; }
+  .num { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 12px; color: #5663ff; background: #12161f; border: 1px solid #232a35; border-radius: 8px; padding: 3px 8px; }
+  .name { font-weight: 700; font-size: 16px; letter-spacing: -.01em; color: #eef1f6; text-decoration: none; }
+  .name:hover { color: #fff; }
+  .kind { font-size: 11px; color: #6b7384; margin-left: auto; text-transform: uppercase; letter-spacing: .08em; }
+  .open { font-size: 12px; color: #6b7384; text-decoration: none; }
+  .open:hover { color: #fff; }
+  .blurb { margin-top: 6px; font-size: 12.5px; line-height: 1.5; color: #7c879a; }
+  footer { padding: 0 36px 60px; color: #5a6273; font-size: 12px; line-height: 1.6; }
+  @media (max-width: 520px) { .grid { grid-template-columns: 1fr; padding: 20px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Omni Bike — <span class="accent">Calm Noir</span> · App Screen Mockups</h1>
+  <p class="sub">Every app screen reimagined in the chosen Calm Noir design system. All screens share one stylesheet (<code>calm-noir.css</code>) — the single source of truth for tokens and components — so this set doubles as a living spec. Tabs are <b>Home · History · Settings</b>; no user accounts yet (no names/avatars). Click any title to open full-size.</p>
+  <div class="legend">
+    <span><b>Tab screens:</b> Home, History, Settings (bottom tab bar)</span>
+    <span><b>Pushed screens:</b> back-nav header, no tab bar</span>
+  </div>
+</header>
+
+<main class="grid" id="grid"></main>
+
+<footer>
+  Design exploration · static HTML/CSS · illustrative sample data.<br/>
+  Shared design system: <code>calm-noir.css</code> · frame &amp; rules: <code>FRAME.md</code>
+</footer>
+
+<script>
+const SCREENS = [
+  { n:"01", file:"screen-01-onboarding.html",         name:"Onboarding",        kind:"flow · 3 steps", wide:true,  blurb:"Three-step first-run: Smart Bike → Heart Rate → Finish. Progress bar, illustration, one clear CTA per step." },
+  { n:"02", file:"screen-02-home.html",               name:"Home",              kind:"tab",            blurb:"The approved home: Start Ride hero, connected gear with status pills, weekly ring + latest-ride recap." },
+  { n:"03", file:"scan-bike-v4-livepreview.html",     name:"Smart Bike Scan",   kind:"pushed · wide",  wide:true,  blurb:"Calm Noir scan & link (V4 Live Preview): list-pick → picked-device chip + live-signal hero (power/cadence/speed/distance) that confirms before Use This Smart Bike. Frames: searching → awaiting → live → error." },
+  { n:"04", file:"screen-04-training.html",           name:"Training (live)",   kind:"pushed",         blurb:"Active ride: big elapsed timer, live metric grid (speed/power/HR/cal), Pause + Finish controls." },
+  { n:"05", file:"screen-05-training-summary.html",   name:"Training Summary",  kind:"pushed",         blurb:"Post-ride: workout totals, final metrics, Strava + Apple Health export, Discard / Save." },
+  { n:"06", file:"screen-06-history.html",            name:"History",           kind:"tab",            blurb:"Completed rides list with per-ride metrics and Strava / Apple Health upload indicators." },
+  { n:"07", file:"screen-07-settings.html",           name:"Settings",          kind:"tab",            blurb:"My Gear (bike + HR sources with selection/expand), Personal body metrics, Strava / Apple Health." },
+  { n:"08", file:"screen-08-user-profile.html",       name:"User Profile",      kind:"pushed",         blurb:"Body metrics for calorie accuracy (not an account): provider sync, Sex / DOB / Weight / Height fields." },
+  { n:"09", file:"screen-09-provider-gear-link.html", name:"Link Provider Bike",kind:"pushed",         blurb:"Attach a Strava provider bike to your saved bike for correct gear on uploads." },
+];
+
+const grid = document.getElementById("grid");
+SCREENS.forEach(s => {
+  const card = document.createElement("section");
+  card.className = "card";
+  card.innerHTML = `
+    <div class="frameWrap">
+      <div class="stage ${s.wide ? 'wide' : ''}">
+        <iframe loading="lazy" src="${s.file}" title="${s.name}" data-wide="${!!s.wide}"></iframe>
+      </div>
+    </div>
+    <div class="meta">
+      <span class="num">${s.n}</span>
+      <a class="name" href="${s.file}" target="_blank" rel="noopener">${s.name}</a>
+      <a class="open" href="${s.file}" target="_blank" rel="noopener">open ↗</a>
+      <span class="kind">${s.kind}</span>
+    </div>
+    <p class="blurb">${s.blurb}</p>`;
+  grid.appendChild(card);
+});
+
+function rescale() {
+  document.querySelectorAll(".stage").forEach(stage => {
+    const iframe = stage.querySelector("iframe");
+    const wide = iframe.dataset.wide === "true";
+    const base = wide ? 1290 : 390;      // onboarding renders 3 × 390 + gaps ≈ 1290
+    const scale = stage.clientWidth / base;
+    iframe.style.width = base + "px";
+    iframe.style.height = (wide ? 924 : 844) + "px";
+    iframe.style.transform = `scale(${scale})`;
+  });
+}
+window.addEventListener("resize", rescale);
+window.addEventListener("load", rescale);
+setTimeout(rescale, 300);
+setTimeout(rescale, 1200);
+</script>
+</body>
+</html>

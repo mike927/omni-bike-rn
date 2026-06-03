@@ -8,15 +8,21 @@
     "ios": "expo run:ios --device",
     "ios:sim": "expo run:ios",
     "apple-health:pull-logs": "node scripts/pull-apple-health-diagnostics.mjs",
+    "skills:install": "node scripts/install-skills.mjs",
     "db:generate": "drizzle-kit generate && prettier --single-quote --write drizzle/migrations.js",
     "db:check": "drizzle-kit check",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
     "test": "jest --passWithNoTests",
+    "test:changed": "jest --changedSince=main",
     "ci:gate": "npm run lint && npm run typecheck && npm test -- --ci --runInBand",
     "build:smoke": "expo prebuild && expo export -p ios -p android",
+    "postinstall": "node scripts/postinstall.mjs",
     "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,mjs}": "eslint --fix --max-warnings 0"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -78,6 +84,7 @@
     "eslint-plugin-unused-imports": "^4.4.1",
     "husky": "^9.1.7",
     "jest": "^30.2.0",
+    "lint-staged": "^17.0.5",
     "metro-react-native-babel-preset": "^0.77.0",
     "prettier": "^3.8.1",
     "react-test-renderer": "19.1.0",

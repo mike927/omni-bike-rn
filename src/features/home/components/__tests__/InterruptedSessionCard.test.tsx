@@ -29,9 +29,8 @@ describe('InterruptedSessionCard', () => {
       />,
     );
 
-    expect(getByText('Interrupted Session')).toBeTruthy();
-    expect(getByText('00:10:00 elapsed')).toBeTruthy();
-    expect(getByText('5.40 km • 88.4 kcal')).toBeTruthy();
+    expect(getByText('Resume interrupted ride')).toBeTruthy();
+    expect(getByText('5.40 km · 88.4 kcal')).toBeTruthy();
 
     fireEvent.press(getByText('Resume'));
     fireEvent.press(getByText('Discard'));

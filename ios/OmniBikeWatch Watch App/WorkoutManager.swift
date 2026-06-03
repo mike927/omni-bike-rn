@@ -45,11 +45,14 @@ enum WatchSessionStatePayload {
 fileprivate enum WatchCommand {
     static let start = "start"
     static let stop = "stop"
+    static let pause = "pause"
+    static let resume = "resume"
 }
 
 enum WatchDisplayState: Equatable {
     case idle
     case inProgress
+    case paused
 }
 
 // The Watch is a pure HR source. It never authors a persisted HKWorkout:
@@ -241,6 +244,28 @@ final class WorkoutManager: NSObject, ObservableObject {
         session.end()
     }
 
+    // The iPhone owns the session lifecycle and forwards pause/resume as commands;
+    // the Watch owns the HKWorkoutSession, so only it can pause/resume it. Pausing
+    // stops the system workout timer and suspends HKLiveWorkoutBuilder collection —
+    // HR is no longer measured or streamed until resume.
+    func pauseWorkout() {
+        wcLog("[WC-Watch] pauseWorkout called")
+        guard let session, session.state == .running else {
+            wcLog("[WC-Watch] pauseWorkout: no running session — ignoring")
+            return
+        }
+        session.pause()
+    }
+
+    func resumeWorkout() {
+        wcLog("[WC-Watch] resumeWorkout called")
+        guard let session, session.state == .paused else {
+            wcLog("[WC-Watch] resumeWorkout: no paused session — ignoring")
+            return
+        }
+        session.resume()
+    }
+
     // `discardWorkout` is the explicit "drop all collected data, do not persist"
     // operation on HKLiveWorkoutBuilder — the opposite of `finishWorkout`. This is
     // what guarantees the Watch never authors a ghost HKWorkout. Called on
@@ -268,6 +293,17 @@ final class WorkoutManager: NSObject, ObservableObject {
         }
         WCSession.default.delegate = self
         WCSession.default.activate()
+    }
+
+    // Forwards the Watch app's foreground/background lifecycle to the iPhone for
+    // observability — an event-driven "is the Watch app running" signal that, unlike
+    // `isReachable`, does not flap when the screen merely dims. Best-effort live send;
+    // the transition is captured in the Watch's wc.log regardless of reachability.
+    func reportAppState(_ state: String) {
+        wcLog("[WC-Watch] appState -> \(state)")
+        let session = WCSession.default
+        guard session.activationState == .activated, session.isReachable else { return }
+        session.sendMessage(["watchAppState": state, "sentAtMs": Date().timeIntervalSince1970 * 1000], replyHandler: nil)
     }
 
     private func sendHrToPhone(_ bpm: Int) {
@@ -360,10 +396,12 @@ final class WorkoutManager: NSObject, ObservableObject {
     private func playHaptic(for state: WatchDisplayState, from previous: WatchDisplayState) {
         let device = WKInterfaceDevice.current()
         switch (previous, state) {
-        case (.idle, .inProgress):
+        case (.idle, .inProgress), (.paused, .inProgress):
             device.play(.start)
-        case (.inProgress, .idle):
+        case (.inProgress, .idle), (.paused, .idle):
             device.play(.success)
+        case (.inProgress, .paused):
+            device.play(.stop)
         default:
             break
         }
@@ -379,6 +417,11 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
         if toState == .running {
             transition(to: .inProgress)
             publishSessionState(WatchSessionStatePayload.started)
+        } else if toState == .paused {
+            // iPhone initiated the pause (it sent the command), so we don't echo a
+            // session-state event back — just reflect it on the Watch. The system
+            // workout timer and HR collection are paused by HealthKit.
+            transition(to: .paused)
         } else if toState == .ended {
             transition(to: .idle)
             publishSessionState(WatchSessionStatePayload.ended)
@@ -439,6 +482,10 @@ extension WorkoutManager: WCSessionDelegate {
             requestAuthorization(starting: configuration)
         case WatchCommand.stop:
             stopWorkout()
+        case WatchCommand.pause:
+            pauseWorkout()
+        case WatchCommand.resume:
+            resumeWorkout()
         default:
             break
         }

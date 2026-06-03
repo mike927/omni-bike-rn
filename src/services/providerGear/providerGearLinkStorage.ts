@@ -65,6 +65,11 @@ export async function markProviderGearLinkStale(
   await persistProviderGearLinks(next);
 }
 
+export async function removeProviderGearLinksForProvider(providerId: string): Promise<void> {
+  const current = await loadProviderGearLinks();
+  await persistProviderGearLinks(current.filter((item) => item.providerId !== providerId));
+}
+
 export async function getProviderGearLink(
   providerId: string,
   localGearId: string,
@@ -75,8 +80,4 @@ export async function getProviderGearLink(
   // Stale links are excluded so the upload orchestrator falls back to the "no linked gear" path
   // rather than retrying an invalid providerGearId on every future upload.
   return link && !link.stale ? link : null;
-}
-
-export async function clearProviderGearLinks(): Promise<void> {
-  await Storage.removeItem(STORAGE_KEY);
 }

@@ -1,7 +1,5 @@
-import { StyleSheet, View } from 'react-native';
-
-import { BluetoothConnector } from '../components/BluetoothConnector';
-import { IconCard } from '../components/IconCard';
+import { OnboardingHero } from '../components/OnboardingHero';
+import { HeartRateIcon } from './icons/HeartRateIcon';
 
 interface Page2HrIllustrationProps {
   readonly testID?: string;
@@ -9,19 +7,8 @@ interface Page2HrIllustrationProps {
 
 export function Page2HrIllustration({ testID }: Page2HrIllustrationProps) {
   return (
-    <View style={styles.row} testID={testID}>
-      <IconCard icon="watch" />
-      <BluetoothConnector />
-      <IconCard icon="favorite" />
-    </View>
+    <OnboardingHero testID={testID}>
+      <HeartRateIcon />
+    </OnboardingHero>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-});

@@ -1,11 +1,11 @@
 import Storage from 'expo-sqlite/kv-store';
 
 import {
-  clearProviderGearLinks,
   getProviderGearLink,
   loadProviderGearLinks,
   markProviderGearLinkStale,
   removeProviderGearLink,
+  removeProviderGearLinksForProvider,
   saveProviderGearLink,
 } from '../providerGearLinkStorage';
 import type { LinkedProviderGear } from '../../../types/providerGear';
@@ -18,7 +18,6 @@ jest.mock('expo-sqlite/kv-store', () => ({
 
 const mockGetItem = Storage.getItem as jest.Mock;
 const mockSetItem = Storage.setItem as jest.Mock;
-const mockRemoveItem = Storage.removeItem as jest.Mock;
 
 const BASE_LINK: LinkedProviderGear = {
   providerId: 'strava',
@@ -34,7 +33,6 @@ const BASE_LINK: LinkedProviderGear = {
 beforeEach(() => {
   jest.clearAllMocks();
   mockSetItem.mockResolvedValue(undefined);
-  mockRemoveItem.mockResolvedValue(undefined);
 });
 
 describe('providerGearLinkStorage', () => {
@@ -105,9 +103,16 @@ describe('providerGearLinkStorage', () => {
     expect(mockSetItem).toHaveBeenCalledWith('omni:providerGearLinks', JSON.stringify([]));
   });
 
-  it('clears all provider gear links', async () => {
-    await clearProviderGearLinks();
+  it("removes only the given provider's links, persisting the rest", async () => {
+    mockGetItem.mockResolvedValue(
+      JSON.stringify([BASE_LINK, { ...BASE_LINK, providerId: 'garmin', providerGearId: 'g-2' }]),
+    );
 
-    expect(mockRemoveItem).toHaveBeenCalledWith('omni:providerGearLinks');
+    await removeProviderGearLinksForProvider('strava');
+
+    expect(mockSetItem).toHaveBeenCalledWith(
+      'omni:providerGearLinks',
+      JSON.stringify([{ ...BASE_LINK, providerId: 'garmin', providerGearId: 'g-2' }]),
+    );
   });
 });

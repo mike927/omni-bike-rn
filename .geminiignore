@@ -40,7 +40,7 @@ yarn-error.*
 
 # Claude-specific config (not relevant to Gemini)
 .claude/
-
+.antigravitycli/
 # Local env
 .env*.local
 

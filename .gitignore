@@ -3,6 +3,9 @@
 # dependencies
 node_modules/
 
+# Brainstorming visual-companion (local mockups)
+.superpowers/
+
 # Expo
 .expo/
 dist/
@@ -34,8 +37,20 @@ yarn-error.*
 .claude/launch.json
 .claude/settings.local.json
 CODEX.local.md
+.claude/worktrees/
+.antigravitycli/
+.geminiignore
 ai/local/
 docs/superpowers/
+
+# Managed agent skills
+/.agents/skills/*
+/.claude/skills/*
+/.codex/skills/*
+/.cursor/skills/*
+/.gemini/skills/*
+/.windsurf/skills/*
+!skills-lock.json
 
 # Harness quarantine (temporary — evaluating alternative plugin)
 .harness-archive/

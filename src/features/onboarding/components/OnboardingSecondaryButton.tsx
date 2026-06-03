@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
 
-import { palette } from '../../../ui/theme';
+import { noir } from '../../../ui/theme';
 
 interface OnboardingSecondaryButtonProps {
   readonly label: string;
@@ -26,7 +26,7 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: noir.hairline,
     backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
@@ -36,7 +36,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   label: {
-    color: palette.textMuted,
+    color: noir.ink2,
     fontSize: 16,
     fontWeight: '600',
   },

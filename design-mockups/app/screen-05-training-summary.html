@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Omni Bike · Training Summary</title>
+<link rel="stylesheet" href="calm-noir.css" />
+<style>
+  /* screen-specific one-offs, reusing Calm Noir tokens */
+  .ride-eyebrow { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase; color: var(--mint-soft); margin-bottom: 9px; }
+  .ride-eyebrow .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--mint); }
+  .export-card { display: flex; flex-direction: column; gap: 13px; }
+  .export-card .card-desc { margin-top: 0; }
+  .brand-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+  .brand-dot.strava { background: #fc5200; box-shadow: 0 0 0 3px rgba(252,82,0,.18); }
+  .brand-dot.health { background: var(--danger); box-shadow: 0 0 0 3px rgba(239,75,92,.18); }
+</style>
+</head>
+<body>
+  <div class="device">
+    <div class="screen">
+
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="glyphs">
+          <svg width="18" height="12" viewBox="0 0 18 12" fill="none">
+            <rect x="0" y="8" width="3" height="4" rx="1" fill="#eef1f6"/>
+            <rect x="5" y="5" width="3" height="7" rx="1" fill="#eef1f6"/>
+            <rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#eef1f6"/>
+            <rect x="15" y="0" width="3" height="12" rx="1" fill="#eef1f6"/>
+          </svg>
+          <svg width="17" height="12" viewBox="0 0 17 12" fill="none">
+            <path d="M8.5 2.2c2.7 0 5.2 1 7.1 2.8l-1.5 1.6A7.9 7.9 0 0 0 8.5 4.3 7.9 7.9 0 0 0 2.9 6.6L1.4 5C3.3 3.2 5.8 2.2 8.5 2.2Z" fill="#eef1f6"/>
+            <path d="M8.5 6.1c1.6 0 3.1.6 4.2 1.7l-1.6 1.6A3.7 3.7 0 0 0 8.5 8.3c-1 0-2 .4-2.7 1.1L4.3 7.8A6 6 0 0 1 8.5 6.1Z" fill="#eef1f6"/>
+            <circle cx="8.5" cy="11" r="1.3" fill="#eef1f6"/>
+          </svg>
+          <svg width="26" height="13" viewBox="0 0 26 13" fill="none">
+            <rect x="0.5" y="0.5" width="22" height="12" rx="3.5" stroke="#eef1f6" stroke-opacity="0.4"/>
+            <rect x="2" y="2" width="17" height="9" rx="2" fill="#eef1f6"/>
+            <rect x="24" y="4" width="1.6" height="5" rx="0.8" fill="#eef1f6" fill-opacity="0.45"/>
+          </svg>
+        </span>
+      </div>
+
+      <div class="navbar">
+        <div class="nav-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="nav-title">Summary</div>
+        <div></div>
+      </div>
+
+      <div class="content">
+
+        <div class="screen-head reveal d1">
+          <div class="ride-eyebrow"><span class="dot"></span>RIDE COMPLETE · Sat, May 30</div>
+          <p class="h-sub">Review your workout results.</p>
+        </div>
+
+        <div class="reveal d2">
+          <div class="section-label tight"><h2>Workout Totals</h2></div>
+          <div class="metric-grid three">
+            <div class="metric">
+              <div class="k">Elapsed</div>
+              <div class="v">1h 2m</div>
+            </div>
+            <div class="metric">
+              <div class="k">Distance</div>
+              <div class="v">18.4<span class="u">km</span></div>
+            </div>
+            <div class="metric">
+              <div class="k">Calories</div>
+              <div class="v">512<span class="u">kcal</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="reveal d3">
+          <div class="section-label"><h2>Final Metrics</h2></div>
+          <div class="metric-grid">
+            <div class="metric">
+              <div class="k">Speed</div>
+              <div class="v">18.4<span class="u">km/h</span></div>
+            </div>
+            <div class="metric">
+              <div class="k">Cadence</div>
+              <div class="v">94<span class="u">rpm</span></div>
+            </div>
+            <div class="metric accent">
+              <div class="k">Power</div>
+              <div class="v">187<span class="u">W</span></div>
+            </div>
+            <div class="metric">
+              <div class="k">Heart Rate</div>
+              <div class="v">142<span class="u">bpm</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="reveal d4">
+          <div class="section-label"><h2>Strava Upload</h2></div>
+          <div class="card export-card">
+            <p class="card-desc">Manually upload this workout to Strava when you're ready.</p>
+            <button class="btn btn-secondary btn-block">
+              <span class="brand-dot strava"></span>Upload to Strava
+            </button>
+          </div>
+        </div>
+
+        <div class="reveal d5">
+          <div class="section-label"><h2>Apple Health Export</h2></div>
+          <div class="card export-card">
+            <p class="card-desc">Save this workout to Apple Health.</p>
+            <button class="btn btn-secondary btn-block">
+              <span class="brand-dot health"></span>Export to Apple Health
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="action-bar reveal d6">
+        <div class="btn-row">
+          <button class="btn btn-danger">Discard</button>
+          <button class="btn btn-primary">Save</button>
+        </div>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+  <div class="caption"><b>05 · Training Summary</b> · dark</div>
+</body>
+</html>

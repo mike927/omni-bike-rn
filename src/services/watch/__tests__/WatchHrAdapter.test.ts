@@ -1,5 +1,6 @@
 import { WatchHrAdapter } from '../WatchHrAdapter';
 import { WatchConnectivity } from 'watch-connectivity';
+import type { HrAdapter } from '../../ble/HrAdapter';
 
 jest.mock('watch-connectivity', () => ({
   WatchConnectivity: {
@@ -95,6 +96,21 @@ describe('WatchHrAdapter', () => {
 
       sub.remove();
       expect(removeFn).toHaveBeenCalled();
+    });
+  });
+
+  describe('HrAdapter contract', () => {
+    it('exposes the optional active-kcal capability through the shared HrAdapter type', () => {
+      // Reachable via the contract — no concrete-type knowledge needed.
+      const hrAdapter: HrAdapter = adapter;
+      const kcalCallback = jest.fn();
+      const removeFn = jest.fn();
+      (WatchConnectivity.addListener as jest.Mock).mockReturnValue({ remove: removeFn });
+
+      const sub = hrAdapter.subscribeToActiveKcal?.(kcalCallback);
+
+      expect(sub).toBeDefined();
+      expect(WatchConnectivity.addListener).toHaveBeenCalledWith('onWatchActiveKcal', expect.any(Function));
     });
   });
 });

@@ -1,12 +1,11 @@
-import React, { useState } from 'react';
-import { useRouter } from 'expo-router';
-import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Stack, useRouter } from 'expo-router';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useGearSetup } from '../hooks/useGearSetup';
-import { ActionButton } from '../../../ui/components/ActionButton';
-import { SectionCard } from '../../../ui/components/SectionCard';
-import { AppScreen } from '../../../ui/layout/AppScreen';
-import { palette } from '../../../ui/theme';
+import { NearbyDeviceRow, type NearbyDeviceRowState } from '../components/NearbyDeviceRow';
+import { noir } from '../../../ui/theme';
 import type { GearType, ValidationFailureReason } from '../../../types/gear';
 
 const INCOMPATIBILITY_MESSAGES: Record<ValidationFailureReason, string> = {
@@ -32,19 +31,14 @@ const HR_BROADCAST_HINT_ERRORS: ReadonlySet<ValidationFailureReason> = new Set<V
 const HR_BROADCAST_HINT = {
   headline: 'Pairing a Garmin or Polar watch?',
   steps: [
-    'Open your watch\u2019s main menu. The button varies by family: hold UP on Fenix / Forerunner / Instinct, or press the top-right button on Venu / Vivoactive.',
+    'Open your watch’s main menu. The button varies by family: hold UP on Fenix / Forerunner / Instinct, or press the top-right button on Venu / Vivoactive.',
     'Navigate to Settings → Sensors & Accessories → Wrist Heart Rate (newer models) or Settings → Wrist Heart Rate (older models).',
     'Select Broadcast Heart Rate, or enable Broadcast During Activity and then start an activity on the watch.',
     'Confirm the broadcast icon appears on the watch face before returning to this screen.',
   ],
   footer:
-    'Menu labels and button paths vary by model and firmware — when in doubt, check your watch\u2019s owner manual for the exact "broadcast heart rate" step. Polar watches: see your model\u2019s manual for the broadcast-mode button path. Some watches stop broadcasting when the display sleeps — keep the watch awake during pairing. Note: not every Garmin watch actually broadcasts over Bluetooth; some older models only broadcast over ANT+, which iPhones cannot receive.',
+    'Menu labels and button paths vary by model and firmware — when in doubt, check your watch’s owner manual for the exact "broadcast heart rate" step. Polar watches: see your model’s manual for the broadcast-mode button path. Some watches stop broadcasting when the display sleeps — keep the watch awake during pairing. Note: not every Garmin watch actually broadcasts over Bluetooth; some older models only broadcast over ANT+, which iPhones cannot receive.',
 } as const;
-
-const SAVE_LABEL: Record<GearType, string> = {
-  bike: 'Use This Bike',
-  hr: 'Use This HR Source',
-};
 
 interface GearSetupScreenProps {
   target: GearType;
@@ -74,6 +68,8 @@ function HintBlock({ headline, expanded, onToggle, testID, children }: Readonly<
   );
 }
 
+const CONNECTING_STEPS: ReadonlySet<string> = new Set(['validating', 'connecting', 'awaiting_signal']);
+
 export function GearSetupScreen({ target }: Readonly<GearSetupScreenProps>) {
   const router = useRouter();
   const {
@@ -88,16 +84,72 @@ export function GearSetupScreen({ target }: Readonly<GearSetupScreenProps>) {
     stopScan,
     selectDevice,
     save,
-    reset,
   } = useGearSetup(target);
   const [broadcastHintExpanded, setBroadcastHintExpanded] = useState(false);
+  const savedRef = useRef(false);
+  const savingRef = useRef(false);
 
-  const showBroadcastHint =
-    target === 'hr' && validationError !== null && HR_BROADCAST_HINT_ERRORS.has(validationError);
+  const runScan = useCallback(async () => {
+    const permission = await startScan();
+    if (permission === 'denied') {
+      Alert.alert('Bluetooth Permission Required', 'Allow Omni Bike to access Bluetooth in Settings.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Open Settings', onPress: () => void Linking.openSettings() },
+      ]);
+    }
+  }, [startScan]);
 
-  const renderBroadcastHint = (testID: string) => (
+  // Start scanning automatically when the screen opens — no separate "search" step.
+  useEffect(() => {
+    void runScan();
+  }, [runScan]);
+
+  // Pairing completes the moment a selected device connects and streams a live
+  // signal: save it and leave. No manual confirmation step. The completion guard
+  // is only set once the save actually succeeds, so a persistence failure resets
+  // it and the user can retry rather than being stuck on a dead-end screen.
+  const pair = useCallback(async () => {
+    try {
+      await save();
+      savedRef.current = true;
+      router.back();
+    } catch {
+      savingRef.current = false;
+      Alert.alert('Couldn’t Save Device', 'Saving this device failed. Please try again.', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Try Again',
+          onPress: () => {
+            savingRef.current = true;
+            void pair();
+          },
+        },
+      ]);
+    }
+  }, [save, router]);
+
+  useEffect(() => {
+    if (step === 'ready' && signalConfirmed && !savedRef.current && !savingRef.current) {
+      savingRef.current = true;
+      void pair();
+    }
+  }, [step, signalConfirmed, pair]);
+
+  // A pairing is in flight while the selected device is validating/connecting/
+  // awaiting its first signal. While busy, every other row is locked so a second
+  // selectDevice() can't race the first against shared hook state.
+  const isBusy = CONNECTING_STEPS.has(step);
+
+  const deviceState = (id: string): NearbyDeviceRowState => {
+    if (selectedDevice?.id !== id) return 'idle';
+    if (step === 'error') return 'error';
+    if (CONNECTING_STEPS.has(step)) return 'connecting';
+    return 'idle';
+  };
+
+  const renderBroadcastHint = () => (
     <HintBlock
-      testID={testID}
+      testID="broadcast-hint-inline"
       headline={HR_BROADCAST_HINT.headline}
       expanded={broadcastHintExpanded}
       onToggle={() => setBroadcastHintExpanded((prev) => !prev)}>
@@ -110,182 +162,98 @@ export function GearSetupScreen({ target }: Readonly<GearSetupScreenProps>) {
     </HintBlock>
   );
 
-  const handleScanPress = async () => {
-    const permission = await startScan();
-
-    if (permission === 'denied') {
-      Alert.alert('Bluetooth Permission Required', 'Allow Omni Bike to access Bluetooth in Settings.', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Open Settings', onPress: () => void Linking.openSettings() },
-      ]);
-    }
-  };
-
-  const handleSave = async () => {
-    await save();
-    router.back();
-  };
-
-  const title = target === 'bike' ? 'Select Bike' : 'Select Bluetooth HR Source';
+  const title = target === 'bike' ? 'Select Smart Bike' : 'Select Bluetooth HR Source';
   const subtitle =
     target === 'bike'
-      ? 'Choose your FTMS-compatible bike trainer. A live signal is required before saving.'
-      : 'Choose a Bluetooth HR monitor or a watch in broadcast or HR sensor mode. A live signal is required before saving.';
+      ? 'Tap your FTMS bike to pair. It connects and verifies a live signal, then saves automatically.'
+      : 'Tap a Bluetooth HR monitor or a watch in broadcast mode. It connects and verifies a live signal, then saves automatically.';
 
   return (
-    <AppScreen title={title} subtitle={subtitle}>
-      <SectionCard title="Scan Controls">
-        {scanError ? <Text style={styles.errorText}>{scanError}</Text> : null}
-        <ActionButton
-          label={isScanning ? 'Stop Scan' : 'Start Scan'}
-          onPress={isScanning ? stopScan : handleScanPress}
-          fullWidth
-        />
-      </SectionCard>
-
-      {devices.length === 0 && !isScanning ? null : (
-        <SectionCard title="Nearby Devices">
-          {devices.length === 0 ? (
-            <Text style={styles.emptyText}>Scanning for nearby devices…</Text>
-          ) : (
-            devices.map((device) => {
-              const isSelected = selectedDevice?.id === device.id;
-              const showError = isSelected && validationError !== null;
-
-              return (
-                <View key={device.id} style={styles.deviceRow}>
-                  <View style={styles.deviceText}>
-                    <Text style={styles.deviceName}>{device.name ?? 'Unknown Device'}</Text>
-                    <Text style={styles.deviceId}>{device.id}</Text>
-                    {showError && validationError ? (
-                      <Text style={styles.incompatibilityText}>{INCOMPATIBILITY_MESSAGES[validationError]}</Text>
-                    ) : null}
-                    {showError && showBroadcastHint ? renderBroadcastHint('broadcast-hint-inline') : null}
-                    {isSelected && step === 'validating' ? (
-                      <Text style={styles.statusText}>Validating device…</Text>
-                    ) : null}
-                    {isSelected && step === 'connecting' ? <Text style={styles.statusText}>Connecting…</Text> : null}
-                    {isSelected && step === 'awaiting_signal' ? (
-                      <Text style={styles.statusText}>Waiting for live signal…</Text>
-                    ) : null}
-                    {isSelected && signalConfirmed ? <Text style={styles.signalText}>Signal received ✓</Text> : null}
-                  </View>
-                  {!isSelected || step === 'error' ? (
-                    <ActionButton
-                      label="Select"
-                      onPress={() => void selectDevice(device)}
-                      variant="ghost"
-                      disabled={step === 'validating' || step === 'connecting' || step === 'awaiting_signal'}
-                    />
-                  ) : null}
-                </View>
-              );
-            })
-          )}
-        </SectionCard>
-      )}
-
-      {step === 'error' && validationError ? (
-        <SectionCard title="Device Issue">
-          <Text style={styles.errorText}>{INCOMPATIBILITY_MESSAGES[validationError]}</Text>
-          {showBroadcastHint ? renderBroadcastHint('broadcast-hint-card') : null}
-          <ActionButton label="Try Another Device" onPress={reset} fullWidth />
-        </SectionCard>
-      ) : null}
-
-      <ActionButton
-        label={SAVE_LABEL[target]}
-        onPress={() => void handleSave()}
-        disabled={!signalConfirmed}
-        fullWidth
+    <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeArea}>
+      <Stack.Screen
+        options={{
+          title,
+          headerStyle: { backgroundColor: noir.bg },
+          headerTintColor: noir.ink,
+        }}
       />
-    </AppScreen>
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Text style={styles.subtitle}>{subtitle}</Text>
+        {scanError ? <Text style={styles.errorText}>{scanError}</Text> : null}
+
+        <View style={styles.listHead}>
+          <Text style={styles.sectionLabel}>Nearby Devices</Text>
+          <Pressable accessibilityRole="button" onPress={isScanning ? stopScan : () => void runScan()} hitSlop={8}>
+            <Text style={styles.scanToggle}>{isScanning ? 'Stop' : 'Rescan'}</Text>
+          </Pressable>
+        </View>
+
+        {devices.length === 0 ? (
+          <View style={styles.emptyRow}>
+            <Text style={styles.emptyText}>
+              {isScanning ? 'Scanning for nearby devices…' : 'No devices found — keep your bike awake and rescan.'}
+            </Text>
+          </View>
+        ) : (
+          devices.map((device) => {
+            const rowState = deviceState(device.id);
+            const showHint =
+              rowState === 'error' &&
+              target === 'hr' &&
+              validationError !== null &&
+              HR_BROADCAST_HINT_ERRORS.has(validationError);
+
+            return (
+              <NearbyDeviceRow
+                key={device.id}
+                name={device.name}
+                deviceId={device.id}
+                target={target}
+                state={rowState}
+                disabled={isBusy && rowState === 'idle'}
+                errorMessage={
+                  rowState === 'error' && validationError ? INCOMPATIBILITY_MESSAGES[validationError] : null
+                }
+                onSelect={() => void selectDevice(device)}>
+                {showHint ? renderBroadcastHint() : null}
+              </NearbyDeviceRow>
+            );
+          })
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  deviceRow: {
-    gap: 8,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: palette.border,
-    backgroundColor: palette.surfaceMuted,
-    padding: 14,
-  },
-  deviceText: {
-    gap: 4,
-  },
-  deviceName: {
-    color: palette.text,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  deviceId: {
-    color: palette.textMuted,
-    fontSize: 12,
-  },
-  incompatibilityText: {
-    color: palette.danger,
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 4,
-  },
-  statusText: {
-    color: palette.textMuted,
-    fontSize: 13,
-    marginTop: 4,
-  },
-  signalText: {
-    color: palette.success,
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  errorText: {
-    color: palette.danger,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  emptyText: {
-    color: palette.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  hintContainer: {
-    marginTop: 4,
-    gap: 6,
-  },
-  hintToggleRow: {
+  safeArea: { flex: 1, backgroundColor: noir.bg },
+  content: { paddingHorizontal: 22, paddingTop: 8, paddingBottom: 24, gap: 10 },
+  subtitle: { color: noir.ink2, fontSize: 14.5, lineHeight: 20, marginTop: 6 },
+  listHead: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
+    marginTop: 10,
+    marginBottom: 2,
   },
-  hintHeadline: {
-    color: palette.textMuted,
-    fontSize: 13,
-    fontWeight: '600',
-    flexShrink: 1,
+  sectionLabel: { color: noir.ink, fontSize: 14, fontWeight: '700' },
+  scanToggle: { color: noir.indigoSoft, fontSize: 13, fontWeight: '700' },
+  emptyRow: {
+    backgroundColor: noir.card,
+    borderWidth: 1,
+    borderColor: noir.hairline,
+    borderRadius: 20,
+    padding: 16,
+    alignItems: 'center',
   },
-  hintCaret: {
-    color: palette.textMuted,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  hintBody: {
-    gap: 6,
-    marginTop: 4,
-  },
-  hintStep: {
-    color: palette.textMuted,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  hintFooter: {
-    color: palette.textMuted,
-    fontSize: 12,
-    fontStyle: 'italic',
-    lineHeight: 16,
-    marginTop: 2,
-  },
+  emptyText: { color: noir.ink3, fontSize: 13, textAlign: 'center' },
+  errorText: { color: noir.dangerSoft, fontSize: 14, lineHeight: 20 },
+  hintContainer: { marginTop: 4, gap: 6 },
+  hintToggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  hintHeadline: { color: noir.ink2, fontSize: 13, fontWeight: '600', flexShrink: 1 },
+  hintCaret: { color: noir.ink2, fontSize: 13, fontWeight: '600' },
+  hintBody: { gap: 6, marginTop: 4 },
+  hintStep: { color: noir.ink2, fontSize: 13, lineHeight: 18 },
+  hintFooter: { color: noir.ink3, fontSize: 12, fontStyle: 'italic', lineHeight: 16, marginTop: 2 },
 });
