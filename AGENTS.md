@@ -51,6 +51,7 @@ Default to `npm run ios` (device build) when an iPhone is detected via `xcrun de
 - **Branch before editing.** New feature/fix work starts on a fresh branch off `main` (`feat/…`, `fix/…`, `chore/…`, `docs/…`) — never edit on `main`, never defer branching to commit time.
 - **Never commit directly to `main`.** Before any commit, re-confirm the current branch is not `main`.
 - Never bypass hooks with `--no-verify`. If the pre-commit hook fails, fix the root cause and create a new commit (do not `--amend`).
+- **After a PR merges, clean up:** delete its branch (local + remote) and worktree, then switch the working copy back to `main`.
 
 ## Domain model
 
