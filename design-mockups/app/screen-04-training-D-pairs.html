@@ -31,9 +31,12 @@
   .secrow .metric .v { font-size:18px; margin-top:5px; }
   .secrow .metric .v .u { font-size:10px; display:block; margin-top:1px; }
 
-  .footbar { display:flex; align-items:center; gap:10px; padding:13px 16px; }
-  .footbar .txt { font-size:12.5px; color:var(--ink-2); font-weight:600; }
-  .footbar .gd { width:8px; height:8px; border-radius:50%; background:var(--mint); }
+  .minit .livedot { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--mint); margin-right:7px; vertical-align:middle; }
+  .footbar { padding:0 16px; }
+  .fr { display:flex; align-items:center; gap:12px; padding:13px 0; }
+  .fre { font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-3); }
+  .frn { margin-top:3px; font-size:15px; font-weight:700; letter-spacing:-.01em; color:var(--ink); }
+  .frdiv { height:1px; background:var(--hairline); }
   .control-row > .btn { min-height:54px; font-size:15px; border-radius:var(--r-lg); }
 </style>
 </head>
@@ -57,8 +60,7 @@
 
       <div class="content">
         <div class="card minit reveal d1">
-          <div><div class="l">Elapsed · Active</div><div class="t">24:18</div></div>
-          <div class="dots"><span class="pill good"><span class="dot"></span>Bike</span><span class="pill good"><span class="dot"></span>HR</span></div>
+          <div><div class="l"><span class="livedot"></span>Elapsed · Active</div><div class="t">24:18</div></div>
         </div>
 
         <div class="pairs reveal d2" style="margin-top:14px">
@@ -70,7 +72,7 @@
           <div class="feat hr">
             <div class="fk"><svg width="13" height="13" viewBox="0 0 24 24" fill="#4fd8c8"><path d="M12 21s-7.5-4.9-10-9.2C.3 8.6 1.9 5 5.3 5c2 0 3.3 1.1 4.2 2.4C10.4 6.1 11.7 5 13.7 5 17.1 5 18.7 8.6 17 11.8 14.5 16.1 12 21 12 21z"/></svg>Heart Rate</div>
             <div class="fv">152<span class="u">bpm</span></div>
-            <div class="ftag">Polar H10 · Streaming</div>
+            <div class="ftag">Polar H10</div>
           </div>
         </div>
 
@@ -82,8 +84,15 @@
         </div>
 
         <div class="card footbar reveal d4" style="margin-top:14px">
-          <span class="gd"></span>
-          <span class="txt">Wahoo KICKR Bike connected · Polar H10 streaming</span>
+          <div class="fr">
+            <div style="flex:1; min-width:0"><div class="fre">Smart Bike</div><div class="frn">Wahoo KICKR Bike</div></div>
+            <span class="pill good"><span class="dot"></span>Ready</span>
+          </div>
+          <div class="frdiv"></div>
+          <div class="fr">
+            <div style="flex:1; min-width:0"><div class="fre">Heart Rate</div><div class="frn">Polar H10</div></div>
+            <span class="pill good"><span class="dot"></span>Ready</span>
+          </div>
         </div>
       </div>
 

@@ -1,0 +1,63 @@
+import { StyleSheet, View } from 'react-native';
+
+import { ActionButton } from '../../../ui/components/ActionButton';
+import type { TrainingControls } from '../screens/trainingViewModel';
+
+export interface RideControlsProps {
+  readonly controls: TrainingControls;
+  readonly isFinishing: boolean;
+  readonly onStart: () => void;
+  readonly onPause: () => void;
+  readonly onResume: () => void;
+  readonly onFinish: () => void | Promise<void>;
+}
+
+export function RideControls({ controls, isFinishing, onStart, onPause, onResume, onFinish }: RideControlsProps) {
+  if (controls.kind === 'idle') {
+    return (
+      <ActionButton
+        label="Start Ride"
+        onPress={onStart}
+        variant="primary"
+        scheme="noir"
+        disabled={controls.startDisabled}
+        fullWidth
+      />
+    );
+  }
+
+  const primary =
+    controls.kind === 'active' ? (
+      <ActionButton label="Pause" onPress={onPause} variant="primary" scheme="noir" fullWidth />
+    ) : (
+      <ActionButton
+        label="Resume"
+        onPress={onResume}
+        variant="primary"
+        scheme="noir"
+        disabled={controls.resumeDisabled}
+        fullWidth
+      />
+    );
+
+  return (
+    <View style={styles.row}>
+      <View style={styles.half}>{primary}</View>
+      <View style={styles.half}>
+        <ActionButton
+          label={isFinishing ? 'Finishing...' : 'Finish'}
+          onPress={onFinish}
+          variant="danger"
+          scheme="noir"
+          disabled={isFinishing}
+          fullWidth
+        />
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  row: { flexDirection: 'row', gap: 11 },
+  half: { flex: 1 },
+});

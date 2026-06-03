@@ -131,8 +131,9 @@ fill).
 - a11y: the label text carries the status for screen readers; the dot is decorative. Callers may
   pass `accessibilityLabel` for extra context (e.g. the device name).
 - **One chip everywhere.** Used by the Home Smart Bike + Heart Rate cards (via `SourceRow`), the
-  Settings `GearTile`, and the Training Smart Bike-status pill + `HeartRateSourceTile`. Never re-style the status
-  inline — always render `StatusPill`.
+  Settings `GearTile`, and the Training `ConnectionFooter` (Smart Bike + Heart Rate rows). Never
+  re-style the status inline — always render `StatusPill`. In particular, never show status as plain
+  `Name · Status` text: the device name and its status never share a single line.
 
 ### Calm Noir StatusPill tones
 
@@ -184,7 +185,7 @@ Each tile shows a **leading Ionicons icon box** (mirroring Home's `DeviceCard`),
 a **`kind`** sub-label, and a right-pinned **`StatusPill`** (`scheme="noir"`). The selected HR
 source's kind reads "`<kind> · primary`" — an explicit selection cue alongside the accent bar. The
 trainer device is labelled **Smart Bike** everywhere it appears (Home card title, this section's
-label, the Training connection pill); the bike-derived HR source keeps its distinct name **Bike
+label, the Training connection footer); the bike-derived HR source keeps its distinct name **Bike
 pulse**. Two distinct interactions, two distinct affordances:
 
 - **Selection** (HR sources only): tap the tile body → it becomes the primary source, shown by a
@@ -226,15 +227,44 @@ History (`src/features/history/`, mockup `design-mockups/app/screen-06-history.h
   the app palette: **`noir.mintSoft` when synced, `noir.ink3` when not**. Brand colours (e.g. Strava
   orange `#FC4C02`) are never used — the colour means "synced / not synced", not the brand.
 
+## Training dashboard
+
+The live ride screen (`src/features/training/`, mockup `design-mockups/app/screen-04-training-D-pairs.html`)
+is Calm Noir, **Direction D — "Featured Pairs"**. It is a pushed screen: `headerShown: false`, its own
+`SafeAreaView` over `noir.bg`, an in-screen back chevron + `Training` title, and a **pinned bottom
+control bar** (outside the scroll) hosting the phase-driven actions.
+
+- **Timer header** (`RideTimerCard`) — a `noir.card` strip with an `Elapsed · {READY|ACTIVE|PAUSED}`
+  eyebrow and the big `mm:ss` (`formatDuration`). A small mint **recording dot** shows while a ride
+  is live (a recording indicator, *not* a device-status pill).
+- **Featured pair** (`FeatureMetricCard`) — two hero cards: **Power** (W) carrying a live
+  `PowerTrend` sparkline, and **Heart Rate** (mint `accent`, bpm, `--` when null) carrying the
+  resolved HR **source name** (identity only — status lives in the footer pill, never as text).
+- **Secondary metrics** (`SecondaryMetricsRow`) — four equal chips: Speed · Distance · Cadence ·
+  Calories (whole-number kcal). All from `currentMetrics` / session totals.
+- **Connection footer** (`ConnectionFooter`) — the canonical status surface: a Smart Bike row and a
+  Heart Rate row, each `name` + right-pinned `StatusPill` (`scheme="noir"`).
+- **Controls** (`RideControls`) — phase-driven `ActionButton`s (`scheme="noir"`): `Start Ride`
+  (idle, disabled until the bike is connected) → `Pause` + `Finish` (active) → `Resume` + `Finish`
+  (paused). When the bike drops while idle/paused, a `DisconnectedCallout` offers Set Up / Back Home.
+- **Power sparkline buffer** — a screen-local ring buffer (`usePowerTrend`, ~60 samples); a display
+  concern only, never written to the session store/engine.
+- The phase → label/controls/callout mapping is a pure, unit-tested view-model
+  (`deriveTrainingView`, mirroring `homeViewModel`).
+
 ## Illustration Style
 
 Flat illustration with soft gradients in the brand palette. No photorealism. No text inside illustrations. Square aspect for hero illustrations. Consistent line weight and color treatment across all screens — illustrations in the same flow MUST share style.
 
 ## Dark / Light Migration Status
 
-The **Home**, **History**, and **Settings** screens — and the **bottom tab bar** — are all fully
-migrated to the Calm Noir dark theme. Every tab screen hides the navigation header
-(`headerShown: false`) and renders its own in-content Calm Noir header over `noir.bg`; the shared
-**tab bar chrome** (background, borders, icon tints) is the dark bar. No tab screen needs a
-light-header override anymore, so the former `LIGHT_SCREEN_OPTIONS` in `app/(tabs)/_layout.tsx` has
-been removed.
+The **Home**, **History**, and **Settings** screens — the **bottom tab bar**, and the pushed
+**Training** dashboard — are all fully migrated to the Calm Noir dark theme. Every tab screen hides
+the navigation header (`headerShown: false`) and renders its own in-content Calm Noir header over
+`noir.bg`; the shared **tab bar chrome** (background, borders, icon tints) is the dark bar. No tab
+screen needs a light-header override anymore, so the former `LIGHT_SCREEN_OPTIONS` in
+`app/(tabs)/_layout.tsx` has been removed. Training is a pushed screen with `headerShown: false`
+(its `contentStyle` background is `noir.bg`) and its own in-screen back header.
+
+Still on the old light `palette`: **Training Summary**, **User Profile**, **Provider Gear Link**,
+and the root `_layout` error/loading fallbacks.
