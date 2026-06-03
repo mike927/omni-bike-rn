@@ -6,6 +6,10 @@ import { noir } from '../../../ui/theme';
 import { ProviderStatusIcons } from './ProviderStatusIcons';
 import type { WorkoutHistoryListItemProps } from './WorkoutHistoryListItem.types';
 
+// Exposes deletion to assistive tech (VoiceOver "Actions" rotor) since the row has no visible
+// trash button — long press is a pointer-only gesture and isn't reachable via a screen reader.
+const DELETE_ACCESSIBILITY_ACTIONS = [{ name: 'delete', label: 'Delete workout' }];
+
 function formatMetricsLine(session: WorkoutHistoryListItemProps['session']): string {
   const distance = formatDistanceKmShort(session.totalDistanceMeters);
   const duration = formatCompactDuration(session.elapsedSeconds);
@@ -26,7 +30,13 @@ export function WorkoutHistoryListItem({
       onLongPress={onDelete}
       accessibilityRole="button"
       accessibilityLabel={`Workout on ${formatHistoryDate(session.startedAtMs)}`}
-      accessibilityHint="Opens the ride summary. Long press to delete.">
+      accessibilityHint="Opens the ride summary. Long press, or use the Delete action, to remove it."
+      accessibilityActions={DELETE_ACCESSIBILITY_ACTIONS}
+      onAccessibilityAction={(event) => {
+        if (event.nativeEvent.actionName === 'delete') {
+          onDelete();
+        }
+      }}>
       <View style={styles.main}>
         <Text style={styles.date}>{formatHistoryDate(session.startedAtMs)}</Text>
         <Text style={styles.metrics}>{formatMetricsLine(session)}</Text>

@@ -219,7 +219,8 @@ History (`src/features/history/`, mockup `design-mockups/app/screen-06-history.h
 - **History row** (`WorkoutHistoryListItem`) — `noir.card`, radius `md`, showing date
   (`Sat, May 30`) + a compact metrics line (`18.4 km · 1h 2m · 512 kcal`), provider icons, and a
   trailing chevron. **Tap** opens the ride summary; **long press** confirms delete (no inline trash
-  button, keeping the row clean — the `accessibilityHint` advertises the long-press action).
+  button, keeping the row clean). Delete is also exposed to assistive tech via an
+  `accessibilityActions` "Delete workout" action (VoiceOver rotor), so it isn't pointer-only.
 - **Provider status icons** (`ProviderStatusIcons`) — every row shows *all* known providers using
   their real glyphs (Strava `FontAwesome5 strava`, Apple Health `Ionicons heart`) but recoloured to
   the app palette: **`noir.mintSoft` when synced, `noir.ink3` when not**. Brand colours (e.g. Strava

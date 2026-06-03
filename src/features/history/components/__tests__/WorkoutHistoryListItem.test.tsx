@@ -57,4 +57,32 @@ describe('WorkoutHistoryListItem', () => {
 
     expect(onDelete).toHaveBeenCalledTimes(1);
   });
+
+  it('exposes an accessible delete action for assistive tech (not only long press)', () => {
+    const session = buildSession({});
+    const onDelete = jest.fn();
+    const { getByLabelText } = render(
+      <WorkoutHistoryListItem session={session} uploadedProviderIds={[]} onPress={jest.fn()} onDelete={onDelete} />,
+    );
+
+    const row = getByLabelText(`Workout on ${formatHistoryDate(session.startedAtMs)}`);
+    expect(row.props.accessibilityActions).toEqual([{ name: 'delete', label: 'Delete workout' }]);
+
+    fireEvent(row, 'accessibilityAction', { nativeEvent: { actionName: 'delete' } });
+    expect(onDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores unrelated accessibility actions', () => {
+    const session = buildSession({});
+    const onDelete = jest.fn();
+    const { getByLabelText } = render(
+      <WorkoutHistoryListItem session={session} uploadedProviderIds={[]} onPress={jest.fn()} onDelete={onDelete} />,
+    );
+
+    fireEvent(getByLabelText(`Workout on ${formatHistoryDate(session.startedAtMs)}`), 'accessibilityAction', {
+      nativeEvent: { actionName: 'activate' },
+    });
+
+    expect(onDelete).not.toHaveBeenCalled();
+  });
 });
