@@ -1,17 +1,11 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-import { noir, palette } from '../../src/ui/theme';
+import { noir } from '../../src/ui/theme';
 
-// History keeps a light header + scene until its Calm Noir fast-follow restyle
-// lands, so a light body doesn't sit under a dark header. Home & Settings render
-// their own in-content Calm Noir header (headerShown: false). The tab bar chrome
-// is the shared Calm Noir dark bar.
-const LIGHT_SCREEN_OPTIONS = {
-  headerStyle: { backgroundColor: palette.surface },
-  headerTintColor: palette.text,
-  sceneStyle: { backgroundColor: palette.background },
-} as const;
+// All tab screens (Home, History, Settings) are fully Calm Noir and render their own
+// in-content dark header (headerShown: false). The tab bar chrome is the shared Calm
+// Noir dark bar — no screen needs a light-header override anymore.
 
 export default function TabLayout() {
   return (
@@ -44,9 +38,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="history"
         options={{
-          ...LIGHT_SCREEN_OPTIONS,
           title: 'History',
-          headerTitle: 'Workout History',
+          headerShown: false,
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons name={focused ? 'time' : 'time-outline'} size={size} color={color} />
           ),
