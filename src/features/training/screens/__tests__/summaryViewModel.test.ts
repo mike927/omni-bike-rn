@@ -77,6 +77,18 @@ describe('deriveSummaryView', () => {
     expect(hr?.peakLabel).toBeNull();
   });
 
+  it('shows -- for HR when samples exist but never recorded HR, ignoring the final snapshot', () => {
+    // The ride recorded data but had no HR source; the final snapshot still carries a
+    // stale HR (145). With samples present we trust the samples, so HR reads "--".
+    const samples = [sample(200, null, 30, 90, 0), sample(220, null, 32, 94, 1)];
+    const vm = deriveSummaryView({ session: baseSession, samples });
+    const hr = vm.effort.find((e) => e.key === 'hr');
+    expect(hr?.value).toBe('--');
+    expect(hr?.peakLabel).toBeNull();
+    // Power still averages from the samples — the fallback is per-ride, not per-metric.
+    expect(vm.effort.find((e) => e.key === 'power')?.value).toBe('210');
+  });
+
   it('downsamples a long power series to 12 averaged buckets', () => {
     const powers = Array.from({ length: 60 }, (_, i) => i);
     expect(downsamplePower(powers).length).toBe(12);

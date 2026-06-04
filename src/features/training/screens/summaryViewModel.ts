@@ -98,6 +98,12 @@ export function deriveSummaryView({ session, samples }: SummaryViewInput): Summa
   const cadences = metrics.map((m) => m.cadence);
   const heartRates = metrics.map((m) => m.heartRate).filter((hr): hr is number => hr !== null);
 
+  // The final-snapshot fallback only applies when no per-second samples were persisted
+  // at all (e.g. a very short or legacy ride). When samples exist we trust them — so a
+  // ride that recorded data but never had a heart-rate source shows "--", not a stale
+  // final reading.
+  const final = samples.length === 0 ? session.currentMetrics : null;
+
   return {
     hero: {
       distance: (session.totalDistanceMeters / 1000).toFixed(1),
@@ -107,10 +113,10 @@ export function deriveSummaryView({ session, samples }: SummaryViewInput): Summa
       caloriesLabel: `${Math.round(session.totalCaloriesKcal)} kcal`,
     },
     effort: [
-      effortStat('power', 'AVG POWER', 'W', powers, round0, 'power', session.currentMetrics.power),
-      effortStat('hr', 'AVG HR', 'bpm', heartRates, round0, 'hr', session.currentMetrics.heartRate),
-      effortStat('speed', 'AVG SPEED', 'km/h', speeds, round1, null, session.currentMetrics.speed),
-      effortStat('cadence', 'AVG CADENCE', 'rpm', cadences, round0, null, session.currentMetrics.cadence),
+      effortStat('power', 'AVG POWER', 'W', powers, round0, 'power', final?.power ?? null),
+      effortStat('hr', 'AVG HR', 'bpm', heartRates, round0, 'hr', final?.heartRate ?? null),
+      effortStat('speed', 'AVG SPEED', 'km/h', speeds, round1, null, final?.speed ?? null),
+      effortStat('cadence', 'AVG CADENCE', 'rpm', cadences, round0, null, final?.cadence ?? null),
     ],
     powerTrend: downsamplePower(powers),
     gearLabel: buildGearLabel(session),
