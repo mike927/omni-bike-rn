@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Omni Bike · Training Summary — 4 directions</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Hanken Grotesk",sans-serif;background:radial-gradient(130% 90% at 50% -10%,#11151d 0%,#0a0d12 55%,#07090d 100%);color:#eef1f6;min-height:100vh;padding:46px 30px 80px;-webkit-font-smoothing:antialiased}
+  .head{max-width:1320px;margin:0 auto 34px}
+  .head h1{font-size:27px;font-weight:800;letter-spacing:-.02em}
+  .head h1 .accent{color:#5663ff}
+  .head p{color:#9aa3b2;margin-top:9px;font-size:14.5px;line-height:1.55;max-width:880px}
+  .head p code{color:#cdd3df;background:#161b24;border:1px solid #232a35;border-radius:6px;padding:1px 6px;font-size:13px}
+  .legend{margin-top:14px;display:flex;flex-wrap:wrap;gap:10px}
+  .legend span{font-size:12.5px;font-weight:600;color:#8b93a7;background:#161b24;border:1px solid #232a35;border-radius:999px;padding:6px 13px}
+  .note{max-width:1320px;margin:0 auto 30px;font-size:13px;line-height:1.6;color:#7c879a;background:#10141c;border:1px solid #1c222c;border-left:3px solid #5663ff;border-radius:12px;padding:14px 18px}
+  .note b{color:#cdd3df}
+  .grid{max-width:1320px;margin:0 auto;display:grid;grid-template-columns:repeat(2,1fr);gap:30px 26px;justify-items:center}
+  @media(min-width:1500px){.grid{grid-template-columns:repeat(4,1fr)}}
+  .opt{width:100%;max-width:330px;display:flex;flex-direction:column;align-items:center}
+  .framewrap{width:305px;height:578px;overflow:hidden;border-radius:42px;box-shadow:0 30px 70px -28px rgba(0,0,0,.8)}
+  iframe{width:508px;height:962px;border:0;transform:scale(.6);transform-origin:top left}
+  .meta{width:100%;margin-top:18px;padding:0 4px}
+  .meta .tag{display:flex;align-items:center;gap:10px}
+  .meta .letter{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:rgba(86,99,255,.16);color:#5663ff;font-weight:800;font-size:15px}
+  .meta h2{font-size:17px;font-weight:800;letter-spacing:-.01em}
+  .meta h2 a{color:inherit;text-decoration:none}
+  .meta h2 a:hover{color:#fff}
+  .meta p{color:#8b94a4;font-size:13px;line-height:1.5;margin-top:8px}
+  .meta .best{margin-top:9px;font-size:11.5px;font-weight:700;color:#4fd8c8;text-transform:uppercase;letter-spacing:.05em}
+</style>
+</head>
+<body>
+  <div class="head">
+    <h1>Training Summary — <span class="accent">4 directions</span> (Calm Noir)</h1>
+    <p>The post-ride "ride finished" screen, four ways — all built on the real <code>calm-noir.css</code>. Same completed ride throughout: <b>Sat May 30 · 1:02:18 · 28.4&nbsp;km · 642&nbsp;kcal</b>, recorded on a Wahoo&nbsp;KICKR&nbsp;Bike + Polar&nbsp;H10. Discard / Save pinned at the bottom of each. Open any tile full-size at <code>/app/screen-05-training-summary-…html</code>.</p>
+    <div class="legend">
+      <span>A · Finisher</span><span>B · Cockpit</span><span>C · Frozen Pairs</span><span>D · Scorecard</span>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>UX shift from today's screen.</b> The shipped summary only shows <b>instantaneous final</b> metrics (the last reading before you tapped Finish) — yet the database already stores per-second samples, the gear that recorded the ride, and start/end times. All four directions use that: <b>averages + peaks</b> instead of a single final number, a <b>power trend</b> from the samples, the <b>gear that recorded it</b>, and a tighter combined <b>Strava + Apple Health</b> export instead of two stacked full-width cards.
+  </div>
+
+  <div class="grid">
+    <div class="opt">
+      <div class="framewrap"><iframe src="app/screen-05-training-summary-A-finisher.html" scrolling="no"></iframe></div>
+      <div class="meta">
+        <div class="tag"><div class="letter">A</div><h2><a href="app/screen-05-training-summary-A-finisher.html" target="_blank" rel="noopener">Finisher ↗</a></h2></div>
+        <p>A celebratory moment: a gradient hero with a check badge crowns the ride's headline number (distance), then a 4-up avg/peak strip, a power trend, and a one-line share row. Rewards finishing.</p>
+        <div class="best">Best for: motivation &amp; the "I did it" beat</div>
+      </div>
+    </div>
+
+    <div class="opt">
+      <div class="framewrap"><iframe src="app/screen-05-training-summary-B-cockpit.html" scrolling="no"></iframe></div>
+      <div class="meta">
+        <div class="tag"><div class="letter">B</div><h2><a href="app/screen-05-training-summary-B-cockpit.html" target="_blank" rel="noopener">Cockpit ↗</a></h2></div>
+        <p>Data first: a totals strip, a full watts-over-time area chart with an average line, then an Avg/Max ledger table for power, HR, speed &amp; cadence. Gear footer + compact export beneath.</p>
+        <div class="best">Best for: data-driven riders</div>
+      </div>
+    </div>
+
+    <div class="opt">
+      <div class="framewrap"><iframe src="app/screen-05-training-summary-C-pairs.html" scrolling="no"></iframe></div>
+      <div class="meta">
+        <div class="tag"><div class="letter">C</div><h2><a href="app/screen-05-training-summary-C-pairs.html" target="_blank" rel="noopener">Frozen Pairs ↗</a></h2></div>
+        <p>The live training screen, frozen at the finish line — same featured Power + Heart-Rate pair (now Avg w/ Peak), same trend bars and connection footer. Zero re-learning after a ride.</p>
+        <div class="best">Best for: visual continuity with the ride</div>
+      </div>
+    </div>
+
+    <div class="opt">
+      <div class="framewrap"><iframe src="app/screen-05-training-summary-D-scorecard.html" scrolling="no"></iframe></div>
+      <div class="meta">
+        <div class="tag"><div class="letter">D</div><h2><a href="app/screen-05-training-summary-D-scorecard.html" target="_blank" rel="noopener">Scorecard ↗</a></h2></div>
+        <p>An editorial "ride receipt": a typographic masthead, a 3-up headline band, a time-in-effort distribution bar, and a clean Avg/Max ledger. The most distinctive, magazine-like layout.</p>
+        <div class="best">Best for: a calm, premium read-back</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Omni Bike · Training Summary — D · Scorecard</title>
+<link rel="stylesheet" href="calm-noir.css" />
+<style>
+  /* ---- D · Scorecard: an editorial "ride receipt" ---- */
+  .content { overflow-y:auto; scrollbar-width:none; }
+  .content::-webkit-scrollbar { display:none; }
+  .content hr.divider { margin:13px 0; }
+  .masthead { padding:6px 6px 12px; border-bottom:1px solid var(--hairline); }
+  .masthead .kick { font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--mint-soft); }
+  .masthead .title { margin-top:7px; font-size:31px; font-weight:800; letter-spacing:-.035em; line-height:.98; color:var(--ink); }
+  .masthead .title .light { color:var(--ink-2); font-weight:300; }
+  .masthead .when { margin-top:9px; font-size:13.5px; font-weight:500; color:var(--ink-3); }
+  .masthead .when b { color:var(--ink-2); font-weight:700; }
+
+  /* the three "headline" totals as an editorial band */
+  .band { display:grid; grid-template-columns:repeat(3,1fr); padding:15px 0 2px; }
+  .band .b { padding:0 2px; }
+  .band .b + .b { border-left:1px solid var(--hairline); padding-left:16px; }
+  .band .bk { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--ink-3); }
+  .band .bv { margin-top:7px; font-size:25px; font-weight:800; letter-spacing:-.035em; color:var(--ink);
+    font-variant-numeric:tabular-nums; line-height:1; }
+  .band .bv .u { font-size:12px; font-weight:700; color:var(--ink-3); margin-left:2px; letter-spacing:0; }
+
+  /* effort distribution bar (illustrative, from per-second samples) */
+  .effort { margin-top:12px; }
+  .effort .eh { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:9px; }
+  .effort .et { font-size:13px; font-weight:700; color:var(--ink); }
+  .effort .es { font-size:11.5px; font-weight:600; color:var(--ink-3); }
+  .ebar { display:flex; height:14px; border-radius:var(--r-pill); overflow:hidden; gap:2px; }
+  .ebar span { display:block; }
+  .ebar .easy { background:rgba(16,181,164,.55); }
+  .ebar .steady { background:var(--indigo); }
+  .ebar .hard { background:var(--amber); }
+  .ekey { margin-top:12px; display:flex; gap:18px; }
+  .ekey .k { display:flex; align-items:center; gap:7px; font-size:11.5px; font-weight:600; color:var(--ink-2); }
+  .ekey .sw { width:9px; height:9px; border-radius:3px; }
+  .ekey .sw.easy { background:rgba(16,181,164,.7); }
+  .ekey .sw.steady { background:var(--indigo-soft); }
+  .ekey .sw.hard { background:var(--amber); }
+  .ekey .pc { color:var(--ink-3); font-variant-numeric:tabular-nums; }
+
+  /* ledger of avg / max */
+  .score { margin-top:4px; }
+  .srow { display:grid; grid-template-columns:1fr auto auto; align-items:baseline; gap:18px; padding:7px 2px;
+    border-top:1px solid var(--hairline); }
+  .srow:first-child { border-top:0; }
+  .srow .sn { font-size:15px; font-weight:700; color:var(--ink); }
+  .srow .sn .dim { display:block; margin-top:2px; font-size:11px; font-weight:600; letter-spacing:.04em;
+    text-transform:uppercase; color:var(--ink-3); }
+  .srow .sa { font-size:22px; font-weight:800; letter-spacing:-.03em; color:var(--ink);
+    font-variant-numeric:tabular-nums; text-align:right; min-width:74px; }
+  .srow .sa .u { font-size:11px; font-weight:700; color:var(--ink-3); margin-left:2px; }
+  .srow .sm { font-size:13px; font-weight:600; color:var(--ink-3); font-variant-numeric:tabular-nums; text-align:right; min-width:62px; }
+  .srow.accent .sa { color:var(--indigo-soft); }
+  .srow.mint .sa { color:var(--mint-soft); }
+
+  .recorded { margin-top:11px; display:flex; align-items:center; gap:11px; padding:11px 16px;
+    background:var(--card); border:1px solid var(--hairline); border-radius:var(--r-lg); box-shadow:var(--shadow-soft); }
+  .recorded svg { flex:0 0 auto; }
+  .recorded .re { font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-3); }
+  .recorded .rt { margin-top:2px; font-size:13.5px; font-weight:700; color:var(--ink); letter-spacing:-.01em; }
+
+  .share-line { margin-top:12px; display:flex; gap:8px; }
+  .share-line .btn { flex:1; }
+  .brand-dot { width:9px; height:9px; border-radius:50%; flex:0 0 auto; }
+  .brand-dot.strava { background:#fc5200; box-shadow:0 0 0 3px rgba(252,82,0,.18); }
+  .brand-dot.health { background:var(--danger); box-shadow:0 0 0 3px rgba(239,75,92,.18); }
+</style>
+</head>
+<body>
+  <div class="device">
+    <div class="screen">
+
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="glyphs">
+          <svg width="18" height="12" viewBox="0 0 18 12" fill="none"><rect x="0" y="8" width="3" height="4" rx="1" fill="#eef1f6"/><rect x="5" y="5" width="3" height="7" rx="1" fill="#eef1f6"/><rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#eef1f6"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#eef1f6"/></svg>
+          <svg width="17" height="12" viewBox="0 0 17 12" fill="none"><path d="M8.5 2.2c2.7 0 5.2 1 7.1 2.8l-1.5 1.6A7.9 7.9 0 0 0 8.5 4.3 7.9 7.9 0 0 0 2.9 6.6L1.4 5C3.3 3.2 5.8 2.2 8.5 2.2Z" fill="#eef1f6"/><path d="M8.5 6.1c1.6 0 3.1.6 4.2 1.7l-1.6 1.6A3.7 3.7 0 0 0 8.5 8.3c-1 0-2 .4-2.7 1.1L4.3 7.8A6 6 0 0 1 8.5 6.1Z" fill="#eef1f6"/><circle cx="8.5" cy="11" r="1.3" fill="#eef1f6"/></svg>
+          <svg width="26" height="13" viewBox="0 0 26 13" fill="none"><rect x="0.5" y="0.5" width="22" height="12" rx="3.5" stroke="#eef1f6" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="9" rx="2" fill="#eef1f6"/><rect x="24" y="4" width="1.6" height="5" rx="0.8" fill="#eef1f6" fill-opacity="0.45"/></svg>
+        </span>
+      </div>
+
+      <div class="navbar">
+        <div class="nav-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="nav-title">Summary</div>
+        <div></div>
+      </div>
+
+      <div class="content pad-bottom">
+
+        <div class="masthead reveal d1">
+          <div class="kick">Ride Complete</div>
+          <div class="title">Indoor <span class="light">Ride</span></div>
+          <div class="when"><b>Sat, May 30</b> · 5:42 PM — 6:44 PM</div>
+        </div>
+
+        <div class="band reveal d2">
+          <div class="b"><div class="bk">Moving</div><div class="bv">1:02<span class="u">:18</span></div></div>
+          <div class="b"><div class="bk">Distance</div><div class="bv">28.4<span class="u">km</span></div></div>
+          <div class="b"><div class="bk">Energy</div><div class="bv">642<span class="u">kcal</span></div></div>
+        </div>
+
+        <div class="effort reveal d3">
+          <div class="eh"><span class="et">Time in effort</span><span class="es">by power</span></div>
+          <div class="ebar">
+            <span class="easy" style="width:38%"></span>
+            <span class="steady" style="width:46%"></span>
+            <span class="hard" style="width:16%"></span>
+          </div>
+          <div class="ekey">
+            <span class="k"><span class="sw easy"></span>Easy <span class="pc">24m</span></span>
+            <span class="k"><span class="sw steady"></span>Steady <span class="pc">29m</span></span>
+            <span class="k"><span class="sw hard"></span>Hard <span class="pc">10m</span></span>
+          </div>
+        </div>
+
+        <hr class="divider" />
+
+        <div class="score reveal d4">
+          <div class="srow accent">
+            <div class="sn">Power<span class="dim">watts</span></div>
+            <div class="sa">214<span class="u">W</span></div>
+            <div class="sm">↑ 412</div>
+          </div>
+          <div class="srow mint">
+            <div class="sn">Heart Rate<span class="dim">Polar H10</span></div>
+            <div class="sa">148<span class="u">bpm</span></div>
+            <div class="sm">↑ 176</div>
+          </div>
+          <div class="srow">
+            <div class="sn">Speed<span class="dim">km / h</span></div>
+            <div class="sa">27.4</div>
+            <div class="sm">↑ 41.2</div>
+          </div>
+          <div class="srow">
+            <div class="sn">Cadence<span class="dim">rpm</span></div>
+            <div class="sa">89</div>
+            <div class="sm">↑ 104</div>
+          </div>
+        </div>
+
+        <div class="recorded reveal d5">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="6.5" cy="17.5" r="3.3" stroke="#5663ff" stroke-width="1.8"/><circle cx="17.5" cy="17.5" r="3.3" stroke="#5663ff" stroke-width="1.8"/><path d="M6.5 17.5l4-7h4l3 7M10.5 10.5h4.5l1.5 3" stroke="#5663ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div><div class="re">Recorded on</div><div class="rt">Wahoo KICKR Bike · Polar H10</div></div>
+        </div>
+
+        <div class="share-line reveal d6">
+          <button class="btn btn-secondary"><span class="brand-dot strava"></span>Strava</button>
+          <button class="btn btn-secondary"><span class="brand-dot health"></span>Apple Health</button>
+        </div>
+
+      </div>
+
+      <div class="action-bar reveal d7">
+        <div class="btn-row">
+          <button class="btn btn-danger">Discard</button>
+          <button class="btn btn-primary">Save Ride</button>
+        </div>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+  <div class="caption"><b>05 · Training Summary — D · Scorecard</b> · dark</div>
+</body>
+</html>

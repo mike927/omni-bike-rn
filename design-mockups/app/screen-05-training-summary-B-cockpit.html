@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Omni Bike · Training Summary — B · Cockpit</title>
+<link rel="stylesheet" href="calm-noir.css" />
+<style>
+  /* ---- B · Cockpit: data-first, chart + avg/max ledger ---- */
+  .content { overflow-y:auto; scrollbar-width:none; }
+  .content::-webkit-scrollbar { display:none; }
+  .content .section-label { margin:11px 4px 8px; }
+  .ride-eyebrow { display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:700;
+    letter-spacing:.06em; text-transform:uppercase; color:var(--mint-soft); }
+  .ride-eyebrow .dot { width:7px; height:7px; border-radius:50%; background:var(--mint); }
+
+  .totrow { display:grid; grid-template-columns:repeat(3,1fr); }
+  .totrow .t { padding:2px 4px; }
+  .totrow .t + .t { border-left:1px solid var(--hairline); padding-left:16px; }
+  .totrow .tk { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-3); }
+  .totrow .tv { margin-top:6px; font-size:25px; font-weight:800; letter-spacing:-.03em; color:var(--ink);
+    font-variant-numeric:tabular-nums; line-height:1; }
+  .totrow .tv .u { font-size:12px; font-weight:700; color:var(--ink-3); margin-left:2px; letter-spacing:0; }
+
+  .chart-card { padding:14px 16px 10px; }
+  .chart-head { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:9px; }
+  .chart-head .ct { font-size:13px; font-weight:700; color:var(--ink); }
+  .chart-head .cl { display:flex; gap:14px; font-size:11.5px; font-weight:600; color:var(--ink-3); font-variant-numeric:tabular-nums; }
+  .chart-head .cl b { color:var(--indigo-soft); font-weight:700; }
+  .chart-head .cl .mx b { color:var(--mint-soft); }
+  .chart-card svg { width:100%; height:66px; display:block; }
+  .axis { display:flex; justify-content:space-between; margin-top:6px; font-size:10.5px; color:var(--ink-3); font-variant-numeric:tabular-nums; }
+
+  /* avg / max ledger */
+  .ledger { padding:4px 16px; }
+  .ledger .lh { display:grid; grid-template-columns:1fr 70px 70px; padding:7px 0 6px;
+    font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-3); }
+  .ledger .lh .num { text-align:right; }
+  .lrow { display:grid; grid-template-columns:1fr 70px 70px; align-items:center; padding:8px 0;
+    border-top:1px solid var(--hairline); }
+  .lrow .lname { display:flex; align-items:center; gap:10px; font-size:14px; font-weight:700; color:var(--ink); }
+  .lrow .lic { width:26px; height:26px; border-radius:8px; background:var(--card-3); display:grid; place-items:center; }
+  .lrow .lic svg { display:block; }
+  .lrow .avg, .lrow .max { text-align:right; font-variant-numeric:tabular-nums; }
+  .lrow .avg { font-size:17px; font-weight:800; letter-spacing:-.02em; color:var(--ink); }
+  .lrow .avg .u, .lrow .max .u { font-size:10.5px; font-weight:600; color:var(--ink-3); margin-left:2px; }
+  .lrow .max { font-size:15px; font-weight:700; color:var(--ink-2); }
+  .lrow.power .lic svg { fill:var(--indigo-soft); }
+  .lrow.hr .lic svg { fill:var(--mint-soft); }
+
+  .gearfoot { padding:2px 16px; }
+  .gr { display:flex; align-items:center; gap:12px; padding:13px 0; }
+  .gr .ge { font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-3); }
+  .gr .gn { margin-top:3px; font-size:14.5px; font-weight:700; letter-spacing:-.01em; color:var(--ink); }
+  .grdiv { height:1px; background:var(--hairline); }
+
+  .seg-share { display:flex; gap:8px; }
+  .seg-share .btn { flex:1; }
+  .brand-dot { width:9px; height:9px; border-radius:50%; flex:0 0 auto; }
+  .brand-dot.strava { background:#fc5200; box-shadow:0 0 0 3px rgba(252,82,0,.18); }
+  .brand-dot.health { background:var(--danger); box-shadow:0 0 0 3px rgba(239,75,92,.18); }
+</style>
+</head>
+<body>
+  <div class="device">
+    <div class="screen">
+
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="glyphs">
+          <svg width="18" height="12" viewBox="0 0 18 12" fill="none"><rect x="0" y="8" width="3" height="4" rx="1" fill="#eef1f6"/><rect x="5" y="5" width="3" height="7" rx="1" fill="#eef1f6"/><rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#eef1f6"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#eef1f6"/></svg>
+          <svg width="17" height="12" viewBox="0 0 17 12" fill="none"><path d="M8.5 2.2c2.7 0 5.2 1 7.1 2.8l-1.5 1.6A7.9 7.9 0 0 0 8.5 4.3 7.9 7.9 0 0 0 2.9 6.6L1.4 5C3.3 3.2 5.8 2.2 8.5 2.2Z" fill="#eef1f6"/><path d="M8.5 6.1c1.6 0 3.1.6 4.2 1.7l-1.6 1.6A3.7 3.7 0 0 0 8.5 8.3c-1 0-2 .4-2.7 1.1L4.3 7.8A6 6 0 0 1 8.5 6.1Z" fill="#eef1f6"/><circle cx="8.5" cy="11" r="1.3" fill="#eef1f6"/></svg>
+          <svg width="26" height="13" viewBox="0 0 26 13" fill="none"><rect x="0.5" y="0.5" width="22" height="12" rx="3.5" stroke="#eef1f6" stroke-opacity="0.4"/><rect x="2" y="2" width="17" height="9" rx="2" fill="#eef1f6"/><rect x="24" y="4" width="1.6" height="5" rx="0.8" fill="#eef1f6" fill-opacity="0.45"/></svg>
+        </span>
+      </div>
+
+      <div class="navbar">
+        <div class="nav-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="nav-title">Summary</div>
+        <div></div>
+      </div>
+
+      <div class="content">
+
+        <div class="screen-head reveal d1" style="padding-bottom:12px">
+          <div class="ride-eyebrow"><span class="dot"></span>Ride Complete · Sat, May 30 · 5:42 PM</div>
+        </div>
+
+        <div class="card reveal d1" style="padding:13px 16px">
+          <div class="totrow">
+            <div class="t"><div class="tk">Duration</div><div class="tv">1:02<span class="u">:18</span></div></div>
+            <div class="t"><div class="tk">Distance</div><div class="tv">28.4<span class="u">km</span></div></div>
+            <div class="t"><div class="tk">Calories</div><div class="tv">642<span class="u">kcal</span></div></div>
+          </div>
+        </div>
+
+        <div class="section-label"><h2>Power Output</h2></div>
+        <div class="card chart-card reveal d2">
+          <div class="chart-head">
+            <span class="ct">Watts over time</span>
+            <span class="cl"><span class="av">avg <b>214</b></span><span class="mx">peak <b>412</b></span></span>
+          </div>
+          <svg viewBox="0 0 320 96" preserveAspectRatio="none" fill="none">
+            <defs>
+              <linearGradient id="pfill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#5663ff" stop-opacity=".34"/>
+                <stop offset="1" stop-color="#5663ff" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <line x1="0" y1="24" x2="320" y2="24" stroke="#232a35" stroke-width="1"/>
+            <line x1="0" y1="52" x2="320" y2="52" stroke="#232a35" stroke-width="1"/>
+            <line x1="0" y1="80" x2="320" y2="80" stroke="#232a35" stroke-width="1"/>
+            <path d="M0,70 L13,60 L26,64 L39,52 L52,57 L65,44 L78,48 L91,36 L104,42 L117,28 L130,34 L143,24 L156,30 L169,40 L182,34 L195,22 L208,30 L221,18 L234,26 L247,14 L260,24 L273,33 L286,28 L299,38 L312,44 L320,40 L320,96 L0,96 Z" fill="url(#pfill)"/>
+            <path d="M0,70 L13,60 L26,64 L39,52 L52,57 L65,44 L78,48 L91,36 L104,42 L117,28 L130,34 L143,24 L156,30 L169,40 L182,34 L195,22 L208,30 L221,18 L234,26 L247,14 L260,24 L273,33 L286,28 L299,38 L312,44 L320,40" stroke="#5663ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <line x1="0" y1="46" x2="320" y2="46" stroke="#4fd8c8" stroke-width="1.2" stroke-dasharray="4 4" stroke-opacity=".55"/>
+          </svg>
+          <div class="axis"><span>0:00</span><span>31:00</span><span>1:02:18</span></div>
+        </div>
+
+        <div class="section-label"><h2>Averages &amp; Peaks</h2></div>
+        <div class="card ledger reveal d3" style="padding-top:0; padding-bottom:6px">
+          <div class="lh"><span>Metric</span><span class="num">Avg</span><span class="num">Max</span></div>
+          <div class="lrow power">
+            <div class="lname"><span class="lic"><svg width="13" height="13" viewBox="0 0 512 512"><path d="M194.82 496a18.36 18.36 0 01-18.1-21.53v-.11L204.83 320H96a16 16 0 01-12.44-26.06L302.73 23a18.45 18.45 0 0132.8 13.71c0 .3-.08.59-.13.89L307.19 192H416a16 16 0 0112.44 26.06L209.24 489a18.45 18.45 0 01-14.42 7z"/></svg></span>Power</div>
+            <div class="avg">214<span class="u">W</span></div><div class="max">412<span class="u">W</span></div>
+          </div>
+          <div class="lrow hr">
+            <div class="lname"><span class="lic"><svg width="13" height="13" viewBox="0 0 512 512"><path d="M256 448a32 32 0 01-18-5.57c-78.59-53.35-112.62-89.93-131.39-112.8-40-48.75-59.15-98.8-58.61-153C48.63 114.52 98.46 64 159.08 64c44.08 0 74.61 24.83 92.39 45.51a6 6 0 009.06 0C278.31 88.81 308.84 64 352.92 64c60.62 0 110.45 50.52 111.08 112.64.54 54.21-18.63 104.26-58.61 153-18.77 22.87-52.8 59.45-131.39 112.8a32 32 0 01-18 5.56z"/></svg></span>Heart Rate</div>
+            <div class="avg">148<span class="u">bpm</span></div><div class="max">176<span class="u">bpm</span></div>
+          </div>
+          <div class="lrow">
+            <div class="lname"><span class="lic"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 3a9 9 0 100 18 9 9 0 000-18zm0 0v4l3 2" stroke="#9aa3b2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Speed</div>
+            <div class="avg">27.4<span class="u">km/h</span></div><div class="max">41.2<span class="u">km/h</span></div>
+          </div>
+          <div class="lrow">
+            <div class="lname"><span class="lic"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3.4" stroke="#9aa3b2" stroke-width="2"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2" stroke="#9aa3b2" stroke-width="2" stroke-linecap="round"/></svg></span>Cadence</div>
+            <div class="avg">89<span class="u">rpm</span></div><div class="max">104<span class="u">rpm</span></div>
+          </div>
+        </div>
+
+        <div class="section-label"><h2>Export</h2></div>
+        <div class="seg-share reveal d4">
+          <button class="btn btn-secondary"><span class="brand-dot strava"></span>Strava</button>
+          <button class="btn btn-secondary"><span class="brand-dot health"></span>Apple Health</button>
+        </div>
+        <p class="card-desc reveal d5" style="margin:10px 4px 4px; font-size:12.5px;">Recorded on Wahoo KICKR Bike · Polar H10</p>
+
+      </div>
+
+      <div class="action-bar reveal d6">
+        <div class="btn-row">
+          <button class="btn btn-danger">Discard</button>
+          <button class="btn btn-primary">Save</button>
+        </div>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+  <div class="caption"><b>05 · Training Summary — B · Cockpit</b> · dark</div>
+</body>
+</html>
