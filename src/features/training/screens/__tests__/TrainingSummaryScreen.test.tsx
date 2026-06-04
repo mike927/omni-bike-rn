@@ -336,4 +336,52 @@ describe('TrainingSummaryScreen', () => {
     expect(getByText('Retry Strava')).toBeTruthy();
     expect(getByText('Strava upload failed: Rate limited')).toBeTruthy();
   });
+
+  it('shows a retry state when the latest Apple Health upload failed', () => {
+    mockGetProviderUpload.mockImplementation((_sessionId: string, providerId: string) =>
+      providerId === 'apple_health'
+        ? {
+            id: 'upload-2',
+            sessionId: 'session-1',
+            providerId: 'apple_health',
+            uploadState: 'failed',
+            externalId: null,
+            errorMessage: 'HealthKit denied',
+            createdAtMs: 100,
+            updatedAtMs: 200,
+          }
+        : null,
+    );
+
+    const { getByText } = render(
+      <TrainingSummaryScreen
+        sessionId="session-1"
+        source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE}
+        returnTo="/history"
+      />,
+    );
+
+    expect(getByText('Retry Apple Health')).toBeTruthy();
+    expect(getByText('Apple Health upload failed: HealthKit denied')).toBeTruthy();
+  });
+
+  it('hides the header back control right after finishing a ride', () => {
+    const { queryByLabelText } = render(
+      <TrainingSummaryScreen sessionId="session-1" source={POST_FINISH_TRAINING_SUMMARY_SOURCE} returnTo="/" />,
+    );
+
+    expect(queryByLabelText('Go back')).toBeNull();
+  });
+
+  it('shows the header back control when viewing an already-saved workout', () => {
+    const { getByLabelText } = render(
+      <TrainingSummaryScreen
+        sessionId="session-1"
+        source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE}
+        returnTo="/history"
+      />,
+    );
+
+    expect(getByLabelText('Go back')).toBeTruthy();
+  });
 });

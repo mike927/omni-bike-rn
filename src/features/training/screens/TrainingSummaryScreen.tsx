@@ -4,7 +4,11 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { POST_FINISH_TRAINING_SUMMARY_SOURCE, type TrainingSummarySource } from '../navigation/trainingSummaryRoute';
+import {
+  POST_FINISH_TRAINING_SUMMARY_SOURCE,
+  shouldShowSummaryHeaderBack,
+  type TrainingSummarySource,
+} from '../navigation/trainingSummaryRoute';
 import { deleteSession, getSamplesBySessionId, getSessionById } from '../../../services/db/trainingSessionRepository';
 import { getProviderUpload } from '../../../services/db/providerUploadRepository';
 import { APPLE_HEALTH_PROVIDER_ID, STRAVA_PROVIDER_ID } from '../../../services/export/providerIds';
@@ -178,16 +182,23 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: Readonly<
     }
   };
 
+  // Hidden right after finishing a ride (force an explicit Save / Discard); shown when
+  // viewing an already-saved workout so the chevron returns to where it was opened from.
+  const showBack = shouldShowSummaryHeaderBack(source);
   const header = (
     <View style={styles.header}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Go back"
-        hitSlop={10}
-        onPress={() => router.replace(exitRoute)}
-        style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}>
-        <Ionicons name="chevron-back" size={22} color={noir.ink2} />
-      </Pressable>
+      {showBack ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          hitSlop={10}
+          onPress={() => router.replace(exitRoute)}
+          style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}>
+          <Ionicons name="chevron-back" size={22} color={noir.ink2} />
+        </Pressable>
+      ) : (
+        <View style={styles.headerSpacer} />
+      )}
       <Text style={styles.headerTitle}>Summary</Text>
       <View style={styles.headerSpacer} />
     </View>
