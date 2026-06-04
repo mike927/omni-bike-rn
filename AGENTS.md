@@ -14,7 +14,7 @@ superpowers is the workflow core — don't invent parallel flows.
 
 - External skills are declared in `skills-lock.json`.
 - Custom repo-owned skills live in `ai/skills/**`.
-- Agent discovery directories (`.agents/skills/**`, `.claude/skills/**`, `.codex/skills/**`, `.cursor/skills/**`, `.gemini/skills/**`, `.windsurf/skills/**`) are generated; don't edit or commit skill files there.
+- Agent discovery directories under tool-owned skill folders are generated; don't edit or commit skill files there.
 - Run `npm run skills:install` after changing `skills-lock.json` or adding/removing a custom skill.
 - Editing an existing `ai/skills/**` file does not require reinstall; restart or reload the agent session if it does not pick up the change.
 
@@ -78,6 +78,6 @@ Explicitly rejected to keep the harness minimal:
 
 - **Pre-push `ci:gate` hook** — pre-commit already covers lint + typecheck.
 - **PR template / CI drift check** — wait until the team grows beyond solo.
-- **Filled `CODEX.md` / `GEMINI.md`** — placeholders only; populate when those tools are actually used.
+- **Filled tool-specific overlay files** — placeholders only; populate when those tools are actually used.
 
 Custom project skills and slash commands are welcome if a real gap appears that no marketplace plugin fills — the harness supports them.
