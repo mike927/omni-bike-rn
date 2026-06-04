@@ -252,6 +252,29 @@ control bar** (outside the scroll) hosting the phase-driven actions.
 - The phase → label/controls/callout mapping is a pure, unit-tested view-model
   (`deriveTrainingView`, mirroring `homeViewModel`).
 
+## Training summary
+
+The ride-finished screen (`src/features/training/screens/TrainingSummaryScreen.tsx`, mockup
+`design-mockups/app/screen-05-training-summary-A-finisher.html`) is Calm Noir,
+**Direction A — "Finisher"**. Pushed screen: `headerShown: false`, its own `SafeAreaView` over
+`noir.bg`, in-screen back chevron + `Summary` title, and a **pinned bottom bar** hosting
+`Discard` (danger) + `Save`/`Done` (primary). It surfaces per-second sample data the DB already
+stores rather than only the final instantaneous reading.
+
+- **Ride-complete hero** (`RideCompleteHero`) — a `noirGradient.cta` card with a ✓ badge,
+  `RIDE COMPLETE` eyebrow, the big **distance** headline, and a pill sub-row (date · moving time ·
+  calories).
+- **Effort tiles** (`EffortStatTile`, 2×2) — **averages** for Power · HR · Speed · Cadence, each
+  with a mint `Max …` **peak** sub-line. Power tile = indigo lightning, HR tile = mint heart.
+- **Power trend** — the whole ride's power, downsampled to ≤12 averaged buckets, drawn with the
+  same `PowerTrend` bars as the live screen (shown only when samples exist).
+- **Share row** — compact combined `Strava` + `Apple Health` `ActionButton`s (`scheme="noir"`),
+  preserving the upload state machine (ready → uploading → `✓` / `Retry`), plus a `Recorded on …`
+  gear caption from the session's bike/HR snapshots.
+- Averages/peaks/trend/gear are a pure, unit-tested view-model (`deriveSummaryView`). The
+  final-snapshot fallback applies **only when no samples were persisted**; with samples present the
+  screen trusts them (so a ride with no HR source reads `--`, not a stale final reading).
+
 ## Illustration Style
 
 Flat illustration with soft gradients in the brand palette. No photorealism. No text inside illustrations. Square aspect for hero illustrations. Consistent line weight and color treatment across all screens — illustrations in the same flow MUST share style.
@@ -266,5 +289,5 @@ screen needs a light-header override anymore, so the former `LIGHT_SCREEN_OPTION
 `app/(tabs)/_layout.tsx` has been removed. Training is a pushed screen with `headerShown: false`
 (its `contentStyle` background is `noir.bg`) and its own in-screen back header.
 
-Still on the old light `palette`: **Training Summary**, **User Profile**, **Provider Gear Link**,
-and the root `_layout` error/loading fallbacks.
+Still on the old light `palette`: **User Profile**, **Provider Gear Link**, and the root `_layout`
+error/loading fallbacks.

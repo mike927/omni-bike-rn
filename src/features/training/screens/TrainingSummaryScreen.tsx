@@ -1,21 +1,31 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { POST_FINISH_TRAINING_SUMMARY_SOURCE, type TrainingSummarySource } from '../navigation/trainingSummaryRoute';
-import { deleteSession, getSessionById } from '../../../services/db/trainingSessionRepository';
+import {
+  POST_FINISH_TRAINING_SUMMARY_SOURCE,
+  shouldShowSummaryHeaderBack,
+  type TrainingSummarySource,
+} from '../navigation/trainingSummaryRoute';
+import { deleteSession, getSamplesBySessionId, getSessionById } from '../../../services/db/trainingSessionRepository';
 import { getProviderUpload } from '../../../services/db/providerUploadRepository';
 import { APPLE_HEALTH_PROVIDER_ID, STRAVA_PROVIDER_ID } from '../../../services/export/providerIds';
 import { uploadSessionToProvider } from '../../../services/export/uploadOrchestrator';
 import { useAppleHealthConnectionStore } from '../../../store/appleHealthConnectionStore';
 import { useStravaConnectionStore } from '../../../store/stravaConnectionStore';
-import type { PersistedProviderUpload, PersistedTrainingSession } from '../../../types/sessionPersistence';
+import type {
+  PersistedProviderUpload,
+  PersistedTrainingSample,
+  PersistedTrainingSession,
+} from '../../../types/sessionPersistence';
 import { ActionButton } from '../../../ui/components/ActionButton';
-import { MetricTile } from '../../../ui/components/MetricTile';
-import { SectionCard } from '../../../ui/components/SectionCard';
-import { formatDistanceKm, formatDuration, formatMetricValue } from '../../../ui/formatters';
-import { AppScreen } from '../../../ui/layout/AppScreen';
-import { palette } from '../../../ui/theme';
+import { noir } from '../../../ui/theme';
+import { EffortStatTile } from '../components/EffortStatTile';
+import { PowerTrend } from '../components/PowerTrend';
+import { RideCompleteHero } from '../components/RideCompleteHero';
+import { deriveSummaryView } from './summaryViewModel';
 
 const HOME_ROUTE = '/';
 const SETTINGS_ROUTE = '/(tabs)/settings';
@@ -28,47 +38,15 @@ interface TrainingSummaryScreenProps {
   returnTo: string | null;
 }
 
-function getUploadButtonLabel(
-  upload: PersistedProviderUpload | null,
-  isUploading: boolean,
-  providerLabel: string,
-): string {
-  if (isUploading || upload?.uploadState === 'uploading') {
-    return 'Uploading...';
-  }
-
-  if (upload?.uploadState === 'failed') {
-    return `Retry ${providerLabel}`;
-  }
-
-  if (upload?.uploadState === 'uploaded') {
-    return `${providerLabel} Uploaded`;
-  }
-
-  return `Upload to ${providerLabel}`;
+function uploadButtonLabel(providerName: string, upload: PersistedProviderUpload | null, isUploading: boolean): string {
+  if (isUploading || upload?.uploadState === 'uploading') return 'Uploading…';
+  if (upload?.uploadState === 'failed') return `Retry ${providerName}`;
+  if (upload?.uploadState === 'uploaded') return `${providerName} ✓`;
+  return providerName;
 }
 
-function getUploadStatusMessage(upload: PersistedProviderUpload | null, providerLabel: string): string {
-  if (!upload || upload.uploadState === 'ready') {
-    return `Manually upload this workout to ${providerLabel} when you're ready.`;
-  }
-
-  if (upload.uploadState === 'uploading') {
-    return `${providerLabel} upload is currently in progress.`;
-  }
-
-  if (upload.uploadState === 'uploaded') {
-    if (upload.errorMessage) {
-      return upload.externalId
-        ? `Uploaded to ${providerLabel}. Reference: ${upload.externalId}. ${upload.errorMessage}`
-        : `Uploaded to ${providerLabel}. ${upload.errorMessage}`;
-    }
-
-    return upload.externalId
-      ? `Uploaded to ${providerLabel}. Reference: ${upload.externalId}`
-      : `Uploaded to ${providerLabel}.`;
-  }
-
+function failedMessage(upload: PersistedProviderUpload | null, providerLabel: string): string | null {
+  if (upload?.uploadState !== 'failed') return null;
   return upload.errorMessage
     ? `${providerLabel} upload failed: ${upload.errorMessage}`
     : `${providerLabel} upload failed.`;
@@ -76,7 +54,9 @@ function getUploadStatusMessage(upload: PersistedProviderUpload | null, provider
 
 export function TrainingSummaryScreen({ sessionId, source, returnTo }: Readonly<TrainingSummaryScreenProps>) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [session, setSession] = useState<PersistedTrainingSession | null>(null);
+  const [samples, setSamples] = useState<readonly PersistedTrainingSample[]>([]);
   const [providerUpload, setProviderUpload] = useState<PersistedProviderUpload | null>(null);
   const [appleHealthUpload, setAppleHealthUpload] = useState<PersistedProviderUpload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -94,6 +74,7 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: Readonly<
 
     const loaded = getSessionById(sessionId);
     setSession(loaded);
+    setSamples(loaded ? getSamplesBySessionId(sessionId) : []);
     setProviderUpload(getProviderUpload(sessionId, STRAVA_PROVIDER_ID));
     setAppleHealthUpload(getProviderUpload(sessionId, APPLE_HEALTH_PROVIDER_ID));
     setIsLoading(false);
@@ -134,8 +115,7 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: Readonly<
 
     try {
       const result = await uploadSessionToProvider(sessionId, STRAVA_PROVIDER_ID);
-      const latestUpload = getProviderUpload(sessionId, STRAVA_PROVIDER_ID);
-      setProviderUpload(latestUpload);
+      setProviderUpload(getProviderUpload(sessionId, STRAVA_PROVIDER_ID));
 
       if (!result.success) {
         Alert.alert(
@@ -175,8 +155,7 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: Readonly<
 
     try {
       const result = await uploadSessionToProvider(sessionId, APPLE_HEALTH_PROVIDER_ID);
-      const latestUpload = getProviderUpload(sessionId, APPLE_HEALTH_PROVIDER_ID);
-      setAppleHealthUpload(latestUpload);
+      setAppleHealthUpload(getProviderUpload(sessionId, APPLE_HEALTH_PROVIDER_ID));
 
       if (!result.success) {
         Alert.alert(
@@ -203,125 +182,204 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: Readonly<
     }
   };
 
+  // Hidden right after finishing a ride (force an explicit Save / Discard); shown when
+  // viewing an already-saved workout so the chevron returns to where it was opened from.
+  const showBack = shouldShowSummaryHeaderBack(source);
+  const header = (
+    <View style={styles.header}>
+      {showBack ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          hitSlop={10}
+          onPress={() => router.replace(exitRoute)}
+          style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}>
+          <Ionicons name="chevron-back" size={22} color={noir.ink2} />
+        </Pressable>
+      ) : (
+        <View style={styles.headerSpacer} />
+      )}
+      <Text style={styles.headerTitle}>Summary</Text>
+      <View style={styles.headerSpacer} />
+    </View>
+  );
+
   if (isLoading) {
     return (
-      <AppScreen title="Summary" subtitle="Loading workout data...">
-        <SectionCard title="Loading...">
-          <Text style={styles.bodyText}>Retrieving your workout from the database.</Text>
-        </SectionCard>
-      </AppScreen>
+      <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+        {header}
+        <View style={styles.placeholderWrap}>
+          <View style={styles.placeholderCard}>
+            <Text style={styles.bodyText}>Retrieving your workout…</Text>
+          </View>
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (!session) {
     return (
-      <AppScreen title="Summary" subtitle="No workout found for this session.">
-        <SectionCard title="Workout Not Found">
-          <Text style={styles.bodyText}>
-            The requested workout could not be found. It may have been discarded or the session was not saved.
-          </Text>
-          <ActionButton label="Back Home" onPress={() => router.replace(HOME_ROUTE)} />
-        </SectionCard>
-      </AppScreen>
+      <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+        {header}
+        <View style={styles.placeholderWrap}>
+          <View style={styles.placeholderCard}>
+            <Text style={styles.notFoundTitle}>Workout Not Found</Text>
+            <Text style={styles.bodyText}>
+              The requested workout could not be found. It may have been discarded or the session was not saved.
+            </Text>
+            <ActionButton label="Back Home" scheme="noir" fullWidth onPress={() => router.replace(HOME_ROUTE)} />
+          </View>
+        </View>
+      </SafeAreaView>
     );
   }
 
+  const vm = deriveSummaryView({ session, samples });
+  const stravaFailed = failedMessage(providerUpload, STRAVA_PROVIDER_LABEL);
+  const appleFailed = failedMessage(appleHealthUpload, APPLE_HEALTH_PROVIDER_LABEL);
+
   return (
-    <AppScreen title="Summary" subtitle="Review your workout results.">
-      <View style={styles.screenContent}>
-        <SectionCard title="Workout Totals">
-          <View style={styles.metricGrid}>
-            <MetricTile label="Elapsed" value={formatDuration(session.elapsedSeconds)} style={styles.metricTile} />
-            <MetricTile
-              label="Distance"
-              value={formatDistanceKm(session.totalDistanceMeters)}
-              style={styles.metricTile}
-            />
-            <MetricTile
-              label="Calories"
-              value={`${session.totalCaloriesKcal.toFixed(1)} kcal`}
-              style={styles.metricTile}
-            />
-          </View>
-        </SectionCard>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+      {header}
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <RideCompleteHero hero={vm.hero} />
 
-        <SectionCard title="Final Metrics">
-          <View style={styles.metricGrid}>
-            <MetricTile
-              label="Speed"
-              value={`${session.currentMetrics.speed.toFixed(1)} km/h`}
-              style={styles.metricTile}
-            />
-            <MetricTile label="Cadence" value={`${session.currentMetrics.cadence} rpm`} style={styles.metricTile} />
-            <MetricTile label="Power" value={`${session.currentMetrics.power} W`} style={styles.metricTile} />
-            <MetricTile
-              label="Heart Rate"
-              value={formatMetricValue(session.currentMetrics.heartRate, ' bpm')}
-              style={styles.metricTile}
-            />
-          </View>
-        </SectionCard>
+        <Text style={styles.sectionLabel}>Your Effort</Text>
+        <View style={styles.statGrid}>
+          {vm.effort.map((stat) => (
+            <View key={stat.key} style={styles.statCell}>
+              <EffortStatTile
+                label={stat.label}
+                value={stat.value}
+                unit={stat.unit}
+                peakLabel={stat.peakLabel}
+                accent={stat.accent}
+              />
+            </View>
+          ))}
+        </View>
 
-        <SectionCard title={`${STRAVA_PROVIDER_LABEL} Upload`}>
-          <Text style={styles.bodyText}>{getUploadStatusMessage(providerUpload, STRAVA_PROVIDER_LABEL)}</Text>
-          <View style={styles.uploadActionRow}>
+        {vm.powerTrend.length > 0 ? (
+          <>
+            <Text style={styles.sectionLabel}>Power Through The Ride</Text>
+            <View style={styles.trendCard}>
+              <Text style={styles.trendTitle}>Power</Text>
+              <PowerTrend samples={vm.powerTrend} />
+            </View>
+          </>
+        ) : null}
+
+        <Text style={styles.sectionLabel}>Share This Ride</Text>
+        <View style={styles.shareRow}>
+          <View style={styles.shareBtn}>
             <ActionButton
-              label={getUploadButtonLabel(providerUpload, isUploading, STRAVA_PROVIDER_LABEL)}
+              scheme="noir"
+              variant="secondary"
+              fullWidth
+              label={uploadButtonLabel(STRAVA_PROVIDER_LABEL, providerUpload, isUploading)}
+              disabled={isUploading || providerUpload?.uploadState === 'uploaded'}
               onPress={() => {
                 void handleUploadToStrava();
               }}
-              variant="secondary"
-              disabled={isUploading || providerUpload?.uploadState === 'uploaded'}
             />
           </View>
-        </SectionCard>
-
-        <SectionCard title={`${APPLE_HEALTH_PROVIDER_LABEL} Export`}>
-          <Text style={styles.bodyText}>{getUploadStatusMessage(appleHealthUpload, APPLE_HEALTH_PROVIDER_LABEL)}</Text>
-          <View style={styles.uploadActionRow}>
+          <View style={styles.shareBtn}>
             <ActionButton
-              label={getUploadButtonLabel(appleHealthUpload, isUploadingAppleHealth, APPLE_HEALTH_PROVIDER_LABEL)}
+              scheme="noir"
+              variant="secondary"
+              fullWidth
+              label={uploadButtonLabel(APPLE_HEALTH_PROVIDER_LABEL, appleHealthUpload, isUploadingAppleHealth)}
+              disabled={isUploadingAppleHealth || appleHealthUpload?.uploadState === 'uploaded'}
               onPress={() => {
                 void handleUploadToAppleHealth();
               }}
-              variant="secondary"
-              disabled={isUploadingAppleHealth || appleHealthUpload?.uploadState === 'uploaded'}
             />
           </View>
-        </SectionCard>
+        </View>
+        {stravaFailed ? <Text style={styles.failedCaption}>{stravaFailed}</Text> : null}
+        {appleFailed ? <Text style={styles.failedCaption}>{appleFailed}</Text> : null}
+        {vm.gearLabel ? <Text style={styles.gearCaption}>Recorded on {vm.gearLabel}</Text> : null}
+      </ScrollView>
 
+      <View style={[styles.actionBar, { paddingBottom: insets.bottom + 14 }]}>
         <View style={styles.actionRow}>
-          <ActionButton label="Discard" onPress={handleDiscard} variant="danger" />
-          <ActionButton label={primaryActionLabel} onPress={handlePrimaryAction} />
+          <View style={styles.actionBtn}>
+            <ActionButton scheme="noir" variant="danger" fullWidth label="Discard" onPress={handleDiscard} />
+          </View>
+          <View style={styles.actionBtn}>
+            <ActionButton
+              scheme="noir"
+              variant="primary"
+              fullWidth
+              label={primaryActionLabel}
+              onPress={handlePrimaryAction}
+            />
+          </View>
         </View>
       </View>
-    </AppScreen>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screenContent: {
-    gap: 16,
-  },
-  bodyText: {
-    color: palette.textMuted,
-    fontSize: 14,
-    lineHeight: 22,
-  },
-  metricGrid: {
+  safeArea: { flex: 1, backgroundColor: noir.bg },
+  header: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 8,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: noir.card,
+    borderWidth: 1,
+    borderColor: noir.hairline,
+  },
+  backBtnPressed: { opacity: 0.6 },
+  headerSpacer: { width: 40, height: 40 },
+  headerTitle: { color: noir.ink, fontSize: 17, fontWeight: '800', letterSpacing: -0.2 },
+  content: { paddingHorizontal: 22, paddingTop: 6, paddingBottom: 24 },
+  sectionLabel: { color: noir.ink, fontSize: 14, fontWeight: '700', marginTop: 18, marginBottom: 10, marginLeft: 4 },
+  statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
+  statCell: { width: '48%', flexGrow: 1 },
+  trendCard: {
+    backgroundColor: noir.card,
+    borderWidth: 1,
+    borderColor: noir.hairline,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    gap: 10,
+  },
+  trendTitle: { color: noir.ink, fontSize: 13, fontWeight: '700' },
+  shareRow: { flexDirection: 'row', gap: 10 },
+  shareBtn: { flex: 1 },
+  failedCaption: { color: noir.dangerSoft, fontSize: 12.5, fontWeight: '600', marginTop: 10, marginLeft: 4 },
+  gearCaption: { color: noir.ink3, fontSize: 12.5, fontWeight: '500', marginTop: 10, marginLeft: 4 },
+  placeholderWrap: { flex: 1, paddingHorizontal: 22, paddingTop: 6 },
+  placeholderCard: {
+    backgroundColor: noir.card,
+    borderWidth: 1,
+    borderColor: noir.hairline,
+    borderRadius: 20,
+    padding: 18,
     gap: 12,
   },
-  metricTile: {
-    minWidth: 150,
+  notFoundTitle: { color: noir.ink, fontSize: 16, fontWeight: '800' },
+  bodyText: { color: noir.ink2, fontSize: 14, lineHeight: 22 },
+  actionBar: {
+    paddingHorizontal: 22,
+    paddingTop: 12,
+    backgroundColor: noir.bg,
+    borderTopWidth: 1,
+    borderTopColor: noir.hairline,
   },
-  actionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  uploadActionRow: {
-    marginTop: 12,
-  },
+  actionRow: { flexDirection: 'row', gap: 10 },
+  actionBtn: { flex: 1 },
 });

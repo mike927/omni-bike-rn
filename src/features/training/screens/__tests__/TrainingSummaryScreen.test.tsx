@@ -10,6 +10,7 @@ import { TrainingSummaryScreen } from '../TrainingSummaryScreen';
 const mockReplace = jest.fn();
 const mockDeleteSession = jest.fn();
 const mockGetSessionById = jest.fn();
+const mockGetSamplesBySessionId = jest.fn();
 const mockGetProviderUpload = jest.fn();
 const mockUploadSessionToProvider = jest.fn();
 
@@ -28,6 +29,7 @@ jest.mock('react-native-safe-area-context', () => {
 jest.mock('../../../../services/db/trainingSessionRepository', () => ({
   deleteSession: (...args: unknown[]) => mockDeleteSession(...args),
   getSessionById: (...args: unknown[]) => mockGetSessionById(...args),
+  getSamplesBySessionId: (...args: unknown[]) => mockGetSamplesBySessionId(...args),
 }));
 
 jest.mock('../../../../services/db/providerUploadRepository', () => ({
@@ -72,6 +74,7 @@ describe('TrainingSummaryScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetSessionById.mockReturnValue(session);
+    mockGetSamplesBySessionId.mockReturnValue([]);
     mockGetProviderUpload.mockReturnValue(null);
     mockUploadSessionToProvider.mockResolvedValue({ providerId: 'strava', success: true, externalId: 'upload-1' });
     // Default: providers connected so upload guards pass in most tests.
@@ -90,19 +93,18 @@ describe('TrainingSummaryScreen', () => {
     expect(getByText('Back Home')).toBeTruthy();
   });
 
-  it('renders persisted workout totals and final metrics', () => {
+  it('renders the ride-complete hero, effort averages and share row', () => {
     const { getByText } = render(
       <TrainingSummaryScreen sessionId="session-1" source={POST_FINISH_TRAINING_SUMMARY_SOURCE} returnTo="/" />,
     );
 
-    expect(getByText('Workout Totals')).toBeTruthy();
-    expect(getByText('Final Metrics')).toBeTruthy();
-    expect(getByText('00:02:00')).toBeTruthy();
-    expect(getByText('1.00 km')).toBeTruthy();
-    expect(getByText('50.0 kcal')).toBeTruthy();
+    expect(getByText('RIDE COMPLETE')).toBeTruthy();
+    expect(getByText('Your Effort')).toBeTruthy();
+    expect(getByText('AVG POWER')).toBeTruthy();
+    expect(getByText('200')).toBeTruthy(); // falls back to final power when no samples
     expect(getByText('Save')).toBeTruthy();
-    expect(getByText('Strava Upload')).toBeTruthy();
-    expect(getByText('Upload to Strava')).toBeTruthy();
+    expect(getByText('Strava')).toBeTruthy();
+    expect(getByText('Apple Health')).toBeTruthy();
   });
 
   it('deletes the session after confirming discard', () => {
@@ -213,12 +215,12 @@ describe('TrainingSummaryScreen', () => {
       />,
     );
 
-    fireEvent.press(getByText('Upload to Strava'));
+    fireEvent.press(getByText('Strava'));
 
     await waitFor(() => {
       expect(mockUploadSessionToProvider).toHaveBeenCalledWith('session-1', 'strava');
     });
-    expect(getByText('Strava Uploaded')).toBeTruthy();
+    expect(getByText('Strava ✓')).toBeTruthy();
     expect(alertSpy).toHaveBeenCalledWith('Upload Complete', 'This workout was uploaded to Strava.');
 
     alertSpy.mockRestore();
@@ -236,7 +238,7 @@ describe('TrainingSummaryScreen', () => {
       />,
     );
 
-    fireEvent.press(getByText('Upload to Strava'));
+    fireEvent.press(getByText('Strava'));
 
     await waitFor(() => {
       expect(alertSpy).toHaveBeenCalledWith('Strava Not Connected', expect.any(String), expect.any(Array));
@@ -278,12 +280,12 @@ describe('TrainingSummaryScreen', () => {
       />,
     );
 
-    fireEvent.press(getByText('Upload to Apple Health'));
+    fireEvent.press(getByText('Apple Health'));
 
     await waitFor(() => {
       expect(mockUploadSessionToProvider).toHaveBeenCalledWith('session-1', 'apple_health');
     });
-    expect(getByText('Apple Health Uploaded')).toBeTruthy();
+    expect(getByText('Apple Health ✓')).toBeTruthy();
     expect(alertSpy).toHaveBeenCalledWith('Saved to Apple Health', 'This workout was saved to Apple Health.');
 
     alertSpy.mockRestore();
@@ -301,7 +303,7 @@ describe('TrainingSummaryScreen', () => {
       />,
     );
 
-    fireEvent.press(getByText('Upload to Apple Health'));
+    fireEvent.press(getByText('Apple Health'));
 
     await waitFor(() => {
       expect(alertSpy).toHaveBeenCalledWith('Apple Health Not Connected', expect.any(String), expect.any(Array));
@@ -333,5 +335,53 @@ describe('TrainingSummaryScreen', () => {
 
     expect(getByText('Retry Strava')).toBeTruthy();
     expect(getByText('Strava upload failed: Rate limited')).toBeTruthy();
+  });
+
+  it('shows a retry state when the latest Apple Health upload failed', () => {
+    mockGetProviderUpload.mockImplementation((_sessionId: string, providerId: string) =>
+      providerId === 'apple_health'
+        ? {
+            id: 'upload-2',
+            sessionId: 'session-1',
+            providerId: 'apple_health',
+            uploadState: 'failed',
+            externalId: null,
+            errorMessage: 'HealthKit denied',
+            createdAtMs: 100,
+            updatedAtMs: 200,
+          }
+        : null,
+    );
+
+    const { getByText } = render(
+      <TrainingSummaryScreen
+        sessionId="session-1"
+        source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE}
+        returnTo="/history"
+      />,
+    );
+
+    expect(getByText('Retry Apple Health')).toBeTruthy();
+    expect(getByText('Apple Health upload failed: HealthKit denied')).toBeTruthy();
+  });
+
+  it('hides the header back control right after finishing a ride', () => {
+    const { queryByLabelText } = render(
+      <TrainingSummaryScreen sessionId="session-1" source={POST_FINISH_TRAINING_SUMMARY_SOURCE} returnTo="/" />,
+    );
+
+    expect(queryByLabelText('Go back')).toBeNull();
+  });
+
+  it('shows the header back control when viewing an already-saved workout', () => {
+    const { getByLabelText } = render(
+      <TrainingSummaryScreen
+        sessionId="session-1"
+        source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE}
+        returnTo="/history"
+      />,
+    );
+
+    expect(getByLabelText('Go back')).toBeTruthy();
   });
 });
