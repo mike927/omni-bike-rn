@@ -10,7 +10,11 @@ import { formatDuration, formatMetricValue } from '../../../ui/formatters';
 export type TrainingControls =
   | { readonly kind: 'idle'; readonly startDisabled: boolean }
   | { readonly kind: 'active' }
-  | { readonly kind: 'paused'; readonly resumeDisabled: boolean };
+  | { readonly kind: 'paused'; readonly resumeDisabled: boolean }
+  // The session enters Finished synchronously (before finishAndDisconnect's async
+  // cleanup resolves). Render a terminal "finishing" state — never a Start/Resume
+  // control — so a stray Start Ride button can't appear mid-finish.
+  | { readonly kind: 'finishing' };
 
 export interface TrainingViewInput {
   readonly phase: TrainingPhase;
@@ -59,6 +63,7 @@ function phaseLabel(phase: TrainingPhase): string {
 function controlsFor(phase: TrainingPhase, bikeConnected: boolean): TrainingControls {
   if (phase === TrainingPhase.Active) return { kind: 'active' };
   if (phase === TrainingPhase.Paused) return { kind: 'paused', resumeDisabled: !bikeConnected };
+  if (phase === TrainingPhase.Finished) return { kind: 'finishing' };
   return { kind: 'idle', startDisabled: !bikeConnected };
 }
 

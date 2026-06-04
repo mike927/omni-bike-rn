@@ -13,6 +13,11 @@ export interface RideControlsProps {
 }
 
 export function RideControls({ controls, isFinishing, onStart, onPause, onResume, onFinish }: RideControlsProps) {
+  if (controls.kind === 'finishing') {
+    // Session has ended; no Start/Resume until cleanup + navigation complete.
+    return <ActionButton label="Finishing..." onPress={noop} variant="primary" scheme="noir" disabled fullWidth />;
+  }
+
   if (controls.kind === 'idle') {
     return (
       <ActionButton
@@ -56,6 +61,8 @@ export function RideControls({ controls, isFinishing, onStart, onPause, onResume
     </View>
   );
 }
+
+function noop() {}
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 11 },

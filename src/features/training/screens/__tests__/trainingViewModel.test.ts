@@ -48,6 +48,12 @@ describe('deriveTrainingView — phase labels & controls', () => {
     expect(vm.showCallout).toBe(true);
     expect(vm.calloutBody).toContain('resume');
   });
+
+  it('finished → finishing controls, never the idle/start fallthrough', () => {
+    const vm = deriveTrainingView({ ...base, phase: TrainingPhase.Finished, bikeConnected: true });
+    expect(vm.controls).toEqual({ kind: 'finishing' });
+    expect(vm.showCallout).toBe(false);
+  });
 });
 
 describe('deriveTrainingView — metric formatting', () => {

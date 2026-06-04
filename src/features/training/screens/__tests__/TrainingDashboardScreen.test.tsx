@@ -274,12 +274,15 @@ describe('TrainingDashboardScreen', () => {
     Object.assign(mockSession, { phase: 'finished' });
     Object.assign(mockDeviceConnection, { bikeConnected: true });
 
-    const { queryByText } = render(<TrainingDashboardScreen />);
+    const { getByText, queryByText } = render(<TrainingDashboardScreen />);
 
     expect(queryByText('Pause')).toBeNull();
     expect(queryByText('Resume')).toBeNull();
     expect(queryByText('Finish')).toBeNull();
     expect(queryByText('View Summary')).toBeNull();
+    // Finished must NOT fall through to a Start Ride button mid-finish (review #1).
+    expect(queryByText('Start Ride')).toBeNull();
+    expect(getByText('Finishing...')).toBeTruthy();
   });
 
   it('finishes, disconnects, and routes directly to summary', async () => {

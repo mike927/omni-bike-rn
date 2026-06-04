@@ -92,7 +92,7 @@ export function TrainingDashboardScreen() {
     reconnect: bikeReconnectState,
   });
 
-  const powerSamples = usePowerTrend(session.currentMetrics.power, session.phase);
+  const powerSamples = usePowerTrend(session.currentMetrics.power, session.phase, session.elapsedSeconds);
 
   const vm = deriveTrainingView({
     phase: session.phase,
@@ -135,7 +135,7 @@ export function TrainingDashboardScreen() {
           <Ionicons name="chevron-back" size={22} color={noir.ink2} />
         </Pressable>
         <Text style={styles.headerTitle}>Training</Text>
-        <View style={styles.backBtn} />
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -203,6 +203,8 @@ const styles = StyleSheet.create({
     borderColor: noir.hairline,
   },
   backBtnPressed: { opacity: 0.6 },
+  // Blank third navbar cell — balances the back button without painting a card/border.
+  headerSpacer: { width: 40, height: 40 },
   headerTitle: { color: noir.ink, fontSize: 17, fontWeight: '800', letterSpacing: -0.2 },
   content: { paddingHorizontal: 22, paddingTop: 6, paddingBottom: 24, gap: 12 },
   pairs: { flexDirection: 'row', gap: 11 },
