@@ -1,52 +1,37 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDeviceConnection } from '../hooks/useDeviceConnection';
 import { useTrainingSession } from '../hooks/useTrainingSession';
+import { usePowerTrend } from '../hooks/usePowerTrend';
 import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
-import { bleDeviceStatus, deviceStatusLabel } from '../../../types/deviceStatus';
+import { bleDeviceStatus } from '../../../types/deviceStatus';
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { buildTrainingSummaryRoute, POST_FINISH_TRAINING_SUMMARY_SOURCE } from '../navigation/trainingSummaryRoute';
 import { resolveHrSourceSummary } from '../../../services/hr/hrStatus';
 import { resolveHrReading } from '../../../services/hr/hrSource';
 import { useEffectiveHrSource } from '../../../services/hr/useEffectiveHrSource';
 import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
-import { TrainingPhase } from '../../../types/training';
-import { ActionButton } from '../../../ui/components/ActionButton';
-import { MetricTile } from '../../../ui/components/MetricTile';
-import { StatusPill } from '../../../ui/components/StatusPill';
-import { HeartRateSourceTile } from '../components/HeartRateSourceTile';
-import { formatDistanceKm, formatDuration, formatMetricValue } from '../../../ui/formatters';
-import { AppScreen } from '../../../ui/layout/AppScreen';
-import { palette } from '../../../ui/theme';
+import { ConnectionFooter } from '../components/ConnectionFooter';
+import { DisconnectedCallout } from '../components/DisconnectedCallout';
+import { FeatureMetricCard } from '../components/FeatureMetricCard';
+import { PowerTrend } from '../components/PowerTrend';
+import { RideControls } from '../components/RideControls';
+import { RideTimerCard } from '../components/RideTimerCard';
+import { SecondaryMetricsRow } from '../components/SecondaryMetricsRow';
+import { deriveTrainingView } from './trainingViewModel';
+import { noir } from '../../../ui/theme';
 import { logWc } from '../../../services/watch/wcLog';
 
 const HOME_ROUTE = '/';
 const BIKE_SETUP_ROUTE = '/gear-setup?target=bike';
 
-function getPhaseSummary(phase: TrainingPhase): string {
-  if (phase === TrainingPhase.Idle) {
-    return 'Ready to ride';
-  }
-
-  if (phase === TrainingPhase.Active) {
-    return 'Ride in progress';
-  }
-
-  return 'Ride paused';
-}
-
-function getDisconnectedCalloutBody(phase: TrainingPhase): string {
-  if (phase === TrainingPhase.Paused) {
-    return 'Reconnect your saved Smart Bike or choose one in setup before you resume this interrupted workout.';
-  }
-
-  return 'Connect your saved Smart Bike or choose one in setup before you start a workout from this screen.';
-}
-
 export function TrainingDashboardScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const session = useTrainingSession();
   const {
     bikeConnected,
@@ -101,14 +86,25 @@ export function TrainingDashboardScreen() {
     logWc(`[hrTile] ${hrTileName} -> ${hrTileStatus}`);
   }, [hrTileName, hrTileStatus]);
 
-  const bikeConnectionStatus = bleDeviceStatus({
+  const bikeStatus = bleDeviceStatus({
     hasSavedDevice: savedBike !== null,
     connected: bikeConnected,
     reconnect: bikeReconnectState,
   });
 
-  const showDisconnectedState =
-    !bikeConnected && (session.phase === TrainingPhase.Idle || session.phase === TrainingPhase.Paused);
+  const powerSamples = usePowerTrend(session.currentMetrics.power, session.phase, session.elapsedSeconds);
+
+  const vm = deriveTrainingView({
+    phase: session.phase,
+    bikeConnected,
+    elapsedSeconds: session.elapsedSeconds,
+    power: session.currentMetrics.power,
+    heartRate: session.currentMetrics.heartRate ?? null,
+    speed: session.currentMetrics.speed,
+    cadence: session.currentMetrics.cadence,
+    totalDistanceMeters: session.totalDistance,
+    totalCalories: session.totalCalories,
+  });
 
   const handleFinish = async () => {
     if (isFinishing) return;
@@ -128,184 +124,96 @@ export function TrainingDashboardScreen() {
   };
 
   return (
-    <AppScreen title="Training">
-      <View style={styles.screenContent}>
-        <View style={styles.heroCard}>
-          <Text style={styles.phaseText}>{getPhaseSummary(session.phase)}</Text>
-          <Text style={styles.heroValue}>{formatDuration(session.elapsedSeconds)}</Text>
-          <Text style={styles.heroCaption}>Elapsed</Text>
-        </View>
-
-        <View style={styles.primaryMetricGrid}>
-          <MetricTile
-            label="Speed"
-            value={`${session.currentMetrics.speed.toFixed(1)} km/h`}
-            style={styles.primaryMetricTile}
-          />
-          <MetricTile
-            label="Distance"
-            value={formatDistanceKm(session.totalDistance)}
-            style={styles.primaryMetricTile}
-          />
-          <MetricTile label="Power" value={`${session.currentMetrics.power} W`} style={styles.primaryMetricTile} />
-          <MetricTile
-            label="Heart Rate"
-            value={formatMetricValue(session.currentMetrics.heartRate ?? null, ' bpm')}
-            style={styles.primaryMetricTile}
-          />
-          <MetricTile
-            label="Calories"
-            value={`${session.totalCalories.toFixed(1)} kcal`}
-            style={styles.primaryMetricTile}
-          />
-        </View>
-
-        <View style={styles.connectionRow}>
-          <View style={styles.connectionPill}>
-            <Text style={styles.connectionLabel}>Smart Bike</Text>
-            <StatusPill
-              status={bikeConnectionStatus}
-              accessibilityLabel={`Bike: ${deviceStatusLabel(bikeConnectionStatus)}`}
-            />
-          </View>
-        </View>
-
-        <HeartRateSourceTile name={hrSummary.name} status={hrSummary.status} />
-
-        <View style={styles.controlsCard}>
-          <View style={styles.actionRow}>
-            {session.phase === TrainingPhase.Idle ? (
-              <ActionButton label="Start Ride" onPress={session.start} disabled={!bikeConnected} fullWidth />
-            ) : null}
-            {session.phase === TrainingPhase.Active ? (
-              <ActionButton label="Pause" onPress={session.pause} variant="secondary" />
-            ) : null}
-            {session.phase === TrainingPhase.Paused ? (
-              <ActionButton label="Resume" onPress={session.resume} disabled={!bikeConnected} />
-            ) : null}
-            {(session.phase === TrainingPhase.Active || session.phase === TrainingPhase.Paused) && (
-              <ActionButton
-                label={isFinishing ? 'Finishing...' : 'Finish'}
-                onPress={handleFinish}
-                variant="danger"
-                disabled={isFinishing}
-              />
-            )}
-          </View>
-
-          {showDisconnectedState ? (
-            <View style={styles.callout}>
-              <Text style={styles.calloutTitle}>Smart Bike connection required</Text>
-              <Text style={styles.calloutBody}>{getDisconnectedCalloutBody(session.phase)}</Text>
-              <View style={styles.actionRow}>
-                <ActionButton
-                  label="Set Up Smart Bike"
-                  onPress={() => router.push(BIKE_SETUP_ROUTE)}
-                  variant="secondary"
-                />
-                <ActionButton label="Back Home" onPress={() => router.replace(HOME_ROUTE)} variant="ghost" />
-              </View>
-            </View>
-          ) : null}
-        </View>
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+      <View style={styles.header}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          hitSlop={10}
+          onPress={() => router.back()}
+          style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}>
+          <Ionicons name="chevron-back" size={22} color={noir.ink2} />
+        </Pressable>
+        <Text style={styles.headerTitle}>Training</Text>
+        <View style={styles.headerSpacer} />
       </View>
-    </AppScreen>
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <RideTimerCard phaseLabel={vm.phaseLabel} timerText={vm.timerText} live={vm.controls.kind === 'active'} />
+
+        <View style={styles.pairs}>
+          <FeatureMetricCard label="Power" value={vm.power.value} unit={vm.power.unit}>
+            <PowerTrend samples={powerSamples} />
+          </FeatureMetricCard>
+          <FeatureMetricCard label="Heart Rate" value={vm.heart.value} unit={vm.heart.unit} accent>
+            <Text style={styles.hrSource} numberOfLines={1}>
+              {hrSummary.name}
+            </Text>
+          </FeatureMetricCard>
+        </View>
+
+        <SecondaryMetricsRow items={vm.secondary} />
+
+        <ConnectionFooter
+          bike={{ name: savedBike?.name ?? 'No bike yet', status: bikeStatus }}
+          hr={{ name: hrSummary.name, status: hrSummary.status }}
+        />
+
+        {vm.showCallout ? (
+          <DisconnectedCallout
+            body={vm.calloutBody}
+            onSetup={() => router.push(BIKE_SETUP_ROUTE)}
+            onHome={() => router.replace(HOME_ROUTE)}
+          />
+        ) : null}
+      </ScrollView>
+
+      <View style={[styles.controlsBar, { paddingBottom: insets.bottom + 14 }]}>
+        <RideControls
+          controls={vm.controls}
+          isFinishing={isFinishing}
+          onStart={session.start}
+          onPause={session.pause}
+          onResume={session.resume}
+          onFinish={handleFinish}
+        />
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screenContent: {
-    gap: 16,
-  },
-  heroCard: {
+  safeArea: { flex: 1, backgroundColor: noir.bg },
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    borderRadius: 28,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 8,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: noir.card,
     borderWidth: 1,
-    borderColor: palette.border,
-    backgroundColor: palette.surface,
-    paddingHorizontal: 24,
-    paddingVertical: 28,
+    borderColor: noir.hairline,
   },
-  phaseText: {
-    color: palette.textMuted,
-    fontSize: 14,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  heroValue: {
-    color: palette.text,
-    fontSize: 44,
-    fontWeight: '800',
-    fontVariant: ['tabular-nums'],
-  },
-  heroCaption: {
-    color: palette.textMuted,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  primaryMetricGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  primaryMetricTile: {
-    minWidth: 150,
-    flexBasis: 150,
-  },
-  connectionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  connectionPill: {
-    flex: 1,
-    minWidth: 140,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: palette.border,
-    backgroundColor: palette.surfaceMuted,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 4,
-  },
-  connectionLabel: {
-    color: palette.textMuted,
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  controlsCard: {
-    gap: 14,
-    borderRadius: 28,
-    borderWidth: 1,
-    borderColor: palette.border,
-    backgroundColor: palette.surface,
-    padding: 20,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  callout: {
-    gap: 10,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: palette.border,
-    backgroundColor: palette.surfaceMuted,
-    padding: 14,
-  },
-  calloutTitle: {
-    color: palette.text,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  calloutBody: {
-    color: palette.textMuted,
-    fontSize: 14,
-    lineHeight: 22,
+  backBtnPressed: { opacity: 0.6 },
+  // Blank third navbar cell — balances the back button without painting a card/border.
+  headerSpacer: { width: 40, height: 40 },
+  headerTitle: { color: noir.ink, fontSize: 17, fontWeight: '800', letterSpacing: -0.2 },
+  content: { paddingHorizontal: 22, paddingTop: 6, paddingBottom: 24, gap: 12 },
+  pairs: { flexDirection: 'row', gap: 11 },
+  hrSource: { color: noir.mintSoft, fontSize: 12.5, fontWeight: '700', letterSpacing: 0.2 },
+  controlsBar: {
+    paddingHorizontal: 22,
+    paddingTop: 12,
+    backgroundColor: noir.bg,
+    borderTopWidth: 1,
+    borderTopColor: noir.hairline,
   },
 });

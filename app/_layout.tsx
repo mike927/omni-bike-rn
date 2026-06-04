@@ -7,7 +7,7 @@ import { getSQLiteDatabase } from '../src/services/db/database';
 import { useAppInitialization } from '../src/bootstrap/useAppInitialization';
 import { ActionButton } from '../src/ui/components/ActionButton';
 import { AppScreen } from '../src/ui/layout/AppScreen';
-import { palette } from '../src/ui/theme';
+import { noir, palette } from '../src/ui/theme';
 
 const ONBOARDING_ROUTE_SEGMENTS: ReadonlySet<string> = new Set(['onboarding', 'onboarding-gear-setup']);
 
@@ -95,7 +95,7 @@ export default function RootLayout() {
         }}>
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="training" options={{ title: 'Training' }} />
+        <Stack.Screen name="training" options={{ headerShown: false, contentStyle: { backgroundColor: noir.bg } }} />
         <Stack.Screen name="summary" options={{ title: 'Summary' }} />
         <Stack.Screen name="gear-setup" options={{ title: 'Select Device' }} />
         <Stack.Screen name="onboarding-gear-setup" options={{ presentation: 'modal', title: 'Select Device' }} />

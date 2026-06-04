@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor, within } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
 import type { SavedDevice } from '../../../../types/gear';
 import { buildTrainingSummaryRoute, POST_FINISH_TRAINING_SUMMARY_SOURCE } from '../../navigation/trainingSummaryRoute';
@@ -155,7 +155,7 @@ describe('TrainingDashboardScreen', () => {
 
       const { getByLabelText } = render(<TrainingDashboardScreen />);
 
-      expect(getByLabelText('Bike: Not set up')).toBeTruthy();
+      expect(getByLabelText('No bike yet: Not set up')).toBeTruthy();
     });
 
     it('reads "Unavailable" when a bike is saved but not connected', () => {
@@ -164,7 +164,7 @@ describe('TrainingDashboardScreen', () => {
 
       const { getByLabelText } = render(<TrainingDashboardScreen />);
 
-      expect(getByLabelText('Bike: Unavailable')).toBeTruthy();
+      expect(getByLabelText('Zipro Rave: Unavailable')).toBeTruthy();
     });
   });
 
@@ -220,7 +220,8 @@ describe('TrainingDashboardScreen', () => {
 
     expect(getByText('Pause')).toBeTruthy();
     expect(getByText('Finish')).toBeTruthy();
-    expect(getByText('45.6 kcal')).toBeTruthy();
+    // Calories shown as a rounded whole-number chip (value + unit are separate nodes).
+    expect(getByText('46')).toBeTruthy();
     expect(queryByText('Resume')).toBeNull();
     expect(queryByText('View Summary')).toBeNull();
   });
@@ -242,8 +243,8 @@ describe('TrainingDashboardScreen', () => {
 
     const { getByText } = render(<TrainingDashboardScreen />);
 
-    expect(getByText('Calories')).toBeTruthy();
-    expect(getByText('123.4 kcal')).toBeTruthy();
+    expect(getByText('CAL')).toBeTruthy();
+    expect(getByText('123')).toBeTruthy();
   });
 
   it('shows Resume and Finish while paused', () => {
@@ -273,12 +274,15 @@ describe('TrainingDashboardScreen', () => {
     Object.assign(mockSession, { phase: 'finished' });
     Object.assign(mockDeviceConnection, { bikeConnected: true });
 
-    const { queryByText } = render(<TrainingDashboardScreen />);
+    const { getByText, queryByText } = render(<TrainingDashboardScreen />);
 
     expect(queryByText('Pause')).toBeNull();
     expect(queryByText('Resume')).toBeNull();
     expect(queryByText('Finish')).toBeNull();
     expect(queryByText('View Summary')).toBeNull();
+    // Finished must NOT fall through to a Start Ride button mid-finish (review #1).
+    expect(queryByText('Start Ride')).toBeNull();
+    expect(getByText('Finishing...')).toBeTruthy();
   });
 
   it('finishes, disconnects, and routes directly to summary', async () => {
@@ -333,8 +337,9 @@ describe('TrainingDashboardScreen', () => {
 
     const { getByText } = render(<TrainingDashboardScreen />);
 
-    // Engine HR wins; raw latestBluetoothHr is not surfaced separately
-    expect(getByText('151 bpm')).toBeTruthy();
+    // Engine HR wins; raw latestBluetoothHr is not surfaced separately.
+    // Value + unit are separate nodes in the hero card.
+    expect(getByText('151')).toBeTruthy();
   });
 
   it('shows -- for Heart Rate when session HR is null (engine has no value)', () => {
@@ -378,11 +383,10 @@ describe('TrainingDashboardScreen', () => {
     });
     Object.assign(mockDeviceConnectionStoreState, { activeHrSource: 'watch' });
 
-    const { getByTestId } = render(<TrainingDashboardScreen />);
+    const { getByLabelText } = render(<TrainingDashboardScreen />);
 
-    const hrTile = within(getByTestId('hr-source-tile'));
-    expect(hrTile.getByText('Apple Watch')).toBeTruthy();
-    expect(hrTile.getByText('Ready')).toBeTruthy();
+    // Status is rendered as a StatusPill in the connection footer (never as "Name · Status" text).
+    expect(getByLabelText('Apple Watch: Ready')).toBeTruthy();
   });
 
   it('shows "Apple Watch · No signal" when watch is locked but sample is stale', () => {
@@ -405,11 +409,9 @@ describe('TrainingDashboardScreen', () => {
     });
     Object.assign(mockDeviceConnectionStoreState, { activeHrSource: 'watch' });
 
-    const { getByTestId } = render(<TrainingDashboardScreen />);
+    const { getByLabelText } = render(<TrainingDashboardScreen />);
 
-    const hrTile = within(getByTestId('hr-source-tile'));
-    expect(hrTile.getByText('Apple Watch')).toBeTruthy();
-    expect(hrTile.getByText('No signal')).toBeTruthy();
+    expect(getByLabelText('Apple Watch: No signal')).toBeTruthy();
   });
 
   it('shows "Polar H10 · Ready" when BLE is locked as activeHrSource', () => {
@@ -425,31 +427,25 @@ describe('TrainingDashboardScreen', () => {
     });
     mockSavedGear.savedHrSource = { id: 'x', name: 'Polar H10', type: 'hr' };
 
-    const { getByTestId } = render(<TrainingDashboardScreen />);
+    const { getByLabelText } = render(<TrainingDashboardScreen />);
 
-    const hrTile = within(getByTestId('hr-source-tile'));
-    expect(hrTile.getByText('Polar H10')).toBeTruthy();
-    expect(hrTile.getByText('Ready')).toBeTruthy();
+    expect(getByLabelText('Polar H10: Ready')).toBeTruthy();
   });
 
   it('shows "Bike pulse · Ready" in idle when no primary, watch unavailable, no saved gear, bike connected', () => {
     // Bike pulse becomes the idle default; ready only when bike is connected.
     Object.assign(mockDeviceConnection, { bikeConnected: true });
-    const { getByTestId } = render(<TrainingDashboardScreen />);
+    const { getByLabelText } = render(<TrainingDashboardScreen />);
 
-    const hrTile = within(getByTestId('hr-source-tile'));
-    expect(hrTile.getByText('Bike pulse')).toBeTruthy();
-    expect(hrTile.getByText('Ready')).toBeTruthy();
+    expect(getByLabelText('Bike pulse: Ready')).toBeTruthy();
   });
 
   it('shows "Bike pulse · Unavailable" in idle when bike is not connected', () => {
     // Bike pulse becomes the idle default; shows Unavailable when bike is disconnected.
     Object.assign(mockDeviceConnection, { bikeConnected: false });
-    const { getByTestId } = render(<TrainingDashboardScreen />);
+    const { getByLabelText } = render(<TrainingDashboardScreen />);
 
-    const hrTile = within(getByTestId('hr-source-tile'));
-    expect(hrTile.getByText('Bike pulse')).toBeTruthy();
-    expect(hrTile.getByText('Unavailable')).toBeTruthy();
+    expect(getByLabelText('Bike pulse: Unavailable')).toBeTruthy();
   });
 
   it('does not show Watch when bluetooth is locked mid-ride (locked source wins)', () => {
@@ -478,11 +474,9 @@ describe('TrainingDashboardScreen', () => {
     });
     mockSavedGear.savedHrSource = { id: 'y', name: 'Polar H10', type: 'hr' };
 
-    const { getByTestId, queryByText } = render(<TrainingDashboardScreen />);
+    const { getByLabelText, queryByText } = render(<TrainingDashboardScreen />);
 
-    const hrTile = within(getByTestId('hr-source-tile'));
-    expect(hrTile.getByText('Polar H10')).toBeTruthy();
-    expect(hrTile.getByText('Ready')).toBeTruthy();
+    expect(getByLabelText('Polar H10: Ready')).toBeTruthy();
     expect(queryByText(/Apple Watch/)).toBeNull();
   });
 });
