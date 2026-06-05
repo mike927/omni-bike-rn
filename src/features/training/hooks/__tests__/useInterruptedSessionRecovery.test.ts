@@ -126,4 +126,32 @@ describe('useInterruptedSessionRecovery', () => {
     expect(mockFinalizeStaleOpenSessions).not.toHaveBeenCalled();
     expect(mockGetLatestOpenSession).not.toHaveBeenCalled();
   });
+
+  it('degrades gracefully (no throw) when a recovery DB read fails on launch', () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockFinalizeStaleOpenSessions.mockImplementation(() => {
+      throw new Error('corrupt open-session row');
+    });
+    useInterruptedSessionStore.getState().setInterruptedSession({
+      id: 'stale',
+      status: 'paused',
+      startedAtMs: 100,
+      endedAtMs: null,
+      elapsedSeconds: 10,
+      totalDistanceMeters: 0,
+      totalCaloriesKcal: 0,
+      currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: null },
+      savedBikeSnapshot: null,
+      savedHrSnapshot: null,
+      uploadState: null,
+      createdAtMs: 100,
+      updatedAtMs: 100,
+    });
+
+    expect(() => renderHook(() => useInterruptedSessionRecovery(true))).not.toThrow();
+    expect(useInterruptedSessionStore.getState().interruptedSession).toBeNull();
+    expect(errorSpy).toHaveBeenCalled();
+
+    errorSpy.mockRestore();
+  });
 });

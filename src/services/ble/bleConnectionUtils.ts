@@ -81,11 +81,6 @@ export async function prepareBleDeviceForConnection(deviceId: string): Promise<v
   await waitForBleDeviceDisconnect(deviceId);
 }
 
-export async function connectToBleDevice(deviceId: string): Promise<Device> {
-  await prepareBleDeviceForConnection(deviceId);
-  return connectToBleDeviceWithTimeoutRecovery(deviceId);
-}
-
 export async function connectToBleDeviceWithOptions(
   deviceId: string,
   options?: ConnectToBleDeviceOptions,

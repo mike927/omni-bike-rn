@@ -4,26 +4,30 @@ const DEFAULT_STRAVA_CALLBACK_DOMAIN = 'localhost';
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: 'omni-bike-rn',
+  name: 'Omni Bike',
   slug: 'omni-bike-rn',
   scheme: 'omnibike',
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
-  userInterfaceStyle: 'light',
+  userInterfaceStyle: 'dark',
   newArchEnabled: true,
   splash: {
     image: './assets/splash-icon.png',
     resizeMode: 'contain',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#0b0e13',
   },
   ios: {
-    supportsTablet: true,
-    bundleIdentifier: 'com.anonymous.omnibikern',
+    supportsTablet: false,
+    bundleIdentifier: 'app.omnibike',
     infoPlist: {
       // Required for HKHealthStore.startWatchApp(toHandle:) to reliably wake
       // the paired Watch companion app when starting a workout.
       LSApplicationCategoryType: 'public.app-category.healthcare-fitness',
+      // The app uses only exempt encryption (HTTPS + standard Apple crypto via
+      // expo-crypto / Keychain), so declare non-exempt encryption = false up
+      // front. Skips the per-build "export compliance" prompt in TestFlight.
+      ITSAppUsesNonExemptEncryption: false,
     },
   },
   android: {
@@ -38,7 +42,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'android.permission.BLUETOOTH_ADMIN',
       'android.permission.BLUETOOTH_CONNECT',
     ],
-    package: 'com.anonymous.omnibikern',
+    package: 'app.omnibike',
   },
   plugins: [
     'expo-router',
@@ -47,7 +51,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         isBackgroundEnabled: true,
         modes: ['central'],
-        bluetoothAlwaysPermission: 'Allow $(PRODUCT_NAME) to connect to your bike trainer and heart rate monitor.',
+        bluetoothAlwaysPermission: 'Allow Omni Bike to connect to your bike trainer and heart rate monitor.',
       },
     ],
     [
@@ -57,7 +61,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     'expo-web-browser',
-    'expo-secure-store',
+    ['expo-secure-store', { faceIDPermission: 'Allow Omni Bike to access your Face ID biometric data.' }],
     // Custom minimal HealthKit plugin — replaces `react-native-health`'s bundled
     // plugin to avoid the Clinical Records (`com.apple.developer.healthkit.access`)
     // entitlement it writes unconditionally. The rn-health pod is still autolinked.

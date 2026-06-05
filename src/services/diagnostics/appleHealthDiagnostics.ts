@@ -29,6 +29,12 @@ function buildLogLine(event: string, payload: unknown): string {
 }
 
 export function appendAppleHealthDiagnostic(event: string, payload: unknown): void {
+  // Dev-only instrumentation: never write a diagnostics file to disk in a
+  // release/TestFlight build (it would also land in unencrypted device backups).
+  if (!__DEV__) {
+    return;
+  }
+
   try {
     const nextLine = buildLogLine(event, payload);
     if (APPLE_HEALTH_LOG_FILE.exists) {

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { palette } from '../theme';
+import { noir } from '../theme';
 
 interface AppScreenProps {
   readonly title: string;
@@ -41,7 +41,7 @@ export function AppScreen({ title, subtitle, children, contentContainerStyle, no
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: palette.background,
+    backgroundColor: noir.bg,
   },
   content: {
     paddingHorizontal: 20,
@@ -53,12 +53,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   title: {
-    color: palette.text,
+    color: noir.ink,
     fontSize: 30,
     fontWeight: '800',
   },
   subtitle: {
-    color: palette.textMuted,
+    color: noir.ink2,
     fontSize: 15,
     lineHeight: 22,
   },

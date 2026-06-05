@@ -27,7 +27,7 @@ function ScreenHead() {
 
 export function HistoryScreen() {
   const router = useRouter();
-  const { items, isLoading, deleteWorkout } = useWorkoutHistory();
+  const { items, isLoading, loadError, deleteWorkout, refresh } = useWorkoutHistory();
 
   const handlePressSession = (sessionId: string) => {
     router.push(buildTrainingSummaryRoute(sessionId, SAVED_SESSION_TRAINING_SUMMARY_SOURCE, HISTORY_ROUTE));
@@ -36,7 +36,15 @@ export function HistoryScreen() {
   const handleDeleteSession = (sessionId: string) => {
     Alert.alert('Delete Workout?', 'Are you sure you want to delete this session? This cannot be undone.', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => deleteWorkout(sessionId) },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          if (!deleteWorkout(sessionId)) {
+            Alert.alert('Couldn’t Delete Workout', 'Something went wrong deleting this session. Please try again.');
+          }
+        },
+      },
     ]);
   };
 
@@ -52,6 +60,22 @@ export function HistoryScreen() {
           <ScreenHead />
           <View style={styles.stateCard}>
             <Text style={styles.stateBody}>Loading your saved sessions.</Text>
+          </View>
+        </ScrollView>
+      ) : loadError && items.length === 0 ? (
+        <ScrollView contentContainerStyle={styles.stateContent} showsVerticalScrollIndicator={false}>
+          <ScreenHead />
+          <View style={styles.stateCard}>
+            <Text style={styles.stateTitle}>Could Not Load Workouts</Text>
+            <Text style={styles.stateBody}>Something went wrong reading your saved sessions.</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Retry"
+              onPress={refresh}
+              style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}>
+              <Text style={styles.ctaLabel}>Retry</Text>
+              <Ionicons name="refresh" size={16} color={noir.indigoSoft} />
+            </Pressable>
           </View>
         </ScrollView>
       ) : items.length === 0 ? (

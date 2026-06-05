@@ -119,6 +119,50 @@ describe('useWorkoutHistory', () => {
     expect(result.current.items).toEqual([]);
   });
 
+  it('sets loadError and keeps an empty list when fetching sessions fails', () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const { trigger } = primeFocusCallback();
+    mockGetFinishedSessions.mockImplementation(() => {
+      throw new Error('db read failed');
+    });
+
+    const { result } = renderHook(() => useWorkoutHistory());
+
+    act(() => {
+      trigger();
+    });
+
+    expect(result.current.loadError).toBe(true);
+    expect(result.current.items).toEqual([]);
+    expect(result.current.isLoading).toBe(false);
+
+    errorSpy.mockRestore();
+  });
+
+  it('deleteWorkout returns false when the delete fails', () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const { trigger } = primeFocusCallback();
+    mockGetFinishedSessions.mockReturnValue([buildSession('session-1')]);
+    mockDeleteSession.mockImplementation(() => {
+      throw new Error('delete failed');
+    });
+
+    const { result } = renderHook(() => useWorkoutHistory());
+
+    act(() => {
+      trigger();
+    });
+
+    let outcome = true;
+    act(() => {
+      outcome = result.current.deleteWorkout('session-1');
+    });
+
+    expect(outcome).toBe(false);
+
+    errorSpy.mockRestore();
+  });
+
   it('includes only providers whose uploadState is uploaded', () => {
     const { trigger } = primeFocusCallback();
     mockGetFinishedSessions.mockReturnValueOnce([buildSession('session-1')]);

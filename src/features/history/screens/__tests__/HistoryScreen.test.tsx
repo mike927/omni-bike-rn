@@ -52,9 +52,11 @@ function buildSession(id: string): PersistedTrainingSession {
 describe('HistoryScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockDeleteWorkout.mockReturnValue(true);
     mockUseWorkoutHistory.mockReturnValue({
       items: [],
       isLoading: false,
+      loadError: false,
       refresh: jest.fn(),
       deleteWorkout: mockDeleteWorkout,
     });
@@ -69,6 +71,52 @@ describe('HistoryScreen', () => {
     fireEvent.press(getByText('Start Training'));
 
     expect(mockReplace).toHaveBeenCalledWith('/');
+  });
+
+  it('shows a load-error state with Retry instead of the empty state', () => {
+    const refresh = jest.fn();
+    mockUseWorkoutHistory.mockReturnValue({
+      items: [],
+      isLoading: false,
+      loadError: true,
+      refresh,
+      deleteWorkout: mockDeleteWorkout,
+    });
+
+    const { getByText, queryByText } = render(<HistoryScreen />);
+
+    expect(getByText('Could Not Load Workouts')).toBeTruthy();
+    expect(queryByText('No Workouts Yet')).toBeNull();
+
+    fireEvent.press(getByText('Retry'));
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('alerts the user when a delete fails', () => {
+    const session = buildSession('session-7');
+    mockDeleteWorkout.mockReturnValue(false);
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_, __, buttons) => {
+      buttons?.[1]?.onPress?.();
+    });
+
+    mockUseWorkoutHistory.mockReturnValue({
+      items: [{ session, uploadedProviderIds: [] }],
+      isLoading: false,
+      loadError: false,
+      refresh: jest.fn(),
+      deleteWorkout: mockDeleteWorkout,
+    });
+
+    const { getByLabelText } = render(<HistoryScreen />);
+    fireEvent(getByLabelText(`Workout on ${formatHistoryDate(session.startedAtMs)}`), 'longPress');
+
+    expect(mockDeleteWorkout).toHaveBeenCalledWith('session-7');
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Couldn’t Delete Workout',
+      'Something went wrong deleting this session. Please try again.',
+    );
+
+    alertSpy.mockRestore();
   });
 
   it('opens a saved workout summary from the list', () => {
