@@ -6,6 +6,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useDeviceConnection } from '../hooks/useDeviceConnection';
 import { useTrainingSession } from '../hooks/useTrainingSession';
+import { useWatchRemoteControl } from '../hooks/useWatchRemoteControl';
 import { usePowerTrend } from '../hooks/usePowerTrend';
 import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
 import { bleDeviceStatus } from '../../../types/deviceStatus';
@@ -122,6 +123,15 @@ export function TrainingDashboardScreen() {
       setIsFinishing(false);
     }
   };
+
+  // Apple Watch acts as a remote: Pause / Resume / End tapped on the wrist run the
+  // same actions as the on-screen controls, so the engine, bike, and Watch session
+  // stay in lockstep. Mounted here because controls only exist during a ride.
+  useWatchRemoteControl({
+    onPause: session.pause,
+    onResume: session.resume,
+    onFinish: handleFinish,
+  });
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
