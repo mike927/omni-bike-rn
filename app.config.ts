@@ -24,6 +24,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       // Required for HKHealthStore.startWatchApp(toHandle:) to reliably wake
       // the paired Watch companion app when starting a workout.
       LSApplicationCategoryType: 'public.app-category.healthcare-fitness',
+      // The app uses only exempt encryption (HTTPS + standard Apple crypto via
+      // expo-crypto / Keychain), so declare non-exempt encryption = false up
+      // front. Skips the per-build "export compliance" prompt in TestFlight.
+      ITSAppUsesNonExemptEncryption: false,
     },
   },
   android: {
