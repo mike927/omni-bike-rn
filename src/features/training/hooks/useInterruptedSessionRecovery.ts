@@ -20,37 +20,47 @@ export function useInterruptedSessionRecovery(isEnabled: boolean): void {
 
     hasRunRef.current = true;
 
-    if (useTrainingSessionStore.getState().phase !== TrainingPhase.Idle) {
-      console.warn('[useInterruptedSessionRecovery] Skipping recovery because an in-memory session already exists.');
-      return;
-    }
+    try {
+      if (useTrainingSessionStore.getState().phase !== TrainingPhase.Idle) {
+        console.warn('[useInterruptedSessionRecovery] Skipping recovery because an in-memory session already exists.');
+        return;
+      }
 
-    const finalizedSessions = finalizeStaleOpenSessions(Date.now(), STALE_SESSION_MAX_AGE_MS);
-    if (finalizedSessions.length > 0) {
-      console.warn(
-        `[useInterruptedSessionRecovery] Auto-finalized ${finalizedSessions.length} stale interrupted session(s).`,
-      );
-    }
-
-    const interruptedSession = getLatestOpenSession();
-    if (!interruptedSession) {
-      useInterruptedSessionStore.getState().clear();
-      return;
-    }
-
-    if (interruptedSession.status === 'active') {
-      const normalizedSession = normalizeRecoveredSessionToPaused(interruptedSession.id);
-      if (!normalizedSession) {
+      const finalizedSessions = finalizeStaleOpenSessions(Date.now(), STALE_SESSION_MAX_AGE_MS);
+      if (finalizedSessions.length > 0) {
         console.warn(
-          '[useInterruptedSessionRecovery] Could not normalize active session to paused; skipping recovery.',
+          `[useInterruptedSessionRecovery] Auto-finalized ${finalizedSessions.length} stale interrupted session(s).`,
         );
+      }
+
+      const interruptedSession = getLatestOpenSession();
+      if (!interruptedSession) {
         useInterruptedSessionStore.getState().clear();
         return;
       }
-      useInterruptedSessionStore.getState().setInterruptedSession(normalizedSession);
-      return;
-    }
 
-    useInterruptedSessionStore.getState().setInterruptedSession(interruptedSession);
+      if (interruptedSession.status === 'active') {
+        const normalizedSession = normalizeRecoveredSessionToPaused(interruptedSession.id);
+        if (!normalizedSession) {
+          console.warn(
+            '[useInterruptedSessionRecovery] Could not normalize active session to paused; skipping recovery.',
+          );
+          useInterruptedSessionStore.getState().clear();
+          return;
+        }
+        useInterruptedSessionStore.getState().setInterruptedSession(normalizedSession);
+        return;
+      }
+
+      useInterruptedSessionStore.getState().setInterruptedSession(interruptedSession);
+    } catch (err: unknown) {
+      // A corrupt or schema-drifted open-session row must never white-screen the
+      // app on launch. Degrade to "no interrupted session" and continue boot.
+      console.error(
+        '[useInterruptedSessionRecovery] Recovery failed; continuing without interrupted-session restore:',
+        err,
+      );
+      useInterruptedSessionStore.getState().clear();
+    }
   }, [isEnabled]);
 }
