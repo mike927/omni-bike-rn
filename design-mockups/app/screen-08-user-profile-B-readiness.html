@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Omni Bike · User Profile</title>
+<link rel="stylesheet" href="calm-noir.css" />
+<style>
+  /* ---- screen-specific: readiness meter (completion-driven) ---- */
+  .meter-card { padding: 20px; }
+  .meter-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .meter-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+  .meter-state { margin-top: 7px; font-size: 21px; font-weight: 800; letter-spacing: -.02em; color: var(--ink); line-height: 1.1; }
+  .meter-state .accent { color: var(--mint-soft); }
+  .meter-sub { margin-top: 5px; font-size: 13px; font-weight: 500; color: var(--ink-2); }
+  /* 4-segment fill bar */
+  .meter-bar { display: flex; gap: 6px; margin-top: 16px; }
+  .meter-seg { flex: 1; height: 9px; border-radius: var(--r-pill); background: var(--card-3); border: 1px solid var(--hairline); }
+  .meter-seg.fill { background: linear-gradient(90deg, var(--mint) 0%, var(--mint-soft) 100%); border-color: transparent; box-shadow: 0 0 0 1px rgba(16,181,164,.25), 0 6px 14px -8px rgba(16,181,164,.6); }
+  .meter-count { margin-top: 10px; font-size: 12px; font-weight: 600; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .meter-count b { color: var(--mint-soft); font-weight: 700; }
+  .meter-badge { flex: 0 0 auto; width: 40px; height: 40px; border-radius: 13px; background: rgba(16,181,164,.12);
+    border: 1px solid rgba(16,181,164,.24); display: flex; align-items: center; justify-content: center; color: var(--mint-soft); }
+
+  /* inline source chips on field rows */
+  .src-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 700;
+    letter-spacing: 0; text-transform: none; border-radius: 8px; padding: 2px 7px 2px 5px; }
+  .src-chip.health { color: var(--mint-soft); background: rgba(16,181,164,.12); }
+  .src-chip.strava { color: var(--indigo-soft); background: var(--indigo-tint); }
+  .src-chip.manual { color: var(--ink-3); background: rgba(255,255,255,.05); }
+  .src-chip svg { display: block; }
+
+  /* derived chip (Age) */
+  .derived { display: flex; align-items: baseline; justify-content: space-between; margin-top: 12px;
+    padding-top: 13px; border-top: 1px solid var(--hairline); }
+  .derived .dk { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3); }
+  .derived .dv { font-size: 17px; font-weight: 800; letter-spacing: -.02em; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .derived .dv .du { font-size: 12px; font-weight: 600; color: var(--ink-3); margin-left: 3px; }
+  .derived .dnote { font-size: 11px; font-weight: 500; color: var(--ink-3); }
+
+  /* sync success toast (inline mock) */
+  .sync-note { display: flex; align-items: center; gap: 8px; margin-top: 12px;
+    font-size: 12.5px; font-weight: 600; color: var(--mint-soft); }
+  .sync-note svg { flex: 0 0 auto; }
+
+  /* collapsed expandable footnote */
+  .footnote { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    background: var(--card); border: 1px solid var(--hairline); border-radius: var(--r-lg);
+    padding: 15px 16px; box-shadow: var(--shadow-soft); cursor: pointer; }
+  .footnote .fn-q { font-size: 14.5px; font-weight: 700; color: var(--ink); }
+  .footnote .fn-chev { color: var(--ink-3); }
+
+  /* subtle danger text link */
+  .danger-link { display: block; width: 100%; text-align: center; margin: 18px 0 6px;
+    font-size: 13.5px; font-weight: 700; color: var(--danger-soft); background: none; border: none;
+    font-family: inherit; cursor: pointer; padding: 12px; min-height: 44px; opacity: .8; }
+</style>
+</head>
+<body>
+  <div class="device">
+    <div class="screen">
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="glyphs">
+          <svg width="18" height="12" viewBox="0 0 18 12" fill="none">
+            <rect x="0" y="8" width="3" height="4" rx="1" fill="#eef1f6"/>
+            <rect x="5" y="5" width="3" height="7" rx="1" fill="#eef1f6"/>
+            <rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#eef1f6"/>
+            <rect x="15" y="0" width="3" height="12" rx="1" fill="#eef1f6"/>
+          </svg>
+          <svg width="17" height="12" viewBox="0 0 17 12" fill="none">
+            <path d="M8.5 2.2c2.7 0 5.2 1 7.1 2.8l-1.5 1.6A7.9 7.9 0 0 0 8.5 4.3 7.9 7.9 0 0 0 2.9 6.6L1.4 5C3.3 3.2 5.8 2.2 8.5 2.2Z" fill="#eef1f6"/>
+            <path d="M8.5 6.1c1.6 0 3.1.6 4.2 1.7l-1.6 1.6A3.7 3.7 0 0 0 8.5 8.3c-1 0-2 .4-2.7 1.1L4.3 7.8A6 6 0 0 1 8.5 6.1Z" fill="#eef1f6"/>
+            <circle cx="8.5" cy="11" r="1.3" fill="#eef1f6"/>
+          </svg>
+          <svg width="26" height="13" viewBox="0 0 26 13" fill="none">
+            <rect x="0.5" y="0.5" width="22" height="12" rx="3.5" stroke="#eef1f6" stroke-opacity="0.4"/>
+            <rect x="2" y="2" width="17" height="9" rx="2" fill="#eef1f6"/>
+            <rect x="24" y="4" width="1.6" height="5" rx="0.8" fill="#eef1f6" fill-opacity="0.45"/>
+          </svg>
+        </span>
+      </div>
+
+      <div class="navbar">
+        <div class="nav-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="nav-title">User Profile</div>
+        <div></div>
+      </div>
+
+      <div class="content pad-bottom">
+        <p class="h-sub reveal d1" style="margin-top:6px">Used for accurate calorie estimation when training without an Apple Watch.</p>
+
+        <!-- HERO: calorie estimation accuracy meter (4/4) -->
+        <div class="card meter-card reveal d2" style="margin-top:16px">
+          <div class="meter-head">
+            <div>
+              <div class="meter-eyebrow">Calorie estimation accuracy</div>
+              <div class="meter-state"><span class="accent">Best</span> — heart-rate calories enabled</div>
+              <div class="meter-sub">All key metrics set.</div>
+            </div>
+            <div class="meter-badge" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.2 4.2L19 7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+          </div>
+          <div class="meter-bar" role="img" aria-label="4 of 4 metrics complete">
+            <span class="meter-seg fill"></span>
+            <span class="meter-seg fill"></span>
+            <span class="meter-seg fill"></span>
+            <span class="meter-seg fill"></span>
+          </div>
+          <div class="meter-count"><b>4 of 4</b> metrics complete</div>
+        </div>
+
+        <!-- PRIMARY PATH: auto-fill dual CTA -->
+        <div class="section-label reveal d3"><h2>Auto-fill your profile</h2></div>
+        <div class="reveal d3">
+          <div class="btn-row">
+            <button class="btn btn-primary" style="gap:8px">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 20.5S3.5 15 3.5 8.9A4.4 4.4 0 0 1 12 7a4.4 4.4 0 0 1 8.5 1.9C20.5 15 12 20.5 12 20.5Z" fill="#4fd8c8"/></svg>
+              Auto-fill from Apple Health
+            </button>
+          </div>
+          <div class="btn-row" style="margin-top:10px">
+            <button class="btn btn-secondary" style="gap:8px">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9.8 2 4 13.4h3.4L9.8 8.7l2.4 4.7H15L9.8 2Z" fill="#5663ff"/><path d="M14.2 13.4 12.6 16.6l-1.6-3.2H8.5L12.6 22l4.1-8.6h-2.5Z" fill="#5663ff" fill-opacity=".7"/></svg>
+              Auto-fill from Strava
+            </button>
+          </div>
+          <p class="card-desc" style="margin:12px 4px 0">Tap a provider to overwrite your profile fields with the latest values. Fields the provider doesn't return are left untouched.</p>
+          <div class="sync-note">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#4fd8c8" stroke-width="1.8"/><path d="M8 12.2l2.6 2.6L16 9" stroke="#4fd8c8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Updated 3 fields from Apple Health.
+          </div>
+        </div>
+
+        <!-- FIELDS: each row carries an inline source chip; completing advances the meter -->
+        <div class="section-label reveal d4"><h2>Personal</h2></div>
+        <div class="card reveal d4" style="padding-top:4px;padding-bottom:6px">
+          <div class="field">
+            <div class="field-label">Sex
+              <span class="src-chip manual">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M12 11.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 19.5a6.5 6.5 0 0 1 13 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                Manual
+              </span>
+            </div>
+            <div class="segmented">
+              <div class="seg-opt on">Male</div>
+              <div class="seg-opt">Female</div>
+            </div>
+          </div>
+          <div class="field">
+            <div class="field-label">Date of Birth
+              <span class="src-chip health">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M12 20.5S3.5 15 3.5 8.9A4.4 4.4 0 0 1 12 7a4.4 4.4 0 0 1 8.5 1.9C20.5 15 12 20.5 12 20.5Z" fill="currentColor"/></svg>
+                Apple Health
+              </span>
+            </div>
+            <div class="input"><span class="val">Apr 12, 1990</span></div>
+          </div>
+          <div class="field">
+            <div class="field-label">Weight
+              <span class="src-chip manual">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M12 11.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="1.8"/><path d="M5.5 19.5a6.5 6.5 0 0 1 13 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                Manual
+              </span>
+            </div>
+            <div class="input"><span class="val">75</span><span class="suffix">kg</span></div>
+          </div>
+          <div class="field">
+            <div class="field-label">Height
+              <span class="src-chip health">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M12 20.5S3.5 15 3.5 8.9A4.4 4.4 0 0 1 12 7a4.4 4.4 0 0 1 8.5 1.9C20.5 15 12 20.5 12 20.5Z" fill="currentColor"/></svg>
+                Apple Health
+              </span>
+            </div>
+            <div class="input"><span class="val">178</span><span class="suffix">cm</span></div>
+          </div>
+          <div class="derived">
+            <div>
+              <div class="dk">Age (derived)</div>
+              <div class="dnote">From date of birth · today Jun 5, 2026</div>
+            </div>
+            <div class="dv">36<span class="du">yrs</span></div>
+          </div>
+        </div>
+
+        <!-- QUIET EXPANDABLE FOOTNOTE -->
+        <div class="footnote reveal d5" style="margin-top:18px">
+          <div class="fn-q">How is this used?</div>
+          <div class="fn-chev">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+
+        <!-- SUBTLE DANGER LINK -->
+        <button class="danger-link reveal d6">Clear All Fields</button>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+  <div class="caption"><b>08 · User Profile · B Readiness</b> · dark</div>
+</body>
+</html>

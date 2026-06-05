@@ -61,6 +61,20 @@ const SCREENS = [
   { n:"07", file:"screen-07-settings.html",           name:"Settings",          kind:"tab",            blurb:"My Gear (bike + HR sources with selection/expand), Personal body metrics, Strava / Apple Health." },
   { n:"08", file:"screen-08-user-profile.html",       name:"User Profile",      kind:"pushed",         blurb:"Body metrics for calorie accuracy (not an account): provider sync, Sex / DOB / Weight / Height fields." },
   { n:"09", file:"screen-09-provider-gear-link.html", name:"Link Provider Bike",kind:"pushed",         blurb:"Attach a Strava provider bike to your saved bike for correct gear on uploads." },
+
+  // ── User Profile — 5 redesign directions (pick one) ──
+  { n:"08A", file:"screen-08-user-profile-A-athlete.html",   name:"User Profile · A Athlete",   kind:"explore",  blurb:"Athlete stat-card hero (Sex / Age / Weight / Height, no name/avatar) + 'Calorie accuracy · Best' pill; edit list below." },
+  { n:"08B", file:"screen-08-user-profile-B-readiness.html", name:"User Profile · B Readiness", kind:"explore",  blurb:"Apple-Fitness-style 4-segment calorie-accuracy meter drives completion; auto-fill is the primary path." },
+  { n:"08C", file:"screen-08-user-profile-C-provider.html",  name:"User Profile · C Provider-first", kind:"explore", blurb:"Providers are the hero (what each fills + Sync now); every field leads with its provenance pill, manual is fallback." },
+  { n:"08D", file:"screen-08-user-profile-D-inline.html",    name:"User Profile · D Inline list", kind:"explore", blurb:"Minimal iOS-Settings-elevated list: tappable rows, inline edit, provenance chips, quiet sync footer." },
+  { n:"08E", file:"screen-08-user-profile-E-engine.html",    name:"User Profile · E Calorie engine", kind:"explore", blurb:"Explainer-led: a flow diagram shows HR + Sex/Age/Weight → kcal (Keytel); fields presented as the engine's inputs." },
+
+  // ── Link Provider Bike — 5 redesign directions (pick one) ──
+  { n:"09A", file:"screen-09-provider-gear-link-A-bridge.html",  name:"Provider Bike · A Bridge",  kind:"explore", blurb:"The link relationship is the hero: local bike ⇄ provider slot pairing visual, with a selectable list below." },
+  { n:"09B", file:"screen-09-provider-gear-link-B-match.html",   name:"Provider Bike · B Smart match", kind:"explore", blurb:"Lead with the computed best match as a one-tap 'Link this bike'; full list tucked behind a disclosure." },
+  { n:"09C", file:"screen-09-provider-gear-link-C-list.html",    name:"Provider Bike · C Selectable list", kind:"explore", blurb:"App-consistent: tap-to-select .dev-card rows (accent bar, no Choose button) mirroring the Settings gear pattern." },
+  { n:"09D", file:"screen-09-provider-gear-link-D-garage.html",  name:"Provider Bike · D Garage", kind:"explore", blurb:"Browse 'your Strava garage': provider chip + linking-to context, richer per-bike metadata to choose with confidence." },
+  { n:"09E", file:"screen-09-provider-gear-link-E-confirm.html", name:"Provider Bike · E Confirm pairing", kind:"explore", blurb:"Single decision: a large from→to pairing preview with the match preselected + a compact swap; one decisive Link Bike." },
 ];
 
 const grid = document.getElementById("grid");

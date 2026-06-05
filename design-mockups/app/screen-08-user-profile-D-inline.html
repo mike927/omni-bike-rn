@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Omni Bike · User Profile</title>
+<link rel="stylesheet" href="calm-noir.css" />
+<style>
+  /* ---- Direction D · minimal inline-edit list (screen-specific one-offs) ---- */
+
+  /* slim accuracy status line under the title */
+  .acc-line { display: flex; align-items: center; gap: 9px; padding: 2px 4px 4px; }
+  .acc-dot { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; background: var(--mint);
+    box-shadow: 0 0 0 4px rgba(16,181,164,.14); }
+  .acc-text { font-size: 13.5px; font-weight: 500; color: var(--ink-2); line-height: 1.3; }
+  .acc-text b { color: var(--ink); font-weight: 700; }
+
+  /* quiet provider-sync row (footer link style) */
+  .sync-row { width: 100%; display: flex; align-items: center; gap: 12px;
+    background: transparent; border: 1px dashed var(--hairline-2); border-radius: var(--r-md);
+    padding: 13px 15px; cursor: pointer; min-height: 52px; }
+  .sync-glyphs { flex: 0 0 auto; display: flex; align-items: center; }
+  .sync-glyphs svg { display: block; }
+  .sync-glyphs .second { margin-left: -6px; }
+  .sync-copy { flex: 1 1 auto; min-width: 0; }
+  .sync-title { font-size: 14px; font-weight: 700; letter-spacing: -.01em; color: var(--ink); }
+  .sync-sub { font-size: 12px; font-weight: 500; color: var(--ink-3); margin-top: 2px; }
+
+  /* grouped inline list — iOS Settings elevated into Calm Noir */
+  .group { background: var(--card); border: 1px solid var(--hairline);
+    border-radius: var(--r-xl); box-shadow: var(--shadow); overflow: hidden; }
+
+  .lrow { display: flex; align-items: center; gap: 12px; width: 100%;
+    padding: 16px 18px; min-height: 60px; background: transparent;
+    border: none; text-align: left; font-family: inherit; cursor: pointer; }
+  .lrow + .lrow, .lrow + .lrow-edit, .lrow-edit + .lrow {
+    border-top: 1px solid var(--hairline); }
+
+  .lrow-label { flex: 0 0 auto; font-size: 15.5px; font-weight: 600;
+    letter-spacing: -.01em; color: var(--ink); }
+  .lrow-right { flex: 1 1 auto; display: flex; align-items: center;
+    justify-content: flex-end; gap: 9px; min-width: 0; }
+  .lrow-val { font-size: 15.5px; font-weight: 600; color: var(--ink-2);
+    letter-spacing: -.01em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .lrow-val .age { color: var(--ink-3); font-weight: 500; }
+
+  /* tiny provenance chip on the right */
+  .prov { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; font-weight: 600; letter-spacing: .01em;
+    padding: 3px 8px 3px 6px; border-radius: var(--r-pill);
+    color: var(--ink-3); background: rgba(255,255,255,.04); border: 1px solid var(--hairline); }
+  .prov svg { display: block; }
+  .prov.health { color: var(--mint-soft); background: rgba(16,181,164,.10); border-color: rgba(16,181,164,.22); }
+  .prov.strava { color: var(--indigo-soft); background: var(--indigo-tint); border-color: rgba(46,61,255,.26); }
+
+  .lchev { flex: 0 0 auto; color: var(--ink-3); }
+
+  /* inline-edit row (Weight open) */
+  .lrow-edit { padding: 14px 18px 18px; background: rgba(46,61,255,.05);
+    box-shadow: inset 4px 0 0 var(--indigo); }
+  .lrow-edit .edit-top { display: flex; align-items: center; justify-content: space-between; }
+  .lrow-edit .edit-label { font-size: 15.5px; font-weight: 700; color: var(--indigo-soft); letter-spacing: -.01em; }
+  .lrow-edit .edit-hint { font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--ink-3); }
+  .edit-input { display: flex; align-items: center; margin-top: 11px;
+    background: var(--card-2); border: 1px solid rgba(46,61,255,.4); border-radius: var(--r-sm);
+    padding: 12px 14px; box-shadow: 0 0 0 3px rgba(46,61,255,.10); }
+  .edit-input .num { flex: 1; background: transparent; border: none; outline: none;
+    color: var(--ink); font-family: inherit; font-size: 19px; font-weight: 700;
+    font-variant-numeric: tabular-nums; }
+  .edit-input .caret { width: 2px; height: 22px; background: var(--indigo-soft); border-radius: 1px;
+    margin-left: 1px; animation: blink 1.1s step-end infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .edit-input .suffix { color: var(--ink-3); font-size: 15px; font-weight: 600; margin-left: 8px; }
+  .edit-actions { display: flex; gap: 9px; margin-top: 12px; }
+  .edit-actions .btn { flex: 1; }
+
+  /* footnote + danger link */
+  .footnote { padding: 0 4px; margin-top: 14px; font-size: 12.5px; font-weight: 400;
+    color: var(--ink-3); line-height: 1.5; }
+  .footnote .lede { color: var(--ink-2); font-weight: 600; }
+  .danger-link { display: block; width: 100%; text-align: center; background: transparent;
+    border: none; font-family: inherit; font-size: 13.5px; font-weight: 700; letter-spacing: .01em;
+    color: var(--danger-soft); padding: 16px; margin-top: 6px; min-height: 48px; cursor: pointer; }
+</style>
+</head>
+<body>
+  <div class="device">
+    <div class="screen">
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="glyphs">
+          <svg width="18" height="12" viewBox="0 0 18 12" fill="none">
+            <rect x="0" y="8" width="3" height="4" rx="1" fill="#eef1f6"/>
+            <rect x="5" y="5" width="3" height="7" rx="1" fill="#eef1f6"/>
+            <rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#eef1f6"/>
+            <rect x="15" y="0" width="3" height="12" rx="1" fill="#eef1f6"/>
+          </svg>
+          <svg width="17" height="12" viewBox="0 0 17 12" fill="none">
+            <path d="M8.5 2.2c2.7 0 5.2 1 7.1 2.8l-1.5 1.6A7.9 7.9 0 0 0 8.5 4.3 7.9 7.9 0 0 0 2.9 6.6L1.4 5C3.3 3.2 5.8 2.2 8.5 2.2Z" fill="#eef1f6"/>
+            <path d="M8.5 6.1c1.6 0 3.1.6 4.2 1.7l-1.6 1.6A3.7 3.7 0 0 0 8.5 8.3c-1 0-2 .4-2.7 1.1L4.3 7.8A6 6 0 0 1 8.5 6.1Z" fill="#eef1f6"/>
+            <circle cx="8.5" cy="11" r="1.3" fill="#eef1f6"/>
+          </svg>
+          <svg width="26" height="13" viewBox="0 0 26 13" fill="none">
+            <rect x="0.5" y="0.5" width="22" height="12" rx="3.5" stroke="#eef1f6" stroke-opacity="0.4"/>
+            <rect x="2" y="2" width="17" height="9" rx="2" fill="#eef1f6"/>
+            <rect x="24" y="4" width="1.6" height="5" rx="0.8" fill="#eef1f6" fill-opacity="0.45"/>
+          </svg>
+        </span>
+      </div>
+
+      <div class="navbar">
+        <div class="nav-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="nav-title">User Profile</div>
+        <div></div>
+      </div>
+
+      <div class="content pad-bottom">
+
+        <!-- slim accuracy status line -->
+        <div class="acc-line reveal d1">
+          <span class="acc-dot"></span>
+          <span class="acc-text">Calorie accuracy: <b>Best</b> · used for heart-rate calories</span>
+        </div>
+
+        <p class="h-sub reveal d2" style="margin-top:6px">Used for accurate calorie estimation when training without an Apple Watch.</p>
+
+        <!-- quiet combined provider-sync row -->
+        <div class="sync-row reveal d3" style="margin-top:18px" role="button" aria-label="Sync from Apple Health or Strava">
+          <span class="sync-glyphs">
+            <!-- Apple Health = mint heart -->
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M12 20.5S3.5 14.8 3.5 9.1A4.6 4.6 0 0 1 12 6.6a4.6 4.6 0 0 1 8.5 2.5C20.5 14.8 12 20.5 12 20.5Z" fill="#10b5a4"/>
+            </svg>
+            <!-- Strava = indigo mark -->
+            <svg class="second" width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M10.5 3 5 13.4h3.3L10.5 9l2.2 4.4H16L10.5 3Z" fill="#5663ff"/>
+              <path d="M13.2 13.4 11.7 16.3l-1.5-2.9H7.9l3.8 7.2 3.8-7.2h-2.3Z" fill="#5663ff" fill-opacity=".72"/>
+            </svg>
+          </span>
+          <span class="sync-copy">
+            <span class="sync-title">Sync from Apple Health or Strava</span>
+            <span class="sync-sub">Overwrites returned fields · others left untouched</span>
+          </span>
+          <span class="lchev"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </div>
+
+        <!-- ONE refined grouped inline-edit list -->
+        <div class="section-label reveal d4"><h2>Body metrics</h2><span class="link">Tap to edit</span></div>
+        <div class="group reveal d4">
+
+          <!-- Sex -->
+          <button class="lrow" aria-label="Sex, Male. Tap to edit.">
+            <span class="lrow-label">Sex</span>
+            <span class="lrow-right">
+              <span class="lrow-val">Male</span>
+              <span class="lchev"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            </span>
+          </button>
+
+          <!-- Date of Birth + derived age + Apple Health chip -->
+          <button class="lrow" aria-label="Date of Birth, April 12 1990, from Apple Health. Tap to edit.">
+            <span class="lrow-label">Date of Birth</span>
+            <span class="lrow-right">
+              <span class="lrow-val">Apr 12, 1990 <span class="age">· 36 yrs</span></span>
+              <span class="prov health">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M12 20.5S3.5 14.8 3.5 9.1A4.6 4.6 0 0 1 12 6.6a4.6 4.6 0 0 1 8.5 2.5C20.5 14.8 12 20.5 12 20.5Z" fill="currentColor"/></svg>
+                Health
+              </span>
+              <span class="lchev"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            </span>
+          </button>
+
+          <!-- Weight — OPEN in inline-edit state -->
+          <div class="lrow-edit">
+            <div class="edit-top">
+              <span class="edit-label">Weight</span>
+              <span class="edit-hint">Editing · Manual</span>
+            </div>
+            <div class="edit-input">
+              <input class="num" type="text" inputmode="decimal" value="75" aria-label="Weight in kilograms" />
+              <span class="caret"></span>
+              <span class="suffix">kg</span>
+            </div>
+            <div class="edit-actions">
+              <button class="btn btn-ghost btn-sm">Cancel</button>
+              <button class="btn btn-primary btn-sm">Save</button>
+            </div>
+          </div>
+
+          <!-- Height -->
+          <button class="lrow" aria-label="Height, 178 centimeters. Tap to edit.">
+            <span class="lrow-label">Height</span>
+            <span class="lrow-right">
+              <span class="lrow-val">178 cm</span>
+              <span class="lchev"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+            </span>
+          </button>
+
+        </div>
+
+        <!-- quiet footnote -->
+        <p class="footnote reveal d5">
+          <span class="lede">How this is used.</span> With a Bluetooth heart-rate strap and no Apple Watch, the app uses Sex, Date of Birth, and Weight to compute calories from your heart rate (the Keytel formula) — meaningfully more accurate than power-based estimation. Height enables the Mifflin–St Jeor basal fallback.
+        </p>
+
+        <!-- small danger text link at the very bottom -->
+        <button class="danger-link reveal d6">Clear All Fields</button>
+
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+  <div class="caption"><b>08 · User Profile · D Inline list</b> · dark</div>
+</body>
+</html>
