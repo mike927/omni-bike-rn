@@ -19,7 +19,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   ios: {
     supportsTablet: true,
-    bundleIdentifier: 'com.anonymous.omnibikern',
+    bundleIdentifier: 'app.omnibike',
     infoPlist: {
       // Required for HKHealthStore.startWatchApp(toHandle:) to reliably wake
       // the paired Watch companion app when starting a workout.
@@ -42,7 +42,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'android.permission.BLUETOOTH_ADMIN',
       'android.permission.BLUETOOTH_CONNECT',
     ],
-    package: 'com.anonymous.omnibikern',
+    package: 'app.omnibike',
   },
   plugins: [
     'expo-router',

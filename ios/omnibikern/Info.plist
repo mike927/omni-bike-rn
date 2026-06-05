@@ -28,7 +28,7 @@
         <key>CFBundleURLSchemes</key>
         <array>
           <string>omnibike</string>
-          <string>com.anonymous.omnibikern</string>
+          <string>app.omnibike</string>
         </array>
       </dict>
       <dict>
