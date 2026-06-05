@@ -303,9 +303,10 @@ Provider-gear linking (`src/features/integrations/screens/ProviderGearLinkScreen
 "Garage browser"**. Pushed screen: `headerShown: false`, own `SafeAreaView` over `noir.bg`,
 in-screen back chevron + `Link Provider Bike` title, and a **pinned bottom action bar**.
 
-- **Garage header** — a provider chip (`Strava · Connected`, mint accent — never brand orange) + a
-  `Linking to · {bike}` context line, then the **Your Omni Bike** card with the current link status
-  (none / linked / stale).
+- **Garage header** — a provider chip showing **provider identity only** (e.g. `Strava`, mint
+  accent — never brand orange; **no `Connected`/status claim** unless backed by a verified
+  connection state) + a `Linking to · {bike}` context line, then the **Your Omni Bike** card with
+  the current link status (none / linked / stale).
 - **Available Provider Bikes** (`AvailableProviderBikeList` → `ProviderBikeRow`) — **tap-to-select**
   rows (`BikeGlyph` + name + meta); the selected row carries the 4px indigo accent-bar treatment
   (mirroring the Settings gear-selection pattern), and a mint **Possible match** pill marks computed
