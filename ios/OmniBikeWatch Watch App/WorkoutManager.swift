@@ -381,6 +381,9 @@ final class WorkoutManager: NSObject, ObservableObject {
             wcLog("[WC-Watch] requestControl: unreachable — queuing via transferUserInfo")
             session.transferUserInfo(payload)
         }
+        // Immediate tactile confirmation that the tap registered — the iPhone round-trip
+        // (which actually pauses/ends the session) lands a beat later with its own haptic.
+        WKInterfaceDevice.current().play(.click)
     }
 
     private func sendHrToPhone(_ bpm: Int) {
