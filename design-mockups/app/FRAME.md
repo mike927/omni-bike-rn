@@ -35,26 +35,17 @@ ONLY for screen-specific one-offs (e.g. a particular chart), reusing the CSS var
 
 ## Status bar (paste verbatim, always present)
 
+Icons are **sourced as-is from Lucide** (MIT) — never hand-author/approximate icon paths (see
+`AGENTS.md` → Icons & assets). Keep the `class="lucide lucide-*"` marker so sourced icons stay
+identifiable.
+
 ```html
 <div class="statusbar">
   <span>9:41</span>
   <span class="glyphs">
-    <svg width="18" height="12" viewBox="0 0 18 12" fill="none">
-      <rect x="0" y="8" width="3" height="4" rx="1" fill="#eef1f6"/>
-      <rect x="5" y="5" width="3" height="7" rx="1" fill="#eef1f6"/>
-      <rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#eef1f6"/>
-      <rect x="15" y="0" width="3" height="12" rx="1" fill="#eef1f6"/>
-    </svg>
-    <svg width="17" height="12" viewBox="0 0 17 12" fill="none">
-      <path d="M8.5 2.2c2.7 0 5.2 1 7.1 2.8l-1.5 1.6A7.9 7.9 0 0 0 8.5 4.3 7.9 7.9 0 0 0 2.9 6.6L1.4 5C3.3 3.2 5.8 2.2 8.5 2.2Z" fill="#eef1f6"/>
-      <path d="M8.5 6.1c1.6 0 3.1.6 4.2 1.7l-1.6 1.6A3.7 3.7 0 0 0 8.5 8.3c-1 0-2 .4-2.7 1.1L4.3 7.8A6 6 0 0 1 8.5 6.1Z" fill="#eef1f6"/>
-      <circle cx="8.5" cy="11" r="1.3" fill="#eef1f6"/>
-    </svg>
-    <svg width="26" height="13" viewBox="0 0 26 13" fill="none">
-      <rect x="0.5" y="0.5" width="22" height="12" rx="3.5" stroke="#eef1f6" stroke-opacity="0.4"/>
-      <rect x="2" y="2" width="17" height="9" rx="2" fill="#eef1f6"/>
-      <rect x="24" y="4" width="1.6" height="5" rx="0.8" fill="#eef1f6" fill-opacity="0.45"/>
-    </svg>
+    <svg class="lucide lucide-signal" xmlns="http://www.w3.org/2000/svg" width="15" height="13" viewBox="0 0 24 24" fill="none" stroke="#eef1f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/><path d="M22 4v16"/></svg>
+    <svg class="lucide lucide-wifi" xmlns="http://www.w3.org/2000/svg" width="16" height="13" viewBox="0 0 24 24" fill="none" stroke="#eef1f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.859a10 10 0 0 1 14 0"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/></svg>
+    <svg class="lucide lucide-battery-full" xmlns="http://www.w3.org/2000/svg" width="24" height="13" viewBox="0 0 24 24" fill="none" stroke="#eef1f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 10v4"/><path d="M14 10v4"/><path d="M22 14v-4"/><path d="M6 10v4"/><rect x="2" y="6" width="16" height="12" rx="2"/></svg>
   </span>
 </div>
 ```
@@ -66,22 +57,15 @@ The app has exactly three tabs: **Home · History · Settings**. Set `active` on
 ```html
 <div class="tabbar">
   <div class="tab {active on Home}">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 11l8-6.5L20 11v8a1.5 1.5 0 0 1-1.5 1.5H15v-5h-6v5H5.5A1.5 1.5 0 0 1 4 19v-8Z" fill="currentColor"/></svg>
+    <svg class="lucide lucide-house" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
     Home
   </div>
   <div class="tab {active on History}">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M3 3v5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M12 7.5v5l3.5 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
+    <svg class="lucide lucide-history" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
     History
   </div>
   <div class="tab {active on Settings}">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.8"/>
-      <path d="M19.4 13a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-2.92 1.2V20a2 2 0 1 1-4 0v-.06a1.7 1.7 0 0 0-2.92-1.2l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 13a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.06A1.7 1.7 0 0 0 4.6 6.4l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 11 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.06a1.7 1.7 0 0 0 2.92 1.2l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 11a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.06a1.7 1.7 0 0 0-1.54 1Z" stroke="currentColor" stroke-width="1.5"/>
-    </svg>
+    <svg class="lucide lucide-settings" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>
     Settings
   </div>
 </div>
@@ -91,7 +75,7 @@ The app has exactly three tabs: **Home · History · Settings**. Set `active` on
 
 ```html
 <div class="navbar">
-  <div class="nav-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+  <div class="nav-btn"><svg class="lucide lucide-chevron-left" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></div>
   <div class="nav-title">{Title}</div>
   <div></div>  <!-- or a .nav-right-link like "Skip" -->
 </div>
@@ -110,3 +94,8 @@ content scroll.
 - Real, legible numbers. Accessible contrast (the CSS already handles it). Touch targets ≥44px.
 - Self-label caption in the corner: `{NN · Screen Name} · dark`.
 - Inline SVG only for icons/illustrations — no external images.
+- **Icons must be sourced as-is** from a license-clean set (Lucide / Feather / Ionicons; Simple Icons
+  for brand marks like Strava) — never hand-author or approximate icon SVG paths (`AGENTS.md` → Icons
+  & assets). Keep the `class="lucide lucide-*"` / `class="si-strava"` marker. Brand marks are
+  recolored to the palette (mint/indigo) — never brand orange. Bespoke *illustrations* (diagrams,
+  charts, connectors) are exempt.
