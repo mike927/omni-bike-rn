@@ -8,6 +8,10 @@ import { useAppInitialization } from '../src/bootstrap/useAppInitialization';
 import { ActionButton } from '../src/ui/components/ActionButton';
 import { AppScreen } from '../src/ui/layout/AppScreen';
 import { noir, palette } from '../src/ui/theme';
+// Expo Router renders the route module's `ErrorBoundary` export around the
+// whole app tree, so a screen-level render error shows a recoverable fallback
+// instead of white-screening the app.
+export { AppErrorBoundary as ErrorBoundary } from '../src/ui/components/AppErrorBoundary';
 
 const ONBOARDING_ROUTE_SEGMENTS: ReadonlySet<string> = new Set(['onboarding', 'onboarding-gear-setup']);
 
