@@ -89,7 +89,7 @@
       <string>UIInterfaceOrientationPortraitUpsideDown</string>
     </array>
     <key>UIUserInterfaceStyle</key>
-    <string>Light</string>
+    <string>Dark</string>
     <key>UIViewControllerBasedStatusBarAppearance</key>
     <false/>
   </dict>
