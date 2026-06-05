@@ -8,6 +8,10 @@ import { useStravaConnectionStore } from '../../../../store/stravaConnectionStor
 import { useUserProfileStore } from '../../../../store/userProfileStore';
 import { EMPTY_USER_PROFILE } from '../../../../types/userProfile';
 
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ back: jest.fn(), replace: jest.fn(), push: jest.fn(), canGoBack: jest.fn() }),
+}));
+
 jest.mock('react-native-safe-area-context', () => {
   const { View } = jest.requireActual('react-native');
   return {

@@ -1,16 +1,19 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useMemo, useState, useEffect } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ActionButton } from '../../../ui/components/ActionButton';
-import { SectionCard } from '../../../ui/components/SectionCard';
-import { AppScreen } from '../../../ui/layout/AppScreen';
-import { palette } from '../../../ui/theme';
+import { noir } from '../../../ui/theme';
 import { loadProfileFromAppleHealth } from '../../../services/health/appleHealthAdapter';
 import { loadProfileFromStrava } from '../../../services/strava/stravaProfileService';
 import { useAppleHealthConnectionStore } from '../../../store/appleHealthConnectionStore';
 import { useStravaConnectionStore } from '../../../store/stravaConnectionStore';
 import { useUserProfileStore } from '../../../store/userProfileStore';
 import type { BiologicalSex, ProfileFieldSource } from '../../../types/userProfile';
+import { AthleteHeroCard } from '../components/AthleteHeroCard';
+import { deriveProfileView } from './userProfileViewModel';
 
 const SOURCE_LABELS: Record<ProfileFieldSource, string> = {
   'apple-health': 'Apple Health',
@@ -143,7 +146,7 @@ function NumericField({ value, suffix, placeholder, onCommit }: NumericFieldProp
         onBlur={handleBlur}
         keyboardType="decimal-pad"
         placeholder={placeholder}
-        placeholderTextColor={palette.textMuted}
+        placeholderTextColor={noir.ink3}
         style={styles.input}
       />
       <Text style={styles.inputSuffix}>{suffix}</Text>
@@ -185,7 +188,7 @@ function DateField({ value, onCommit }: DateFieldProps) {
         onBlur={handleBlur}
         keyboardType="numbers-and-punctuation"
         placeholder="yyyy-mm-dd"
-        placeholderTextColor={palette.textMuted}
+        placeholderTextColor={noir.ink3}
         autoCapitalize="none"
         autoCorrect={false}
         style={styles.input}
@@ -201,6 +204,7 @@ type SyncStatus =
   | { kind: 'error'; source: 'apple-health' | 'strava'; message: string };
 
 export function UserProfileScreen() {
+  const router = useRouter();
   const profile = useUserProfileStore((s) => s.profile);
   const setManual = useUserProfileStore((s) => s.setManual);
   const applyProviderSync = useUserProfileStore((s) => s.applyProviderSync);
@@ -241,130 +245,187 @@ export function UserProfileScreen() {
   };
 
   return (
-    <AppScreen
-      title="User Profile"
-      subtitle="Used for accurate calorie estimation when training without an Apple Watch.">
-      <SectionCard title="Sync from a provider">
-        {noProviderConnected ? (
-          <Text style={styles.helperText}>
-            Connect Apple Health or Strava in Settings to sync your profile, or fill in the fields below manually.
-          </Text>
-        ) : (
-          <Text style={styles.helperText}>
-            Tap a provider to overwrite your profile fields with the latest values. Fields the provider doesn&apos;t
-            return are left untouched.
-          </Text>
-        )}
-        <View style={styles.syncButtonRow}>
-          <ActionButton
-            label={
-              syncStatus.kind === 'syncing' && syncStatus.source === 'apple-health'
-                ? 'Syncing…'
-                : 'Sync from Apple Health'
-            }
-            variant="secondary"
-            disabled={!appleHealthConnected || syncStatus.kind === 'syncing'}
-            onPress={handleSyncFromAppleHealth}
-          />
-          <ActionButton
-            label={syncStatus.kind === 'syncing' && syncStatus.source === 'strava' ? 'Syncing…' : 'Sync from Strava'}
-            variant="secondary"
-            disabled={!stravaConnected || syncStatus.kind === 'syncing'}
-            onPress={handleSyncFromStrava}
-          />
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
+      <View style={styles.header}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          hitSlop={10}
+          onPress={() => router.back()}
+          style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}>
+          <Ionicons name="chevron-back" size={22} color={noir.ink2} />
+        </Pressable>
+        <Text style={styles.headerTitle}>User Profile</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Text style={styles.intro}>Used for accurate calorie estimation when training without an Apple Watch.</Text>
+
+        <AthleteHeroCard vm={deriveProfileView(profile, Date.now())} />
+
+        <Text style={styles.sectionLabel}>Sync from a provider</Text>
+        <View style={styles.card}>
+          {noProviderConnected ? (
+            <Text style={styles.helperText}>
+              Connect Apple Health or Strava in Settings to sync your profile, or fill in the fields below manually.
+            </Text>
+          ) : (
+            <Text style={styles.helperText}>
+              Tap a provider to overwrite your profile fields with the latest values. Fields the provider doesn&apos;t
+              return are left untouched.
+            </Text>
+          )}
+          <View style={styles.syncButtonRow}>
+            <ActionButton
+              label={
+                syncStatus.kind === 'syncing' && syncStatus.source === 'apple-health'
+                  ? 'Syncing…'
+                  : 'Sync from Apple Health'
+              }
+              scheme="noir"
+              variant="secondary"
+              disabled={!appleHealthConnected || syncStatus.kind === 'syncing'}
+              onPress={handleSyncFromAppleHealth}
+            />
+            <ActionButton
+              label={syncStatus.kind === 'syncing' && syncStatus.source === 'strava' ? 'Syncing…' : 'Sync from Strava'}
+              scheme="noir"
+              variant="secondary"
+              disabled={!stravaConnected || syncStatus.kind === 'syncing'}
+              onPress={handleSyncFromStrava}
+            />
+          </View>
+          {syncStatus.kind === 'success' ? (
+            <Text style={styles.syncSuccessText}>
+              {syncStatus.fieldCount > 0
+                ? `Updated ${syncStatus.fieldCount} field${syncStatus.fieldCount === 1 ? '' : 's'} from ${SOURCE_LABELS[syncStatus.source]}.`
+                : `${SOURCE_LABELS[syncStatus.source]} returned no profile data.`}
+            </Text>
+          ) : null}
+          {syncStatus.kind === 'error' ? (
+            <Text style={styles.syncErrorText}>
+              {SOURCE_LABELS[syncStatus.source]} sync failed: {syncStatus.message}
+            </Text>
+          ) : null}
         </View>
-        {syncStatus.kind === 'success' ? (
-          <Text style={styles.syncSuccessText}>
-            {syncStatus.fieldCount > 0
-              ? `Updated ${syncStatus.fieldCount} field${syncStatus.fieldCount === 1 ? '' : 's'} from ${SOURCE_LABELS[syncStatus.source]}.`
-              : `${SOURCE_LABELS[syncStatus.source]} returned no profile data.`}
+
+        <Text style={styles.sectionLabel}>Personal</Text>
+        <View style={styles.card}>
+          <FieldRow
+            label="Sex"
+            source={profile.sources.sex}
+            canClear={profile.sex !== null}
+            onClear={() => void setManual('sex', null)}>
+            <SexSegment value={profile.sex} onChange={(value) => void setManual('sex', value)} />
+          </FieldRow>
+
+          <View style={styles.divider} />
+
+          <FieldRow
+            label="Date of Birth"
+            source={profile.sources.dateOfBirth}
+            canClear={profile.dateOfBirth !== null}
+            onClear={() => void setManual('dateOfBirth', null)}>
+            <DateField value={profile.dateOfBirth} onCommit={(value) => void setManual('dateOfBirth', value)} />
+          </FieldRow>
+
+          <View style={styles.divider} />
+
+          <FieldRow
+            label="Weight"
+            source={profile.sources.weightKg}
+            canClear={profile.weightKg !== null}
+            onClear={() => void setManual('weightKg', null)}>
+            <NumericField
+              value={profile.weightKg}
+              suffix="kg"
+              placeholder="e.g. 75"
+              onCommit={(value) => void setManual('weightKg', value)}
+            />
+          </FieldRow>
+
+          <View style={styles.divider} />
+
+          <FieldRow
+            label="Height"
+            source={profile.sources.heightCm}
+            canClear={profile.heightCm !== null}
+            onClear={() => void setManual('heightCm', null)}>
+            <NumericField
+              value={profile.heightCm}
+              suffix="cm"
+              placeholder="e.g. 178"
+              onCommit={(value) => void setManual('heightCm', value)}
+            />
+          </FieldRow>
+        </View>
+
+        <Text style={styles.sectionLabel}>How this is used</Text>
+        <View style={styles.card}>
+          <Text style={styles.helperText}>
+            With a Bluetooth heart-rate strap and no Apple Watch, the app uses Sex, Date of Birth, and Weight to compute
+            calories from your heart rate (the Keytel formula) — meaningfully more accurate than power-based estimation.
+            Height enables the Mifflin–St Jeor basal fallback for the Apple Health Resting calorie figure.
           </Text>
-        ) : null}
-        {syncStatus.kind === 'error' ? (
-          <Text style={styles.syncErrorText}>
-            {SOURCE_LABELS[syncStatus.source]} sync failed: {syncStatus.message}
+          <Text style={styles.helperText}>
+            Manual edits stay until you tap Clear or trigger a Sync from a provider — providers always win when you ask
+            for them, but they only overwrite fields they actually return.
           </Text>
-        ) : null}
-      </SectionCard>
-
-      <SectionCard title="Personal">
-        <FieldRow
-          label="Sex"
-          source={profile.sources.sex}
-          canClear={profile.sex !== null}
-          onClear={() => void setManual('sex', null)}>
-          <SexSegment value={profile.sex} onChange={(value) => void setManual('sex', value)} />
-        </FieldRow>
-
-        <View style={styles.divider} />
-
-        <FieldRow
-          label="Date of Birth"
-          source={profile.sources.dateOfBirth}
-          canClear={profile.dateOfBirth !== null}
-          onClear={() => void setManual('dateOfBirth', null)}>
-          <DateField value={profile.dateOfBirth} onCommit={(value) => void setManual('dateOfBirth', value)} />
-        </FieldRow>
-
-        <View style={styles.divider} />
-
-        <FieldRow
-          label="Weight"
-          source={profile.sources.weightKg}
-          canClear={profile.weightKg !== null}
-          onClear={() => void setManual('weightKg', null)}>
-          <NumericField
-            value={profile.weightKg}
-            suffix="kg"
-            placeholder="e.g. 75"
-            onCommit={(value) => void setManual('weightKg', value)}
-          />
-        </FieldRow>
-
-        <View style={styles.divider} />
-
-        <FieldRow
-          label="Height"
-          source={profile.sources.heightCm}
-          canClear={profile.heightCm !== null}
-          onClear={() => void setManual('heightCm', null)}>
-          <NumericField
-            value={profile.heightCm}
-            suffix="cm"
-            placeholder="e.g. 178"
-            onCommit={(value) => void setManual('heightCm', value)}
-          />
-        </FieldRow>
-      </SectionCard>
-
-      <SectionCard title="How this is used">
-        <Text style={styles.helperText}>
-          With a Bluetooth heart-rate strap and no Apple Watch, the app uses Sex, Date of Birth, and Weight to compute
-          calories from your heart rate (the Keytel formula) — meaningfully more accurate than power-based estimation.
-          Height enables the Mifflin–St Jeor basal fallback for the Apple Health Resting calorie figure.
-        </Text>
-        <Text style={styles.helperText}>
-          Manual edits stay until you tap Clear or trigger a Sync from a provider — providers always win when you ask
-          for them, but they only overwrite fields they actually return.
-        </Text>
-        {isEmpty ? null : (
-          <ActionButton
-            label="Clear All Fields"
-            variant="danger"
-            onPress={async () => {
-              await setManual('sex', null);
-              await setManual('dateOfBirth', null);
-              await setManual('weightKg', null);
-              await setManual('heightCm', null);
-            }}
-          />
-        )}
-      </SectionCard>
-    </AppScreen>
+          {isEmpty ? null : (
+            <ActionButton
+              label="Clear All Fields"
+              scheme="noir"
+              variant="danger"
+              onPress={async () => {
+                await setManual('sex', null);
+                await setManual('dateOfBirth', null);
+                await setManual('weightKg', null);
+                await setManual('heightCm', null);
+              }}
+            />
+          )}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: noir.bg },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 8,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: noir.card,
+    borderWidth: 1,
+    borderColor: noir.hairline,
+  },
+  backBtnPressed: { opacity: 0.6 },
+  headerSpacer: { width: 40, height: 40 },
+  headerTitle: { color: noir.ink, fontSize: 17, fontWeight: '800', letterSpacing: -0.2 },
+  content: { paddingHorizontal: 22, paddingTop: 6, paddingBottom: 32 },
+  intro: { color: noir.ink2, fontSize: 13.5, lineHeight: 20, marginBottom: 16, marginHorizontal: 2 },
+  sectionLabel: { color: noir.ink, fontSize: 14, fontWeight: '700', marginTop: 18, marginBottom: 10, marginLeft: 4 },
+  card: {
+    backgroundColor: noir.card,
+    borderWidth: 1,
+    borderColor: noir.hairline,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    gap: 14,
+  },
   fieldRow: {
     gap: 8,
   },
@@ -374,9 +435,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   fieldLabel: {
-    color: palette.textMuted,
+    color: noir.ink3,
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -384,10 +445,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
-    backgroundColor: palette.primarySubtle,
+    backgroundColor: 'rgba(86,99,255,0.14)',
   },
   sourceBadgeText: {
-    color: palette.primary,
+    color: noir.indigoSoft,
     fontSize: 11,
     fontWeight: '700',
   },
@@ -395,20 +456,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: noir.hairline,
     borderRadius: 12,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: palette.surfaceMuted,
+    paddingVertical: 10,
+    backgroundColor: noir.card3,
   },
   input: {
     flex: 1,
-    color: palette.text,
+    color: noir.ink,
     fontSize: 16,
     fontWeight: '600',
   },
   inputSuffix: {
-    color: palette.textMuted,
+    color: noir.ink3,
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 8,
@@ -416,39 +477,42 @@ const styles = StyleSheet.create({
   segmentedControl: {
     flexDirection: 'row',
     borderRadius: 12,
-    backgroundColor: palette.surfaceMuted,
+    backgroundColor: noir.card3,
     padding: 4,
     gap: 4,
   },
   segment: {
     flex: 1,
+    minHeight: 44,
     paddingVertical: 10,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   segmentSelected: {
-    backgroundColor: palette.surface,
+    backgroundColor: noir.indigo,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: noir.indigo,
   },
   segmentPressed: {
     opacity: 0.7,
   },
   segmentLabel: {
     fontSize: 14,
-    fontWeight: '600',
-    color: palette.textMuted,
+    fontWeight: '700',
+    color: noir.ink2,
   },
   segmentLabelSelected: {
-    color: palette.text,
+    color: '#fff',
   },
   divider: {
     height: 1,
-    backgroundColor: palette.border,
+    backgroundColor: noir.hairline,
   },
   clearButton: {
     alignSelf: 'flex-start',
+    minHeight: 44,
+    justifyContent: 'center',
     paddingVertical: 4,
     paddingHorizontal: 8,
   },
@@ -456,12 +520,12 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   clearButtonText: {
-    color: palette.danger,
+    color: noir.dangerSoft,
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   helperText: {
-    color: palette.textMuted,
+    color: noir.ink2,
     fontSize: 13,
     lineHeight: 20,
   },
@@ -471,13 +535,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   syncSuccessText: {
-    color: palette.primary,
+    color: noir.mintSoft,
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 20,
   },
   syncErrorText: {
-    color: palette.danger,
+    color: noir.dangerSoft,
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 20,
