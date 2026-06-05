@@ -275,6 +275,48 @@ stores rather than only the final instantaneous reading.
   final-snapshot fallback applies **only when no samples were persisted**; with samples present the
   screen trusts them (so a ride with no HR source reads `--`, not a stale final reading).
 
+## User Profile
+
+The body-metrics screen (`src/features/settings/screens/UserProfileScreen.tsx`, mockup
+`design-mockups/app/screen-08-user-profile-A-athlete.html`) is Calm Noir, **Direction A —
+"Athlete card"**. Pushed screen: `headerShown: false`, own `SafeAreaView` over `noir.bg`, in-screen
+back chevron + `User Profile` title. **No user accounts** — never a name or avatar; this is body
+data, not a profile identity.
+
+- **Athlete hero** (`AthleteHeroCard`) — a `noir.card` "Body Profile" stat card: a 2×2 grid of
+  Sex · Age · Weight · Height (Age derived from DOB) plus a **calorie-accuracy badge** with a
+  one-line caption. Pure, unit-tested view-model `deriveProfileView` (reuses `deriveAgeYears` /
+  `toKeytelInputs` / `toMifflinInputs`): all four fields → **Best** (mint); Keytel-complete but no
+  height → **Good** (amber); otherwise → **Set up** (gray). The hero never renders a provider name.
+- **Sync from a provider** — `Sync from Apple Health` / `Sync from Strava`
+  (`ActionButton scheme="noir"`), disabled until that provider is connected; success/error status
+  line beneath.
+- **Personal fields** — Sex (segmented Male/Female), Date of Birth, Weight (kg), Height (cm); each
+  row keeps its **source badge** (`Apple Health` / `Strava` / `Manual`) and a per-field Clear action.
+  The blur-preserve editing rules and the explicit-sync-wins-per-field contract are unchanged.
+- **How this is used** + **Clear All Fields** (danger) explain the Keytel / Mifflin–St Jeor usage.
+
+## Link Provider Bike
+
+Provider-gear linking (`src/features/integrations/screens/ProviderGearLinkScreen.tsx`, mockup
+`design-mockups/app/screen-09-provider-gear-link-D-garage.html`) is Calm Noir, **Direction D —
+"Garage browser"**. Pushed screen: `headerShown: false`, own `SafeAreaView` over `noir.bg`,
+in-screen back chevron + `Link Provider Bike` title, and a **pinned bottom action bar**.
+
+- **Garage header** — a provider chip showing **provider identity only** (e.g. `Strava`, mint
+  accent — never brand orange; **no `Connected`/status claim** unless backed by a verified
+  connection state) + a `Linking to · {bike}` context line, then the **Your Omni Bike** card with
+  the current link status (none / linked / stale).
+- **Available Provider Bikes** (`AvailableProviderBikeList` → `ProviderBikeRow`) — **tap-to-select**
+  rows (`BikeGlyph` + name + meta); the selected row carries the 4px indigo accent-bar treatment
+  (mirroring the Settings gear-selection pattern), and a mint **Possible match** pill marks computed
+  matches. Meta strings come from the pure `providerBikeMetaLabel` view-model.
+- **States preserved** — bike-required, reconnect-required, loading, no-provider-gear, and error each
+  render as a noir card with the original copy; a dashed **Open Strava Gear** footer also covers the
+  no-gear path.
+- **Actions** — `Link Bike` (disabled until a bike is selected), `Skip for Now`, and `Unlink`
+  (danger, shown only when a link exists).
+
 ## Illustration Style
 
 Flat illustration with soft gradients in the brand palette. No photorealism. No text inside illustrations. Square aspect for hero illustrations. Consistent line weight and color treatment across all screens — illustrations in the same flow MUST share style.
@@ -289,5 +331,7 @@ screen needs a light-header override anymore, so the former `LIGHT_SCREEN_OPTION
 `app/(tabs)/_layout.tsx` has been removed. Training is a pushed screen with `headerShown: false`
 (its `contentStyle` background is `noir.bg`) and its own in-screen back header.
 
-Still on the old light `palette`: **User Profile**, **Provider Gear Link**, and the root `_layout`
-error/loading fallbacks.
+The pushed **User Profile** and **Link Provider Bike** screens are now Calm Noir too — both
+`headerShown: false` with a `noir.bg` `contentStyle` and their own in-screen back header (see their
+sections below). The **only** surface still on the old light `palette` is the root `_layout`
+error/loading fallback (small placeholder views, not a full screen).

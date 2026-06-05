@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Omni Bike · Link Provider Bike</title>
+<link rel="stylesheet" href="calm-noir.css" />
+<style>
+  /* ---- screen-specific one-offs (Direction D · Garage browser) ---- */
+
+  /* provider + context header zone */
+  .garage-head { display: flex; flex-direction: column; gap: 10px; margin: 6px 4px 4px; }
+  .chip-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+  /* provider chip — Strava mark recolored to mint (NEVER brand orange) */
+  .prov-chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 12px 7px 9px; border-radius: var(--r-pill);
+    background: rgba(16,181,164,.10); border: 1px solid rgba(16,181,164,.24);
+    color: var(--mint-soft); font-size: 12.5px; font-weight: 700; letter-spacing: .01em;
+  }
+  .prov-chip .strava-mark { display: block; color: var(--mint-soft); }
+  .prov-chip .sep { color: rgba(79,216,200,.55); font-weight: 600; }
+  .prov-chip .state { color: var(--mint-soft); font-weight: 600; }
+
+  /* context line — what the chosen bike attaches to */
+  .ctx-line {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 500; color: var(--ink-2); padding: 0 2px;
+  }
+  .ctx-line .label { color: var(--ink-3); font-weight: 600; }
+  .ctx-line .target { color: var(--ink); font-weight: 700; }
+  .ctx-line svg { flex: 0 0 auto; color: var(--ink-3); }
+
+  /* garage gallery rows */
+  .garage-list { display: flex; flex-direction: column; gap: 10px; }
+  .garage-row {
+    position: relative; background: var(--card); border: 1px solid var(--hairline);
+    border-radius: var(--r-lg); padding: 14px 15px; box-shadow: var(--shadow-soft);
+    display: flex; align-items: flex-start; gap: 13px; cursor: pointer;
+    transition: border-color .18s ease, background .18s ease;
+  }
+  .garage-row.selected {
+    border-color: rgba(46,61,255,.4);
+    background: linear-gradient(0deg, var(--indigo-tint), var(--indigo-tint)), var(--card);
+    box-shadow: inset 4px 0 0 var(--indigo), var(--shadow-soft);
+  }
+
+  /* bike thumbnail / glyph */
+  .bike-thumb {
+    flex: 0 0 auto; width: 46px; height: 46px; border-radius: 13px;
+    background: var(--card-3); display: flex; align-items: center; justify-content: center;
+    color: var(--ink-2);
+  }
+  .garage-row.selected .bike-thumb { background: var(--indigo-tint); color: var(--indigo-soft); }
+
+  .garage-meta { flex: 1 1 auto; min-width: 0; }
+  .garage-name-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .garage-name { font-size: 15px; font-weight: 800; letter-spacing: -.01em; color: var(--ink); }
+  .garage-row.selected .garage-name { color: var(--indigo-soft); }
+
+  /* tiny pills inside a row */
+  .mini-pill {
+    flex: 0 0 auto; font-size: 10.5px; font-weight: 700; letter-spacing: .01em;
+    padding: 3px 8px; border-radius: var(--r-pill); line-height: 1;
+  }
+  .mini-pill.match { color: var(--indigo-soft); background: var(--indigo-tint); border: 1px solid rgba(46,61,255,.28); }
+  .mini-pill.primary { color: var(--mint-soft); background: rgba(16,181,164,.10); border: 1px solid rgba(16,181,164,.24); }
+
+  /* garage-style metadata line */
+  .garage-stats {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+    margin-top: 7px; font-size: 12px; color: var(--ink-3); font-weight: 500;
+  }
+  .garage-stats .type { color: var(--ink-2); font-weight: 600; }
+  .garage-stats .num { font-variant-numeric: tabular-nums; }
+  .garage-stats .dot-sep { color: #3b424f; }
+
+  /* selection check on the right */
+  .sel-check {
+    flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%; margin-top: 2px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1.5px solid var(--hairline-2); color: transparent;
+    transition: background .18s ease, border-color .18s ease, color .18s ease;
+  }
+  .garage-row.selected .sel-check { background: var(--indigo); border-color: var(--indigo); color: #fff; }
+
+  /* quiet footer affordance (covers the no-gear path) */
+  .garage-footer {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin: 14px 4px 6px; padding: 13px 14px; min-height: 44px;
+    border: 1px dashed var(--hairline-2); border-radius: var(--r-md);
+    background: rgba(255,255,255,.015); color: var(--ink-2);
+    font-size: 12.5px; font-weight: 600; cursor: pointer;
+  }
+  .garage-footer .strava-mark { color: var(--mint-soft); }
+  .garage-footer .arrow { color: var(--ink-3); }
+</style>
+</head>
+<body>
+  <div class="device">
+    <div class="screen">
+
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="glyphs">
+          <svg class="lucide lucide-signal" xmlns="http://www.w3.org/2000/svg" width="18" height="12" viewBox="0 0 24 24" fill="none" stroke="#eef1f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/><path d="M22 4v16"/></svg>
+          <svg class="lucide lucide-wifi" xmlns="http://www.w3.org/2000/svg" width="17" height="12" viewBox="0 0 24 24" fill="none" stroke="#eef1f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.859a10 10 0 0 1 14 0"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/></svg>
+          <svg class="lucide lucide-battery-full" xmlns="http://www.w3.org/2000/svg" width="26" height="13" viewBox="0 0 24 24" fill="none" stroke="#eef1f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 10v4"/><path d="M14 10v4"/><path d="M22 14v-4"/><path d="M6 10v4"/><rect x="2" y="6" width="16" height="12" rx="2"/></svg>
+        </span>
+      </div>
+
+      <div class="navbar">
+        <div class="nav-btn"><svg class="lucide lucide-chevron-left" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></div>
+        <div class="nav-title">Link Provider Bike</div>
+        <div></div>
+      </div>
+
+      <div class="content">
+
+        <p class="h-sub reveal d1">Attach a provider bike to “Wahoo KICKR Bike” for future uploads.</p>
+
+        <!-- Header zone: provider chip + linking-to context -->
+        <div class="garage-head reveal d2">
+          <div class="chip-row">
+            <span class="prov-chip">
+              <svg class="si-strava strava-mark" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+              Strava
+              <span class="sep">·</span>
+              <span class="state">Connected</span>
+            </span>
+          </div>
+          <div class="ctx-line">
+            <svg class="lucide lucide-arrow-right" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            <span class="label">Linking to</span>
+            <span class="target">Wahoo KICKR Bike</span>
+          </div>
+        </div>
+
+        <div class="section-label reveal d3">
+          <h2>Your Strava bikes</h2>
+          <span class="link">3 bikes</span>
+        </div>
+
+        <div class="garage-list">
+
+          <!-- Recommended / preselected -->
+          <div class="garage-row selected reveal d4">
+            <div class="bike-thumb">
+              <svg class="lucide lucide-bike" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></svg>
+            </div>
+            <div class="garage-meta">
+              <div class="garage-name-row">
+                <span class="garage-name">Wahoo Kickr Bike</span>
+                <span class="mini-pill match">Possible match</span>
+                <span class="mini-pill primary">Primary</span>
+              </div>
+              <div class="garage-stats">
+                <span class="type">Smart trainer</span>
+                <span class="dot-sep">•</span>
+                <span class="num">1,240 km logged</span>
+                <span class="dot-sep">•</span>
+                <span class="num">Last used · Apr</span>
+              </div>
+            </div>
+            <div class="sel-check">
+              <svg class="lucide lucide-check" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            </div>
+          </div>
+
+          <div class="garage-row reveal d5">
+            <div class="bike-thumb">
+              <svg class="lucide lucide-bike" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></svg>
+            </div>
+            <div class="garage-meta">
+              <div class="garage-name-row">
+                <span class="garage-name">Tacx Neo Smart</span>
+              </div>
+              <div class="garage-stats">
+                <span class="type">Smart trainer</span>
+                <span class="dot-sep">•</span>
+                <span class="num">860 km logged</span>
+                <span class="dot-sep">•</span>
+                <span class="num">Last used · Feb</span>
+              </div>
+            </div>
+            <div class="sel-check">
+              <svg class="lucide lucide-check" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            </div>
+          </div>
+
+          <div class="garage-row reveal d6">
+            <div class="bike-thumb">
+              <svg class="lucide lucide-bike" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></svg>
+            </div>
+            <div class="garage-meta">
+              <div class="garage-name-row">
+                <span class="garage-name">Canyon Aeroad</span>
+              </div>
+              <div class="garage-stats">
+                <span class="type">Road</span>
+                <span class="dot-sep">•</span>
+                <span class="num">3,510 km logged</span>
+                <span class="dot-sep">•</span>
+                <span class="num">Last used · May</span>
+              </div>
+            </div>
+            <div class="sel-check">
+              <svg class="lucide lucide-check" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Quiet footer — covers the no-gear path -->
+        <div class="garage-footer reveal d7">
+          <svg class="si-strava strava-mark" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+          <span>Don’t see your bike? Open Strava Gear</span>
+          <svg class="lucide lucide-external-link arrow" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+        </div>
+
+      </div>
+
+      <div class="action-bar reveal d8">
+        <button class="btn btn-primary btn-block">Link Bike</button>
+        <button class="btn btn-ghost btn-block">Skip for Now</button>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+  <div class="caption"><b>09 · Link Provider Bike · D Garage browser</b> · dark</div>
+</body>
+</html>

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Omni Bike · User Profile</title>
+<link rel="stylesheet" href="calm-noir.css" />
+<style>
+  /* ---- Direction E: calorie-engine explainer one-offs (reuse tokens only) ---- */
+  .engine-hero {
+    background: linear-gradient(150deg, var(--card-3) 0%, var(--card) 60%);
+    border: 1px solid var(--hairline-2);
+    border-radius: var(--r-xl);
+    box-shadow: var(--shadow);
+    padding: 18px 18px 16px;
+  }
+  .engine-eyebrow {
+    font-size: 12px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--ink-3); margin-bottom: 10px;
+  }
+  /* flow diagram */
+  .flow {
+    background: var(--card-2);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r-lg);
+    padding: 14px 12px 10px;
+  }
+  .flow-svg { display: block; width: 100%; height: auto; }
+  .flow-cap {
+    margin-top: 8px; text-align: center;
+    font-size: 12px; font-weight: 600; color: var(--ink-3);
+    letter-spacing: .02em;
+  }
+  .flow-cap b { color: var(--mint-soft); font-weight: 700; }
+  .engine-note {
+    margin-top: 13px; font-size: 13.5px; color: var(--ink-2); line-height: 1.45;
+  }
+  .engine-note .em { color: var(--ink); font-weight: 600; }
+  /* ingredient field annotations */
+  .field-use {
+    margin-top: 9px; font-size: 12px; font-weight: 500;
+    color: var(--ink-3); line-height: 1.35; letter-spacing: .01em;
+  }
+  .field-use .tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10.5px; font-weight: 700; letter-spacing: .01em;
+    border-radius: 8px; padding: 2px 7px; text-transform: none;
+  }
+  .tag.calories { color: var(--mint-soft); background: rgba(16,181,164,.12); border: 1px solid rgba(16,181,164,.24); }
+  .tag.basal { color: var(--ink-2); background: rgba(255,255,255,.05); border: 1px solid var(--hairline); }
+  .field-label .derived {
+    font-size: 10.5px; font-weight: 700; color: var(--mint-soft);
+    background: rgba(16,181,164,.12); border-radius: 8px; padding: 2px 7px;
+    text-transform: none; letter-spacing: 0;
+  }
+  /* provider sync rows */
+  .sync-btn { gap: 9px; }
+  .sync-glyph { flex: 0 0 auto; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; }
+</style>
+</head>
+<body>
+  <div class="device">
+    <div class="screen">
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="glyphs">
+          <svg class="lucide lucide-signal" xmlns="http://www.w3.org/2000/svg" width="15" height="13" viewBox="0 0 24 24" fill="none" stroke="#eef1f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/><path d="M22 4v16"/></svg>
+          <svg class="lucide lucide-wifi" xmlns="http://www.w3.org/2000/svg" width="16" height="13" viewBox="0 0 24 24" fill="none" stroke="#eef1f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.859a10 10 0 0 1 14 0"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/></svg>
+          <svg class="lucide lucide-battery-full" xmlns="http://www.w3.org/2000/svg" width="24" height="13" viewBox="0 0 24 24" fill="none" stroke="#eef1f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 10v4"/><path d="M14 10v4"/><path d="M22 14v-4"/><path d="M6 10v4"/><rect x="2" y="6" width="16" height="12" rx="2"/></svg>
+        </span>
+      </div>
+
+      <div class="navbar">
+        <div class="nav-btn"><svg class="lucide lucide-chevron-left" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></div>
+        <div class="nav-title">User Profile</div>
+        <div></div>
+      </div>
+
+      <div class="content pad-bottom">
+        <p class="h-sub reveal d1">Used for accurate calorie estimation when training without an Apple Watch.</p>
+
+        <!-- HERO: the calorie engine, with flow diagram -->
+        <div class="engine-hero reveal d2" style="margin-top:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <div class="engine-eyebrow" style="margin-bottom:0">The calorie engine</div>
+            <span class="pill good">
+              <span class="dot"></span>
+              HR estimation · Enabled
+            </span>
+          </div>
+
+          <div class="flow" style="margin-top:13px">
+            <svg class="flow-svg" viewBox="0 0 320 132" fill="none" role="img"
+                 aria-label="Heart rate plus Sex, Age and Weight feed into the Keytel formula to compute Calories in kilocalories.">
+              <defs>
+                <marker id="arrowMint" markerWidth="9" markerHeight="9" refX="6.5" refY="4" orient="auto">
+                  <path d="M1 1 L7 4 L1 7" fill="none" stroke="#4fd8c8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </marker>
+              </defs>
+
+              <!-- Node A: Heart rate -->
+              <rect x="2" y="6" width="116" height="44" rx="12" fill="#1b212c" stroke="#2a323f"/>
+              <path d="M22 23.6c-2.2-2-5.4-1.4-6.6 1-1 2 .3 4.2 1.9 5.8 1 1 2.4 2.1 3.7 3.1 1.3-1 2.7-2.1 3.7-3.1 1.6-1.6 2.9-3.8 1.9-5.8-1.2-2.4-4.4-3-6.6-1Z"
+                    fill="none" stroke="#4fd8c8" stroke-width="1.7" stroke-linejoin="round"/>
+              <text x="36" y="25" fill="#eef1f6" font-family="Hanken Grotesk, sans-serif" font-size="13" font-weight="700">Heart rate</text>
+              <text x="36" y="40" fill="#6b7384" font-family="Hanken Grotesk, sans-serif" font-size="11" font-weight="600">live · bpm</text>
+
+              <!-- Node B: Sex · Age · Weight -->
+              <rect x="2" y="82" width="116" height="44" rx="12" fill="#1b212c" stroke="#2a323f"/>
+              <text x="16" y="104" fill="#eef1f6" font-family="Hanken Grotesk, sans-serif" font-size="13" font-weight="700">Sex · Age</text>
+              <text x="16" y="119" fill="#eef1f6" font-family="Hanken Grotesk, sans-serif" font-size="13" font-weight="700">Weight</text>
+
+              <!-- connectors into the engine -->
+              <path d="M118 28 H150 Q160 28 160 42 V58" stroke="#2e3dff" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+              <path d="M118 104 H150 Q160 104 160 90 V74" stroke="#2e3dff" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+
+              <!-- Engine hub -->
+              <circle cx="160" cy="66" r="15" fill="rgba(46,61,255,.14)" stroke="#5663ff" stroke-width="1.6"/>
+              <g stroke="#5663ff" stroke-width="1.6" fill="none" stroke-linecap="round">
+                <circle cx="160" cy="66" r="3.4"/>
+                <path d="M160 56v3.6M160 72.4V76M150 66h3.6M166.4 66H170"/>
+                <path d="M153 59l2.5 2.5M164.5 70.5L167 73M167 59l-2.5 2.5M155.5 70.5L153 73"/>
+              </g>
+
+              <!-- engine -> output -->
+              <path d="M177 66 H214" stroke="#4fd8c8" stroke-width="1.8" fill="none" marker-end="url(#arrowMint)" stroke-linecap="round"/>
+
+              <!-- Node C: Calories output -->
+              <rect x="216" y="44" width="102" height="44" rx="12" fill="rgba(16,181,164,.10)" stroke="rgba(16,181,164,.4)"/>
+              <text x="232" y="64" fill="#4fd8c8" font-family="Hanken Grotesk, sans-serif" font-size="15" font-weight="800">Calories</text>
+              <text x="232" y="79" fill="#9aa3b2" font-family="Hanken Grotesk, sans-serif" font-size="11" font-weight="600">kcal · estimated</text>
+            </svg>
+            <div class="flow-cap"><b>Keytel formula</b> — heart rate → energy burned</div>
+          </div>
+
+          <p class="engine-note">The app uses <span class="em">Sex</span>, <span class="em">Date of Birth</span>, and <span class="em">Weight</span> to compute calories from your heart rate — meaningfully more accurate than power-based estimation. <span class="em">Height</span> enables the Mifflin–St Jeor basal fallback.</p>
+        </div>
+
+        <!-- YOUR INPUTS: the four ingredients that feed the engine -->
+        <div class="section-label reveal d3"><h2>Your inputs</h2></div>
+        <div class="card reveal d3" style="padding-top:4px;padding-bottom:4px">
+          <div class="field">
+            <div class="field-label">Sex</div>
+            <div class="segmented">
+              <div class="seg-opt on">Male</div>
+              <div class="seg-opt">Female</div>
+            </div>
+            <div class="field-use"><span class="tag calories">used for calories</span></div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">Date of Birth <span class="field-badge">Apple Health</span> <span class="derived">→ Age 36 yrs</span></div>
+            <div class="input"><span class="val">Apr 12, 1990</span></div>
+            <div class="field-use"><span class="tag calories">used for calories</span> &nbsp;Age is derived automatically.</div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">Weight <span class="field-badge" style="color:var(--ink-2);background:rgba(255,255,255,.05)">Manual</span></div>
+            <div class="input"><span class="val">75</span><span class="suffix">kg</span></div>
+            <div class="field-use"><span class="tag calories">used for calories</span></div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">Height</div>
+            <div class="input"><span class="val">178</span><span class="suffix">cm</span></div>
+            <div class="field-use"><span class="tag basal">basal fallback · Mifflin–St Jeor</span></div>
+          </div>
+        </div>
+
+        <!-- SYNC: secondary action row -->
+        <div class="section-label reveal d4"><h2>Sync from a provider</h2></div>
+        <div class="card reveal d4">
+          <p class="card-desc" style="margin-top:0">Tap a provider to overwrite your profile fields with the latest values. Fields the provider doesn't return are left untouched.</p>
+          <div class="btn-row" style="margin-top:14px">
+            <button class="btn btn-secondary sync-btn">
+              <span class="sync-glyph">
+                <svg class="lucide lucide-heart" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4fd8c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5"/></svg>
+              </span>
+              Apple Health
+            </button>
+            <button class="btn btn-secondary sync-btn">
+              <span class="sync-glyph">
+                <svg class="si-strava" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="#5663ff"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+              </span>
+              Strava
+            </button>
+          </div>
+        </div>
+
+        <!-- DANGER -->
+        <div style="margin-top:20px" class="reveal d5">
+          <button class="btn btn-danger btn-block">Clear All Fields</button>
+        </div>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+  <div class="caption"><b>08 · User Profile · E Calorie engine</b> · dark</div>
+</body>
+</html>

@@ -99,8 +99,14 @@ export default function RootLayout() {
         <Stack.Screen name="summary" options={{ headerShown: false, contentStyle: { backgroundColor: noir.bg } }} />
         <Stack.Screen name="gear-setup" options={{ title: 'Select Device' }} />
         <Stack.Screen name="onboarding-gear-setup" options={{ presentation: 'modal', title: 'Select Device' }} />
-        <Stack.Screen name="provider-gear-link" options={{ title: 'Link Provider Bike' }} />
-        <Stack.Screen name="user-profile" options={{ title: 'User Profile' }} />
+        <Stack.Screen
+          name="provider-gear-link"
+          options={{ headerShown: false, contentStyle: { backgroundColor: noir.bg } }}
+        />
+        <Stack.Screen
+          name="user-profile"
+          options={{ headerShown: false, contentStyle: { backgroundColor: noir.bg } }}
+        />
         <Stack.Screen name="localhost/oauth/callback" options={{ headerShown: false }} />
       </Stack>
     </>

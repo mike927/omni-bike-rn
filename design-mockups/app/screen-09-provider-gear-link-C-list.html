@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Omni Bike · Link Provider Bike</title>
+<link rel="stylesheet" href="calm-noir.css" />
+<style>
+  /* screen-specific one-offs */
+  .muted-note { margin: 0 4px 12px; font-size: 12.5px; color: var(--ink-3); line-height: 1.45; }
+
+  /* provider mark — Strava glyph recolored to palette (indigo), never brand orange */
+  .prov-mark { color: var(--indigo-soft); }
+  .dev-card.selected .prov-mark { color: var(--indigo-soft); }
+  .dev-card:not(.selected) .dev-icon { color: var(--ink-3); background: #1d222b; }
+
+  /* the row IS the control — give it the right affordances */
+  .dev-card.pick { cursor: pointer; min-height: 64px; }
+
+  /* name row hosts the inline "Primary" tag + "Possible match" pill */
+  .dev-name-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .tag-primary {
+    font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--ink-2); background: rgba(255,255,255,.05);
+    border: 1px solid var(--hairline); border-radius: 7px; padding: 2px 6px;
+  }
+
+  /* compact "possible match" pill, sits on the meta line */
+  .match-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; font-weight: 700; letter-spacing: .01em;
+    color: var(--mint-soft); background: rgba(16,181,164,.12);
+    border: 1px solid rgba(16,181,164,.24); border-radius: var(--r-pill);
+    padding: 3px 9px 3px 7px; margin-bottom: 5px;
+  }
+  .match-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--mint); }
+
+  /* trailing radio-like check — filled only on the selected row */
+  .pick-mark {
+    flex: 0 0 auto; width: 24px; height: 24px; border-radius: 50%;
+    border: 1.5px solid var(--hairline-2); display: flex; align-items: center; justify-content: center;
+    color: transparent;
+  }
+  .dev-card.selected .pick-mark {
+    border-color: var(--indigo); background: var(--indigo); color: #fff;
+  }
+
+  .provider-row { display: flex; align-items: center; gap: 8px; margin: 0 4px 6px; }
+  .provider-row .lbl { font-size: 13px; font-weight: 700; color: var(--ink-2); }
+  .provider-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 700; color: var(--indigo-soft);
+    background: var(--indigo-tint); border: 1px solid rgba(46,61,255,.24);
+    border-radius: var(--r-pill); padding: 3px 10px 3px 8px;
+  }
+</style>
+</head>
+<body>
+  <div class="device">
+    <div class="screen">
+
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="glyphs">
+          <svg class="lucide lucide-signal" xmlns="http://www.w3.org/2000/svg" width="18" height="12" viewBox="0 0 24 24" fill="none" stroke="#eef1f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/><path d="M22 4v16"/></svg>
+          <svg class="lucide lucide-wifi" xmlns="http://www.w3.org/2000/svg" width="17" height="12" viewBox="0 0 24 24" fill="none" stroke="#eef1f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.859a10 10 0 0 1 14 0"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/></svg>
+          <svg class="lucide lucide-battery-full" xmlns="http://www.w3.org/2000/svg" width="26" height="13" viewBox="0 0 24 24" fill="none" stroke="#eef1f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 10v4"/><path d="M14 10v4"/><path d="M22 14v-4"/><path d="M6 10v4"/><rect x="2" y="6" width="16" height="12" rx="2"/></svg>
+        </span>
+      </div>
+
+      <div class="navbar">
+        <div class="nav-btn"><svg class="lucide lucide-chevron-left" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></div>
+        <div class="nav-title">Link Provider Bike</div>
+        <div></div>
+      </div>
+
+      <div class="content">
+
+        <p class="h-sub reveal d1">Attach a provider bike to “Wahoo KICKR Bike” for future uploads.</p>
+
+        <div class="section-label reveal d2">
+          <h2>Your Omni Bike</h2>
+        </div>
+        <div class="card reveal d2">
+          <div class="card-title">Wahoo KICKR Bike</div>
+          <div class="card-desc">No provider bike linked yet.</div>
+        </div>
+
+        <div class="section-label reveal d3">
+          <h2>Available Provider Bikes</h2>
+        </div>
+        <div class="provider-row reveal d3">
+          <span class="lbl">From</span>
+          <span class="provider-chip">
+            <svg class="si-strava prov-mark" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+            Strava
+          </span>
+        </div>
+        <p class="muted-note reveal d3">Possible matches for Wahoo KICKR Bike are labeled below. You can still choose any provider bike.</p>
+
+        <div class="row-list">
+
+          <div class="dev-card pick selected reveal d4" role="radio" aria-checked="true" tabindex="0">
+            <div class="dev-icon"><svg class="si-strava prov-mark" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg></div>
+            <div class="dev-meta">
+              <div class="dev-name-row">
+                <span class="dev-name">Wahoo Kickr Bike</span>
+                <span class="tag-primary">Primary</span>
+              </div>
+              <span class="match-pill"><span class="dot"></span>Possible match</span>
+              <div class="dev-kind">Primary bike in provider account</div>
+            </div>
+            <span class="pick-mark"><svg class="lucide lucide-check" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+          </div>
+
+          <div class="dev-card pick reveal d5" role="radio" aria-checked="false" tabindex="0">
+            <div class="dev-icon"><svg class="si-strava prov-mark" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg></div>
+            <div class="dev-meta">
+              <div class="dev-name-row">
+                <span class="dev-name">Tacx Neo Smart</span>
+              </div>
+              <div class="dev-kind">Provider bike</div>
+            </div>
+            <span class="pick-mark"><svg class="lucide lucide-check" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+          </div>
+
+          <div class="dev-card pick reveal d6" role="radio" aria-checked="false" tabindex="0">
+            <div class="dev-icon"><svg class="si-strava prov-mark" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg></div>
+            <div class="dev-meta">
+              <div class="dev-name-row">
+                <span class="dev-name">Canyon Aeroad</span>
+              </div>
+              <div class="dev-kind">Provider bike</div>
+            </div>
+            <span class="pick-mark"><svg class="lucide lucide-check" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="action-bar reveal d7">
+        <button class="btn btn-primary btn-block">Link Bike</button>
+        <button class="btn btn-ghost btn-block">Skip for Now</button>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+  <div class="caption"><b>09 · Link Provider Bike · C Selectable list</b> · dark</div>
+</body>
+</html>

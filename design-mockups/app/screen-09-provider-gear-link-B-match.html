@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Omni Bike · Link Provider Bike</title>
+<link rel="stylesheet" href="calm-noir.css" />
+<style>
+  /* screen-specific one-offs — reuse tokens, no new color system */
+
+  /* recommended smart-match hero card */
+  .match-hero { position: relative; overflow: hidden;
+    background: linear-gradient(0deg, var(--indigo-tint), var(--indigo-tint)), var(--card);
+    border: 1px solid rgba(46,61,255,.4);
+    border-radius: var(--r-xl); padding: 20px; box-shadow: var(--shadow); }
+  .match-hero::after { content: ""; position: absolute; top: -50%; right: -16%; width: 220px; height: 220px;
+    background: radial-gradient(circle, rgba(86,99,255,.18), rgba(86,99,255,0) 70%); pointer-events: none; }
+  .match-top { display: flex; align-items: center; gap: 12px; position: relative; z-index: 1; }
+  .match-logo { flex: 0 0 auto; width: 46px; height: 46px; border-radius: 14px; background: var(--card-3);
+    display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 0 1px var(--hairline); }
+  .match-eyebrow-row { flex: 1 1 auto; min-width: 0; }
+  .match-eyebrow { display: inline-flex; align-items: center; gap: 6px; }
+  .match-title { margin-top: 14px; font-size: 24px; font-weight: 800; letter-spacing: -.02em; color: var(--ink);
+    position: relative; z-index: 1; line-height: 1.05; }
+  .match-sub { margin-top: 6px; font-size: 13.5px; font-weight: 400; color: var(--ink-2); line-height: 1.45;
+    position: relative; z-index: 1; }
+  .match-cta { position: relative; z-index: 1; margin-top: 16px; }
+
+  /* "links to your bike" context line */
+  .link-context { display: flex; align-items: center; gap: 8px; margin: 12px 4px 0;
+    font-size: 12.5px; font-weight: 500; color: var(--ink-3); line-height: 1.4; }
+  .link-context .local { color: var(--ink-2); font-weight: 700; }
+  .link-context svg { flex: 0 0 auto; color: var(--ink-3); }
+
+  /* Strava mark recolored to palette indigo — NEVER brand orange */
+  .strava-mark { color: var(--indigo-soft); }
+
+  /* disclosure */
+  .disclosure-head { width: 100%; display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; background: transparent; border: none; cursor: pointer; padding: 4px; font-family: inherit;
+    color: var(--ink); }
+  .disclosure-head .dh-label { font-size: 14px; font-weight: 700; letter-spacing: .01em; color: var(--ink); }
+  .disclosure-head .dh-sub { font-size: 12px; font-weight: 500; color: var(--ink-3); margin-top: 2px; }
+  .disclosure-head .dh-text { text-align: left; }
+  .strava-mini { flex: 0 0 auto; width: 30px; height: 30px; border-radius: 9px; background: var(--card-3);
+    display: flex; align-items: center; justify-content: center; }
+</style>
+</head>
+<body>
+  <div class="device">
+    <div class="screen">
+
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="glyphs">
+          <svg class="lucide lucide-signal" xmlns="http://www.w3.org/2000/svg" width="18" height="12" viewBox="0 0 24 24" fill="none" stroke="#eef1f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/><path d="M22 4v16"/></svg>
+          <svg class="lucide lucide-wifi" xmlns="http://www.w3.org/2000/svg" width="17" height="12" viewBox="0 0 24 24" fill="none" stroke="#eef1f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.859a10 10 0 0 1 14 0"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/></svg>
+          <svg class="lucide lucide-battery-full" xmlns="http://www.w3.org/2000/svg" width="26" height="13" viewBox="0 0 24 24" fill="none" stroke="#eef1f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 10v4"/><path d="M14 10v4"/><path d="M22 14v-4"/><path d="M6 10v4"/><rect x="2" y="6" width="16" height="12" rx="2"/></svg>
+        </span>
+      </div>
+
+      <div class="navbar">
+        <div class="nav-btn"><svg class="lucide lucide-chevron-left" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></div>
+        <div class="nav-title">Link Provider Bike</div>
+        <div></div>
+      </div>
+
+      <div class="content">
+
+        <p class="h-sub reveal d1">Attach a provider bike to &ldquo;Wahoo KICKR Bike&rdquo; for future uploads.</p>
+
+        <!-- HERO: smart match, one tap -->
+        <div class="section-label tight reveal d2">
+          <h2>Recommended</h2>
+        </div>
+
+        <div class="match-hero reveal d2">
+          <div class="match-top">
+            <div class="match-logo">
+              <!-- Strava mark, recolored indigo (never brand orange) -->
+              <svg class="si-strava strava-mark" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+            </div>
+            <div class="match-eyebrow-row">
+              <span class="match-eyebrow">
+                <span class="eyebrow">Best match on Strava</span>
+              </span>
+              <div class="dev-kind" style="margin-top:5px">
+                <span class="pill" style="padding:3px 9px 3px 7px;font-size:11px"><span class="dot"></span>Possible match</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="match-title">Wahoo Kickr Bike</div>
+          <div class="match-sub">Primary bike in your account &middot; matches Wahoo KICKR Bike</div>
+
+          <button class="cta match-cta">
+            <div class="cta-row">
+              <div>
+                <div class="cta-label">One tap to link</div>
+                <div class="cta-title">Link this bike</div>
+              </div>
+              <div class="cta-go">
+                <svg class="lucide lucide-check" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              </div>
+            </div>
+          </button>
+        </div>
+
+        <!-- context: what this links to locally -->
+        <div class="link-context reveal d3">
+          <svg class="lucide lucide-link" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          <span>Links to your Omni Bike <span class="local">Wahoo KICKR Bike</span></span>
+        </div>
+
+        <hr class="divider reveal d4" />
+
+        <!-- DISCLOSURE: choose a different bike (shown expanded) -->
+        <button class="disclosure-head reveal d4" aria-expanded="true">
+          <span style="display:flex;align-items:center;gap:11px">
+            <span class="strava-mini">
+              <svg class="si-strava strava-mark" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+            </span>
+            <span class="dh-text">
+              <span class="dh-label">Choose a different bike</span>
+              <span class="dh-sub">2 other bikes on Strava</span>
+            </span>
+          </span>
+          <span class="chev open"><svg class="lucide lucide-chevron-down" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+        </button>
+
+        <p class="h-sub reveal d5" style="margin:12px 4px 12px;font-size:12.5px;color:var(--ink-3)">You can still choose any provider bike.</p>
+
+        <div class="row-list">
+
+          <div class="dev-card reveal d6">
+            <div class="dev-icon muted">
+              <svg class="lucide lucide-bike" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></svg>
+            </div>
+            <div class="dev-meta">
+              <div class="dev-name">Tacx Neo Smart</div>
+              <div class="dev-kind">Provider bike</div>
+            </div>
+            <button class="btn btn-secondary btn-sm">Choose</button>
+          </div>
+
+          <div class="dev-card reveal d7">
+            <div class="dev-icon muted">
+              <svg class="lucide lucide-bike" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></svg>
+            </div>
+            <div class="dev-meta">
+              <div class="dev-name">Canyon Aeroad</div>
+              <div class="dev-kind">Provider bike</div>
+            </div>
+            <button class="btn btn-secondary btn-sm">Choose</button>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="action-bar reveal d8">
+        <button class="btn btn-ghost btn-block">Skip for Now</button>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+  <div class="caption"><b>09 · Link Provider Bike · B Smart match</b> · dark</div>
+</body>
+</html>

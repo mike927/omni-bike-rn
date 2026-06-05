@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Omni Bike · Link Provider Bike</title>
+<link rel="stylesheet" href="calm-noir.css" />
+<style>
+  /* screen-specific one-offs — confirm-pairing sheet */
+  .pair-sub { margin: 2px 4px 4px; font-size: 14.5px; font-weight: 400;
+    color: var(--ink-2); line-height: 1.42; }
+
+  /* the big vertical from→to pairing preview */
+  .pair-preview { background: var(--card); border: 1px solid var(--hairline);
+    border-radius: var(--r-2xl); box-shadow: var(--shadow); padding: 22px 20px;
+    position: relative; overflow: hidden; }
+  .pair-preview::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(120% 70% at 50% -10%, rgba(46,61,255,.12), transparent 60%); }
+
+  .pair-node { position: relative; z-index: 1; display: flex; align-items: center; gap: 14px; }
+  .pair-glyph { flex: 0 0 auto; width: 52px; height: 52px; border-radius: 16px;
+    display: flex; align-items: center; justify-content: center; }
+  .pair-glyph.local { background: var(--card-3); color: var(--indigo-soft); }
+  .pair-glyph.provider { background: rgba(46,61,255,.12); color: var(--indigo-soft);
+    box-shadow: inset 0 0 0 1px rgba(46,61,255,.3); }
+  .pair-text { min-width: 0; flex: 1 1 auto; }
+  .pair-role { font-size: 11px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--ink-3); }
+  .pair-name { margin-top: 3px; font-size: 19px; font-weight: 800; letter-spacing: -.02em;
+    color: var(--ink); line-height: 1.1; }
+  .pair-name-row { display: flex; align-items: center; gap: 8px; }
+  .provider-tag { display: inline-flex; align-items: center; gap: 6px; margin-top: 5px;
+    font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+  .strava-mark { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%;
+    background: var(--mint); box-shadow: 0 0 0 3px rgba(16,181,164,.16); }
+
+  /* connector between the two nodes */
+  .pair-connector { position: relative; z-index: 1; display: flex; align-items: center;
+    gap: 12px; margin: 14px 0 14px 25px; }
+  .pair-line { width: 2px; height: 30px; border-radius: 2px;
+    background: linear-gradient(180deg, var(--indigo-soft), rgba(46,61,255,.35)); }
+  .pair-arrow { display: flex; flex-direction: column; align-items: center;
+    color: var(--indigo-soft); }
+  .pair-link-label { font-size: 12px; font-weight: 600; color: var(--ink-3); }
+
+  /* recommended provider node sits in a tinted, accented well */
+  .provider-well { position: relative; z-index: 1; border-radius: var(--r-lg);
+    border: 1px solid rgba(46,61,255,.4);
+    background: linear-gradient(0deg, var(--indigo-tint), var(--indigo-tint)), var(--card-2);
+    box-shadow: inset 4px 0 0 var(--indigo); padding: 14px 15px; }
+  .match-pill { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
+    font-size: 12px; font-weight: 600; padding: 5px 11px 5px 9px; border-radius: var(--r-pill);
+    color: var(--mint-soft); background: rgba(16,181,164,.12);
+    border: 1px solid rgba(16,181,164,.24); }
+  .match-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--mint); }
+
+  /* inline swapper — "Use a different bike", shown expanded */
+  .swapper { margin-top: 12px; }
+  .swap-toggle { width: 100%; display: flex; align-items: center; justify-content: center;
+    gap: 8px; min-height: 46px; padding: 11px 16px; border-radius: var(--r-md);
+    background: transparent; border: 1px solid var(--hairline); color: var(--ink-2);
+    font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .swap-toggle .chev { color: var(--indigo-soft); }
+  .swap-panel { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .swap-cap { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--ink-3); margin: 2px 2px 2px; }
+  .swap-opt { display: flex; align-items: center; gap: 12px; width: 100%;
+    background: var(--card-2); border: 1px solid var(--hairline); border-radius: var(--r-md);
+    padding: 12px 14px; min-height: 56px; cursor: pointer; text-align: left;
+    font-family: inherit; transition: background .15s ease, border-color .15s ease; }
+  .swap-opt:active { background: var(--card-3); }
+  .swap-opt-meta { flex: 1 1 auto; min-width: 0; }
+  .swap-opt-name { font-size: 15px; font-weight: 700; letter-spacing: -.01em; color: var(--ink); }
+  .swap-opt-kind { font-size: 12.5px; font-weight: 400; color: var(--ink-3); margin-top: 2px; }
+  .swap-opt .pick { flex: 0 0 auto; font-size: 13px; font-weight: 700; color: var(--indigo-soft); }
+</style>
+</head>
+<body>
+  <div class="device">
+    <div class="screen">
+
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="glyphs">
+          <svg class="lucide lucide-signal" xmlns="http://www.w3.org/2000/svg" width="18" height="12" viewBox="0 0 24 24" fill="none" stroke="#eef1f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/><path d="M22 4v16"/></svg>
+          <svg class="lucide lucide-wifi" xmlns="http://www.w3.org/2000/svg" width="17" height="12" viewBox="0 0 24 24" fill="none" stroke="#eef1f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.859a10 10 0 0 1 14 0"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/></svg>
+          <svg class="lucide lucide-battery-full" xmlns="http://www.w3.org/2000/svg" width="26" height="13" viewBox="0 0 24 24" fill="none" stroke="#eef1f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 10v4"/><path d="M14 10v4"/><path d="M22 14v-4"/><path d="M6 10v4"/><rect x="2" y="6" width="16" height="12" rx="2"/></svg>
+        </span>
+      </div>
+
+      <div class="navbar">
+        <div class="nav-btn"><svg class="lucide lucide-chevron-left" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></div>
+        <div class="nav-title">Link Provider Bike</div>
+        <div></div>
+      </div>
+
+      <div class="content">
+
+        <p class="pair-sub reveal d1">Attach a provider bike to “Wahoo KICKR Bike” for future uploads.</p>
+
+        <div class="pair-preview reveal d2">
+
+          <!-- FROM: your bike -->
+          <div class="pair-node">
+            <div class="pair-glyph local">
+              <svg class="lucide lucide-bike" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></svg>
+            </div>
+            <div class="pair-text">
+              <div class="pair-role">Your bike</div>
+              <div class="pair-name">Wahoo KICKR Bike</div>
+            </div>
+          </div>
+
+          <!-- connector -->
+          <div class="pair-connector">
+            <div class="pair-arrow">
+              <div class="pair-line"></div>
+              <svg class="lucide lucide-arrow-down" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
+            </div>
+            <span class="pair-link-label">links uploads to</span>
+          </div>
+
+          <!-- TO: provider match (preselected default) -->
+          <div class="provider-well">
+            <div class="pair-node">
+              <div class="pair-glyph provider">
+                <svg class="si-strava" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="26" height="26" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+              </div>
+              <div class="pair-text">
+                <div class="pair-role">Provider match</div>
+                <div class="pair-name-row">
+                  <div class="pair-name">Wahoo Kickr Bike</div>
+                </div>
+                <span class="provider-tag"><span class="strava-mark"></span>Strava</span>
+              </div>
+            </div>
+            <span class="match-pill"><span class="dot"></span>Possible match · Primary</span>
+          </div>
+
+          <!-- inline swapper, shown expanded -->
+          <div class="swapper">
+            <button class="swap-toggle" aria-expanded="true">
+              Use a different bike
+              <span class="chev"><svg class="lucide lucide-chevron-up" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg></span>
+            </button>
+            <div class="swap-panel">
+              <div class="swap-cap">Other provider bikes</div>
+              <button class="swap-opt">
+                <div class="pair-glyph provider" style="width:42px;height:42px;border-radius:13px;">
+                  <svg class="si-strava" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+                </div>
+                <div class="swap-opt-meta">
+                  <div class="swap-opt-name">Tacx Neo Smart</div>
+                  <div class="swap-opt-kind">Provider bike</div>
+                </div>
+                <span class="pick">Use</span>
+              </button>
+              <button class="swap-opt">
+                <div class="pair-glyph provider" style="width:42px;height:42px;border-radius:13px;">
+                  <svg class="si-strava" role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+                </div>
+                <div class="swap-opt-meta">
+                  <div class="swap-opt-name">Canyon Aeroad</div>
+                  <div class="swap-opt-kind">Provider bike</div>
+                </div>
+                <span class="pick">Use</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="action-bar reveal d3">
+        <button class="btn btn-primary btn-block">Link Bike</button>
+        <button class="btn btn-ghost btn-block">Skip for Now</button>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+  <div class="caption"><b>09 · Link Provider Bike · E Confirm pairing</b> · dark</div>
+</body>
+</html>
