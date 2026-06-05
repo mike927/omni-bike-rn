@@ -17,6 +17,9 @@ jest.mock('expo-web-browser', () => ({
   dismissBrowser: jest.fn(),
   openAuthSessionAsync: jest.fn(),
 }));
+jest.mock('expo-crypto', () => ({
+  randomUUID: jest.fn(() => 'test-state-uuid'),
+}));
 jest.mock('../stravaTokenStorage');
 jest.mock('../stravaConstants', () => ({
   STRAVA_AUTH_URL: 'https://www.strava.com/oauth/mobile/authorize',
@@ -110,7 +113,7 @@ describe('authorizeWithStrava', () => {
 
     const pending = authorizeWithStrava();
     // Simulate iOS dispatching the deep-link callback from Strava's 302.
-    fireRedirect('omnibike://localhost/oauth/callback?code=auth-code-123&scope=read');
+    fireRedirect('omnibike://localhost/oauth/callback?code=auth-code-123&scope=read&state=test-state-uuid');
     const result = await pending;
 
     expect(result.accessToken).toBe('new-access');
@@ -133,7 +136,7 @@ describe('authorizeWithStrava', () => {
     mockOpenBrowser.mockReturnValue(browser.promise);
 
     const pending = authorizeWithStrava();
-    fireRedirect('omnibike://localhost/oauth/callback?error=access_denied');
+    fireRedirect('omnibike://localhost/oauth/callback?error=access_denied&state=test-state-uuid');
 
     await expect(pending).rejects.toThrow('access_denied');
     expect(linkingMock.removeCount).toBe(1);
@@ -145,7 +148,7 @@ describe('authorizeWithStrava', () => {
     (global.fetch as jest.Mock).mockResolvedValue({ ok: false, status: 401, text: async () => 'Unauthorized' });
 
     const pending = authorizeWithStrava();
-    fireRedirect('omnibike://localhost/oauth/callback?code=code-123');
+    fireRedirect('omnibike://localhost/oauth/callback?code=code-123&state=test-state-uuid');
 
     await expect(pending).rejects.toThrow('401');
   });
@@ -163,10 +166,28 @@ describe('authorizeWithStrava', () => {
     // Unrelated deep link on the same scheme must not resolve the auth flow.
     fireRedirect('omnibike://some-other-path?foo=bar');
     // Now fire the real callback.
-    fireRedirect('omnibike://localhost/oauth/callback?code=auth-code-999');
+    fireRedirect('omnibike://localhost/oauth/callback?code=auth-code-999&state=test-state-uuid');
 
     const result = await pending;
     expect(result.accessToken).toBe('new-access');
+  });
+
+  it('rejects an injected callback whose state does not match (CSRF defense)', async () => {
+    const browser = deferredBrowserResult();
+    mockOpenBrowser.mockReturnValue(browser.promise);
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => MOCK_TOKEN_RESPONSE,
+    });
+    mockSaveTokens.mockResolvedValue(undefined);
+
+    const pending = authorizeWithStrava();
+    fireRedirect('omnibike://localhost/oauth/callback?code=injected-code&state=attacker-state');
+
+    await expect(pending).rejects.toThrow('state mismatch');
+    // The injected code must never be exchanged or persisted.
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(mockSaveTokens).not.toHaveBeenCalled();
   });
 
   it('deduplicates concurrent calls to authorizeWithStrava', async () => {
@@ -179,7 +200,7 @@ describe('authorizeWithStrava', () => {
     mockSaveTokens.mockResolvedValue(undefined);
 
     const [a, b] = [authorizeWithStrava(), authorizeWithStrava()];
-    fireRedirect('omnibike://localhost/oauth/callback?code=shared-code');
+    fireRedirect('omnibike://localhost/oauth/callback?code=shared-code&state=test-state-uuid');
 
     const [resultA, resultB] = await Promise.all([a, b]);
     expect(resultA).toBe(resultB);
