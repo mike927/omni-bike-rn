@@ -16,16 +16,22 @@ enum WCFileLog {
         f.dateFormat = "HH:mm:ss.SSS"
         return f
     }()
+    // Serialize appends: wcLog is called from HealthKit and WatchConnectivity delegate
+    // queues concurrently, and opening/seeking/closing a FileHandle from multiple threads
+    // at once can interleave lines or throw inside FileHandle.
+    private static let queue = DispatchQueue(label: "com.omnibike.wclog.watch")
     static func write(_ line: String) {
         let ts = formatter.string(from: Date())
         let entry = "[\(ts)] \(line)\n"
-        if let data = entry.data(using: .utf8) {
-            if let handle = try? FileHandle(forWritingTo: url) {
-                handle.seekToEndOfFile()
-                handle.write(data)
-                try? handle.close()
-            } else {
-                try? entry.write(to: url, atomically: false, encoding: .utf8)
+        queue.async {
+            if let data = entry.data(using: .utf8) {
+                if let handle = try? FileHandle(forWritingTo: url) {
+                    handle.seekToEndOfFile()
+                    handle.write(data)
+                    try? handle.close()
+                } else {
+                    try? entry.write(to: url, atomically: false, encoding: .utf8)
+                }
             }
         }
     }
@@ -47,6 +53,22 @@ fileprivate enum WatchCommand {
     static let stop = "stop"
     static let pause = "pause"
     static let resume = "resume"
+}
+
+// A ride-control action the wearer requests FROM the wrist. The Watch does not act on
+// its own HKWorkoutSession here — it forwards the intent to the iPhone (the ride owner),
+// which runs the same action a phone tap would and then drives the Watch session via the
+// existing iPhone→Watch command path. Raw values match the iPhone module's `watchControl`.
+enum WatchControlAction: String {
+    case pause
+    case resume
+    case end
+}
+
+// Wire key for the watch→iPhone control message; matches `PayloadKey.watchControl`
+// in the iPhone module.
+fileprivate enum WatchControlPayload {
+    static let key = "watchControl"
 }
 
 enum WatchDisplayState: Equatable {
@@ -73,11 +95,18 @@ final class WorkoutManager: NSObject, ObservableObject {
     // ── Published state ────────────────────────────────────────────────────────
     @Published var heartRate: Int = 0
     @Published var displayState: WatchDisplayState = .idle
+    // Whole-second elapsed time for the current session, excluding paused time (read
+    // from the builder). Drives the wrist timer; reset to 0 on teardown.
+    @Published var elapsedSeconds: Int = 0
+    // When the most recent HR sample landed. nil before the first sample of a session;
+    // lets the UI show "Connecting…" (none yet) vs "No signal" (had one, now stale).
+    @Published private(set) var lastHrAt: Date?
 
     // ── Private state ──────────────────────────────────────────────────────────
     private let healthStore = HKHealthStore()
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
+    private var elapsedTimer: Timer?
     private var lastHrSendAt: TimeInterval = 0
     // nil until HealthKit produces its first activeEnergyBurned sample for the
     // current session. Omitting the field from the payload lets the phone fall
@@ -281,6 +310,33 @@ final class WorkoutManager: NSObject, ObservableObject {
         // Clear before the next session's first delegate callback so a stale
         // cumulative value is never piggy-backed onto the first HR payload.
         latestActiveKcal = nil
+        stopElapsedTimer(reset: true)
+        lastHrAt = nil
+    }
+
+    // ── Elapsed time ─────────────────────────────────────────────────────────────
+    // Ticks once a second on the main run loop, publishing the builder's elapsed time
+    // (which already excludes paused intervals). The view re-renders from this and also
+    // recomputes HR freshness on each tick.
+    private func startElapsedTimer() {
+        DispatchQueue.main.async {
+            self.elapsedTimer?.invalidate()
+            let timer = Timer(timeInterval: 1.0, repeats: true) { [weak self] _ in
+                guard let self else { return }
+                let interval = self.builder?.elapsedTime ?? 0
+                self.elapsedSeconds = Int(interval)
+            }
+            RunLoop.main.add(timer, forMode: .common)
+            self.elapsedTimer = timer
+        }
+    }
+
+    private func stopElapsedTimer(reset: Bool) {
+        DispatchQueue.main.async {
+            self.elapsedTimer?.invalidate()
+            self.elapsedTimer = nil
+            if reset { self.elapsedSeconds = 0 }
+        }
     }
 
     // ── WatchConnectivity ──────────────────────────────────────────────────────
@@ -306,6 +362,33 @@ final class WorkoutManager: NSObject, ObservableObject {
         session.sendMessage(["watchAppState": state, "sentAtMs": Date().timeIntervalSince1970 * 1000], replyHandler: nil)
     }
 
+    // Forwards a wrist-initiated ride control (Pause / Resume / End) to the iPhone, which
+    // owns the ride. Live via sendMessage when reachable; otherwise queued FIFO via
+    // transferUserInfo so it still arrives when the iPhone next wakes — the same delivery
+    // contract the iPhone uses for its own commands. The Watch does NOT touch its own
+    // HKWorkoutSession here; the iPhone's resulting pause/stop command does that.
+    func requestControl(_ action: WatchControlAction) {
+        wcLog("[WC-Watch] requestControl action=\(action.rawValue)")
+        let session = WCSession.default
+        guard session.activationState == .activated else {
+            wcLog("[WC-Watch] requestControl dropped: WC not activated")
+            return
+        }
+        let payload: [String: Any] = [
+            WatchControlPayload.key: action.rawValue,
+            "sentAtMs": Date().timeIntervalSince1970 * 1000,
+        ]
+        if session.isReachable {
+            session.sendMessage(payload, replyHandler: nil)
+        } else {
+            wcLog("[WC-Watch] requestControl: unreachable — queuing via transferUserInfo")
+            session.transferUserInfo(payload)
+        }
+        // Immediate tactile confirmation that the tap registered — the iPhone round-trip
+        // (which actually pauses/ends the session) lands a beat later with its own haptic.
+        WKInterfaceDevice.current().play(.click)
+    }
+
     private func sendHrToPhone(_ bpm: Int) {
         var payload: [String: Any] = [
             "hr": bpm,
@@ -325,23 +408,23 @@ final class WorkoutManager: NSObject, ObservableObject {
             session.sendMessage(payload, replyHandler: nil)
         }
 
-        if #available(watchOS 10.0, *) {
-            if let workoutSession = self.session {
-                do {
-                    let data = try JSONSerialization.data(withJSONObject: payload)
-                    Task {
-                        do {
-                            try await workoutSession.sendToRemoteWorkoutSession(data: data)
-                        } catch {
-                            wcLog("[WC-Watch] sendHrToPhone: sendToRemoteWorkoutSession FAILED: \(error.localizedDescription)")
-                        }
+        // T5 mirrored-session leg: the only channel that keeps delivering while the Watch
+        // screen is dimmed (app still frontmost during an active session).
+        if let workoutSession = self.session {
+            do {
+                let data = try JSONSerialization.data(withJSONObject: payload)
+                Task {
+                    do {
+                        try await workoutSession.sendToRemoteWorkoutSession(data: data)
+                    } catch {
+                        wcLog("[WC-Watch] sendHrToPhone: sendToRemoteWorkoutSession FAILED: \(error.localizedDescription)")
                     }
-                } catch {
-                    wcLog("[WC-Watch] sendHrToPhone: payload encode FAILED: \(error.localizedDescription)")
                 }
-            } else {
-                wcLog("[WC-Watch] sendHrToPhone: missing workout session for mirrored payload")
+            } catch {
+                wcLog("[WC-Watch] sendHrToPhone: payload encode FAILED: \(error.localizedDescription)")
             }
+        } else {
+            wcLog("[WC-Watch] sendHrToPhone: missing workout session for mirrored payload")
         }
 
         do {
@@ -386,8 +469,14 @@ final class WorkoutManager: NSObject, ObservableObject {
             let previous = self.displayState
             guard previous != state else { return }
             self.displayState = state
-            if state == .idle {
+            switch state {
+            case .inProgress:
+                self.startElapsedTimer()
+            case .idle:
                 self.heartRate = 0
+                self.stopElapsedTimer(reset: true)
+            case .paused:
+                break // keep the timer; the builder freezes elapsedTime while paused
             }
             self.playHaptic(for: state, from: previous)
         }
@@ -517,7 +606,10 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
               let stats = workoutBuilder.statistics(for: hrType),
               let quantity = stats.mostRecentQuantity() else { return }
         let bpm = Int(quantity.doubleValue(for: HKUnit(from: "count/min")))
-        DispatchQueue.main.async { self.heartRate = bpm }
+        DispatchQueue.main.async {
+            self.heartRate = bpm
+            self.lastHrAt = Date()
+        }
         let now = Date().timeIntervalSinceReferenceDate
         if now - lastHrSendAt >= hrSendIntervalSeconds {
             lastHrSendAt = now

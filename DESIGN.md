@@ -317,6 +317,33 @@ in-screen back chevron + `Link Provider Bike` title, and a **pinned bottom actio
 - **Actions** — `Link Bike` (disabled until a bike is selected), `Skip for Now`, and `Unlink`
   (danger, shown only when a link exists).
 
+## Watch companion (Calm Noir)
+
+The Apple Watch app (`ios/OmniBikeWatch Watch App/ContentView.swift`, mockups in
+`design-mockups/watch/`) is Calm Noir, **Direction 02 "Big Number"**. It mirrors the phone's
+ride flow on the wrist without duplicating it: the Watch surfaces **live HR**, **elapsed time**,
+an **honest status**, and **on-wrist controls** — the bike metrics (Power/Speed/Cadence/Distance)
+stay on the phone. The screen uses **OLED black** (`#000`) rather than `noir.bg` so the Always-On
+state is cheaper to drive; all accents are the canonical tokens (mint `#10b5a4` / mintSoft
+`#4fd8c8`, amber `#f5a524`, danger `#ef4b5c`, ink `#eef1f6` / ink3 `#6b7384`).
+
+- **Active** — a status pill (the `DeviceStatus` vocabulary: **Ready / Connecting… / No signal /
+  Paused**, same tones as the phone `StatusPill`), the **HR numeral hero** (mintSoft, `--` before
+  the first sample), the **elapsed** `mm:ss` (from the workout builder, excludes paused time), and
+  phase-driven controls: **Pause + End** (active) → **Resume + End** (paused). Pause is amber-tinted,
+  Resume is mint-filled, End is danger-tinted.
+- **Idle** — a calm "Ready to ride · Start your ride on iPhone" prompt (Start stays on the phone,
+  where the BLE bike connects).
+- **Always-On** (`isLuminanceReduced`) — status + HR + elapsed only, no buttons, dimmed.
+- **Status derivation** — `Connecting…` (active, no sample yet) → `Ready` (fresh HR) → `No signal`
+  (HR stalled > 8 s) → `Paused` (session paused).
+
+**Controls are "watch-as-remote"** (the iPhone owns the ride): tapping Pause/Resume/End sends a
+`watchControl` request to the iPhone, which runs the **same** `useTrainingSession` action a phone tap
+would — so the engine, the bike FTMS state, persistence, navigation, and the Watch's own
+`HKWorkoutSession` all stay in lockstep. See
+[`watch-iphone-communication.md`](docs/apple-watch/watch-iphone-communication.md).
+
 ## Illustration Style
 
 Flat illustration with soft gradients in the brand palette. No photorealism. No text inside illustrations. Square aspect for hero illustrations. Consistent line weight and color treatment across all screens — illustrations in the same flow MUST share style.

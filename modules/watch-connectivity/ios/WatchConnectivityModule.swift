@@ -40,6 +40,9 @@ fileprivate enum PayloadKey {
   static let sessionState = "sessionState"
   static let sentAtMs = "sentAtMs"
   static let command = "cmd"
+  // Ride-control request sent FROM the Watch (the wrist acting as a remote):
+  // "pause" | "resume" | "end". Distinct from `command`, which flows iPhone→Watch.
+  static let watchControl = "watchControl"
 }
 
 fileprivate enum WatchCommand {
@@ -60,7 +63,7 @@ public class WatchConnectivityModule: Module {
   public func definition() -> ModuleDefinition {
     Name("WatchConnectivity")
 
-    Events("onWatchHr", "onWatchActiveKcal", "onReachabilityChange", "onWatchSessionState", "onWatchCompanionStateChange", "onWatchAppState")
+    Events("onWatchHr", "onWatchActiveKcal", "onReachabilityChange", "onWatchSessionState", "onWatchCompanionStateChange", "onWatchAppState", "onWatchControlRequest")
 
     // Per WWDC23 session 10023: register the mirroring handler on every app
     // launch (foreground or background) so HealthKit can hand us the primary
@@ -192,16 +195,6 @@ public class WatchConnectivityModule: Module {
       self.sendCommandToWatch(WatchCommand.resume, label: "resumeMirroredWorkout")
       promise.resolve()
     }
-
-    Function("sendMessage") { (message: [String: Any]) -> Bool in
-      let session = WCSession.default
-      guard session.activationState == .activated, session.isReachable else {
-        print("[WatchConnectivity] sendMessage dropped — session not activated or Watch unreachable")
-        return false
-      }
-      session.sendMessage(message, replyHandler: nil)
-      return true
-    }
   }
 
   fileprivate func resolveActivation(with error: Error?) {
@@ -295,6 +288,18 @@ public class WatchConnectivityModule: Module {
     sendEvent("onWatchAppState", ["state": state])
   }
 
+  // A ride-control request initiated on the Watch. The iPhone owns the ride, so JS
+  // runs the same training action a phone tap would (which in turn pauses/ends the
+  // Watch's own session via the existing iPhone→Watch command path).
+  fileprivate func emitWatchControlRequest(_ action: String, sentAtMs: Double?) {
+    wcLog("[WC-iPhone] emitWatchControlRequest action=\(action)")
+    var payload: [String: Any] = ["action": action]
+    if let sentAtMs {
+      payload[PayloadKey.sentAtMs] = sentAtMs
+    }
+    sendEvent("onWatchControlRequest", payload)
+  }
+
   fileprivate func attachMirroredWorkoutSession(_ session: HKWorkoutSession) {
     clearMirroredWorkoutSession()
     wcLog("[WC-iPhone] attachMirroredWorkoutSession state=\(session.state.rawValue) type=\(session.type.rawValue)")
@@ -363,6 +368,22 @@ private class SessionDelegateProxy: NSObject, WCSessionDelegate, HKWorkoutSessio
     }
     if let watchAppState = message["watchAppState"] as? String {
       module?.emitWatchAppState(watchAppState)
+    }
+    if let control = message[PayloadKey.watchControl] as? String {
+      wcLog("[WC-iPhone] didReceiveMessage watchControl=\(control)")
+      let sentAtMs = (message[PayloadKey.sentAtMs] as? NSNumber)?.doubleValue
+      module?.emitWatchControlRequest(control, sentAtMs: sentAtMs)
+    }
+  }
+
+  // Control requests queued by the Watch via `transferUserInfo` when it was unreachable
+  // (e.g. the iPhone app was backgrounded) arrive here on the next wake — FIFO, guaranteed.
+  func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+    wcLog("[WC-iPhone] didReceiveUserInfo keys=\(Array(userInfo.keys))")
+    if let control = userInfo[PayloadKey.watchControl] as? String {
+      wcLog("[WC-iPhone] didReceiveUserInfo watchControl=\(control)")
+      let sentAtMs = (userInfo[PayloadKey.sentAtMs] as? NSNumber)?.doubleValue
+      module?.emitWatchControlRequest(control, sentAtMs: sentAtMs)
     }
   }
 

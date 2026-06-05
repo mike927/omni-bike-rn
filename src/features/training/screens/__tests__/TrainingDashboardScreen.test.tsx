@@ -80,6 +80,12 @@ jest.mock('../../hooks/useTrainingSession', () => ({
   useTrainingSession: () => mockSession,
 }));
 
+// The wrist-remote bridge subscribes to the native WatchConnectivity module; stub it so
+// the screen test doesn't pull the native bridge. Its behavior is unit-tested separately.
+jest.mock('../../hooks/useWatchRemoteControl', () => ({
+  useWatchRemoteControl: jest.fn(),
+}));
+
 jest.mock('../../hooks/useDeviceConnection', () => ({
   useDeviceConnection: () => mockDeviceConnection,
 }));

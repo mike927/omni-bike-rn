@@ -18,6 +18,9 @@ export type WatchCompanionStatePayload = {
   reachable?: boolean;
 };
 export type WatchAppStatePayload = { state: string };
+/** A ride-control request initiated on the Watch (the wrist acting as a remote). */
+export type WatchControlAction = 'pause' | 'resume' | 'end';
+export type WatchControlRequestPayload = { action: WatchControlAction; sentAtMs?: number };
 
 type WatchConnectivityModuleEvents = {
   onWatchHr: (payload: WatchHrPayload) => void;
@@ -26,6 +29,13 @@ type WatchConnectivityModuleEvents = {
   onWatchSessionState: (payload: WatchSessionStatePayload) => void;
   onWatchCompanionStateChange: (payload: WatchCompanionStatePayload) => void;
   onWatchAppState: (payload: WatchAppStatePayload) => void;
+  /**
+   * The Watch app requested a ride-control action (Pause / Resume / End) from the
+   * wrist. The iPhone is the source of truth, so the handler runs the same training
+   * actions a phone tap would — the existing iPhone→Watch command path then pauses /
+   * ends the Watch's own HKWorkoutSession in turn.
+   */
+  onWatchControlRequest: (payload: WatchControlRequestPayload) => void;
 };
 
 declare class WatchConnectivityNativeModule extends NativeModule<WatchConnectivityModuleEvents> {
@@ -51,12 +61,6 @@ declare class WatchConnectivityNativeModule extends NativeModule<WatchConnectivi
   pauseMirroredWorkout(): Promise<void>;
   /** Tells the paired Watch to resume its paused workout session. */
   resumeMirroredWorkout(): Promise<void>;
-  /**
-   * Sends a message dictionary to the paired Watch. Returns `true` if the message was
-   * delivered to the WC layer, `false` if the session was not activated or the Watch
-   * was not currently reachable.
-   */
-  sendMessage(message: Record<string, string | number>): boolean;
 }
 
 export const WatchConnectivity = requireNativeModule<WatchConnectivityNativeModule>('WatchConnectivity');

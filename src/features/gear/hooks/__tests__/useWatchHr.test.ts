@@ -15,7 +15,6 @@ type NativeWatchSessionStatePayload = { state: 'started' | 'ended' | 'failed'; s
 jest.mock('watch-connectivity', () => ({
   WatchConnectivity: {
     activate: jest.fn(),
-    sendMessage: jest.fn(),
     addListener: jest.fn(),
     pauseMirroredWorkout: jest.fn(),
     resumeMirroredWorkout: jest.fn(),
@@ -46,7 +45,6 @@ function getWatchConnectivityMock() {
   const mod = jest.requireMock('watch-connectivity') as {
     WatchConnectivity: {
       activate: jest.Mock;
-      sendMessage: jest.Mock;
       addListener: jest.Mock;
       pauseMirroredWorkout: jest.Mock;
       resumeMirroredWorkout: jest.Mock;
@@ -102,7 +100,6 @@ beforeEach(() => {
 
   const wc = getWatchConnectivityMock();
   wc.activate.mockResolvedValue(undefined);
-  wc.sendMessage.mockReturnValue(true);
   wc.addListener.mockReturnValue({ remove: jest.fn() });
   wc.pauseMirroredWorkout.mockResolvedValue(undefined);
   wc.resumeMirroredWorkout.mockResolvedValue(undefined);

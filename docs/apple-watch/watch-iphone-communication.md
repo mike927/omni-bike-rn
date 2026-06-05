@@ -205,6 +205,48 @@ arrived, `WorkoutManager.recoverOrphanedSession()` (on watch app launch) finds t
 `HKWorkoutSession` via `recoverActiveWorkoutSession` and ends + discards it, so the UI doesn't
 falsely show "in progress."
 
+### 4a. Watch-initiated controls — "watch as remote" (⌚→📱)
+
+The Watch app's on-wrist **Pause / Resume / End** buttons do **not** touch the Watch's own
+`HKWorkoutSession` directly. The iPhone owns the ride (MetronomeEngine, BLE FTMS bike control,
+persistence, navigation), so the wrist sends a **control request** and the iPhone runs the same
+action a phone tap would — which then drives the Watch session back through the existing §4 command
+path. This keeps the iPhone the single source of truth and is purely additive over the existing flow.
+
+| What | Watch send | Transport | Payload | iPhone handling |
+|---|---|---|---|---|
+| Pause/Resume/End from the wrist | `WorkoutManager.requestControl(_:)` | **T2** if reachable, else **T3** | `{watchControl: "pause"\|"resume"\|"end", sentAtMs}` | `didReceiveMessage`/`didReceiveUserInfo` → `emit onWatchControlRequest`; JS ignores stale requests older than 60 s |
+
+```mermaid
+sequenceDiagram
+  participant WUI as ⌚ ContentView (button)
+  participant WM as ⌚ WorkoutManager
+  participant Mod as 📱 Module
+  participant JS as 📱 useWatchRemoteControl (Training screen)
+  participant TS as 📱 useTrainingSession
+
+  WUI->>WM: requestControl(.pause)
+  alt reachable
+    WM->>Mod: T2 sendMessage {watchControl:"pause", sentAtMs}
+  else unreachable
+    WM->>Mod: T3 transferUserInfo {watchControl:"pause", sentAtMs}  (next wake)
+  end
+  Mod->>JS: onWatchControlRequest {action:"pause", sentAtMs}
+  JS->>TS: session.pause()  (engine stop + bike Paused + store.pause())
+  Note over TS: phase → Paused → useWatchHr sends pauseMirroredWorkout (§4)
+  Note over WM: Watch HKWorkoutSession pauses via the iPhone's command → wrist UI reflects it
+```
+
+Phase guards live in the iPhone handlers (`pause` only from Active, `resume` only from Paused,
+`finish` only from Active/Paused), so a stray/duplicate request is a safe no-op — the redundant
+iPhone→Watch command that follows hits the Watch's own `session.state` guards. **End** routes through
+the screen's `handleFinish`, so it finishes + navigates to the Summary exactly like the phone button.
+
+> **Accepted limitation.** If the iPhone app is fully backgrounded with JS suspended, a wrist control
+> is processed when the app next resumes (`transferUserInfo` is FIFO-queued). During a ride the phone
+> is normally foreground + kept awake (`useKeepAwakeDuringTraining`), so controls are live. To avoid
+> applying an old queued tap to a later ride, JS drops controls whose `sentAtMs` is more than 60 s old.
+
 ---
 
 ## 5. Availability, reachability & activation (framework-driven)
@@ -260,6 +302,7 @@ flowchart TD
 | `onWatchSessionState` | `{state, sentAtMs}` | T2/T4 message **or** mirrored-session delegate | logging only |
 | `onWatchCompanionStateChange` | `{available, paired, installed, ...}` | `sessionWatchStateDidChange` / activate | `setWatchAvailability` |
 | `onWatchAppState` | `{state}` | T2 (`reportAppState`) | logging only |
+| `onWatchControlRequest` | `{action: "pause"\|"resume"\|"end", sentAtMs?}` | T2/T3 (`watchControl`, §4a) | `useWatchRemoteControl` → stale filter → `session.pause`/`resume`/`handleFinish` |
 
 ### Native JS→native functions (`WatchConnectivity` module)
 
@@ -270,7 +313,6 @@ flowchart TD
 | `endMirroredWorkout()` | T2/T3 `cmd:stop`; clears `pendingStart` |
 | `pauseMirroredWorkout()` | T2/T3 `cmd:pause` |
 | `resumeMirroredWorkout()` | T2/T3 `cmd:resume` |
-| `sendMessage(dict)` | raw T2 passthrough (returns false if not activated/unreachable) |
 
 ---
 
