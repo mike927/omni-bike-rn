@@ -18,7 +18,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     backgroundColor: '#ffffff',
   },
   ios: {
-    supportsTablet: true,
+    supportsTablet: false,
     bundleIdentifier: 'app.omnibike',
     infoPlist: {
       // Required for HKHealthStore.startWatchApp(toHandle:) to reliably wake
