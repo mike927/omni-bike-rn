@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Omni Bike · Apple Watch — Calm Noir directions</title>
+<link rel="stylesheet" href="watch-noir.css" />
+<style>
+  body { display: block; padding: 44px 32px 80px; }
+  .head { max-width: 1180px; margin: 0 auto 30px; }
+  .head .kick { font-size: 13px; font-weight: 700; letter-spacing: .04em; color: var(--indigo-soft); text-transform: uppercase; }
+  .head h1 { margin-top: 8px; font-size: 32px; font-weight: 800; letter-spacing: -.02em; color: var(--ink); }
+  .head p { margin-top: 12px; font-size: 15px; line-height: 1.5; color: var(--ink-2); max-width: 760px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 18px; }
+  .legend .item { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .chip { font-size: 12.5px; font-weight: 700; color: var(--mint-soft); background: rgba(16,181,164,.1); border: 1px solid rgba(16,181,164,.24); border-radius: 999px; padding: 6px 12px; }
+  .chip.idx { color: var(--indigo-soft); background: rgba(46,61,255,.1); border-color: rgba(46,61,255,.26); }
+  .grid { display: flex; flex-wrap: wrap; gap: 18px; justify-content: center; max-width: 1180px; margin: 0 auto; }
+  .cell { width: 410px; height: 568px; border-radius: 26px; border: 1px solid var(--hairline); overflow: hidden; background: #07090d; }
+  .cell iframe { width: 100%; height: 100%; border: 0; }
+  .note { max-width: 1180px; margin: 30px auto 0; font-size: 13.5px; line-height: 1.55; color: var(--ink-3); }
+  .note b { color: var(--ink-2); }
+</style>
+</head>
+<body>
+  <div class="head">
+    <div class="kick">Omni Bike · Apple Watch companion</div>
+    <h1>Calm Noir — 5 watch directions</h1>
+    <p>The wrist app, restyled to Calm Noir and rebuilt around what you chose to surface: <b style="color:var(--ink)">live heart rate</b>, <b style="color:var(--ink)">elapsed time</b>, an <b style="color:var(--ink)">honest status</b>, and on-wrist <b style="color:var(--ink)">Pause / Resume / End</b> controls. Start stays on the phone (where the bike connects). All five share the same element set — they differ in composition and emphasis.</p>
+    <div class="chips">
+      <span class="chip">❤ Heart rate</span>
+      <span class="chip">⏱ Elapsed time</span>
+      <span class="chip">● Status pill</span>
+      <span class="chip">⏸ Pause / ▶ Resume / ■ End</span>
+      <span class="chip idx">Always-On dimmed variant (build-time)</span>
+    </div>
+    <div class="legend">
+      <span class="item"><span class="pill good" style="transform:scale(.85)"><span class="dot"></span>Ready</span> live / usable</span>
+      <span class="item"><span class="pill working" style="transform:scale(.85)"><span class="dot"></span>Connecting…</span> waking, pre-first-sample</span>
+      <span class="item"><span class="pill attention" style="transform:scale(.85)"><span class="dot"></span>No signal</span> HR stalled &gt;15s</span>
+      <span class="item"><span class="pill inactive" style="transform:scale(.85)"><span class="dot"></span>Paused</span> ride paused</span>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="cell"><iframe src="watch-01-vital-ring.html" title="Vital Ring"></iframe></div>
+    <div class="cell"><iframe src="watch-02-big-number.html" title="Big Number"></iframe></div>
+    <div class="cell"><iframe src="watch-03-dual-pair.html" title="Dual Pair"></iframe></div>
+    <div class="cell"><iframe src="watch-04-timer-led.html" title="Timer-Led"></iframe></div>
+    <div class="cell"><iframe src="watch-05-workout-toolbar.html" title="Workout Toolbar"></iframe></div>
+  </div>
+
+  <div class="note">
+    <p><b>01 Vital Ring</b> — HR ring hero (Apple-Workout feel), elapsed beneath, two pill controls. Most "fitness-watch" of the set. &nbsp;·&nbsp; <b>02 Big Number</b> — HR numeral is the whole screen; maximum glanceability mid-effort. &nbsp;·&nbsp; <b>03 Dual Pair</b> — HR + Elapsed as stacked cards, the same "Featured Pairs" language as the phone Training screen. &nbsp;·&nbsp; <b>04 Timer-Led</b> — elapsed is hero, HR a mint sub-metric (shown here in the <b>Paused</b> state → Resume control). &nbsp;·&nbsp; <b>05 Workout Toolbar</b> — HR hero with round End/Pause icon controls, native watchOS control idiom.</p>
+    <p style="margin-top:14px"><b>Every direction</b> renders the same status vocabulary (Ready / Connecting… / No signal / Paused) via the shared StatusPill, and the controls swap Pause↔Resume by phase. The idle/"waiting for the ride to start on your phone" screen and an Always-On dimmed layout (HR + time only, no buttons) are part of the build for whichever you pick.</p>
+  </div>
+</body>
+</html>

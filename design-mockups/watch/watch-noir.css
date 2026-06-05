@@ -1,0 +1,179 @@
+/* ============================================================
+   OMNI BIKE — "Calm Noir" design system · WATCH variant
+   Shared stylesheet for the Apple Watch companion mockups.
+   Mirrors design-mockups/app/calm-noir.css tokens 1:1; only
+   the frame + type scale are watch-specific (OLED black, large
+   glanceable numerals, ≥44pt touch targets on a small canvas).
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  /* surfaces & ink — watch uses true OLED black for the screen */
+  --bg: #000000;
+  --bg-raise: #0b0e13;
+  --card: #161b24;
+  --card-2: #1b212c;
+  --card-3: #1f2735;
+  --ink: #eef1f6;
+  --ink-2: #9aa3b2;
+  --ink-3: #6b7384;
+  --hairline: #232a35;
+  --hairline-2: #2a323f;
+
+  /* brand & semantic — identical to the phone tokens */
+  --indigo: #2e3dff;
+  --indigo-soft: #5663ff;
+  --mint: #10b5a4;
+  --mint-soft: #4fd8c8;
+  --amber: #f5a524;
+  --amber-soft: #f7c46b;
+  --danger: #ef4b5c;
+  --danger-soft: #ff8a93;
+
+  --r-sm: 12px;
+  --r-md: 16px;
+  --r-lg: 20px;
+  --r-xl: 24px;
+  --r-pill: 999px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { min-height: 100%; }
+
+body {
+  font-family: "Hanken Grotesk", sans-serif;
+  background: radial-gradient(130% 90% at 50% -10%, #11151d 0%, #0a0d12 55%, #07090d 100%);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  padding: 40px 24px;
+}
+
+/* single-watch page (one mockup file open on its own) */
+body.solo { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; min-height: 100vh; }
+
+/* ---------- watch device frame ---------- */
+/* Display ≈ Apple Watch Ultra 410×502 (ratio .817), scaled up for legibility. */
+.watch {
+  position: relative;
+  width: 372px; height: 452px;
+  border-radius: 78px; padding: 18px;
+  background: linear-gradient(155deg, #2a2e36 0%, #15171c 45%, #060708 100%);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.05),
+    inset 0 0 0 1px rgba(255,255,255,.05),
+    0 2px 6px rgba(0,0,0,.5),
+    0 44px 90px -34px rgba(0,0,0,.85);
+}
+/* digital crown + side button on the right rail */
+.watch::before {
+  content: ""; position: absolute; right: -5px; top: 30%;
+  width: 7px; height: 52px; border-radius: 4px;
+  background: linear-gradient(180deg, #4a4f59, #1c1f25);
+  box-shadow: 0 0 0 1px rgba(0,0,0,.5);
+}
+.watch::after {
+  content: ""; position: absolute; right: -3px; top: 52%;
+  width: 5px; height: 64px; border-radius: 3px;
+  background: linear-gradient(180deg, #3a3e47, #16181d);
+}
+
+.w-screen {
+  position: relative; width: 100%; height: 100%;
+  background: var(--bg); border-radius: 62px; overflow: hidden;
+  display: flex; flex-direction: column; isolation: isolate;
+}
+/* subtle workout-glow, OLED-safe (very low alpha) */
+.w-screen::before {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(90% 50% at 50% -6%, rgba(46,61,255,.10), transparent 60%),
+    radial-gradient(100% 60% at 50% 106%, rgba(16,181,164,.06), transparent 60%);
+}
+
+/* ---------- watchOS top chrome (current time, tinted while in-workout) ---------- */
+.w-top {
+  position: relative; z-index: 2; flex: 0 0 auto;
+  height: 40px; padding: 8px 34px 0;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.w-top .rec { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--ink-3); text-transform: uppercase; }
+.w-top .rec .d { width: 7px; height: 7px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 0 0 rgba(16,181,164,.5); animation: pulse 2.4s ease-out infinite; }
+.w-time { font-size: 17px; font-weight: 700; color: var(--mint-soft); font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+
+/* ---------- content area (respects curved corners with side padding) ---------- */
+.w-body { position: relative; z-index: 2; flex: 1 1 auto; min-height: 0; padding: 2px 20px 14px; display: flex; flex-direction: column; }
+
+/* ---------- status pill (matches phone StatusPill tones) ---------- */
+.pill {
+  display: inline-flex; align-items: center; gap: 6px; align-self: center;
+  font-size: 12.5px; font-weight: 700; padding: 5px 11px 5px 9px; border-radius: var(--r-pill);
+  color: var(--mint-soft); background: rgba(16,181,164,.12); border: 1px solid rgba(16,181,164,.24);
+}
+.pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--mint); }
+.pill.good .dot { animation: pulse 2.4s ease-out infinite; }
+@keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(16,181,164,.5)} 70%{box-shadow:0 0 0 6px rgba(16,181,164,0)} 100%{box-shadow:0 0 0 0 rgba(16,181,164,0)} }
+.pill.working { color: var(--amber-soft); background: rgba(245,165,36,.12); border-color: rgba(245,165,36,.26); }
+.pill.working .dot { background: var(--amber); animation: pulse-amber 1.4s ease-out infinite; }
+@keyframes pulse-amber { 0%{box-shadow:0 0 0 0 rgba(245,165,36,.5)} 70%{box-shadow:0 0 0 6px rgba(245,165,36,0)} 100%{box-shadow:0 0 0 0 rgba(245,165,36,0)} }
+.pill.attention { color: var(--danger-soft); background: rgba(239,75,92,.12); border-color: rgba(239,75,92,.26); }
+.pill.attention .dot { background: var(--danger); }
+.pill.inactive { color: var(--ink-3); background: rgba(255,255,255,.05); border-color: var(--hairline); }
+.pill.inactive .dot { background: #4a5260; animation: none; box-shadow: none; }
+
+/* ---------- heart-rate hero ---------- */
+.hr-hero { display: flex; flex-direction: column; align-items: center; }
+.hr-num { font-size: 72px; font-weight: 800; letter-spacing: -.05em; line-height: .9; color: var(--mint-soft); font-variant-numeric: tabular-nums; }
+.hr-num.dim { color: var(--ink-3); }
+.hr-unit { font-size: 14px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); margin-top: 4px; }
+.hr-label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); }
+.hr-label svg { color: var(--mint); }
+
+/* ---------- elapsed timer ---------- */
+.time-num { font-size: 56px; font-weight: 800; letter-spacing: -.04em; line-height: 1; color: var(--ink); font-variant-numeric: tabular-nums; }
+.time-label { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.time-inline { display: inline-flex; align-items: center; gap: 7px; font-size: 22px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.time-inline svg { color: var(--ink-3); }
+
+/* ---------- metric card (dual-pair direction) ---------- */
+.w-card { background: var(--card); border: 1px solid var(--hairline); border-radius: var(--r-lg); padding: 13px 15px; }
+.w-card.hr { background: linear-gradient(160deg, rgba(16,181,164,.16), rgba(16,181,164,.03)); border-color: rgba(16,181,164,.28); }
+.w-card .ck { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); }
+.w-card .cv { margin-top: 4px; font-size: 36px; font-weight: 800; letter-spacing: -.04em; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1; }
+.w-card .cv .u { font-size: 13px; font-weight: 700; color: var(--ink-2); margin-left: 3px; letter-spacing: 0; }
+.w-card.hr .cv { color: var(--mint-soft); }
+.w-card .ctag { margin-top: 3px; font-size: 11px; font-weight: 700; color: var(--mint-soft); letter-spacing: .02em; }
+.w-card.hr .ck svg { color: var(--mint); }
+
+/* ---------- controls ---------- */
+.ctrl-row { display: flex; gap: 10px; margin-top: auto; }
+.w-btn {
+  flex: 1; min-height: 50px; border-radius: var(--r-md); border: 1px solid transparent;
+  font-family: inherit; font-size: 15px; font-weight: 700; letter-spacing: .01em;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px; cursor: pointer;
+}
+.w-btn.pause { background: rgba(245,165,36,.14); color: var(--amber-soft); border-color: rgba(245,165,36,.3); }
+.w-btn.resume { background: var(--mint); color: #04140f; }
+.w-btn.end { background: rgba(239,75,92,.14); color: var(--danger-soft); border-color: rgba(239,75,92,.3); }
+
+/* round icon controls (Apple-Workout toolbar direction) */
+.ctrl-toolbar { display: flex; align-items: flex-end; justify-content: center; gap: 26px; margin-top: auto; }
+.round-ctrl { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.round-ctrl .circ {
+  width: 64px; height: 64px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+.round-ctrl.pause .circ { background: rgba(245,165,36,.16); border: 1px solid rgba(245,165,36,.4); color: var(--amber-soft); }
+.round-ctrl.resume .circ { background: var(--mint); color: #04140f; }
+.round-ctrl.end .circ { background: rgba(239,75,92,.16); border: 1px solid rgba(239,75,92,.42); color: var(--danger-soft); }
+.round-ctrl .rl { font-size: 12px; font-weight: 700; color: var(--ink-2); }
+
+/* ---------- reveal ---------- */
+.reveal { opacity: 0; transform: translateY(10px); animation: rise .6s cubic-bezier(.22,.61,.36,1) forwards; }
+@keyframes rise { to { opacity: 1; transform: translateY(0); } }
+.d1{animation-delay:.04s}.d2{animation-delay:.11s}.d3{animation-delay:.18s}.d4{animation-delay:.25s}.d5{animation-delay:.32s}
+
+/* ---------- caption (under a solo watch) ---------- */
+.caption { font-size: 13px; font-weight: 500; letter-spacing: .03em; color: #5a6273; text-align: center; }
+.caption b { color: #8b93a7; font-weight: 700; }
