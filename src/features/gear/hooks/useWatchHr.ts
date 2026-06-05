@@ -11,6 +11,12 @@ import { useTrainingSessionStore } from '../../../store/trainingSessionStore';
 import { TrainingPhase } from '../../../types/training';
 import type { WatchSessionStateEvent } from '../../../types/watch';
 import { logWc } from '../../../services/watch/wcLog';
+import { HR_NO_SIGNAL_TIMEOUT_MS } from '../../../services/hr/hrSource';
+
+// Cadence of the mid-ride HR-drop watchdog. A drop is detected within roughly one
+// freshness window + one tick of silence; frequent enough to recover promptly,
+// sparse enough not to churn while the stream is healthy.
+const WATCH_HR_DROP_CHECK_INTERVAL_MS = 5_000;
 
 /**
  * Root-only hook that owns the Apple Watch HR lifecycle.
@@ -34,6 +40,10 @@ export function useWatchHr(): void {
   // connect's await window) would pass the adapter-null check and race in a
   // parallel connect — causing an activate/startWatchApp feedback loop.
   const startingRef = useRef(false);
+  // Wall-clock of the last drop-triggered reconnect, so the watchdog backs off a
+  // full freshness window between attempts and never storms when a reconnect
+  // succeeds but the Watch still produces no HR.
+  const lastDropReconnectAtRef = useRef(0);
 
   const updateAppleWatchHr = useDeviceConnectionStore((s) => s.updateAppleWatchHr);
   const updateAppleWatchActiveKcal = useDeviceConnectionStore((s) => s.updateAppleWatchActiveKcal);
@@ -205,6 +215,44 @@ export function useWatchHr(): void {
       void stopStream();
     }
   }, [phase, effectivePrimary, startStream, stopStream, watchAvailable]);
+
+  // Mid-ride HR-drop watchdog. A Watch can stop delivering HR without any
+  // JS-visible disconnect — out of range and back, an HKLiveWorkoutBuilder stall,
+  // or a dead mirrored session — and `adapterRef` stays non-null. The reachability
+  // retry is gated on `!adapterRef.current`, so it never re-fires and the tile is
+  // stuck on "No signal" for the rest of the ride. Detect silence past the freshness
+  // window on an established stream and treat it as a drop: soft-reset the stale
+  // adapter (no `disconnect`, so a still-alive Watch session is not ended) and let
+  // the start path re-establish the stream. Only runs while a watch-primary ride is
+  // Active — pause silence is legitimate, and the cleared interval ignores it.
+  useEffect(() => {
+    if (!watchAvailable) return;
+    if (phase !== TrainingPhase.Active || effectivePrimary !== 'watch') return;
+
+    const interval = setInterval(() => {
+      // Nothing to recover unless a stream is established and idle. While null, the
+      // reachability retry owns reconnection; while starting, let it resolve.
+      if (!adapterRef.current || startingRef.current) return;
+      if (AppState.currentState !== 'active') return;
+      const lastSampleAt = useDeviceConnectionStore.getState().lastAppleWatchSampleAtMs;
+      // No sample yet this stream is the "Connecting…" case, not a drop.
+      if (lastSampleAt === null) return;
+      const now = Date.now();
+      if (now - lastSampleAt <= HR_NO_SIGNAL_TIMEOUT_MS) return;
+      if (now - lastDropReconnectAtRef.current <= HR_NO_SIGNAL_TIMEOUT_MS) return;
+      lastDropReconnectAtRef.current = now;
+
+      logWc('HR silent past freshness window mid-ride — treating Watch as dropped, reconnecting');
+      subRef.current?.remove();
+      subRef.current = null;
+      kcalSubRef.current?.remove();
+      kcalSubRef.current = null;
+      adapterRef.current = null;
+      void startStreamRef.current();
+    }, WATCH_HR_DROP_CHECK_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, [watchAvailable, phase, effectivePrimary]);
 
   // Unmount-only cleanup, scoped away from phase transitions so Active→Paused
   // does not tear down the Watch workout session.

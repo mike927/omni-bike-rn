@@ -7,6 +7,7 @@ import { useTrainingSessionStore } from '../../../../store/trainingSessionStore'
 import { useHrSourceStore } from '../../../../store/hrSourceStore';
 import { useSavedGearStore } from '../../../../store/savedGearStore';
 import { TrainingPhase } from '../../../../types/training';
+import { HR_NO_SIGNAL_TIMEOUT_MS } from '../../../../services/hr/hrSource';
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
 
@@ -1085,6 +1086,76 @@ describe('useWatchHr', () => {
         WatchHrAdapter: jest.Mock;
       };
       expect(WatchHrAdapter.mock.instances).toHaveLength(0);
+    });
+  });
+
+  describe('mid-ride HR drop recovery (T-03)', () => {
+    function getWatchHrAdapterMock() {
+      return (
+        jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
+          WatchHrAdapter: jest.Mock;
+        }
+      ).WatchHrAdapter;
+    }
+
+    // Drive a watch-primary Active ride to a live stream and deliver one HR sample,
+    // so `lastAppleWatchSampleAtMs` is set (the stream is "established and producing").
+    async function startLiveWatchStreamAndDeliverSample() {
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
+      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+
+      const view = renderHook(() => useWatchHr());
+      const WatchHrAdapter = getWatchHrAdapterMock();
+
+      await waitFor(() => {
+        const inst = WatchHrAdapter.mock.results[0]?.value as { connect: jest.Mock } | undefined;
+        expect(inst?.connect).toHaveBeenCalled();
+      });
+
+      const subscribeToHeartRate = (WatchHrAdapter.mock.results[0]?.value as { subscribeToHeartRate: jest.Mock })
+        .subscribeToHeartRate;
+      const hrCallback = subscribeToHeartRate.mock.calls[0]?.[0] as ((hr: number) => void) | undefined;
+      act(() => {
+        hrCallback?.(150);
+      });
+      expect(useDeviceConnectionStore.getState().latestAppleWatchHr).toBe(150);
+
+      return view;
+    }
+
+    it('reconnects when an established HR stream goes silent past the freshness window', async () => {
+      await startLiveWatchStreamAndDeliverSample();
+      const WatchHrAdapter = getWatchHrAdapterMock();
+      const adaptersBeforeDrop = WatchHrAdapter.mock.instances.length; // 1 — the live stream
+
+      // The Watch drops silently (no disconnect event), so the stream goes quiet.
+      // Once the silence exceeds the freshness window the drop watchdog must treat
+      // the (still non-null) adapter as dropped and reconnect — building a new adapter.
+      await act(async () => {
+        jest.advanceTimersByTime(HR_NO_SIGNAL_TIMEOUT_MS + 10_000);
+        await Promise.resolve();
+      });
+
+      expect(WatchHrAdapter.mock.instances.length).toBeGreaterThan(adaptersBeforeDrop);
+    });
+
+    it('does not reconnect on silence while Paused (pause silence is legitimate, not a drop)', async () => {
+      const { rerender } = await startLiveWatchStreamAndDeliverSample();
+      const WatchHrAdapter = getWatchHrAdapterMock();
+      const adaptersBeforePause = WatchHrAdapter.mock.instances.length;
+
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Paused } as never);
+      });
+      rerender({});
+
+      // HR collection is suspended while paused, so the stream is silent by design.
+      await act(async () => {
+        jest.advanceTimersByTime(HR_NO_SIGNAL_TIMEOUT_MS + 10_000);
+        await Promise.resolve();
+      });
+
+      expect(WatchHrAdapter.mock.instances.length).toBe(adaptersBeforePause);
     });
   });
 });
