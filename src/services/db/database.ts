@@ -23,8 +23,3 @@ export function getDrizzleDb(): AppDatabase {
 
   return drizzleDatabase;
 }
-
-export function resetDatabaseClientsForTests(): void {
-  sqliteDatabase = null;
-  drizzleDatabase = null;
-}
