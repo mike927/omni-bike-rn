@@ -45,7 +45,7 @@ export default function RootLayout() {
             <Text style={styles.errorBody}>
               Retry to initialize local storage again. If this keeps failing, restart the app and try once more.
             </Text>
-            <ActionButton label="Retry" onPress={init.retry} />
+            <ActionButton label="Retry" onPress={init.retry} scheme="noir" />
           </View>
         </AppScreen>
       </>
@@ -121,12 +121,12 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   errorBody: {
-    color: palette.textMuted,
+    color: noir.ink2,
     fontSize: 15,
     lineHeight: 22,
   },
   loadingBody: {
-    color: palette.textMuted,
+    color: noir.ink2,
     fontSize: 15,
     lineHeight: 22,
   },
