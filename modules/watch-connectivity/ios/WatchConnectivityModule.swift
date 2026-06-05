@@ -291,9 +291,13 @@ public class WatchConnectivityModule: Module {
   // A ride-control request initiated on the Watch. The iPhone owns the ride, so JS
   // runs the same training action a phone tap would (which in turn pauses/ends the
   // Watch's own session via the existing iPhone→Watch command path).
-  fileprivate func emitWatchControlRequest(_ action: String) {
+  fileprivate func emitWatchControlRequest(_ action: String, sentAtMs: Double?) {
     wcLog("[WC-iPhone] emitWatchControlRequest action=\(action)")
-    sendEvent("onWatchControlRequest", ["action": action])
+    var payload: [String: Any] = ["action": action]
+    if let sentAtMs {
+      payload[PayloadKey.sentAtMs] = sentAtMs
+    }
+    sendEvent("onWatchControlRequest", payload)
   }
 
   fileprivate func attachMirroredWorkoutSession(_ session: HKWorkoutSession) {
@@ -367,7 +371,8 @@ private class SessionDelegateProxy: NSObject, WCSessionDelegate, HKWorkoutSessio
     }
     if let control = message[PayloadKey.watchControl] as? String {
       wcLog("[WC-iPhone] didReceiveMessage watchControl=\(control)")
-      module?.emitWatchControlRequest(control)
+      let sentAtMs = (message[PayloadKey.sentAtMs] as? NSNumber)?.doubleValue
+      module?.emitWatchControlRequest(control, sentAtMs: sentAtMs)
     }
   }
 
@@ -377,7 +382,8 @@ private class SessionDelegateProxy: NSObject, WCSessionDelegate, HKWorkoutSessio
     wcLog("[WC-iPhone] didReceiveUserInfo keys=\(Array(userInfo.keys))")
     if let control = userInfo[PayloadKey.watchControl] as? String {
       wcLog("[WC-iPhone] didReceiveUserInfo watchControl=\(control)")
-      module?.emitWatchControlRequest(control)
+      let sentAtMs = (userInfo[PayloadKey.sentAtMs] as? NSNumber)?.doubleValue
+      module?.emitWatchControlRequest(control, sentAtMs: sentAtMs)
     }
   }
 

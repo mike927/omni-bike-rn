@@ -4,7 +4,8 @@ import { useWatchRemoteControl, type WatchRemoteControlHandlers } from '../useWa
 
 // ── Module mock ────────────────────────────────────────────────────────────────
 
-type ControlListener = (payload: { action: string }) => void;
+type ControlPayload = { action: string; sentAtMs?: number };
+type ControlListener = (payload: ControlPayload) => void;
 
 jest.mock('watch-connectivity', () => {
   const listeners: Record<string, ControlListener> = {};
@@ -26,10 +27,14 @@ function getMock() {
   };
 }
 
-function emit(action: string) {
+function emitPayload(payload: ControlPayload) {
   act(() => {
-    getMock().__listeners.onWatchControlRequest?.({ action });
+    getMock().__listeners.onWatchControlRequest?.(payload);
   });
+}
+
+function emit(action: string) {
+  emitPayload({ action });
 }
 
 beforeEach(() => {
@@ -37,6 +42,10 @@ beforeEach(() => {
   for (const key of Object.keys(getMock().__listeners)) {
     delete getMock().__listeners[key];
   }
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
 });
 
 function makeHandlers() {
@@ -83,6 +92,14 @@ describe('useWatchRemoteControl', () => {
     emit('explode');
     expect(handlers.onPause).not.toHaveBeenCalled();
     expect(handlers.onResume).not.toHaveBeenCalled();
+    expect(handlers.onFinish).not.toHaveBeenCalled();
+  });
+
+  it('ignores stale queued control requests', () => {
+    jest.spyOn(Date, 'now').mockReturnValue(120_000);
+    const handlers = makeHandlers();
+    renderHook(() => useWatchRemoteControl(handlers));
+    emitPayload({ action: 'end', sentAtMs: 59_999 });
     expect(handlers.onFinish).not.toHaveBeenCalled();
   });
 

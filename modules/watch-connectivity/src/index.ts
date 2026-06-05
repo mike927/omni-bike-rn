@@ -20,7 +20,7 @@ export type WatchCompanionStatePayload = {
 export type WatchAppStatePayload = { state: string };
 /** A ride-control request initiated on the Watch (the wrist acting as a remote). */
 export type WatchControlAction = 'pause' | 'resume' | 'end';
-export type WatchControlRequestPayload = { action: WatchControlAction };
+export type WatchControlRequestPayload = { action: WatchControlAction; sentAtMs?: number };
 
 type WatchConnectivityModuleEvents = {
   onWatchHr: (payload: WatchHrPayload) => void;

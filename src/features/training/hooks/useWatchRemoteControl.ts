@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react';
 
-import { WatchConnectivity, type WatchControlAction } from 'watch-connectivity';
+import { WatchConnectivity, type WatchControlRequestPayload } from 'watch-connectivity';
 
 import { logWc } from '../../../services/watch/wcLog';
+
+const WATCH_CONTROL_MAX_AGE_MS = 60_000;
 
 export interface WatchRemoteControlHandlers {
   /** Pause the ride (same action as the on-screen Pause button). */
@@ -36,22 +38,33 @@ export function useWatchRemoteControl(handlers: WatchRemoteControlHandlers): voi
   }, [handlers]);
 
   useEffect(() => {
-    const sub = WatchConnectivity.addListener('onWatchControlRequest', ({ action }: { action: WatchControlAction }) => {
-      logWc(`event watchControl action=${action}`);
-      switch (action) {
-        case 'pause':
-          handlersRef.current.onPause();
-          break;
-        case 'resume':
-          handlersRef.current.onResume();
-          break;
-        case 'end':
-          void handlersRef.current.onFinish();
-          break;
-        default:
-          logWc(`watchControl ignored — unknown action=${action}`);
-      }
-    });
+    const sub = WatchConnectivity.addListener(
+      'onWatchControlRequest',
+      ({ action, sentAtMs }: WatchControlRequestPayload) => {
+        logWc(`event watchControl action=${action}`);
+        if (
+          typeof sentAtMs === 'number' &&
+          Number.isFinite(sentAtMs) &&
+          Date.now() - sentAtMs > WATCH_CONTROL_MAX_AGE_MS
+        ) {
+          logWc(`watchControl ignored — stale action=${action}`);
+          return;
+        }
+        switch (action) {
+          case 'pause':
+            handlersRef.current.onPause();
+            break;
+          case 'resume':
+            handlersRef.current.onResume();
+            break;
+          case 'end':
+            void handlersRef.current.onFinish();
+            break;
+          default:
+            logWc(`watchControl ignored — unknown action=${action}`);
+        }
+      },
+    );
     return () => sub.remove();
   }, []);
 }

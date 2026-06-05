@@ -374,7 +374,10 @@ final class WorkoutManager: NSObject, ObservableObject {
             wcLog("[WC-Watch] requestControl dropped: WC not activated")
             return
         }
-        let payload = [WatchControlPayload.key: action.rawValue]
+        let payload: [String: Any] = [
+            WatchControlPayload.key: action.rawValue,
+            "sentAtMs": Date().timeIntervalSince1970 * 1000,
+        ]
         if session.isReachable {
             session.sendMessage(payload, replyHandler: nil)
         } else {

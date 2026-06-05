@@ -215,7 +215,7 @@ path. This keeps the iPhone the single source of truth and is purely additive ov
 
 | What | Watch send | Transport | Payload | iPhone handling |
 |---|---|---|---|---|
-| Pause/Resume/End from the wrist | `WorkoutManager.requestControl(_:)` | **T2** if reachable, else **T3** | `{watchControl: "pause"\|"resume"\|"end"}` | `didReceiveMessage`/`didReceiveUserInfo` → `emit onWatchControlRequest` |
+| Pause/Resume/End from the wrist | `WorkoutManager.requestControl(_:)` | **T2** if reachable, else **T3** | `{watchControl: "pause"\|"resume"\|"end", sentAtMs}` | `didReceiveMessage`/`didReceiveUserInfo` → `emit onWatchControlRequest`; JS ignores stale requests older than 60 s |
 
 ```mermaid
 sequenceDiagram
@@ -227,11 +227,11 @@ sequenceDiagram
 
   WUI->>WM: requestControl(.pause)
   alt reachable
-    WM->>Mod: T2 sendMessage {watchControl:"pause"}
+    WM->>Mod: T2 sendMessage {watchControl:"pause", sentAtMs}
   else unreachable
-    WM->>Mod: T3 transferUserInfo {watchControl:"pause"}  (next wake)
+    WM->>Mod: T3 transferUserInfo {watchControl:"pause", sentAtMs}  (next wake)
   end
-  Mod->>JS: onWatchControlRequest {action:"pause"}
+  Mod->>JS: onWatchControlRequest {action:"pause", sentAtMs}
   JS->>TS: session.pause()  (engine stop + bike Paused + store.pause())
   Note over TS: phase → Paused → useWatchHr sends pauseMirroredWorkout (§4)
   Note over WM: Watch HKWorkoutSession pauses via the iPhone's command → wrist UI reflects it
@@ -244,7 +244,8 @@ the screen's `handleFinish`, so it finishes + navigates to the Summary exactly l
 
 > **Accepted limitation.** If the iPhone app is fully backgrounded with JS suspended, a wrist control
 > is processed when the app next resumes (`transferUserInfo` is FIFO-queued). During a ride the phone
-> is normally foreground + kept awake (`useKeepAwakeDuringTraining`), so controls are live.
+> is normally foreground + kept awake (`useKeepAwakeDuringTraining`), so controls are live. To avoid
+> applying an old queued tap to a later ride, JS drops controls whose `sentAtMs` is more than 60 s old.
 
 ---
 
@@ -301,7 +302,7 @@ flowchart TD
 | `onWatchSessionState` | `{state, sentAtMs}` | T2/T4 message **or** mirrored-session delegate | logging only |
 | `onWatchCompanionStateChange` | `{available, paired, installed, ...}` | `sessionWatchStateDidChange` / activate | `setWatchAvailability` |
 | `onWatchAppState` | `{state}` | T2 (`reportAppState`) | logging only |
-| `onWatchControlRequest` | `{action: "pause"\|"resume"\|"end"}` | T2/T3 (`watchControl`, §4a) | `useWatchRemoteControl` → `session.pause`/`resume`/`handleFinish` |
+| `onWatchControlRequest` | `{action: "pause"\|"resume"\|"end", sentAtMs?}` | T2/T3 (`watchControl`, §4a) | `useWatchRemoteControl` → stale filter → `session.pause`/`resume`/`handleFinish` |
 
 ### Native JS→native functions (`WatchConnectivity` module)
 
