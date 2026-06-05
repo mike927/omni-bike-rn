@@ -55,4 +55,28 @@ describe('useLatestWorkout', () => {
     });
     expect(result.current?.id).toBe('session-2');
   });
+
+  it('returns null and does not throw when the read fails', () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    let focusCallback: (() => void) | undefined;
+
+    mockUseFocusEffect.mockImplementation((callback) => {
+      focusCallback = callback as unknown as () => void;
+    });
+    mockGetLatestFinishedSession.mockImplementation(() => {
+      throw new Error('db read failed');
+    });
+
+    const { result } = renderHook(() => useLatestWorkout());
+
+    expect(() =>
+      act(() => {
+        focusCallback?.();
+      }),
+    ).not.toThrow();
+    expect(result.current).toBeNull();
+    expect(errorSpy).toHaveBeenCalled();
+
+    errorSpy.mockRestore();
+  });
 });

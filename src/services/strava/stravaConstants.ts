@@ -12,7 +12,7 @@ const rawClientSecret = extra?.stravaClientSecret ?? '';
 // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- empty string must fall back to default
 const rawCallbackDomain = extra?.stravaCallbackDomain?.trim() || DEFAULT_STRAVA_CALLBACK_DOMAIN;
 
-if (!rawClientId || !rawClientSecret) {
+if (__DEV__ && (!rawClientId || !rawClientSecret)) {
   console.warn(
     '[stravaConstants] STRAVA_CLIENT_ID or STRAVA_CLIENT_SECRET is not set. ' +
       'Register a Strava API app at https://www.strava.com/settings/api and set the ' +

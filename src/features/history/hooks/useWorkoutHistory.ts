@@ -25,13 +25,16 @@ function buildHistoryItems(sessions: PersistedTrainingSession[]): HistoryListIte
 export function useWorkoutHistory() {
   const [items, setItems] = useState<HistoryListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const fetchSessions = useCallback(() => {
     setIsLoading(true);
     try {
       setItems(buildHistoryItems(getFinishedSessions()));
+      setLoadError(false);
     } catch (err: unknown) {
       console.error('[useWorkoutHistory] Failed to fetch sessions:', err);
+      setLoadError(true);
     } finally {
       setIsLoading(false);
     }
@@ -44,16 +47,18 @@ export function useWorkoutHistory() {
   );
 
   const deleteWorkout = useCallback(
-    (sessionId: string) => {
+    (sessionId: string): boolean => {
       try {
         deleteSession(sessionId);
         fetchSessions();
+        return true;
       } catch (err: unknown) {
         console.error('[useWorkoutHistory] Failed to delete session:', err);
+        return false;
       }
     },
     [fetchSessions],
   );
 
-  return { items, isLoading, refresh: fetchSessions, deleteWorkout };
+  return { items, isLoading, loadError, refresh: fetchSessions, deleteWorkout };
 }

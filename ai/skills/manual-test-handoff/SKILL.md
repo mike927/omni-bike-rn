@@ -103,20 +103,20 @@ Example:
 ## Project command reference (this app)
 
 Devices (re-check with `xcrun devicectl list devices` if they change):
-- iPhone 16 PRO (Michal): `2E90B0A0-D835-559D-805A-FC4A92CA995F` — bundle `com.anonymous.omnibikern`
-- Apple Watch Ultra 2: `31EEC0B4-4AEC-5124-898A-BDD1E34DB07E` — bundle `com.anonymous.omnibikern.watchkitapp`
+- iPhone 16 PRO (Michal): `2E90B0A0-D835-559D-805A-FC4A92CA995F` — bundle `app.omnibike`
+- Apple Watch Ultra 2: `31EEC0B4-4AEC-5124-898A-BDD1E34DB07E` — bundle `app.omnibike.watchkitapp`
 
 **Pull the phone's native WC log** (reliable; logs `paired/installed/reachable`, HR receipt, session, reachability):
 ```bash
 xcrun devicectl device copy from --device 2E90B0A0-D835-559D-805A-FC4A92CA995F \
-  --domain-type appDataContainer --domain-identifier com.anonymous.omnibikern \
+  --domain-type appDataContainer --domain-identifier app.omnibike \
   --source Documents/wc.log --destination /tmp/wc-iphone.log
 ```
 
 **Pull the watch's native WC log** (needs a stable CoreDevice tunnel — see troubleshooting):
 ```bash
 xcrun devicectl device copy from --device 31EEC0B4-4AEC-5124-898A-BDD1E34DB07E \
-  --domain-type appDataContainer --domain-identifier com.anonymous.omnibikern.watchkitapp \
+  --domain-type appDataContainer --domain-identifier app.omnibike.watchkitapp \
   --source Documents/wc.log --destination /tmp/wc-watch.log
 ```
 

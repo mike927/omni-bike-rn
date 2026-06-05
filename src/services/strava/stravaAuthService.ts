@@ -1,3 +1,4 @@
+import * as Crypto from 'expo-crypto';
 import * as WebBrowser from 'expo-web-browser';
 import { Linking } from 'react-native';
 
@@ -64,17 +65,36 @@ export async function authorizeWithStrava(): Promise<StravaTokens> {
 }
 
 async function runAuthorize(): Promise<StravaTokens> {
+  // CSRF state: a single-use nonce echoed back on the callback and verified
+  // before we exchange the code, so an injected deep link can't drive the flow.
+  const state = Crypto.randomUUID();
   const params = new URLSearchParams({
     client_id: STRAVA_CLIENT_ID,
     redirect_uri: STRAVA_REDIRECT_URI,
     response_type: 'code',
     approval_prompt: 'auto',
     scope: STRAVA_SCOPES,
+    state,
   });
   const authUrl = `${STRAVA_AUTH_URL}?${params.toString()}`;
 
-  const code = await awaitRedirectCode(authUrl);
+  const code = await awaitRedirectCode(authUrl, state);
   return exchangeCodeForTokens(code);
+}
+
+/** Exact protocol + host + path match for the OAuth callback, ignoring query. */
+function isStravaRedirect(url: string): boolean {
+  try {
+    const incoming = new URL(url);
+    const expected = new URL(STRAVA_REDIRECT_URI);
+    return (
+      incoming.protocol === expected.protocol &&
+      incoming.host === expected.host &&
+      incoming.pathname === expected.pathname
+    );
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -87,17 +107,24 @@ async function runAuthorize(): Promise<StravaTokens> {
  * Google-linked accounts. `SFSafariViewController` behaves as standard Safari
  * to Google's auth flow and completes the handshake correctly.
  */
-async function awaitRedirectCode(authUrl: string): Promise<string> {
+async function awaitRedirectCode(authUrl: string, expectedState: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     let settled = false;
 
     const subscription = Linking.addEventListener('url', ({ url }) => {
-      if (settled || !url.startsWith(STRAVA_REDIRECT_URI)) return;
+      if (settled || !isStravaRedirect(url)) return;
       settled = true;
       subscription.remove();
       void WebBrowser.dismissBrowser();
 
       const parsed = new URL(url);
+
+      // Reject any callback whose state doesn't match the nonce we issued.
+      if (parsed.searchParams.get('state') !== expectedState) {
+        reject(new Error('[stravaAuthService] OAuth state mismatch — ignoring callback (possible CSRF).'));
+        return;
+      }
+
       const returnedCode = parsed.searchParams.get('code');
       if (returnedCode) {
         resolve(returnedCode);

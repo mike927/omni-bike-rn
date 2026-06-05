@@ -9,7 +9,13 @@ export function useLatestWorkout(): PersistedTrainingSession | null {
 
   useFocusEffect(
     useCallback(() => {
-      setLatestWorkout(getLatestFinishedSession());
+      try {
+        setLatestWorkout(getLatestFinishedSession());
+      } catch (err: unknown) {
+        // Never crash the Home screen on a failed read — show no latest workout.
+        console.error('[useLatestWorkout] Failed to read latest workout:', err);
+        setLatestWorkout(null);
+      }
     }, []),
   );
 

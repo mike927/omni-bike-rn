@@ -72,12 +72,22 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: Readonly<
       return;
     }
 
-    const loaded = getSessionById(sessionId);
-    setSession(loaded);
-    setSamples(loaded ? getSamplesBySessionId(sessionId) : []);
-    setProviderUpload(getProviderUpload(sessionId, STRAVA_PROVIDER_ID));
-    setAppleHealthUpload(getProviderUpload(sessionId, APPLE_HEALTH_PROVIDER_ID));
-    setIsLoading(false);
+    try {
+      const loaded = getSessionById(sessionId);
+      setSession(loaded);
+      setSamples(loaded ? getSamplesBySessionId(sessionId) : []);
+      setProviderUpload(getProviderUpload(sessionId, STRAVA_PROVIDER_ID));
+      setAppleHealthUpload(getProviderUpload(sessionId, APPLE_HEALTH_PROVIDER_ID));
+    } catch (err: unknown) {
+      // Degrade to the not-found state rather than white-screening the summary.
+      console.error('[TrainingSummaryScreen] Failed to load session summary:', err);
+      setSession(null);
+      setSamples([]);
+      setProviderUpload(null);
+      setAppleHealthUpload(null);
+    } finally {
+      setIsLoading(false);
+    }
   }, [sessionId]);
 
   const handleDiscard = () => {
