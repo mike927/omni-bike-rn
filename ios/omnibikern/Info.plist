@@ -7,7 +7,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
     <key>CFBundleDisplayName</key>
-    <string>omni-bike-rn</string>
+    <string>Omni Bike</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -56,9 +56,9 @@
       <true/>
     </dict>
     <key>NSBluetoothAlwaysUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to connect to your bike trainer and heart rate monitor.</string>
+    <string>Allow Omni Bike to connect to your bike trainer and heart rate monitor.</string>
     <key>NSFaceIDUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your Face ID biometric data.</string>
+    <string>Allow Omni Bike to access your Face ID biometric data.</string>
     <key>NSHealthShareUsageDescription</key>
     <string>Omni Bike reads your heart rate from Apple Watch to display live HR during training sessions.</string>
     <key>NSHealthUpdateUsageDescription</key>
