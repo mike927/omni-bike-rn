@@ -763,6 +763,41 @@ describe('useWatchHr', () => {
         expect(getWatchConnectivityMock().resumeMirroredWorkout).toHaveBeenCalledTimes(1);
       });
     });
+
+    it('coalesces a rapid pause/resume spam into a single final command (debounce)', async () => {
+      // A rapid Active⇄Paused toggle used to fire a pause/resume on every transition,
+      // flooding the Watch and (via a session.pause()-while-paused race) killing its
+      // HKWorkoutSession. The phone now debounces so only the settled, final intent is sent.
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
+      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+
+      const { rerender } = renderHook(() => useWatchHr());
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      const wc = getWatchConnectivityMock();
+      wc.pauseMirroredWorkout.mockClear();
+      wc.resumeMirroredWorkout.mockClear();
+
+      // Spam faster than the debounce window, ending on Active (final intent = resume).
+      const spam = [TrainingPhase.Paused, TrainingPhase.Active, TrainingPhase.Paused, TrainingPhase.Active];
+      for (const next of spam) {
+        act(() => {
+          useTrainingSessionStore.setState({ phase: next } as never);
+        });
+        rerender({});
+      }
+
+      await act(async () => {
+        jest.advanceTimersByTime(1_000);
+        await Promise.resolve();
+      });
+
+      // Exactly one command, matching the final phase; the intermediate toggles are dropped.
+      expect(wc.resumeMirroredWorkout).toHaveBeenCalledTimes(1);
+      expect(wc.pauseMirroredWorkout).toHaveBeenCalledTimes(0);
+    });
   });
 
   describe('Watch availability — companion-presence model', () => {

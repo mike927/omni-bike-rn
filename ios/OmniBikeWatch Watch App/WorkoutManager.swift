@@ -118,6 +118,14 @@ final class WorkoutManager: NSObject, ObservableObject {
     private let healthStore = HKHealthStore()
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
+    // True between issuing a pause()/resume() and the matching didChangeTo settling.
+    // `session.state` lags HealthKit's real transition, so under rapid pause/resume two
+    // commands can both pass the `state == .running/.paused` guard and fire pause() twice —
+    // and a redundant pause() makes HKWorkoutSession emit didFailWithError ("Unable to
+    // perform 'pause' from current state 'Paused'"), which tears the whole session down.
+    // This flag is the interlock: at most one in-flight transition at a time. All access is
+    // on the main actor (handleCommand + didChangeTo both hop there), so it needs no lock.
+    private var pauseResumeInFlight = false
     private var elapsedTimer: Timer?
     private var lastHrSendAt: TimeInterval = 0
     // nil until HealthKit produces its first activeEnergyBurned sample for the
@@ -302,19 +310,29 @@ final class WorkoutManager: NSObject, ObservableObject {
     // HR is no longer measured or streamed until resume.
     func pauseWorkout() {
         wcLog("[WC-Watch] pauseWorkout called")
+        guard !pauseResumeInFlight else {
+            wcLog("[WC-Watch] pauseWorkout: a pause/resume is already in flight — ignoring")
+            return
+        }
         guard let session, session.state == .running else {
             wcLog("[WC-Watch] pauseWorkout: no running session — ignoring")
             return
         }
+        pauseResumeInFlight = true
         session.pause()
     }
 
     func resumeWorkout() {
         wcLog("[WC-Watch] resumeWorkout called")
+        guard !pauseResumeInFlight else {
+            wcLog("[WC-Watch] resumeWorkout: a pause/resume is already in flight — ignoring")
+            return
+        }
         guard let session, session.state == .paused else {
             wcLog("[WC-Watch] resumeWorkout: no paused session — ignoring")
             return
         }
+        pauseResumeInFlight = true
         session.resume()
     }
 
@@ -333,6 +351,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         // Clear before the next session's first delegate callback so a stale
         // cumulative value is never piggy-backed onto the first HR payload.
         latestActiveKcal = nil
+        pauseResumeInFlight = false
         stopElapsedTimer(reset: true)
         lastHrAt = nil
     }
@@ -533,6 +552,9 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
         // HealthKit delivers this off the main actor; hop on before publishSessionState
         // (pendingSessionStatePayload) and teardownSession (session/builder/…) run.
         DispatchQueue.main.async {
+            // The transition HealthKit was performing has settled — release the interlock
+            // so the next pause/resume can be issued.
+            self.pauseResumeInFlight = false
             if toState == .running {
                 self.transition(to: .inProgress)
                 self.publishSessionState(WatchSessionStatePayload.started)

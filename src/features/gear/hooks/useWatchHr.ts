@@ -18,6 +18,12 @@ import { HR_NO_SIGNAL_TIMEOUT_MS } from '../../../services/hr/hrSource';
 // sparse enough not to churn while the stream is healthy.
 const WATCH_HR_DROP_CHECK_INTERVAL_MS = 5_000;
 
+// Settle window for pause/resume sends. A rapid Active⇄Paused toggle fires a transition
+// per tap; without coalescing, the burst floods the Watch and can race its HKWorkoutSession
+// into a fatal pause()-while-paused. Debounce so only the final, settled intent is sent.
+// Short enough to stay responsive for a single deliberate tap.
+const WATCH_PAUSE_RESUME_DEBOUNCE_MS = 350;
+
 /**
  * Root-only hook that owns the Apple Watch HR lifecycle.
  *
@@ -179,6 +185,35 @@ export function useWatchHr(): void {
     stopStreamRef.current = stopStream;
   }, [stopStream]);
 
+  // Debounced pause/resume sender. Rapid Active⇄Paused toggling used to fire a command on
+  // every transition; coalesce to a single send of the settled, final intent (read live from
+  // phaseRef at fire time) so the Watch is never flooded into a pause()-while-paused failure.
+  const watchSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearWatchSyncTimer = useCallback(() => {
+    if (watchSyncTimerRef.current) {
+      clearTimeout(watchSyncTimerRef.current);
+      watchSyncTimerRef.current = null;
+    }
+  }, []);
+  const scheduleWatchPauseResume = useCallback(() => {
+    clearWatchSyncTimer();
+    watchSyncTimerRef.current = setTimeout(() => {
+      watchSyncTimerRef.current = null;
+      if (phaseRef.current === TrainingPhase.Paused) {
+        logWc('phase settled → Paused — sending pauseMirroredWorkout');
+        void WatchConnectivity.pauseMirroredWorkout().catch((error: unknown) => {
+          console.error('[useWatchHr] Failed to pause Watch workout:', error);
+        });
+      } else if (phaseRef.current === TrainingPhase.Active) {
+        logWc('phase settled → Active — sending resumeMirroredWorkout');
+        void WatchConnectivity.resumeMirroredWorkout().catch((error: unknown) => {
+          console.error('[useWatchHr] Failed to resume Watch workout:', error);
+        });
+      }
+      // Idle/Finished: the session is ending; stopStream/endMirroredWorkout owns that.
+    }, WATCH_PAUSE_RESUME_DEBOUNCE_MS);
+  }, [clearWatchSyncTimer]);
+
   // Tracks the phase the previous run saw, so a resume (Paused→Active) is told apart
   // from a fresh start (Idle→Active) and the right pause/resume command is emitted.
   const prevPhaseRef = useRef(phase);
@@ -191,11 +226,9 @@ export function useWatchHr(): void {
       if (effectivePrimary === 'watch') {
         void startStream();
         if (prevPhase === TrainingPhase.Paused) {
-          // Resuming: the stream is still connected; tell the Watch to resume its session.
-          logWc('phase Paused→Active — sending resumeMirroredWorkout');
-          void WatchConnectivity.resumeMirroredWorkout().catch((error: unknown) => {
-            console.error('[useWatchHr] Failed to resume Watch workout:', error);
-          });
+          // Resuming: the stream is still connected; tell the Watch to resume its session
+          // (debounced, so a rapid pause/resume toggle collapses to the final intent).
+          scheduleWatchPauseResume();
         }
       } else {
         // effective primary is not watch while session is active: tear down watch stream.
@@ -204,17 +237,16 @@ export function useWatchHr(): void {
     } else if (phase === TrainingPhase.Paused && effectivePrimary === 'watch') {
       // Keep the stream alive but pause the Watch session so its workout timer and HR
       // collection stop in sync with the iPhone (the Watch owns the HKWorkoutSession).
-      logWc('phase Active→Paused — sending pauseMirroredWorkout');
-      void WatchConnectivity.pauseMirroredWorkout().catch((error: unknown) => {
-        console.error('[useWatchHr] Failed to pause Watch workout:', error);
-      });
+      scheduleWatchPauseResume();
     } else if (phase === TrainingPhase.Finished || phase === TrainingPhase.Idle) {
       // Always tear down on Finish/Idle — `stopStream` is idempotent. Gating on the
       // current primary would leak a Watch session that was paused and then had the
-      // primary switched away before finishing (finding #2).
+      // primary switched away before finishing (finding #2). Cancel any pending
+      // pause/resume so a stale command can't land after the ride ends.
+      clearWatchSyncTimer();
       void stopStream();
     }
-  }, [phase, effectivePrimary, startStream, stopStream, watchAvailable]);
+  }, [phase, effectivePrimary, startStream, stopStream, watchAvailable, scheduleWatchPauseResume, clearWatchSyncTimer]);
 
   // Mid-ride HR-drop watchdog. A Watch can stop delivering HR without any
   // JS-visible disconnect — out of range and back, an HKLiveWorkoutBuilder stall,
@@ -258,9 +290,10 @@ export function useWatchHr(): void {
   // does not tear down the Watch workout session.
   useEffect(() => {
     return () => {
+      clearWatchSyncTimer();
       void stopStreamRef.current();
     };
-  }, []);
+  }, [clearWatchSyncTimer]);
 
   useEffect(() => {
     if (!watchAvailable) return;

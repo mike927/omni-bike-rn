@@ -206,6 +206,16 @@ sequenceDiagram
   WM->>Mod: onWatchSessionState {state:"ended"} (+ mirrored .ended delegate)
 ```
 
+> **Rapid pause/resume is hardened on both sides.** `HKWorkoutSession.state` lags HealthKit's
+> real transition, so two `pause` commands a few ms apart can both pass the watch's
+> `state == .running` guard and call `session.pause()` twice — and a redundant `pause()` makes
+> HealthKit emit `didFailWithError ("Unable to perform 'pause' from current state 'Paused'")`,
+> whose handler tears the whole session down (ride dies, watch stuck "Paused"). Two layers fix it:
+> the **watch** keeps a `pauseResumeInFlight` interlock (at most one in-flight transition; cleared
+> on the next `didChangeTo .running/.paused`), and the **phone** debounces pause/resume
+> (`WATCH_PAUSE_RESUME_DEBOUNCE_MS`) so a rapid Active⇄Paused toggle collapses to the single
+> settled intent instead of flooding the watch.
+
 **Orphan recovery:** if a ride ended while the Watch was unreachable and the stop never
 arrived, `WorkoutManager.recoverOrphanedSession()` (on watch app launch) finds the still-running
 `HKWorkoutSession` via `recoverActiveWorkoutSession` and ends + discards it, so the UI doesn't
