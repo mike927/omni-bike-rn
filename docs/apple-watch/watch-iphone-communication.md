@@ -116,6 +116,12 @@ Payload: `{ hr, sentAtMs, activeKcal? }` (kcal omitted until HealthKit produces 
 `activeEnergyBurned` sample). All land on JS as `onWatchHr` → `updateAppleWatchHr` and
 `onWatchActiveKcal` → `updateAppleWatchActiveKcal`.
 
+> **De-dup (one emit per sample).** Because all three transports carry the *same* `sentAtMs`,
+> the iPhone module keeps a monotonic high-water mark and emits a given sample **once** —
+> any copy whose `sentAtMs` is not newer than the last emitted is dropped (`shouldEmitSample`).
+> Without this each ~1 Hz sample reached JS 2–3× (and cumulative `activeKcal` could be
+> re-emitted out of order). A sample with no `sentAtMs` can't be de-duped, so it passes through.
+
 > **Why three?** T5 is the only channel that keeps delivering while the watch screen is
 > **dimmed** (app still frontmost — the reason `HKLiveWorkoutBuilder` is used as the sample
 > pipe). T2 is the snappy foreground path. T4 is the always-on coalesced fallback.
@@ -279,6 +285,7 @@ flowchart TD
   A -->|sessionReachabilityDidChange| F["onReachabilityChange"]
   F -->|reachable && Active && primary=watch && no adapter| G["retry startStream (mid-ride)"]
   F -.->|does NOT touch availability| D
+  W["drop watchdog (5 s tick)"] -->|Active && primary=watch && adapter set && HR silent > 15 s| H["soft-reset adapter → reconnect"]
 ```
 
 > **"Ready" ≠ HR flowing.** Availability answers *"is the watch here (paired + installed)?"*.
@@ -287,6 +294,16 @@ flowchart TD
 > availability stays **"Ready"**. (In-workout the tile also surfaces **"Connecting…"** before the
 > first sample and **"Paused"** while paused — see the device-status state machine in
 > `hr-source-feature-status.md`.)
+>
+> **Mid-ride drop recovery (silent drop).** The reachability retry above only fires when
+> `adapterRef` is null. A Watch can stop delivering HR with **no** JS-visible disconnect
+> (out of range and back, an `HKLiveWorkoutBuilder` stall, a dead mirrored session) — the
+> adapter stays non-null, so that retry never re-fires and the tile is stuck on "No signal"
+> for the rest of the ride. `useWatchHr` runs a **5 s drop watchdog** while a watch-primary
+> ride is Active: once HR has been silent past the freshness window on an established stream,
+> it treats the Watch as dropped, soft-resets the stale adapter (no `disconnect`, so a
+> still-alive Watch session is not ended) and reconnects — backing off a full freshness
+> window between attempts. The watchdog is cleared while Paused (pause silence is expected).
 
 ---
 
@@ -296,8 +313,8 @@ flowchart TD
 
 | Event | Payload | Source transport | `useWatchHr` action |
 |---|---|---|---|
-| `onWatchHr` | `{hr}` | T2 / T4 / T5 | `updateAppleWatchHr` |
-| `onWatchActiveKcal` | `{activeKcal}` | T2 / T4 / T5 | `updateAppleWatchActiveKcal` |
+| `onWatchHr` | `{hr}` | T2 / T4 / T5 (de-duped on `sentAtMs`, §3a) | `updateAppleWatchHr` |
+| `onWatchActiveKcal` | `{activeKcal}` | T2 / T4 / T5 (de-duped on `sentAtMs`, §3a) | `updateAppleWatchActiveKcal` |
 | `onReachabilityChange` | `{reachable, paired, installed, activationState}` | `sessionReachabilityDidChange` | mid-ride stream retry (not availability) |
 | `onWatchSessionState` | `{state, sentAtMs}` | T2/T4 message **or** mirrored-session delegate | logging only |
 | `onWatchCompanionStateChange` | `{available, paired, installed, ...}` | `sessionWatchStateDidChange` / activate | `setWatchAvailability` |

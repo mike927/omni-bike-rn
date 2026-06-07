@@ -53,12 +53,22 @@ fileprivate enum WatchCommand {
 }
 
 public class WatchConnectivityModule: Module {
+  // Single isolation domain for the module's mutable state. activationPromises,
+  // pendingStart, mirroredSession and lastEmittedSampleSentAtMs are all read/written
+  // from several queues (the module call queue, the startWatchApp completion, the
+  // HealthKit mirroring handler, and WCSession/HKWorkoutSession delegate callbacks),
+  // so every access is funnelled through this serial queue.
   private let stateQueue = DispatchQueue(label: "com.omnibike.watchconnectivity.state")
   fileprivate var activationPromises: [Promise] = []
   private let healthStore = HKHealthStore()
   private lazy var sessionDelegate: SessionDelegateProxy = SessionDelegateProxy(module: self)
-  fileprivate var pendingStart: Bool = false
+  private var pendingStart: Bool = false
   private var mirroredSession: HKWorkoutSession?
+  // Monotonic high-water mark for emitted HR/kcal sample timestamps. The Watch fans the
+  // same ~1 Hz payload across three transports (sendMessage, mirrored session,
+  // applicationContext), each stamped with the same sentAtMs; this de-dups them so a
+  // sample reaches JS exactly once. Guarded by stateQueue.
+  private var lastEmittedSampleSentAtMs: Double?
 
   public func definition() -> ModuleDefinition {
     Name("WatchConnectivity")
@@ -129,17 +139,17 @@ public class WatchConnectivityModule: Module {
       wcLog("[WC-iPhone] startWatchApp: WC state=\(wcSession.activationState.rawValue) paired=\(wcSession.isPaired) installed=\(wcSession.isWatchAppInstalled) reachable=\(wcSession.isReachable)")
 
       wcLog("[WC-iPhone] startWatchApp: invoking HKHealthStore.startWatchApp")
-      self.pendingStart = true
+      self.setPendingStart(true)
       self.healthStore.startWatchApp(with: configuration) { success, error in
         if let error {
           wcLog("[WC-iPhone] startWatchApp: FAILED with error: \(error.localizedDescription)")
-          self.pendingStart = false
+          self.setPendingStart(false)
           promise.reject("ERR_START_WATCH_APP_FAILED", error.localizedDescription)
           return
         }
         guard success else {
           wcLog("[WC-iPhone] startWatchApp: FAILED success=false")
-          self.pendingStart = false
+          self.setPendingStart(false)
           promise.reject("ERR_START_WATCH_APP_FAILED", "HealthKit could not launch the Watch app")
           return
         }
@@ -158,9 +168,9 @@ public class WatchConnectivityModule: Module {
       // iPhone while Watch is unreachable → cancel before Watch wakes" leaks a
       // stale start cmd the next time reachability flips true, auto-launching a
       // workout the user never asked for.
-      if self.pendingStart {
+      if self.getPendingStart() {
         wcLog("[WC-iPhone] endMirroredWorkout: clearing pendingStart")
-        self.pendingStart = false
+        self.setPendingStart(false)
       }
       let session = WCSession.default
       guard session.activationState == .activated else {
@@ -213,8 +223,34 @@ public class WatchConnectivityModule: Module {
     }
   }
 
+  // ── stateQueue-guarded accessors ────────────────────────────────────────────
+
+  private func setPendingStart(_ value: Bool) {
+    stateQueue.sync { pendingStart = value }
+  }
+
+  private func getPendingStart() -> Bool {
+    stateQueue.sync { pendingStart }
+  }
+
+  // De-dup the ~1 Hz HR/kcal fan-out. The Watch sends an identical payload over three
+  // transports, each carrying the same sentAtMs; emit a given sentAtMs once and ignore
+  // any that is not strictly newer than the last emitted (a duplicate from another
+  // transport, or a stale applicationContext coalesce). A missing sentAtMs can't be
+  // de-duped, so it passes through.
+  fileprivate func shouldEmitSample(sentAtMs: Double?) -> Bool {
+    guard let sentAtMs else { return true }
+    return stateQueue.sync {
+      if let last = lastEmittedSampleSentAtMs, sentAtMs <= last {
+        return false
+      }
+      lastEmittedSampleSentAtMs = sentAtMs
+      return true
+    }
+  }
+
   fileprivate func flushPendingStart() {
-    guard pendingStart else { return }
+    guard getPendingStart() else { return }
     let session = WCSession.default
     guard session.activationState == .activated, session.isReachable else {
       wcLog("[WC-iPhone] flushPendingStart: not reachable yet (reachable=\(session.isReachable)) — will retry on reachability change")
@@ -224,7 +260,7 @@ public class WatchConnectivityModule: Module {
     session.sendMessage([PayloadKey.command: WatchCommand.start], replyHandler: nil) { error in
       wcLog("[WC-iPhone] flushPendingStart: sendMessage error=\(error.localizedDescription)")
     }
-    pendingStart = false
+    setPendingStart(false)
   }
 
   // Sends a lifecycle command (pause/resume) to the Watch. Live via sendMessage when
@@ -301,12 +337,19 @@ public class WatchConnectivityModule: Module {
   }
 
   fileprivate func attachMirroredWorkoutSession(_ session: HKWorkoutSession) {
-    clearMirroredWorkoutSession()
     wcLog("[WC-iPhone] attachMirroredWorkoutSession state=\(session.state.rawValue) type=\(session.type.rawValue)")
 
     session.delegate = sessionDelegate
 
-    mirroredSession = session
+    // Swap the stored session atomically and detach the previous one outside the lock.
+    let previous: HKWorkoutSession? = stateQueue.sync {
+      let old = mirroredSession
+      mirroredSession = session
+      return old
+    }
+    if let previous, previous !== session {
+      previous.delegate = nil
+    }
 
     if session.state == .running {
       emitSessionState(PayloadKeySessionState.started, sentAtMs: Date().timeIntervalSince1970 * 1000)
@@ -314,8 +357,12 @@ public class WatchConnectivityModule: Module {
   }
 
   fileprivate func clearMirroredWorkoutSession() {
-    mirroredSession?.delegate = nil
-    mirroredSession = nil
+    let previous: HKWorkoutSession? = stateQueue.sync {
+      let old = mirroredSession
+      mirroredSession = nil
+      return old
+    }
+    previous?.delegate = nil
   }
 }
 
@@ -328,6 +375,9 @@ fileprivate enum PayloadKeySessionState {
 fileprivate struct MirroredWorkoutPayload: Decodable {
   let hr: Int?
   let activeKcal: Double?
+  // Same wall-clock stamp the Watch puts on every transport's copy of a sample; used
+  // to de-dup the fan-out across sendMessage / mirrored session / applicationContext.
+  let sentAtMs: Double?
 }
 
 private class SessionDelegateProxy: NSObject, WCSessionDelegate, HKWorkoutSessionDelegate {
@@ -355,12 +405,12 @@ private class SessionDelegateProxy: NSObject, WCSessionDelegate, HKWorkoutSessio
 
   func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
     wcLog("[WC-iPhone] didReceiveMessage keys=\(Array(message.keys))")
-    if let hr = message[PayloadKey.heartRate] as? NSNumber {
-      module?.emitHr(hr.intValue)
-    }
-    if let kcal = message[PayloadKey.activeKcal] as? NSNumber {
-      module?.emitActiveKcal(kcal.doubleValue)
-    }
+    emitSampleIfNew(
+      hr: message[PayloadKey.heartRate] as? NSNumber,
+      kcal: message[PayloadKey.activeKcal] as? NSNumber,
+      sentAtMs: (message[PayloadKey.sentAtMs] as? NSNumber)?.doubleValue,
+      source: "message"
+    )
     if let state = message[PayloadKey.sessionState] as? String,
        let sentAtMs = message[PayloadKey.sentAtMs] as? NSNumber {
       wcLog("[WC-iPhone] didReceiveMessage sessionState=\(state)")
@@ -389,12 +439,12 @@ private class SessionDelegateProxy: NSObject, WCSessionDelegate, HKWorkoutSessio
 
   func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
     wcLog("[WC-iPhone] didReceiveApplicationContext keys=\(Array(applicationContext.keys))")
-    if let hr = applicationContext[PayloadKey.heartRate] as? NSNumber {
-      module?.emitHr(hr.intValue)
-    }
-    if let kcal = applicationContext[PayloadKey.activeKcal] as? NSNumber {
-      module?.emitActiveKcal(kcal.doubleValue)
-    }
+    emitSampleIfNew(
+      hr: applicationContext[PayloadKey.heartRate] as? NSNumber,
+      kcal: applicationContext[PayloadKey.activeKcal] as? NSNumber,
+      sentAtMs: (applicationContext[PayloadKey.sentAtMs] as? NSNumber)?.doubleValue,
+      source: "applicationContext"
+    )
     if let state = applicationContext[PayloadKey.sessionState] as? String,
        let sentAtMs = applicationContext[PayloadKey.sentAtMs] as? NSNumber {
       wcLog("[WC-iPhone] didReceiveApplicationContext sessionState=\(state)")
@@ -449,6 +499,10 @@ private class SessionDelegateProxy: NSObject, WCSessionDelegate, HKWorkoutSessio
       guard let payload = try? JSONDecoder().decode(MirroredWorkoutPayload.self, from: entry) else {
         continue
       }
+      guard module?.shouldEmitSample(sentAtMs: payload.sentAtMs) ?? false else {
+        wcLog("[WC-iPhone] mirrored sample sentAtMs=\(payload.sentAtMs.map { String($0) } ?? "nil") — duplicate, skipping")
+        continue
+      }
       if let hr = payload.hr {
         wcLog("[WC-iPhone] mirrored workoutSession didReceiveDataFromRemoteWorkoutSession hr=\(hr)")
         module?.emitHr(hr)
@@ -456,6 +510,23 @@ private class SessionDelegateProxy: NSObject, WCSessionDelegate, HKWorkoutSessio
       if let kcal = payload.activeKcal {
         module?.emitActiveKcal(kcal)
       }
+    }
+  }
+
+  // De-dup gate shared by the sendMessage and applicationContext receive paths: emit a
+  // sample only when its sentAtMs is newer than the last emitted (across all transports).
+  // A payload with neither hr nor kcal is not a sample and is ignored here.
+  private func emitSampleIfNew(hr: NSNumber?, kcal: NSNumber?, sentAtMs: Double?, source: String) {
+    guard hr != nil || kcal != nil else { return }
+    guard module?.shouldEmitSample(sentAtMs: sentAtMs) ?? false else {
+      wcLog("[WC-iPhone] \(source) sample sentAtMs=\(sentAtMs.map { String($0) } ?? "nil") — duplicate, skipping")
+      return
+    }
+    if let hr {
+      module?.emitHr(hr.intValue)
+    }
+    if let kcal {
+      module?.emitActiveKcal(kcal.doubleValue)
     }
   }
 }

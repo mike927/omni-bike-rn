@@ -89,6 +89,18 @@ enum WatchDisplayState: Equatable {
 // energy / distance stats can be accidentally authored even if a future code
 // change were to call `finishWorkout`. The iPhone remains the sole author of
 // HKWorkouts via the post-session Apple Health export.
+//
+// Concurrency: all mutable state (session, builder, the timers, lastHrSendAt,
+// latestActiveKcal, pendingSessionStatePayload, the @Published props) lives in a
+// single isolation domain — the main actor. The watch target builds with
+// `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`, so this type (and its delegate
+// conformances) is main-actor-isolated without an explicit annotation. HealthKit and
+// WatchConnectivity, however, deliver their delegate callbacks and completion handlers
+// on arbitrary background queues, and in Swift 5 mode that isolation is not enforced at
+// those boundaries — so every one hops onto the main actor (via `DispatchQueue.main.async`)
+// before touching this state. That hop is what actually serializes access. (An explicit
+// `@MainActor` here would be redundant with the build setting and only surfaces
+// false-positive Sendable warnings from the HealthKit/Timer closures.)
 final class WorkoutManager: NSObject, ObservableObject {
     static let shared = WorkoutManager()
 
@@ -182,7 +194,18 @@ final class WorkoutManager: NSObject, ObservableObject {
             wcLog("[WC-Watch] Authorization granted")
             if let configuration {
                 wcLog("[WC-Watch] Authorization: proceeding to startWorkout")
-                self?.startWorkout(configuration: configuration)
+                // The authorization completion is delivered off the main actor; hop on
+                // before startWorkout mutates session/builder. Carry the config as its
+                // Sendable enum fields (HKWorkoutConfiguration itself is non-Sendable) and
+                // rebuild it on the main actor.
+                let activityType = configuration.activityType
+                let locationType = configuration.locationType
+                DispatchQueue.main.async {
+                    let config = HKWorkoutConfiguration()
+                    config.activityType = activityType
+                    config.locationType = locationType
+                    self?.startWorkout(configuration: config)
+                }
             }
         }
     }
@@ -503,26 +526,32 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
     func workoutSession(_ workoutSession: HKWorkoutSession, didChangeTo toState: HKWorkoutSessionState,
                         from fromState: HKWorkoutSessionState, date: Date) {
         wcLog("[WC-Watch] HKWorkoutSession didChangeTo \(toState.rawValue) from \(fromState.rawValue)")
-        if toState == .running {
-            transition(to: .inProgress)
-            publishSessionState(WatchSessionStatePayload.started)
-        } else if toState == .paused {
-            // iPhone initiated the pause (it sent the command), so we don't echo a
-            // session-state event back — just reflect it on the Watch. The system
-            // workout timer and HR collection are paused by HealthKit.
-            transition(to: .paused)
-        } else if toState == .ended {
-            transition(to: .idle)
-            publishSessionState(WatchSessionStatePayload.ended)
-            teardownSession()
+        // HealthKit delivers this off the main actor; hop on before publishSessionState
+        // (pendingSessionStatePayload) and teardownSession (session/builder/…) run.
+        DispatchQueue.main.async {
+            if toState == .running {
+                self.transition(to: .inProgress)
+                self.publishSessionState(WatchSessionStatePayload.started)
+            } else if toState == .paused {
+                // iPhone initiated the pause (it sent the command), so we don't echo a
+                // session-state event back — just reflect it on the Watch. The system
+                // workout timer and HR collection are paused by HealthKit.
+                self.transition(to: .paused)
+            } else if toState == .ended {
+                self.transition(to: .idle)
+                self.publishSessionState(WatchSessionStatePayload.ended)
+                self.teardownSession()
+            }
         }
     }
 
     func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
         wcLog("[WC-Watch] HKWorkoutSession didFailWithError: \(error.localizedDescription)")
-        transition(to: .idle)
-        publishSessionState(WatchSessionStatePayload.failed)
-        teardownSession()
+        DispatchQueue.main.async {
+            self.transition(to: .idle)
+            self.publishSessionState(WatchSessionStatePayload.failed)
+            self.teardownSession()
+        }
     }
 }
 
@@ -532,18 +561,24 @@ extension WorkoutManager: WCSessionDelegate {
     func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState,
                  error: Error?) {
         wcLog("[WC-Watch] activationDidCompleteWith state=\(activationState.rawValue) error=\(error?.localizedDescription ?? "nil") reachable=\(session.isReachable)")
-        guard activationState == .activated, error == nil, let payload = pendingSessionStatePayload else { return }
-        pendingSessionStatePayload = nil
+        let activationOK = activationState == .activated && error == nil
+        // Delivered off the main actor; hop on before reading/clearing
+        // pendingSessionStatePayload.
+        DispatchQueue.main.async {
+            guard activationOK, let payload = self.pendingSessionStatePayload else { return }
+            self.pendingSessionStatePayload = nil
 
-        wcLog("[WC-Watch] flushing pending session state payload")
-        if session.isReachable {
-            session.sendMessage(payload, replyHandler: nil)
-        }
+            let session = WCSession.default
+            wcLog("[WC-Watch] flushing pending session state payload")
+            if session.isReachable {
+                session.sendMessage(payload, replyHandler: nil)
+            }
 
-        do {
-            try session.updateApplicationContext(payload)
-        } catch {
-            wcLog("[WC-Watch] flush pending FAILED: \(error.localizedDescription)")
+            do {
+                try session.updateApplicationContext(payload)
+            } catch {
+                wcLog("[WC-Watch] flush pending FAILED: \(error.localizedDescription)")
+            }
         }
     }
 
@@ -563,20 +598,25 @@ extension WorkoutManager: WCSessionDelegate {
     private func handleCommand(in payload: [String: Any], source: String) {
         guard let cmd = payload["cmd"] as? String else { return }
         wcLog("[WC-Watch] handleCommand cmd=\(cmd) source=\(source)")
-        switch cmd {
-        case WatchCommand.start:
-            let configuration = HKWorkoutConfiguration()
-            configuration.activityType = .cycling
-            configuration.locationType = .indoor
-            requestAuthorization(starting: configuration)
-        case WatchCommand.stop:
-            stopWorkout()
-        case WatchCommand.pause:
-            pauseWorkout()
-        case WatchCommand.resume:
-            resumeWorkout()
-        default:
-            break
+        // WCSession delivers messages/user-info on a background queue; hop onto the
+        // main actor before driving the session (start/stop/pause/resume touch
+        // session + builder).
+        DispatchQueue.main.async {
+            switch cmd {
+            case WatchCommand.start:
+                let configuration = HKWorkoutConfiguration()
+                configuration.activityType = .cycling
+                configuration.locationType = .indoor
+                self.requestAuthorization(starting: configuration)
+            case WatchCommand.stop:
+                self.stopWorkout()
+            case WatchCommand.pause:
+                self.pauseWorkout()
+            case WatchCommand.resume:
+                self.resumeWorkout()
+            default:
+                break
+            }
         }
     }
 }
@@ -593,27 +633,37 @@ extension WorkoutManager: HKLiveWorkoutBuilderDelegate {
 
     func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder,
                         didCollectDataOf collectedTypes: Set<HKSampleType>) {
-        // Active energy arrives as its own collection event. Record the cumulative
-        // session total so the next HR tick piggy-backs it onto the payload. HR
-        // stays the single throttle source to preserve 1 Hz send cadence.
+        // Read the statistics on the builder's own delivery queue, capture plain
+        // values, then hop onto the main actor to mutate state (latestActiveKcal,
+        // lastHrSendAt) and send. Active energy arrives as its own collection event;
+        // record the cumulative session total so the next HR tick piggy-backs it onto
+        // the payload. HR stays the single throttle source to preserve 1 Hz cadence.
+        var kcal: Double?
         if collectedTypes.contains(aeType),
            let energyStats = workoutBuilder.statistics(for: aeType),
            let energyQuantity = energyStats.sumQuantity() {
-            latestActiveKcal = energyQuantity.doubleValue(for: .kilocalorie())
+            kcal = energyQuantity.doubleValue(for: .kilocalorie())
         }
 
         guard collectedTypes.contains(hrType),
               let stats = workoutBuilder.statistics(for: hrType),
-              let quantity = stats.mostRecentQuantity() else { return }
+              let quantity = stats.mostRecentQuantity() else {
+            // Energy can land without HR; still record the latest cumulative value.
+            if let kcal {
+                DispatchQueue.main.async { self.latestActiveKcal = kcal }
+            }
+            return
+        }
         let bpm = Int(quantity.doubleValue(for: HKUnit(from: "count/min")))
         DispatchQueue.main.async {
+            if let kcal { self.latestActiveKcal = kcal }
             self.heartRate = bpm
             self.lastHrAt = Date()
-        }
-        let now = Date().timeIntervalSinceReferenceDate
-        if now - lastHrSendAt >= hrSendIntervalSeconds {
-            lastHrSendAt = now
-            sendHrToPhone(bpm)
+            let now = Date().timeIntervalSinceReferenceDate
+            if now - self.lastHrSendAt >= self.hrSendIntervalSeconds {
+                self.lastHrSendAt = now
+                self.sendHrToPhone(bpm)
+            }
         }
     }
 }
