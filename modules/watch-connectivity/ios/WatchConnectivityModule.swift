@@ -68,6 +68,13 @@ public class WatchConnectivityModule: Module {
   // same ~1 Hz payload across three transports (sendMessage, mirrored session,
   // applicationContext), each stamped with the same sentAtMs; this de-dups them so a
   // sample reaches JS exactly once. Guarded by stateQueue.
+  //
+  // Correctness rests on sentAtMs being monotonic wall-clock (`Date().timeIntervalSince1970`
+  // on the Watch): each ride's first sample is newer than the previous ride's last, so it is
+  // deliberately NOT reset between sessions. A backward clock adjustment between samples (NTP
+  // / manual) would drop real samples until the clock catches up — acceptable (rare, and HR
+  // staleness self-heals via the 15 s freshness gate). If that ever bites, reset this to nil
+  // in clearMirroredWorkoutSession() rather than switching to a relative timestamp.
   private var lastEmittedSampleSentAtMs: Double?
 
   public func definition() -> ModuleDefinition {

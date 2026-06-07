@@ -487,6 +487,10 @@ final class WorkoutManager: NSObject, ObservableObject {
 
     // ── Display state + haptics ────────────────────────────────────────────────
 
+    // Always defers to a later main turn (even when called from the main actor) so the UI
+    // state / haptic / timer settle after the caller's synchronous work — e.g. callers may
+    // run `transition(to:)` then publishSessionState/teardownSession in the same turn, and
+    // `displayState` is intentionally NOT observed to be set synchronously on return.
     private func transition(to state: WatchDisplayState) {
         DispatchQueue.main.async {
             let previous = self.displayState

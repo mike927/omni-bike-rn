@@ -1157,5 +1157,49 @@ describe('useWatchHr', () => {
 
       expect(WatchHrAdapter.mock.instances.length).toBe(adaptersBeforePause);
     });
+
+    it('backs off between drop reconnects — no per-tick storm while still silent', async () => {
+      await startLiveWatchStreamAndDeliverSample();
+      const WatchHrAdapter = getWatchHrAdapterMock();
+      const before = WatchHrAdapter.mock.instances.length; // 1
+
+      // First stretch of silence past the window → exactly one reconnect (not one per tick).
+      await act(async () => {
+        jest.advanceTimersByTime(HR_NO_SIGNAL_TIMEOUT_MS + 10_000);
+        await Promise.resolve();
+      });
+      expect(WatchHrAdapter.mock.instances.length).toBe(before + 1);
+
+      // The reconnect's stream also stays silent (no new sample delivered). Advancing
+      // less than another freshness window must NOT reconnect again — the backoff holds.
+      await act(async () => {
+        jest.advanceTimersByTime(5_000);
+        await Promise.resolve();
+      });
+      expect(WatchHrAdapter.mock.instances.length).toBe(before + 1);
+    });
+
+    it('does not reconnect before the first sample arrives (Connecting…, not a drop)', async () => {
+      // adapterRef is set (connect resolved) but no HR sample has landed yet, so
+      // lastAppleWatchSampleAtMs stays null. That is the "Connecting…" state — owned by
+      // the reachability retry — not a drop, so the watchdog must leave it alone.
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
+      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+      renderHook(() => useWatchHr());
+      const WatchHrAdapter = getWatchHrAdapterMock();
+
+      await waitFor(() => {
+        const inst = WatchHrAdapter.mock.results[0]?.value as { connect: jest.Mock } | undefined;
+        expect(inst?.connect).toHaveBeenCalled();
+      });
+      const before = WatchHrAdapter.mock.instances.length; // 1, no sample delivered
+
+      await act(async () => {
+        jest.advanceTimersByTime(HR_NO_SIGNAL_TIMEOUT_MS * 3);
+        await Promise.resolve();
+      });
+
+      expect(WatchHrAdapter.mock.instances.length).toBe(before);
+    });
   });
 });
