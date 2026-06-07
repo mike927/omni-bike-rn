@@ -74,7 +74,7 @@ public class WatchConnectivityModule: Module {
   // deliberately NOT reset between sessions. A backward clock adjustment between samples (NTP
   // / manual) would drop real samples until the clock catches up — acceptable (rare, and HR
   // staleness self-heals via the 15 s freshness gate). If that ever bites, reset this to nil
-  // in clearMirroredWorkoutSession() rather than switching to a relative timestamp.
+  // in clearMirroredWorkoutSession(_:) rather than switching to a relative timestamp.
   private var lastEmittedSampleSentAtMs: Double?
 
   public func definition() -> ModuleDefinition {
@@ -257,17 +257,26 @@ public class WatchConnectivityModule: Module {
   }
 
   fileprivate func flushPendingStart() {
-    guard getPendingStart() else { return }
     let session = WCSession.default
-    guard session.activationState == .activated, session.isReachable else {
+    let isReachable = session.activationState == .activated && session.isReachable
+    // Atomically consume the pending flag: check-and-clear in a single critical section so a
+    // concurrent endMirroredWorkout() that clears pendingStart first wins the race — no stale
+    // start is sent after its stop (the "cancel before the Watch wakes" auto-launch). When
+    // unreachable, leave the flag set to retry on the next reachability change.
+    let decision: (send: Bool, retry: Bool) = stateQueue.sync {
+      guard pendingStart else { return (send: false, retry: false) }
+      guard isReachable else { return (send: false, retry: true) }
+      pendingStart = false
+      return (send: true, retry: false)
+    }
+    if decision.send {
+      wcLog("[WC-iPhone] flushPendingStart: sending start cmd")
+      session.sendMessage([PayloadKey.command: WatchCommand.start], replyHandler: nil) { error in
+        wcLog("[WC-iPhone] flushPendingStart: sendMessage error=\(error.localizedDescription)")
+      }
+    } else if decision.retry {
       wcLog("[WC-iPhone] flushPendingStart: not reachable yet (reachable=\(session.isReachable)) — will retry on reachability change")
-      return
     }
-    wcLog("[WC-iPhone] flushPendingStart: sending start cmd")
-    session.sendMessage([PayloadKey.command: WatchCommand.start], replyHandler: nil) { error in
-      wcLog("[WC-iPhone] flushPendingStart: sendMessage error=\(error.localizedDescription)")
-    }
-    setPendingStart(false)
   }
 
   // Sends a lifecycle command (pause/resume) to the Watch. Live via sendMessage when
@@ -363,13 +372,17 @@ public class WatchConnectivityModule: Module {
     }
   }
 
-  fileprivate func clearMirroredWorkoutSession() {
-    let previous: HKWorkoutSession? = stateQueue.sync {
-      let old = mirroredSession
-      mirroredSession = nil
-      return old
+  // Compare-and-clear. A stale .ended/.failed callback from a session that
+  // attachMirroredWorkoutSession() has since superseded must NOT detach the session swapped
+  // in after it — only forget the stored session when it is the one this callback reports on.
+  // The callback's own (ending) session is always detached, idempotently.
+  fileprivate func clearMirroredWorkoutSession(_ session: HKWorkoutSession) {
+    stateQueue.sync {
+      if mirroredSession === session {
+        mirroredSession = nil
+      }
     }
-    previous?.delegate = nil
+    session.delegate = nil
   }
 }
 
@@ -489,7 +502,7 @@ private class SessionDelegateProxy: NSObject, WCSessionDelegate, HKWorkoutSessio
       module?.emitSessionState(PayloadKeySessionState.started, sentAtMs: date.timeIntervalSince1970 * 1000)
     case .ended:
       module?.emitSessionState(PayloadKeySessionState.ended, sentAtMs: date.timeIntervalSince1970 * 1000)
-      module?.clearMirroredWorkoutSession()
+      module?.clearMirroredWorkoutSession(workoutSession)
     default:
       break
     }
@@ -498,7 +511,7 @@ private class SessionDelegateProxy: NSObject, WCSessionDelegate, HKWorkoutSessio
   func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
     wcLog("[WC-iPhone] mirrored workoutSession didFailWithError: \(error.localizedDescription)")
     module?.emitSessionState(PayloadKeySessionState.failed, sentAtMs: Date().timeIntervalSince1970 * 1000)
-    module?.clearMirroredWorkoutSession()
+    module?.clearMirroredWorkoutSession(workoutSession)
   }
 
   func workoutSession(_ workoutSession: HKWorkoutSession, didReceiveDataFromRemoteWorkoutSession data: [Data]) {
