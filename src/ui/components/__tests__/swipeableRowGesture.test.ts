@@ -1,4 +1,20 @@
-import { resolveSwipeOpen } from '../swipeableRowGesture';
+import { clampSwipeTranslate, resolveSwipeOpen } from '../swipeableRowGesture';
+
+describe('clampSwipeTranslate', () => {
+  const openX = -156;
+
+  it('follows a left drag from the closed resting offset', () => {
+    expect(clampSwipeTranslate({ startX: -8, dx: -50, openX })).toBe(-58);
+  });
+
+  it('clamps to the fully-open offset when over-dragged left', () => {
+    expect(clampSwipeTranslate({ startX: -100, dx: -200, openX })).toBe(openX);
+  });
+
+  it('clamps to 0 (fully closed) when dragged right past the rest point', () => {
+    expect(clampSwipeTranslate({ startX: -8, dx: 50, openX })).toBe(0);
+  });
+});
 
 describe('resolveSwipeOpen', () => {
   const openWidth = 152;

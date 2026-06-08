@@ -58,7 +58,10 @@ describe('WorkoutHistoryListItem', () => {
     expect(onDelete).toHaveBeenCalledTimes(1);
   });
 
-  it('reveals a Delete action button (swipe affordance) that deletes', () => {
+  // The Delete button is always mounted behind the row, so it is reachable by VoiceOver/keyboard
+  // without performing the (pointer-only) swipe. This asserts that reachability, not the drag —
+  // the drag→open motion is covered by the pure gesture math (swipeableRowGesture) + on-device test.
+  it('exposes a Delete action reachable without the swipe gesture (a11y) that deletes', () => {
     const session = buildSession({});
     const onDelete = jest.fn();
     const { getByLabelText } = render(

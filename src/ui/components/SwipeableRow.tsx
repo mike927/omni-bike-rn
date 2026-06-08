@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { noir } from '../theme';
 import type { SwipeAction } from './SwipeAction';
-import { resolveSwipeOpen } from './swipeableRowGesture';
+import { clampSwipeTranslate, resolveSwipeOpen } from './swipeableRowGesture';
 
 export type { SwipeAction } from './SwipeAction';
 
@@ -43,6 +43,12 @@ export function SwipeableRow({
   const closedX = -peek;
   const openX = -openWidth;
 
+  // The PanResponder is created once, so its callbacks must read live geometry
+  // from a ref — otherwise a row whose actions/width/peek change while mounted
+  // would keep clamping and snapping against the first render's values.
+  const geom = useRef({ openWidth, openX, closedX });
+  geom.current = { openWidth, openX, closedX };
+
   const tx = useRef(new Animated.Value(closedX)).current;
   const currentX = useRef(closedX);
   const startX = useRef(closedX);
@@ -54,14 +60,23 @@ export function SwipeableRow({
     return () => tx.removeListener(id);
   }, [tx]);
 
-  const settle = (open: boolean) => {
-    Animated.spring(tx, {
-      toValue: open ? openX : closedX,
-      useNativeDriver: true,
-      bounciness: 2,
-      speed: 18,
-    }).start();
-  };
+  // Re-rest at the new closed offset whenever the geometry changes.
+  useEffect(() => {
+    tx.setValue(closedX);
+    currentX.current = closedX;
+  }, [tx, closedX, openWidth]);
+
+  const settle = useCallback(
+    (open: boolean) => {
+      Animated.spring(tx, {
+        toValue: open ? geom.current.openX : geom.current.closedX,
+        useNativeDriver: true,
+        bounciness: 2,
+        speed: 18,
+      }).start();
+    },
+    [tx],
+  );
 
   const pan = useRef(
     PanResponder.create({
@@ -72,10 +87,10 @@ export function SwipeableRow({
         startX.current = currentX.current;
       },
       onPanResponderMove: (_e, g) => {
-        tx.setValue(Math.min(0, Math.max(openX, startX.current + g.dx)));
+        tx.setValue(clampSwipeTranslate({ startX: startX.current, dx: g.dx, openX: geom.current.openX }));
       },
       onPanResponderRelease: (_e, g) => {
-        settle(resolveSwipeOpen({ translateX: currentX.current, velocityX: g.vx, openWidth }));
+        settle(resolveSwipeOpen({ translateX: currentX.current, velocityX: g.vx, openWidth: geom.current.openWidth }));
       },
       onPanResponderTerminate: () => settle(false),
     }),

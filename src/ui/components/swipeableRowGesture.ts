@@ -7,6 +7,20 @@ export interface SwipeSnapInput {
   readonly openWidth: number;
 }
 
+export interface SwipeClampInput {
+  /** Foreground translation when the drag began. */
+  readonly startX: number;
+  /** Horizontal drag delta since the gesture began (negative = left). */
+  readonly dx: number;
+  /** Fully-open translation (negative; = -openWidth). */
+  readonly openX: number;
+}
+
+/** Clamp a live drag to the travel range `[openX, 0]` (can't over-open or close past flush). */
+export function clampSwipeTranslate({ startX, dx, openX }: SwipeClampInput): number {
+  return Math.min(0, Math.max(openX, startX + dx));
+}
+
 /** Velocity (RN gesture units) above which a release is treated as an intentional fling. */
 const FLING = 0.5;
 

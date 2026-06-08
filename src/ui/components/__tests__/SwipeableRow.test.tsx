@@ -39,3 +39,24 @@ it('renders one button per action', () => {
   expect(getByLabelText('Replace')).toBeTruthy();
   expect(getByLabelText('Forget')).toBeTruthy();
 });
+
+it('tracks a changing actions prop (geometry stays in sync while mounted)', () => {
+  const { getByLabelText, queryByLabelText, rerender } = render(
+    <SwipeableRow actions={[forget(() => {})]}>
+      <Text>Rave</Text>
+    </SwipeableRow>,
+  );
+  expect(queryByLabelText('Replace')).toBeNull();
+
+  rerender(
+    <SwipeableRow
+      actions={[
+        { key: 'replace', label: 'Replace', icon: 'swap-horizontal-outline', onPress: () => {} },
+        forget(() => {}),
+      ]}>
+      <Text>Rave</Text>
+    </SwipeableRow>,
+  );
+  expect(getByLabelText('Replace')).toBeTruthy();
+  expect(getByLabelText('Forget')).toBeTruthy();
+});
