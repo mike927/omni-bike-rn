@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useMemo, useState, useEffect } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ActionButton } from '../../../ui/components/ActionButton';
@@ -111,88 +111,123 @@ function SexSegment({ value, onChange }: SexSegmentProps) {
 }
 
 interface NumericFieldProps {
+  readonly label: string;
   readonly value: number | null;
   readonly suffix: string;
   readonly placeholder: string;
   readonly onCommit: (value: number | null) => void;
 }
 
-function NumericField({ value, suffix, placeholder, onCommit }: NumericFieldProps) {
+function NumericField({ label, value, suffix, placeholder, onCommit }: NumericFieldProps) {
   const [draft, setDraft] = useState<string>(value === null ? '' : String(value));
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setDraft(value === null ? '' : String(value));
   }, [value]);
 
+  const handleChange = (next: string) => {
+    if (error) setError(null);
+    setDraft(next);
+  };
+
   const handleBlur = () => {
     const parsed = parseFiniteNumber(draft);
-    // Blur never clears the field — only the explicit Clear button does.
-    // Empty or invalid drafts revert to the last committed value so a stray
-    // tap mid-edit can't wipe a number the user already saved.
+    // Blur never clears the field — only the explicit Clear button does. Empty or
+    // invalid drafts revert to the last committed value so a stray tap mid-edit can't
+    // wipe a saved number; a non-empty *invalid* entry also surfaces a hint so the user
+    // knows their input was rejected rather than silently dropped.
     if (parsed === null) {
+      if (draft.trim().length > 0) setError(`Enter a valid ${label.toLowerCase()} in ${suffix}.`);
       setDraft(value === null ? '' : String(value));
       return;
     }
+    setError(null);
     setDraft(String(parsed));
     if (parsed === value) return;
     onCommit(parsed);
   };
 
   return (
-    <View style={styles.inputRow}>
-      <TextInput
-        value={draft}
-        onChangeText={setDraft}
-        onBlur={handleBlur}
-        keyboardType="decimal-pad"
-        placeholder={placeholder}
-        placeholderTextColor={noir.ink3}
-        style={styles.input}
-      />
-      <Text style={styles.inputSuffix}>{suffix}</Text>
+    <View>
+      <View style={[styles.inputRow, error ? styles.inputRowError : null]}>
+        <TextInput
+          value={draft}
+          onChangeText={handleChange}
+          onBlur={handleBlur}
+          keyboardType="decimal-pad"
+          placeholder={placeholder}
+          placeholderTextColor={noir.ink3}
+          accessibilityLabel={label}
+          style={styles.input}
+        />
+        <Text style={styles.inputSuffix}>{suffix}</Text>
+      </View>
+      {error ? (
+        <Text style={styles.fieldError} accessibilityLiveRegion="polite">
+          {error}
+        </Text>
+      ) : null}
     </View>
   );
 }
 
 interface DateFieldProps {
+  readonly label: string;
   readonly value: string | null;
   readonly onCommit: (value: string | null) => void;
 }
 
-function DateField({ value, onCommit }: DateFieldProps) {
+function DateField({ label, value, onCommit }: DateFieldProps) {
   const [draft, setDraft] = useState<string>(value ?? '');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setDraft(value ?? '');
   }, [value]);
 
+  const handleChange = (next: string) => {
+    if (error) setError(null);
+    setDraft(next);
+  };
+
   const handleBlur = () => {
     const parsed = parseDateInput(draft);
-    // Blur never clears the field — only the explicit Clear button does.
-    // An empty or partially-typed date reverts to the last committed value so
-    // a stray tap mid-edit can't silently wipe a saved DOB.
+    // Blur never clears the field — only the explicit Clear button does. An empty or
+    // partially-typed date reverts to the last committed value so a stray tap mid-edit
+    // can't silently wipe a saved DOB; a non-empty *invalid* entry surfaces a hint.
     if (parsed === null) {
+      if (draft.trim().length > 0) setError('Use the date format yyyy-mm-dd.');
       setDraft(value ?? '');
       return;
     }
+    setError(null);
     setDraft(parsed);
     if (parsed === value) return;
     onCommit(parsed);
   };
 
   return (
-    <View style={styles.inputRow}>
-      <TextInput
-        value={draft}
-        onChangeText={setDraft}
-        onBlur={handleBlur}
-        keyboardType="numbers-and-punctuation"
-        placeholder="yyyy-mm-dd"
-        placeholderTextColor={noir.ink3}
-        autoCapitalize="none"
-        autoCorrect={false}
-        style={styles.input}
-      />
+    <View>
+      <View style={[styles.inputRow, error ? styles.inputRowError : null]}>
+        <TextInput
+          value={draft}
+          onChangeText={handleChange}
+          onBlur={handleBlur}
+          keyboardType="numbers-and-punctuation"
+          placeholder="yyyy-mm-dd"
+          placeholderTextColor={noir.ink3}
+          autoCapitalize="none"
+          autoCorrect={false}
+          accessibilityLabel={label}
+          style={styles.input}
+        />
+      </View>
+      {error ? (
+        <Text style={styles.fieldError} accessibilityLiveRegion="polite">
+          {error}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -259,140 +294,158 @@ export function UserProfileScreen() {
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.intro}>Used for accurate calorie estimation when training without an Apple Watch.</Text>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag">
+          <Text style={styles.intro}>Used for accurate calorie estimation when training without an Apple Watch.</Text>
 
-        <AthleteHeroCard vm={deriveProfileView(profile, Date.now())} />
+          <AthleteHeroCard vm={deriveProfileView(profile, Date.now())} />
 
-        <Text style={styles.sectionLabel}>Sync from a provider</Text>
-        <View style={styles.card}>
-          {noProviderConnected ? (
-            <Text style={styles.helperText}>
-              Connect Apple Health or Strava in Settings to sync your profile, or fill in the fields below manually.
-            </Text>
-          ) : (
-            <Text style={styles.helperText}>
-              Tap a provider to overwrite your profile fields with the latest values. Fields the provider doesn&apos;t
-              return are left untouched.
-            </Text>
-          )}
-          <View style={styles.syncButtonRow}>
-            <ActionButton
-              label={
-                syncStatus.kind === 'syncing' && syncStatus.source === 'apple-health'
-                  ? 'Syncing…'
-                  : 'Sync from Apple Health'
-              }
-              scheme="noir"
-              variant="secondary"
-              disabled={!appleHealthConnected || syncStatus.kind === 'syncing'}
-              onPress={handleSyncFromAppleHealth}
-            />
-            <ActionButton
-              label={syncStatus.kind === 'syncing' && syncStatus.source === 'strava' ? 'Syncing…' : 'Sync from Strava'}
-              scheme="noir"
-              variant="secondary"
-              disabled={!stravaConnected || syncStatus.kind === 'syncing'}
-              onPress={handleSyncFromStrava}
-            />
+          <Text style={styles.sectionLabel}>Sync from a provider</Text>
+          <View style={styles.card}>
+            {noProviderConnected ? (
+              <Text style={styles.helperText}>
+                Connect Apple Health or Strava in Settings to sync your profile, or fill in the fields below manually.
+              </Text>
+            ) : (
+              <Text style={styles.helperText}>
+                Tap a provider to overwrite your profile fields with the latest values. Fields the provider doesn&apos;t
+                return are left untouched.
+              </Text>
+            )}
+            <View style={styles.syncButtonRow}>
+              <ActionButton
+                label={
+                  syncStatus.kind === 'syncing' && syncStatus.source === 'apple-health'
+                    ? 'Syncing…'
+                    : 'Sync from Apple Health'
+                }
+                scheme="noir"
+                variant="secondary"
+                disabled={!appleHealthConnected || syncStatus.kind === 'syncing'}
+                onPress={handleSyncFromAppleHealth}
+              />
+              <ActionButton
+                label={
+                  syncStatus.kind === 'syncing' && syncStatus.source === 'strava' ? 'Syncing…' : 'Sync from Strava'
+                }
+                scheme="noir"
+                variant="secondary"
+                disabled={!stravaConnected || syncStatus.kind === 'syncing'}
+                onPress={handleSyncFromStrava}
+              />
+            </View>
+            {syncStatus.kind === 'success' ? (
+              <Text style={styles.syncSuccessText}>
+                {syncStatus.fieldCount > 0
+                  ? `Updated ${syncStatus.fieldCount} field${syncStatus.fieldCount === 1 ? '' : 's'} from ${SOURCE_LABELS[syncStatus.source]}.`
+                  : `${SOURCE_LABELS[syncStatus.source]} returned no profile data.`}
+              </Text>
+            ) : null}
+            {syncStatus.kind === 'error' ? (
+              <Text style={styles.syncErrorText}>
+                {SOURCE_LABELS[syncStatus.source]} sync failed: {syncStatus.message}
+              </Text>
+            ) : null}
           </View>
-          {syncStatus.kind === 'success' ? (
-            <Text style={styles.syncSuccessText}>
-              {syncStatus.fieldCount > 0
-                ? `Updated ${syncStatus.fieldCount} field${syncStatus.fieldCount === 1 ? '' : 's'} from ${SOURCE_LABELS[syncStatus.source]}.`
-                : `${SOURCE_LABELS[syncStatus.source]} returned no profile data.`}
+
+          <Text style={styles.sectionLabel}>Personal</Text>
+          <View style={styles.card}>
+            <FieldRow
+              label="Sex"
+              source={profile.sources.sex}
+              canClear={profile.sex !== null}
+              onClear={() => void setManual('sex', null)}>
+              <SexSegment value={profile.sex} onChange={(value) => void setManual('sex', value)} />
+            </FieldRow>
+
+            <View style={styles.divider} />
+
+            <FieldRow
+              label="Date of Birth"
+              source={profile.sources.dateOfBirth}
+              canClear={profile.dateOfBirth !== null}
+              onClear={() => void setManual('dateOfBirth', null)}>
+              <DateField
+                label="Date of Birth"
+                value={profile.dateOfBirth}
+                onCommit={(value) => void setManual('dateOfBirth', value)}
+              />
+            </FieldRow>
+
+            <View style={styles.divider} />
+
+            <FieldRow
+              label="Weight"
+              source={profile.sources.weightKg}
+              canClear={profile.weightKg !== null}
+              onClear={() => void setManual('weightKg', null)}>
+              <NumericField
+                label="Weight"
+                value={profile.weightKg}
+                suffix="kg"
+                placeholder="e.g. 75"
+                onCommit={(value) => void setManual('weightKg', value)}
+              />
+            </FieldRow>
+
+            <View style={styles.divider} />
+
+            <FieldRow
+              label="Height"
+              source={profile.sources.heightCm}
+              canClear={profile.heightCm !== null}
+              onClear={() => void setManual('heightCm', null)}>
+              <NumericField
+                label="Height"
+                value={profile.heightCm}
+                suffix="cm"
+                placeholder="e.g. 178"
+                onCommit={(value) => void setManual('heightCm', value)}
+              />
+            </FieldRow>
+          </View>
+
+          <Text style={styles.sectionLabel}>How this is used</Text>
+          <View style={styles.card}>
+            <Text style={styles.helperText}>
+              With a Bluetooth heart-rate strap and no Apple Watch, the app uses Sex, Date of Birth, and Weight to
+              compute calories from your heart rate (the Keytel formula) — meaningfully more accurate than power-based
+              estimation. Height enables the Mifflin–St Jeor basal fallback for the Apple Health Resting calorie figure.
             </Text>
-          ) : null}
-          {syncStatus.kind === 'error' ? (
-            <Text style={styles.syncErrorText}>
-              {SOURCE_LABELS[syncStatus.source]} sync failed: {syncStatus.message}
+            <Text style={styles.helperText}>
+              Manual edits stay until you tap Clear or trigger a Sync from a provider — providers always win when you
+              ask for them, but they only overwrite fields they actually return.
             </Text>
-          ) : null}
-        </View>
-
-        <Text style={styles.sectionLabel}>Personal</Text>
-        <View style={styles.card}>
-          <FieldRow
-            label="Sex"
-            source={profile.sources.sex}
-            canClear={profile.sex !== null}
-            onClear={() => void setManual('sex', null)}>
-            <SexSegment value={profile.sex} onChange={(value) => void setManual('sex', value)} />
-          </FieldRow>
-
-          <View style={styles.divider} />
-
-          <FieldRow
-            label="Date of Birth"
-            source={profile.sources.dateOfBirth}
-            canClear={profile.dateOfBirth !== null}
-            onClear={() => void setManual('dateOfBirth', null)}>
-            <DateField value={profile.dateOfBirth} onCommit={(value) => void setManual('dateOfBirth', value)} />
-          </FieldRow>
-
-          <View style={styles.divider} />
-
-          <FieldRow
-            label="Weight"
-            source={profile.sources.weightKg}
-            canClear={profile.weightKg !== null}
-            onClear={() => void setManual('weightKg', null)}>
-            <NumericField
-              value={profile.weightKg}
-              suffix="kg"
-              placeholder="e.g. 75"
-              onCommit={(value) => void setManual('weightKg', value)}
-            />
-          </FieldRow>
-
-          <View style={styles.divider} />
-
-          <FieldRow
-            label="Height"
-            source={profile.sources.heightCm}
-            canClear={profile.heightCm !== null}
-            onClear={() => void setManual('heightCm', null)}>
-            <NumericField
-              value={profile.heightCm}
-              suffix="cm"
-              placeholder="e.g. 178"
-              onCommit={(value) => void setManual('heightCm', value)}
-            />
-          </FieldRow>
-        </View>
-
-        <Text style={styles.sectionLabel}>How this is used</Text>
-        <View style={styles.card}>
-          <Text style={styles.helperText}>
-            With a Bluetooth heart-rate strap and no Apple Watch, the app uses Sex, Date of Birth, and Weight to compute
-            calories from your heart rate (the Keytel formula) — meaningfully more accurate than power-based estimation.
-            Height enables the Mifflin–St Jeor basal fallback for the Apple Health Resting calorie figure.
-          </Text>
-          <Text style={styles.helperText}>
-            Manual edits stay until you tap Clear or trigger a Sync from a provider — providers always win when you ask
-            for them, but they only overwrite fields they actually return.
-          </Text>
-          {isEmpty ? null : (
-            <ActionButton
-              label="Clear All Fields"
-              scheme="noir"
-              variant="danger"
-              onPress={async () => {
-                await setManual('sex', null);
-                await setManual('dateOfBirth', null);
-                await setManual('weightKg', null);
-                await setManual('heightCm', null);
-              }}
-            />
-          )}
-        </View>
-      </ScrollView>
+            {isEmpty ? null : (
+              <ActionButton
+                label="Clear All Fields"
+                scheme="noir"
+                variant="danger"
+                onPress={async () => {
+                  await setManual('sex', null);
+                  await setManual('dateOfBirth', null);
+                  await setManual('weightKg', null);
+                  await setManual('heightCm', null);
+                }}
+              />
+            )}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: noir.bg },
+  flex: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -448,7 +501,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(86,99,255,0.14)',
   },
   sourceBadgeText: {
-    color: noir.indigoSoft,
+    color: noir.indigoText,
     fontSize: 11,
     fontWeight: '700',
   },
@@ -461,6 +514,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     backgroundColor: noir.card3,
+  },
+  inputRowError: {
+    borderColor: noir.danger,
+  },
+  fieldError: {
+    color: noir.dangerSoft,
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 6,
+    marginLeft: 2,
   },
   input: {
     flex: 1,

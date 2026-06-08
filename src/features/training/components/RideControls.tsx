@@ -26,6 +26,7 @@ export function RideControls({ controls, isFinishing, onStart, onPause, onResume
         variant="primary"
         scheme="noir"
         disabled={controls.startDisabled}
+        accessibilityHint={controls.startDisabled ? 'Connect your smart bike to start a ride.' : undefined}
         fullWidth
       />
     );
@@ -41,6 +42,7 @@ export function RideControls({ controls, isFinishing, onStart, onPause, onResume
         variant="primary"
         scheme="noir"
         disabled={controls.resumeDisabled}
+        accessibilityHint={controls.resumeDisabled ? 'Reconnect your smart bike to resume.' : undefined}
         fullWidth
       />
     );

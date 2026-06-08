@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     padding: 18,
   },
   head: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 },
-  tag: { color: noir.indigoSoft, fontSize: 11.5, fontWeight: '600', letterSpacing: 0.4 },
+  tag: { color: noir.indigoText, fontSize: 11.5, fontWeight: '600', letterSpacing: 0.4 },
   date: { color: noir.ink, fontSize: 17, fontWeight: '800', letterSpacing: -0.3, marginTop: 4 },
   pin: {
     width: 34,
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   ctaPressed: { backgroundColor: '#232c3d' },
-  ctaLabel: { color: noir.indigoSoft, fontSize: 14, fontWeight: '700' },
+  ctaLabel: { color: noir.indigoText, fontSize: 14, fontWeight: '700' },
   emptyTitle: { color: noir.ink, fontSize: 15, fontWeight: '700' },
   emptyBody: { color: noir.ink2, fontSize: 13.5, lineHeight: 19, marginTop: 6 },
 });

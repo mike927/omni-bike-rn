@@ -82,7 +82,8 @@ export function SwipeableGearRow({
             onPress={onSelectPress}
             testID={bodyTestId}
             accessibilityRole="button"
-            accessibilityState={{ selected: isSelected }}>
+            accessibilityState={{ selected: isSelected }}
+            accessibilityHint="Swipe left to replace or forget this device.">
             {body}
           </Pressable>
         ) : (
@@ -139,7 +140,7 @@ const styles = StyleSheet.create({
   meta: { flex: 1, minWidth: 0 },
   name: { color: noir.ink, fontSize: 15, fontWeight: '700', letterSpacing: -0.1 },
   nameMuted: { color: noir.ink3 },
-  nameSelected: { color: noir.indigoSoft },
+  nameSelected: { color: noir.indigoText },
   kind: { color: noir.ink3, fontSize: 12.5, marginTop: 2 },
   trailing: {
     flexDirection: 'row',

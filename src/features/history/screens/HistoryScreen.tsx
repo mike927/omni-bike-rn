@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#232c3d',
   },
   ctaLabel: {
-    color: noir.indigoSoft,
+    color: noir.indigoText,
     fontSize: 14,
     fontWeight: '700',
   },

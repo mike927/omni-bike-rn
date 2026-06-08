@@ -180,6 +180,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   sectionTitle: { color: noir.ink, fontSize: 14, fontWeight: '700' },
-  sectionLink: { color: noir.indigoSoft, fontSize: 13, fontWeight: '600' },
+  sectionLink: { color: noir.indigoText, fontSize: 13, fontWeight: '600' },
   devices: { gap: 10 },
 });

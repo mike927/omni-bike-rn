@@ -171,6 +171,88 @@ describe('UserProfileScreen', () => {
     expect(profile.sources.dateOfBirth).toBe('apple-health');
   });
 
+  it('exposes accessibility labels on the numeric and date inputs', () => {
+    const { getByLabelText } = render(<UserProfileScreen />);
+    expect(getByLabelText('Weight')).toBeTruthy();
+    expect(getByLabelText('Height')).toBeTruthy();
+    expect(getByLabelText('Date of Birth')).toBeTruthy();
+  });
+
+  it('surfaces an inline error on an invalid numeric entry while keeping the saved value', () => {
+    useUserProfileStore.setState({
+      profile: {
+        sex: null,
+        dateOfBirth: null,
+        weightKg: 75,
+        heightCm: null,
+        sources: { weightKg: 'manual' },
+      },
+      hydrated: true,
+    });
+    const { getByDisplayValue, getByText } = render(<UserProfileScreen />);
+    const weightInput = getByDisplayValue('75');
+    fireEvent.changeText(weightInput, 'abc');
+    fireEvent(weightInput, 'blur');
+    expect(getByText('Enter a valid weight in kg.')).toBeTruthy();
+    expect(useUserProfileStore.getState().profile.weightKg).toBe(75);
+  });
+
+  it('surfaces an inline error on an invalid date format', () => {
+    useUserProfileStore.setState({
+      profile: {
+        sex: null,
+        dateOfBirth: '1990-05-12',
+        weightKg: null,
+        heightCm: null,
+        sources: { dateOfBirth: 'manual' },
+      },
+      hydrated: true,
+    });
+    const { getByDisplayValue, getByText } = render(<UserProfileScreen />);
+    const dobInput = getByDisplayValue('1990-05-12');
+    fireEvent.changeText(dobInput, '12/05/1990');
+    fireEvent(dobInput, 'blur');
+    expect(getByText('Use the date format yyyy-mm-dd.')).toBeTruthy();
+  });
+
+  it('does not show an error when a field is simply cleared by blurring an empty draft', () => {
+    useUserProfileStore.setState({
+      profile: {
+        sex: null,
+        dateOfBirth: null,
+        weightKg: 75,
+        heightCm: null,
+        sources: { weightKg: 'manual' },
+      },
+      hydrated: true,
+    });
+    const { getByDisplayValue, queryByText } = render(<UserProfileScreen />);
+    const weightInput = getByDisplayValue('75');
+    fireEvent.changeText(weightInput, '');
+    fireEvent(weightInput, 'blur');
+    expect(queryByText('Enter a valid weight in kg.')).toBeNull();
+  });
+
+  it('clears the inline error once the user edits the field again', () => {
+    useUserProfileStore.setState({
+      profile: {
+        sex: null,
+        dateOfBirth: null,
+        weightKg: 75,
+        heightCm: null,
+        sources: { weightKg: 'manual' },
+      },
+      hydrated: true,
+    });
+    const { getByDisplayValue, getByText, queryByText } = render(<UserProfileScreen />);
+    const weightInput = getByDisplayValue('75');
+    fireEvent.changeText(weightInput, 'abc');
+    fireEvent(weightInput, 'blur');
+    expect(getByText('Enter a valid weight in kg.')).toBeTruthy();
+    fireEvent.changeText(getByDisplayValue('75'), '8');
+    expect(queryByText('Enter a valid weight in kg.')).toBeNull();
+  });
+
   it('does not load from a provider when its sync button is disabled (provider not connected)', () => {
     mockLoadAppleHealth.mockResolvedValue({});
     mockLoadStrava.mockResolvedValue({});

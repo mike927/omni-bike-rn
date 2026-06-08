@@ -47,7 +47,12 @@ export function NearbyDeviceRow({
         isError && styles.wrapError,
         disabled && styles.wrapDisabled,
       ]}>
-      <Pressable accessibilityRole="button" disabled={pressDisabled} onPress={onSelect} style={styles.row}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${name ?? 'Unknown Device'}, ${isError ? 'tap to retry' : isConnecting ? 'connecting' : 'tap to select'}`}
+        disabled={pressDisabled}
+        onPress={onSelect}
+        style={styles.row}>
         <View style={styles.icon}>
           <Glyph color={iconColor} testID={target === 'hr' ? 'hr-glyph' : 'bike-glyph'} />
         </View>
@@ -96,6 +101,6 @@ const styles = StyleSheet.create({
   name: { fontSize: 15, fontWeight: '700', color: noir.ink },
   nameError: { color: noir.dangerSoft },
   id: { fontSize: 12.5, color: noir.ink3, marginTop: 2 },
-  action: { fontSize: 13, fontWeight: '700', color: noir.indigoSoft, paddingHorizontal: 6 },
+  action: { fontSize: 13, fontWeight: '700', color: noir.indigoText, paddingHorizontal: 6 },
   errorMsg: { fontSize: 12.5, lineHeight: 18, color: noir.dangerSoft },
 });

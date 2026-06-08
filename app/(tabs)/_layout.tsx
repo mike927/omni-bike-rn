@@ -14,7 +14,7 @@ export default function TabLayout() {
         headerStyle: { backgroundColor: noir.bg },
         headerTintColor: noir.ink,
         headerShadowVisible: false,
-        tabBarActiveTintColor: noir.indigoSoft,
+        tabBarActiveTintColor: noir.indigoText,
         tabBarInactiveTintColor: noir.ink3,
         tabBarStyle: {
           height: 64,

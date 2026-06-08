@@ -48,6 +48,26 @@ Used for hero surfaces and signature CTAs. In React Native consume via `expo-lin
 | `gradient.aurora` | `#2e3dff → #8b5cf6 → #10b5a4` | 120° |
 | `gradient.cool` | `#10b5a4 → #2e3dff` | 135° |
 
+## Calm Noir Tokens (dark surfaces)
+
+`src/ui/theme.ts → noir` is canonical; this mirrors the text-bearing tokens and the
+**text-vs-accent split** that keeps dark-surface labels at WCAG AA (≥ 4.5:1). Ratios below are
+against `noir.bg` (`#0b0e13`) / `noir.card` (`#161b24`).
+
+| Token | Hex | Usage | Ratio bg / card |
+|---|---|---|---|
+| `ink` | `#eef1f6` | Headlines, primary text | 17.1 / 15.3 |
+| `ink2` | `#9aa3b2` | Secondary text, body copy | 7.6 / 6.8 |
+| `ink3` | `#828b9c` | Dimmest **text** tier — captions, sub-labels, units, placeholders | 5.6 / 5.0 |
+| `indigoSoft` | `#5663ff` | Indigo accent for **icons, bars, borders** (non-text → 3:1) | — |
+| `indigoText` | `#8c96ff` | Indigo accent for **text** — selected names, links, secondary-button labels, active tab | 7.3 / — |
+
+**Rules:**
+- Indigo **text** uses `indigoText`; `indigoSoft` is icons/accents only (it reaches only
+  ~3.3–4.3:1 as text on dark and fails AA). Icons/bars stay on `indigoSoft`.
+- `ink3` is the *dimmest legible text*. Anything that needs to be dimmer must be decorative
+  (e.g. a status dot), never text.
+
 ## Typography
 
 Family: system stack (`-apple-system`, `BlinkMacSystemFont`, `'SF Pro Text'`, Inter, system-ui). React Native picks the platform system font (SF Pro on iOS, Roboto on Android); the system stack mirrors that for web/specimens.
@@ -149,7 +169,7 @@ tones map to the same logical meaning; only the exact hex values differ to read 
 | `good` | `ready` | `rgba(16, 181, 164, 0.12)` | `#4fd8c8` (mintSoft) | `#10b5a4` (mint) |
 | `working` | `connecting` | `rgba(245, 165, 36, 0.12)` | `#f7c065` (amber light) | `#f5a524` (amber) |
 | `attention` | `noSignal` | `rgba(239, 75, 92, 0.14)` | `#f4818d` (coral light) | `#ef4b5c` (coral) |
-| `inactive` | `unavailable`, `off`, `paused`, `notSetUp` | `rgba(255, 255, 255, 0.04)` | `#6b7384` (ink3) | `#4a5260` (dim) |
+| `inactive` | `unavailable`, `off`, `paused`, `notSetUp` | `rgba(255, 255, 255, 0.04)` | `#828b9c` (ink3) | `#4a5260` (dim) |
 
 ## Source Row (`SourceRow`)
 
