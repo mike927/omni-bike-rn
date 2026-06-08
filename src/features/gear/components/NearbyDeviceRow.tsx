@@ -38,6 +38,15 @@ export function NearbyDeviceRow({
   // The connecting row shows its own status; any other row is locked while a
   // pairing is in flight so two selections can't race on shared hook state.
   const pressDisabled = isConnecting || disabled;
+  // Announce actionability honestly: a row locked while another device is pairing is not
+  // "tap to select", and the button must expose its disabled state to assistive tech.
+  const a11yAction = isError
+    ? 'tap to retry'
+    : isConnecting
+      ? 'connecting'
+      : pressDisabled
+        ? 'unavailable'
+        : 'tap to select';
 
   return (
     <View
@@ -49,7 +58,8 @@ export function NearbyDeviceRow({
       ]}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${name ?? 'Unknown Device'}, ${isError ? 'tap to retry' : isConnecting ? 'connecting' : 'tap to select'}`}
+        accessibilityLabel={`${name ?? 'Unknown Device'}, ${a11yAction}`}
+        accessibilityState={{ disabled: pressDisabled }}
         disabled={pressDisabled}
         onPress={onSelect}
         style={styles.row}>

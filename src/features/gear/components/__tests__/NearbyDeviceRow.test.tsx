@@ -32,6 +32,14 @@ it('shows a connecting status (no Select) while connecting', () => {
   expect(queryByText('Select')).toBeNull();
 });
 
+it('announces "unavailable" + a disabled state when locked by another pairing', () => {
+  const { getByLabelText } = render(
+    <NearbyDeviceRow name="KICKR" deviceId="D4" target="bike" disabled onSelect={jest.fn()} />,
+  );
+  const row = getByLabelText('KICKR, unavailable');
+  expect(row.props.accessibilityState).toMatchObject({ disabled: true });
+});
+
 it('shows an inline error message and a Retry affordance on error', () => {
   const { getByText } = render(
     <NearbyDeviceRow

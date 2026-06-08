@@ -253,6 +253,46 @@ describe('UserProfileScreen', () => {
     expect(queryByText('Enter a valid weight in kg.')).toBeNull();
   });
 
+  it('clears a pending weight error when the field value changes (e.g. Clear)', async () => {
+    useUserProfileStore.setState({
+      profile: {
+        sex: null,
+        dateOfBirth: null,
+        weightKg: 75,
+        heightCm: null,
+        sources: { weightKg: 'manual' },
+      },
+      hydrated: true,
+    });
+    const { getByDisplayValue, getByText, queryByText, getByLabelText } = render(<UserProfileScreen />);
+    const weightInput = getByDisplayValue('75');
+    fireEvent.changeText(weightInput, 'abc');
+    fireEvent(weightInput, 'blur');
+    expect(getByText('Enter a valid weight in kg.')).toBeTruthy();
+    fireEvent.press(getByLabelText('Clear Weight'));
+    await waitFor(() => expect(queryByText('Enter a valid weight in kg.')).toBeNull());
+  });
+
+  it('clears a pending DOB error when the field value changes (e.g. Clear)', async () => {
+    useUserProfileStore.setState({
+      profile: {
+        sex: null,
+        dateOfBirth: '1990-05-12',
+        weightKg: null,
+        heightCm: null,
+        sources: { dateOfBirth: 'manual' },
+      },
+      hydrated: true,
+    });
+    const { getByDisplayValue, getByText, queryByText, getByLabelText } = render(<UserProfileScreen />);
+    const dobInput = getByDisplayValue('1990-05-12');
+    fireEvent.changeText(dobInput, '12/05/1990');
+    fireEvent(dobInput, 'blur');
+    expect(getByText('Use the date format yyyy-mm-dd.')).toBeTruthy();
+    fireEvent.press(getByLabelText('Clear Date of Birth'));
+    await waitFor(() => expect(queryByText('Use the date format yyyy-mm-dd.')).toBeNull());
+  });
+
   it('does not load from a provider when its sync button is disabled (provider not connected)', () => {
     mockLoadAppleHealth.mockResolvedValue({});
     mockLoadStrava.mockResolvedValue({});

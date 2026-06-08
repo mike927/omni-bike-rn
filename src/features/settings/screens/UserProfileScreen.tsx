@@ -124,6 +124,9 @@ function NumericField({ label, value, suffix, placeholder, onCommit }: NumericFi
 
   useEffect(() => {
     setDraft(value === null ? '' : String(value));
+    // A committed change (Clear, Clear All, or a provider sync) supersedes any
+    // pending validation error on the now-updated field.
+    setError(null);
   }, [value]);
 
   const handleChange = (next: string) => {
@@ -184,6 +187,9 @@ function DateField({ label, value, onCommit }: DateFieldProps) {
 
   useEffect(() => {
     setDraft(value ?? '');
+    // A committed change (Clear, Clear All, or a provider sync) supersedes any
+    // pending validation error on the now-updated field.
+    setError(null);
   }, [value]);
 
   const handleChange = (next: string) => {

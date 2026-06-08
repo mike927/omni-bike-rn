@@ -358,7 +358,7 @@ ride flow on the wrist without duplicating it: the Watch surfaces **live HR**, *
 an **honest status**, and **on-wrist controls** — the bike metrics (Power/Speed/Cadence/Distance)
 stay on the phone. The screen uses **OLED black** (`#000`) rather than `noir.bg` so the Always-On
 state is cheaper to drive; all accents are the canonical tokens (mint `#10b5a4` / mintSoft
-`#4fd8c8`, amber `#f5a524`, danger `#ef4b5c`, ink `#eef1f6` / ink3 `#6b7384`).
+`#4fd8c8`, amber `#f5a524`, danger `#ef4b5c`, ink `#eef1f6` / ink3 `#828b9c`).
 
 - **Active** — a status pill (the `DeviceStatus` vocabulary: **Ready / Connecting… / No signal /
   Paused**, same tones as the phone `StatusPill`), the **HR numeral hero** (mintSoft, `--` before
