@@ -1,13 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { SwipeableRow } from '../../../ui/components/SwipeableRow';
 import { formatCompactDuration, formatDistanceKmShort, formatHistoryDate } from '../../../ui/formatters';
 import { noir } from '../../../ui/theme';
 import { ProviderStatusIcons } from './ProviderStatusIcons';
 import type { WorkoutHistoryListItemProps } from './WorkoutHistoryListItem.types';
 
-// Exposes deletion to assistive tech (VoiceOver "Actions" rotor) since the row has no visible
-// trash button — long press is a pointer-only gesture and isn't reachable via a screen reader.
+// Keeps deletion reachable by assistive tech (VoiceOver "Actions" rotor) in addition to the
+// visible swipe button — swipe and long press are pointer-only gestures.
 const DELETE_ACCESSIBILITY_ACTIONS = [{ name: 'delete', label: 'Delete workout' }];
 
 function formatMetricsLine(session: WorkoutHistoryListItemProps['session']): string {
@@ -24,28 +25,33 @@ export function WorkoutHistoryListItem({
   onDelete,
 }: Readonly<WorkoutHistoryListItemProps>) {
   return (
-    <Pressable
-      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-      onPress={onPress}
-      onLongPress={onDelete}
-      accessibilityRole="button"
-      accessibilityLabel={`Workout on ${formatHistoryDate(session.startedAtMs)}`}
-      accessibilityHint="Opens the ride summary. Long press, or use the Delete action, to remove it."
-      accessibilityActions={DELETE_ACCESSIBILITY_ACTIONS}
-      onAccessibilityAction={(event) => {
-        if (event.nativeEvent.actionName === 'delete') {
-          onDelete();
-        }
-      }}>
-      <View style={styles.main}>
-        <Text style={styles.date}>{formatHistoryDate(session.startedAtMs)}</Text>
-        <Text style={styles.metrics}>{formatMetricsLine(session)}</Text>
-      </View>
-      <View style={styles.providers}>
-        <ProviderStatusIcons uploadedProviderIds={uploadedProviderIds} />
-        <Ionicons name="chevron-forward" size={18} color={noir.ink3} />
-      </View>
-    </Pressable>
+    <SwipeableRow
+      borderRadius={16}
+      showHandle={false}
+      actions={[{ key: 'delete', label: 'Delete', icon: 'trash-outline', tone: 'danger', onPress: onDelete }]}>
+      <Pressable
+        style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+        onPress={onPress}
+        onLongPress={onDelete}
+        accessibilityRole="button"
+        accessibilityLabel={`Workout on ${formatHistoryDate(session.startedAtMs)}`}
+        accessibilityHint="Opens the ride summary. Swipe left, long press, or use the Delete action to remove it."
+        accessibilityActions={DELETE_ACCESSIBILITY_ACTIONS}
+        onAccessibilityAction={(event) => {
+          if (event.nativeEvent.actionName === 'delete') {
+            onDelete();
+          }
+        }}>
+        <View style={styles.main}>
+          <Text style={styles.date}>{formatHistoryDate(session.startedAtMs)}</Text>
+          <Text style={styles.metrics}>{formatMetricsLine(session)}</Text>
+        </View>
+        <View style={styles.providers}>
+          <ProviderStatusIcons uploadedProviderIds={uploadedProviderIds} />
+          <Ionicons name="chevron-forward" size={18} color={noir.ink3} />
+        </View>
+      </Pressable>
+    </SwipeableRow>
   );
 }
 
@@ -54,16 +60,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    backgroundColor: noir.card,
-    borderWidth: 1,
-    borderColor: noir.hairline,
-    borderRadius: 16,
     paddingVertical: 15,
     paddingHorizontal: 16,
   },
   rowPressed: {
     transform: [{ scale: 0.99 }],
-    borderColor: '#2a323f',
   },
   main: {
     flex: 1,

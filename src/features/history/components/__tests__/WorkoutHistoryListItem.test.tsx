@@ -58,6 +58,18 @@ describe('WorkoutHistoryListItem', () => {
     expect(onDelete).toHaveBeenCalledTimes(1);
   });
 
+  it('reveals a Delete action button (swipe affordance) that deletes', () => {
+    const session = buildSession({});
+    const onDelete = jest.fn();
+    const { getByLabelText } = render(
+      <WorkoutHistoryListItem session={session} uploadedProviderIds={[]} onPress={jest.fn()} onDelete={onDelete} />,
+    );
+
+    fireEvent.press(getByLabelText('Delete'));
+
+    expect(onDelete).toHaveBeenCalledTimes(1);
+  });
+
   it('exposes an accessible delete action for assistive tech (not only long press)', () => {
     const session = buildSession({});
     const onDelete = jest.fn();
