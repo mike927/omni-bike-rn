@@ -51,10 +51,10 @@ const mockConnection = {
 
 const mockWatchHrControls = {
   watchAvailable: true,
-  primary: null as null | 'watch' | 'bluetooth' | 'bike',
-  effectivePrimary: 'bike' as 'watch' | 'bluetooth' | 'bike',
+  primary: null as null | 'watch' | 'bluetooth',
+  effectivePrimary: null as null | 'watch' | 'bluetooth',
   setPrimary: jest.fn(),
-  availableSources: ['bike'] as ('watch' | 'bluetooth' | 'bike')[],
+  availableSources: [] as ('watch' | 'bluetooth')[],
 };
 
 const mockSavedGear = {
@@ -118,7 +118,7 @@ describe('HomeScreen', () => {
     Object.assign(mockWatchHrControls, {
       watchAvailable: true,
       primary: null,
-      effectivePrimary: 'bike',
+      effectivePrimary: null,
     });
     Object.assign(mockSavedGear, {
       savedBike: null,
@@ -279,21 +279,6 @@ describe('HomeScreen', () => {
     expect(queryByText('Resume interrupted ride')).toBeNull();
   });
 
-  describe('Bike pulse device card', () => {
-    it('surfaces a Bike pulse card when bike is the effective HR source', () => {
-      Object.assign(mockWatchHrControls, { watchAvailable: false, primary: 'bike', effectivePrimary: 'bike' });
-      const { getByTestId } = render(<HomeScreen />);
-      expect(getByTestId('device-bikepulse')).toBeTruthy();
-    });
-
-    it('does not show Bike pulse card when watch is the effective HR source', () => {
-      Object.assign(mockConnection, { bikeConnected: true, watchAvailability: 'connected' });
-      Object.assign(mockWatchHrControls, { watchAvailable: true, primary: 'watch', effectivePrimary: 'watch' });
-      const { queryByTestId } = render(<HomeScreen />);
-      expect(queryByTestId('device-bikepulse')).toBeNull();
-    });
-  });
-
   describe('Apple Watch HR device card', () => {
     it('shows the Apple Watch card when the watch is available and is the effective primary', () => {
       Object.assign(mockConnection, { watchAvailability: 'connected' });
@@ -303,7 +288,7 @@ describe('HomeScreen', () => {
     });
 
     it('omits the Apple Watch row entirely when the Watch is not available', () => {
-      Object.assign(mockWatchHrControls, { watchAvailable: false, primary: null, effectivePrimary: 'bike' });
+      Object.assign(mockWatchHrControls, { watchAvailable: false, primary: null, effectivePrimary: null });
       const { queryByTestId } = render(<HomeScreen />);
       expect(queryByTestId('device-watch')).toBeNull();
     });

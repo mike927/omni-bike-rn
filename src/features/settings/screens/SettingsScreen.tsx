@@ -26,11 +26,10 @@ import { ProfileCard } from '../components/ProfileCard';
 import { IntegrationRow } from '../components/IntegrationRow';
 import { LinkedBikeBlock } from '../components/LinkedBikeBlock';
 
-const HR_ICON = { bluetooth: 'heart', watch: 'watch', bike: 'pulse' } as const;
+const HR_ICON = { bluetooth: 'heart', watch: 'watch' } as const;
 const HR_KIND = {
   bluetooth: 'Chest strap',
   watch: 'Wrist sensor',
-  bike: 'Built-in grip sensor',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -211,7 +210,7 @@ export function SettingsScreen() {
           icon={HR_ICON[source]}
           name={hrSourceName(source, savedHrSource?.name ?? null)}
           kind={HR_KIND[source]}
-          status={hrSourceIdleReadiness({ source, watchAvailability, hrConnected, bikeConnected })}
+          status={hrSourceIdleReadiness({ source, watchAvailability, hrConnected })}
           selected={effectivePrimary === source}
           onSelectPress={() => void setPrimary(source)}
           headerTestId={`hr-tile-${source}`}

@@ -44,7 +44,7 @@ describe('hydrate', () => {
   });
 
   it('handles each source value correctly', async () => {
-    for (const source of ['watch', 'bluetooth', 'bike'] as const) {
+    for (const source of ['watch', 'bluetooth'] as const) {
       mockLoad.mockResolvedValue(source);
       useHrSourceStore.setState({ primary: null, hydrated: false });
       await useHrSourceStore.getState().hydrate();
@@ -60,12 +60,12 @@ describe('setPrimary', () => {
   });
 
   it('persists the new source to storage', async () => {
-    await useHrSourceStore.getState().setPrimary('bike');
-    expect(mockSet).toHaveBeenCalledWith('bike');
+    await useHrSourceStore.getState().setPrimary('watch');
+    expect(mockSet).toHaveBeenCalledWith('watch');
   });
 
   it('updates state for each source value', async () => {
-    for (const source of ['watch', 'bluetooth', 'bike'] as const) {
+    for (const source of ['watch', 'bluetooth'] as const) {
       await useHrSourceStore.getState().setPrimary(source);
       expect(useHrSourceStore.getState().primary).toBe(source);
       expect(mockSet).toHaveBeenLastCalledWith(source);

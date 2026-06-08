@@ -49,9 +49,9 @@ describe('useWatchHrControls', () => {
 
   describe('primary HR source', () => {
     it('returns primary from hrSourceStore', () => {
-      useHrSourceStore.setState({ primary: 'bike', hydrated: true });
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       const { result } = renderHook(() => useWatchHrControls());
-      expect(result.current.primary).toBe('bike');
+      expect(result.current.primary).toBe('watch');
     });
 
     it('returns null primary when not yet set', () => {
@@ -71,36 +71,37 @@ describe('useWatchHrControls', () => {
       expect(useHrSourceStore.getState().primary).toBe('watch');
     });
 
-    it('returns availableSources with only bike when watch unavailable and no strap', () => {
+    it('returns empty availableSources when watch unavailable and no strap', () => {
       getIsAppleWatchAvailableMock().mockReturnValue(false);
       useSavedGearStore.setState({ savedHrSource: null, hydrated: true });
       const { result } = renderHook(() => useWatchHrControls());
-      expect(result.current.availableSources).toEqual(['bike']);
+      expect(result.current.availableSources).toEqual([]);
     });
 
-    it('returns availableSources with watch and bike when watch available and no strap', () => {
+    it('returns availableSources with only watch when watch available and no strap', () => {
       getIsAppleWatchAvailableMock().mockReturnValue(true);
       useSavedGearStore.setState({ savedHrSource: null, hydrated: true });
       const { result } = renderHook(() => useWatchHrControls());
-      expect(result.current.availableSources).toEqual(['watch', 'bike']);
+      expect(result.current.availableSources).toEqual(['watch']);
     });
 
-    it('returns availableSources with watch, bluetooth, and bike when all sources available', () => {
+    it('returns availableSources with watch and bluetooth when both sources available', () => {
       getIsAppleWatchAvailableMock().mockReturnValue(true);
       useSavedGearStore.setState({
         savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' },
         hydrated: true,
       });
       const { result } = renderHook(() => useWatchHrControls());
-      expect(result.current.availableSources).toEqual(['watch', 'bluetooth', 'bike']);
+      expect(result.current.availableSources).toEqual(['watch', 'bluetooth']);
     });
   });
 
   describe('effectivePrimary', () => {
     it('returns the explicit primary when it is still valid', () => {
-      useHrSourceStore.setState({ primary: 'bike', hydrated: true });
+      useHrSourceStore.setState({ primary: 'bluetooth', hydrated: true });
+      useSavedGearStore.setState({ savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' }, hydrated: true });
       const { result } = renderHook(() => useWatchHrControls());
-      expect(result.current.effectivePrimary).toBe('bike');
+      expect(result.current.effectivePrimary).toBe('bluetooth');
     });
 
     it('resolves the availability-ranked default when no primary is set (Watch connected)', () => {
@@ -110,11 +111,13 @@ describe('useWatchHrControls', () => {
       expect(result.current.effectivePrimary).toBe('watch');
     });
 
-    it('resolves to bike when no primary is set and the Watch is unavailable with no strap', () => {
+    it('resolves to null when no primary is set and the Watch is unavailable with no strap', () => {
+      getIsAppleWatchAvailableMock().mockReturnValue(false);
       useHrSourceStore.setState({ primary: null, hydrated: true });
+      useSavedGearStore.setState({ savedHrSource: null, hydrated: true });
       useDeviceConnectionStore.setState({ watchAvailability: 'unavailable' });
       const { result } = renderHook(() => useWatchHrControls());
-      expect(result.current.effectivePrimary).toBe('bike');
+      expect(result.current.effectivePrimary).toBeNull();
     });
 
     it('falls through a stale bluetooth primary when no strap is saved', () => {

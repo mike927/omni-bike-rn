@@ -13,13 +13,14 @@ interface WatchHrControls {
   readonly primary: HrSource | null;
   /**
    * The source actually in effect for display: the explicit primary when still
-   * valid, otherwise the availability-ranked default. Always non-null. Resolved
-   * against runtime Watch availability so it agrees with the engine and dashboard.
+   * valid, otherwise the availability-ranked default. Null when no source is
+   * available (no watch, no saved strap). Resolved against runtime Watch
+   * availability so it agrees with the engine and dashboard.
    */
-  readonly effectivePrimary: HrSource;
+  readonly effectivePrimary: HrSource | null;
   /** Persist a new primary HR source selection. */
   readonly setPrimary: (source: HrSource) => Promise<void>;
-  /** Ordered list of sources the user can choose from (watch → bluetooth → bike). */
+  /** Ordered list of sources the user can choose from (watch → bluetooth). */
   readonly availableSources: HrSource[];
 }
 

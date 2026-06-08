@@ -36,9 +36,15 @@ describe('loadPrimaryHrSource', () => {
     expect(await loadPrimaryHrSource()).toBe('bluetooth');
   });
 
-  it('returns "bike" when stored', async () => {
+  it('migrates a legacy "bike" value to null (source removed)', async () => {
+    // Pre-existing installs may have persisted the now-removed 'bike' source.
     mockGetItem.mockResolvedValue(JSON.stringify({ primaryHrSource: 'bike' }));
-    expect(await loadPrimaryHrSource()).toBe('bike');
+    expect(await loadPrimaryHrSource()).toBeNull();
+  });
+
+  it('returns null for an unrecognized stored value', async () => {
+    mockGetItem.mockResolvedValue(JSON.stringify({ primaryHrSource: 'garbage' }));
+    expect(await loadPrimaryHrSource()).toBeNull();
   });
 });
 
@@ -59,14 +65,6 @@ describe('setPrimaryHrSource', () => {
     expect(JSON.parse(value).primaryHrSource).toBe('bluetooth');
   });
 
-  it('persists "bike" under the canonical key', async () => {
-    mockGetItem.mockResolvedValue(null);
-    await setPrimaryHrSource('bike');
-    const [key, value] = mockSetItem.mock.calls[0] as [string, string];
-    expect(key).toBe('omni:appPreferences');
-    expect(JSON.parse(value).primaryHrSource).toBe('bike');
-  });
-
   it('does not clobber existing preferences when writing', async () => {
     mockGetItem.mockResolvedValue(JSON.stringify({ onboardingCompleted: true }));
     await setPrimaryHrSource('watch');
@@ -78,7 +76,7 @@ describe('setPrimaryHrSource', () => {
 });
 
 describe('round-trip', () => {
-  it.each(['watch', 'bluetooth', 'bike'] as const)('round-trips %s correctly', async (source) => {
+  it.each(['watch', 'bluetooth'] as const)('round-trips %s correctly', async (source) => {
     let stored: string | null = null;
     mockSetItem.mockImplementation((_key: string, value: string) => {
       stored = value;

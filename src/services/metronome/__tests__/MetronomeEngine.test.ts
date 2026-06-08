@@ -47,9 +47,10 @@ describe('MetronomeEngine', () => {
     // training store falls through to the existing power formula. Tests that
     // exercise the Keytel branch override this explicitly.
     useUserProfileStore.setState({ profile: { ...EMPTY_USER_PROFILE, sources: {} }, hydrated: false });
-    // Gear store: no saved HR strap so the default fallback resolves to 'bike'.
+    // Gear store: no saved HR strap. With no watch either, the effective source
+    // resolves to null (no HR source available).
     useSavedGearStore.setState({ savedHrSource: null });
-    // HR source store: no configured primary so resolution uses hardware defaults.
+    // HR source store: no configured primary so resolution uses availability defaults.
     useHrSourceStore.setState({ primary: null, hydrated: false });
   });
 
@@ -211,21 +212,6 @@ describe('MetronomeEngine', () => {
       expect(useTrainingSessionStore.getState().currentMetrics.heartRate).toBe(145);
     });
 
-    it('uses bike HR when activeHrSource is bike', () => {
-      useTrainingSessionStore.getState().start();
-
-      const bikeMetrics: BikeMetrics = { speed: 25, cadence: 80, power: 150, heartRate: 72 };
-      useDeviceConnectionStore.getState().updateBikeMetrics(bikeMetrics);
-      useDeviceConnectionStore.getState().updateAppleWatchHr(158);
-      useDeviceConnectionStore.getState().updateBluetoothHr(145);
-      useDeviceConnectionStore.getState().setActiveHrSource('bike');
-
-      engine.start();
-      jest.advanceTimersByTime(1000);
-
-      expect(useTrainingSessionStore.getState().currentMetrics.heartRate).toBe(72);
-    });
-
     it('hasLiveExternalHr is true for watch with a fresh sample', () => {
       useTrainingSessionStore.getState().start();
 
@@ -245,34 +231,33 @@ describe('MetronomeEngine', () => {
       expect(state.lastCalorieSourceMode).toBe('app');
     });
 
-    it('hasLiveExternalHr is false when activeHrSource is bike', () => {
+    it('hasLiveExternalHr is false when no HR source is available', () => {
       useTrainingSessionStore.getState().start();
 
+      // No watch, no saved strap, no primary → effective source is null, so there
+      // is no live external HR and the engine falls through to bike-reported kcal.
       const bikeMetrics: BikeMetrics = {
         speed: 25,
         cadence: 80,
         power: 4186,
-        heartRate: 72,
         totalEnergyKcal: 500,
       };
       useDeviceConnectionStore.getState().updateBikeMetrics(bikeMetrics);
-      useDeviceConnectionStore.getState().setActiveHrSource('bike');
 
       engine.start();
-      // First tick establishes baseline kcal offset (200 kcal → 0 accumulated)
+      // First tick establishes baseline kcal offset (500 kcal → 0 accumulated)
       jest.advanceTimersByTime(1000);
 
       useDeviceConnectionStore.getState().updateBikeMetrics({ ...bikeMetrics, totalEnergyKcal: 503 });
       jest.advanceTimersByTime(1000);
 
-      // With hasLiveExternalHr = false (bike source), bike total energy kcal is used
+      // hasLiveExternalHr = false → bike total energy kcal is used
       expect(useTrainingSessionStore.getState().totalCalories).toBe(3);
     });
 
-    it('returns null HR when no source provides it and activeHrSource defaults to bike with no bike HR', () => {
+    it('returns null HR when no source is available (no watch, no strap)', () => {
       useTrainingSessionStore.getState().start();
-      // No activeHrSource set (null), no saved HR strap, no watch → defaults to 'bike'
-      // Bike has no heartRate field
+      // No activeHrSource, no saved HR strap, no watch → effective source null.
       useDeviceConnectionStore.getState().updateBikeMetrics({ speed: 25, cadence: 80, power: 150 });
 
       engine.start();

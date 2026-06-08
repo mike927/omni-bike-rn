@@ -219,8 +219,12 @@ describe('useWatchHr', () => {
       expect(WatchHrAdapter.mock.instances).toHaveLength(0);
     });
 
-    it('does not start the stream when phase transitions to Active but the effective primary is not watch', async () => {
-      useHrSourceStore.setState({ primary: 'bike', hydrated: true });
+    it('does not start the stream when phase transitions to Active but no HR source is available', async () => {
+      // No watch, no saved strap → effective primary is null, so the Watch stream
+      // must not start.
+      getIsAppleWatchAvailableMock().mockReturnValue(false);
+      useHrSourceStore.setState({ primary: null, hydrated: true });
+      useSavedGearStore.setState({ savedHrSource: null });
 
       const { rerender } = renderHook(() => useWatchHr());
 
@@ -398,7 +402,11 @@ describe('useWatchHr', () => {
         expect(inst?.connect).toHaveBeenCalled();
       });
 
+      // Switch to a Bluetooth primary backed by a saved strap so the effective
+      // source genuinely moves off watch (a strapless bluetooth primary would fall
+      // back to the watch default on this watch-capable platform).
       act(() => {
+        useSavedGearStore.setState({ savedHrSource: SAVED_STRAP });
         useHrSourceStore.setState({ primary: 'bluetooth' });
       });
       rerender({});
@@ -411,6 +419,9 @@ describe('useWatchHr', () => {
 
     it('cancels a pending start when primary changes away from watch before connect resolves', async () => {
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
+      // A saved strap so the away-from-watch switch below resolves to bluetooth
+      // (not back to the watch default on this watch-capable platform).
+      useSavedGearStore.setState({ savedHrSource: SAVED_STRAP });
 
       let resolveConnect: (() => void) | null = null;
       const connectPromise = new Promise<void>((resolve) => {
@@ -442,7 +453,7 @@ describe('useWatchHr', () => {
       });
 
       act(() => {
-        useHrSourceStore.setState({ primary: null });
+        useHrSourceStore.setState({ primary: 'bluetooth' });
       });
       rerender({});
 
@@ -549,23 +560,6 @@ describe('useWatchHr', () => {
       expect(WatchHrAdapter.mock.instances).toHaveLength(0);
     });
 
-    it('locks activeHrSource to bike primary', async () => {
-      useHrSourceStore.setState({ primary: 'bike', hydrated: true });
-
-      const { rerender } = renderHook(() => useWatchHr());
-
-      act(() => {
-        useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
-      });
-      rerender({});
-
-      await act(async () => {
-        await Promise.resolve();
-      });
-
-      expect(useDeviceConnectionStore.getState().activeHrSource).toBe('bike');
-    });
-
     it('unlocks activeHrSource (sets null) when session finishes', async () => {
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
@@ -641,7 +635,9 @@ describe('useWatchHr', () => {
     // `if (!watchAvailable) return;` guard, so it was never set on those platforms.
     it('locks and unlocks activeHrSource on platforms where Watch is not available', async () => {
       getIsAppleWatchAvailableMock().mockReturnValue(false);
-      useHrSourceStore.setState({ primary: 'bike', hydrated: true });
+      // A Bluetooth strap is the non-watch primary that is valid on a no-watch platform.
+      useHrSourceStore.setState({ primary: 'bluetooth', hydrated: true });
+      useSavedGearStore.setState({ savedHrSource: SAVED_STRAP });
 
       const { rerender } = renderHook(() => useWatchHr());
 
@@ -655,7 +651,7 @@ describe('useWatchHr', () => {
         await Promise.resolve();
       });
 
-      expect(useDeviceConnectionStore.getState().activeHrSource).toBe('bike');
+      expect(useDeviceConnectionStore.getState().activeHrSource).toBe('bluetooth');
 
       // Finished: lock must clear
       act(() => {
@@ -1105,9 +1101,11 @@ describe('useWatchHr', () => {
       });
     });
 
-    it('does not start the stream on mount when the effective default is not watch (no primary, Watch unavailable)', async () => {
-      // No explicit primary + Watch unavailable → default resolves to bike, not watch.
+    it('does not start the stream on mount when there is no HR source (no watch platform, no primary, no strap)', async () => {
+      // No watch platform + no explicit primary + no strap → effective source is null.
+      getIsAppleWatchAvailableMock().mockReturnValue(false);
       useHrSourceStore.setState({ primary: null, hydrated: true });
+      useSavedGearStore.setState({ savedHrSource: null });
       useDeviceConnectionStore.setState({ watchAvailability: 'unavailable' });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
