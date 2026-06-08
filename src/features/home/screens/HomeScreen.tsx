@@ -129,8 +129,8 @@ export function HomeScreen() {
           />
           <DeviceCard
             icon="heart"
-            name={savedHrSource?.name ?? 'No strap yet'}
-            kind="Heart Rate · Chest strap"
+            name={savedHrSource?.name ?? 'No sensor yet'}
+            kind="Heart Rate · Bluetooth sensor"
             status={hrStatus}
             muted={savedHrSource === null}
             testID="device-hr"
