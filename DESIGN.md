@@ -187,7 +187,7 @@ platform option — so the source actually in effect is never invisible. The App
 The noir-first pattern for representing a device on the Home screen (`src/features/home/components/DeviceCard.tsx`).
 Each card shows: a **rounded icon box** (Ionicons glyph, `indigoSoft` tint), the device **name** in
 primary ink (bold, single line, ellipsized), a **kind** sub-label (`ink3`, e.g. `Smart Bike`,
-`Heart Rate · Chest strap`), and a right-pinned `StatusPill` with `scheme="noir"`. When the device
+`Heart Rate · Bluetooth sensor`), and a right-pinned `StatusPill` with `scheme="noir"`. When the device
 is not set up or not the effective source, the card is **muted**: the icon box and name shift to
 `ink3`/`#1d222b` to signal it is present but inactive.
 
