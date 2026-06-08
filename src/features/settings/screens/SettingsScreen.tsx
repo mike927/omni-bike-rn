@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,6 +21,7 @@ import { hrSourceName, hrSourceIdleReadiness } from '../../../services/hr/hrStat
 import { SettingsHeader } from '../components/SettingsHeader';
 import { SectionLabel, Eyebrow } from '../components/SectionLabel';
 import { GearCard } from '../components/GearCard';
+import { SwipeableGearRow } from '../components/SwipeableGearRow';
 import { ProfileCard } from '../components/ProfileCard';
 import { IntegrationRow } from '../components/IntegrationRow';
 import { LinkedBikeBlock } from '../components/LinkedBikeBlock';
@@ -78,10 +78,6 @@ export function SettingsScreen() {
     errorMessage: providerBikeErrorMessage,
     openProviderGearManagement,
   } = useProviderBikeLinking('strava', savedBike);
-
-  // Expand/collapse state for gear tiles
-  const [bikeManageOpen, setBikeManageOpen] = useState(false);
-  const [hrManageOpen, setHrManageOpen] = useState(false);
 
   const handleStravaConnect = async () => {
     const result = await connect();
@@ -150,76 +146,54 @@ export function SettingsScreen() {
     );
   };
 
-  // Bike tile actions (revealed when expanded)
-  const bikeActions = savedBike ? (
-    <View style={styles.stackedActions}>
-      {bikeConnected ? null : (
-        <ActionButton
-          label={bikeReconnectState === 'connecting' ? 'Connecting...' : 'Connect'}
-          onPress={() => {
-            retryBike();
-          }}
-          variant="primary"
-          scheme="noir"
-          disabled={bikeReconnectState === 'connecting'}
-          fullWidth
-        />
-      )}
-      <ActionButton
-        label="Replace"
-        onPress={() => router.push('/gear-setup?target=bike')}
-        variant="secondary"
-        scheme="noir"
-        fullWidth
-      />
-      <ActionButton label="Forget" onPress={() => void forgetBike()} variant="danger" scheme="noir" fullWidth />
-    </View>
-  ) : undefined;
-
   function renderHrSources() {
     return availableSources.map((source: HrSource) => {
       const isStrap = source === 'bluetooth';
+      const name = hrSourceName(source, savedHrSource?.name ?? null);
+      const status = hrSourceIdleReadiness({ source, watchAvailability, hrConnected, bikeConnected });
+      const selected = effectivePrimary === source;
 
-      const actions = isStrap ? (
-        <View style={styles.stackedActions}>
-          {savedHrSource !== null && !hrConnected ? (
-            <ActionButton
-              label={hrReconnectState === 'connecting' ? 'Connecting...' : 'Connect'}
-              onPress={() => {
-                retryHr();
-              }}
-              variant="primary"
-              scheme="noir"
-              disabled={hrReconnectState === 'connecting'}
-              fullWidth
-            />
-          ) : null}
-          <ActionButton
-            label="Replace"
-            onPress={() => router.push('/gear-setup?target=hr')}
-            variant="secondary"
-            scheme="noir"
-            fullWidth
+      // The saved Bluetooth strap is the only removable HR source — swipe it for
+      // Replace/Forget, Connect inline. Built-in sources (watch, bike pulse) are
+      // selection-only plain cards.
+      if (isStrap) {
+        return (
+          <SwipeableGearRow
+            key={source}
+            icon={HR_ICON[source]}
+            name={name}
+            kind={HR_KIND[source]}
+            status={status}
+            selected={selected}
+            onSelectPress={() => void setPrimary(source)}
+            bodyTestId={`hr-tile-${source}`}
+            connect={
+              savedHrSource !== null && !hrConnected
+                ? {
+                    label: hrReconnectState === 'connecting' ? 'Connecting...' : 'Connect',
+                    onPress: () => {
+                      retryHr();
+                    },
+                    disabled: hrReconnectState === 'connecting',
+                  }
+                : null
+            }
+            onReplace={() => router.push('/gear-setup?target=hr')}
+            onForget={() => void forgetHr()}
           />
-          <ActionButton label="Forget" onPress={() => void forgetHr()} variant="danger" scheme="noir" fullWidth />
-        </View>
-      ) : undefined;
+        );
+      }
 
       return (
         <GearCard
           key={source}
           icon={HR_ICON[source]}
-          name={hrSourceName(source, savedHrSource?.name ?? null)}
+          name={name}
           kind={HR_KIND[source]}
-          status={hrSourceIdleReadiness({ source, watchAvailability, hrConnected, bikeConnected })}
-          selected={effectivePrimary === source}
+          status={status}
+          selected={selected}
           onSelectPress={() => void setPrimary(source)}
           headerTestId={`hr-tile-${source}`}
-          expandable={isStrap}
-          expanded={isStrap ? hrManageOpen : false}
-          onToggleExpand={isStrap ? () => setHrManageOpen((open) => !open) : undefined}
-          chevronTestId={isStrap ? 'hr-strap-chevron' : undefined}
-          actions={actions}
         />
       );
     });
@@ -234,7 +208,7 @@ export function SettingsScreen() {
 
         <Eyebrow>Smart Bike</Eyebrow>
         {savedBike ? (
-          <GearCard
+          <SwipeableGearRow
             icon="bicycle"
             name={savedBike.name}
             kind="Smart trainer"
@@ -243,12 +217,20 @@ export function SettingsScreen() {
               connected: bikeConnected,
               reconnect: bikeReconnectState,
             })}
-            expandable
-            expanded={bikeManageOpen}
-            onToggleExpand={() => setBikeManageOpen((open) => !open)}
-            headerTestId="bike-tile-header"
-            chevronTestId="bike-tile-chevron"
-            actions={bikeActions}
+            bodyTestId="bike-tile-header"
+            connect={
+              bikeConnected
+                ? null
+                : {
+                    label: bikeReconnectState === 'connecting' ? 'Connecting...' : 'Connect',
+                    onPress: () => {
+                      retryBike();
+                    },
+                    disabled: bikeReconnectState === 'connecting',
+                  }
+            }
+            onReplace={() => router.push('/gear-setup?target=bike')}
+            onForget={() => void forgetBike()}
           />
         ) : (
           <AddGearTile
@@ -427,5 +409,4 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 22, paddingTop: 4, paddingBottom: 32, gap: 12 },
   divider: { height: 1, backgroundColor: noir.hairline, marginVertical: 4 },
   gearList: { gap: 10 },
-  stackedActions: { flexDirection: 'column', alignItems: 'stretch', gap: 8 },
 });
