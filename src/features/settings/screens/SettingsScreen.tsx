@@ -28,7 +28,11 @@ import { LinkedBikeBlock } from '../components/LinkedBikeBlock';
 
 const HR_ICON = { bluetooth: 'heart', watch: 'watch' } as const;
 const HR_KIND = {
-  bluetooth: 'Chest strap',
+  // Bluetooth HR devices can be straps, watches (Garmin Venu/Forerunner), or
+  // optical armbands — we can't verify form factor, so use a connection-based
+  // label that is always true rather than over-claiming "Chest strap".
+  bluetooth: 'Bluetooth sensor',
+  // Apple Watch is known to be wrist-worn, so the form-factor label is accurate.
   watch: 'Wrist sensor',
 } as const;
 
