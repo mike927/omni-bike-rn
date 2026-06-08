@@ -184,7 +184,11 @@ export function GearSetupScreen({ target }: Readonly<GearSetupScreenProps>) {
 
         <View style={styles.listHead}>
           <Text style={styles.sectionLabel}>Nearby Devices</Text>
-          <Pressable accessibilityRole="button" onPress={isScanning ? stopScan : () => void runScan()} hitSlop={8}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={isScanning ? 'Stop scanning' : 'Rescan for devices'}
+            onPress={isScanning ? stopScan : () => void runScan()}
+            hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}>
             <Text style={styles.scanToggle}>{isScanning ? 'Stop' : 'Rescan'}</Text>
           </Pressable>
         </View>
@@ -238,7 +242,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   sectionLabel: { color: noir.ink, fontSize: 14, fontWeight: '700' },
-  scanToggle: { color: noir.indigoSoft, fontSize: 13, fontWeight: '700' },
+  scanToggle: { color: noir.indigoText, fontSize: 13, fontWeight: '700' },
   emptyRow: {
     backgroundColor: noir.card,
     borderWidth: 1,

@@ -20,7 +20,7 @@ private enum Noir {
     static let bg = Color.black
     static let ink = Color(noir: 0xeef1f6)
     static let ink2 = Color(noir: 0x9aa3b2)
-    static let ink3 = Color(noir: 0x6b7384)
+    static let ink3 = Color(noir: 0x828b9c) // lightened from 0x6b7384 for WCAG AA on OLED black
     static let mint = Color(noir: 0x10b5a4)
     static let mintSoft = Color(noir: 0x4fd8c8)
     static let amber = Color(noir: 0xf5a524)

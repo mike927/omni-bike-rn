@@ -20,6 +20,6 @@ describe('AddGearTile', () => {
 
   it('renders noir label color', () => {
     const { getByText } = render(<AddGearTile label="Set Up Smart Bike" onPress={() => {}} scheme="noir" />);
-    expect(flatten(getByText('Set Up Smart Bike').props.style)).toMatchObject({ color: noir.indigoSoft });
+    expect(flatten(getByText('Set Up Smart Bike').props.style)).toMatchObject({ color: noir.indigoText });
   });
 });

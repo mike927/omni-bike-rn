@@ -22,6 +22,7 @@ export function AddGearTile({ label, onPress, testID, scheme = 'light' }: AddGea
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={label}
       onPress={onPress}
       testID={testID}
       style={({ pressed }) => [styles.tile, isNoir ? styles.tileNoir : null, pressed ? styles.pressed : null]}>
@@ -50,6 +51,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(46,61,255,0.04)',
   },
   label: { color: palette.primary, fontSize: 15, fontWeight: '700' },
-  labelNoir: { color: noir.indigoSoft },
+  labelNoir: { color: noir.indigoText },
   pressed: { opacity: 0.7 },
 });

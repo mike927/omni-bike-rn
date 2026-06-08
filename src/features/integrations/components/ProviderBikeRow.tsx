@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
   },
   body: { flex: 1, gap: 3 },
   name: { color: noir.ink, fontSize: 15, fontWeight: '700' },
-  nameSelected: { color: noir.indigoSoft },
+  nameSelected: { color: noir.indigoText },
   meta: { color: noir.ink3, fontSize: 12.5, lineHeight: 17 },
   matchPill: {
     paddingVertical: 5,

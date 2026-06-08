@@ -14,6 +14,8 @@ interface ActionButtonProps {
   fullWidth?: boolean;
   scheme?: ActionButtonScheme;
   size?: ActionButtonSize;
+  /** Spoken by screen readers — use to explain *why* a button is disabled (e.g. "Connect your smart bike to start"). */
+  accessibilityHint?: string;
 }
 
 const NOIR_VARIANT_STYLES: Record<ActionButtonVariant, { container: ViewStyle; label: TextStyle }> = {
@@ -32,7 +34,7 @@ const NOIR_VARIANT_STYLES: Record<ActionButtonVariant, { container: ViewStyle; l
       borderColor: noir.hairline,
     },
     label: {
-      color: noir.indigoSoft,
+      color: noir.indigoText,
     },
   },
   danger: {
@@ -102,6 +104,7 @@ export function ActionButton({
   fullWidth = false,
   scheme = 'light',
   size = 'md',
+  accessibilityHint,
 }: Readonly<ActionButtonProps>) {
   const schemeStyles = scheme === 'noir' ? NOIR_VARIANT_STYLES : variantStyles;
   const selectedVariant = schemeStyles[variant];
@@ -109,6 +112,8 @@ export function ActionButton({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      accessibilityHint={accessibilityHint}
       disabled={disabled}
       onPress={() => {
         void onPress();
@@ -153,7 +158,7 @@ const styles = StyleSheet.create({
     opacity: 0.82,
   },
   buttonSm: {
-    minHeight: 38,
+    minHeight: 44,
     paddingVertical: 9,
     paddingHorizontal: 14,
     borderRadius: 12,

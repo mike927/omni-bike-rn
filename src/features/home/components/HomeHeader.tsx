@@ -29,7 +29,7 @@ export function HomeHeader({ greeting, subline, now }: HomeHeaderProps) {
 const styles = StyleSheet.create({
   header: { paddingHorizontal: 4, paddingTop: 10, paddingBottom: 4 },
   kicker: { color: noir.ink3, fontSize: 13, fontWeight: '600', marginBottom: 7 },
-  app: { color: noir.indigoSoft, fontWeight: '700' },
+  app: { color: noir.indigoText, fontWeight: '700' },
   greeting: { color: noir.ink, fontSize: 34, fontWeight: '800', letterSpacing: -0.8, lineHeight: 36 },
   subline: { color: noir.ink2, fontSize: 14.5, lineHeight: 20, marginTop: 9, maxWidth: 320 },
 });

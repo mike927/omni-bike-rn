@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   textCol: { flex: 1, minWidth: 0 },
   kicker: { color: 'rgba(255,255,255,0.78)', fontSize: 13, fontWeight: '600', letterSpacing: 0.4 },
-  kickerSetup: { color: noir.indigoSoft },
+  kickerSetup: { color: noir.indigoText },
   title: { color: '#ffffff', fontSize: 25, fontWeight: '800', letterSpacing: -0.5, marginTop: 4 },
   titleSetup: { color: noir.ink },
   subline: { color: 'rgba(255,255,255,0.82)', fontSize: 13.5, marginTop: 5 },

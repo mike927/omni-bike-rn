@@ -37,10 +37,16 @@ export const noir = {
   card3: '#1f2735',
   ink: '#eef1f6',
   ink2: '#9aa3b2',
-  ink3: '#6b7384',
+  // ink3 is the dimmest *text* tier — lightened from #6b7384 so body/caption text
+  // clears WCAG AA (4.5:1) on both noir.bg and noir.card (it failed at ~4.06:1 / 3.63:1).
+  ink3: '#828b9c',
   hairline: '#232a35',
   indigo: '#2e3dff',
+  // indigoSoft is the accent for *icons, bars, and borders* (non-text → 3:1).
   indigoSoft: '#5663ff',
+  // indigoText is the same accent for *text* — lightened so indigo labels clear AA
+  // (4.5:1) on dark surfaces, where indigoSoft only reaches ~3.3–4.3:1.
+  indigoText: '#8c96ff',
   indigoPress: '#2330d8',
   mint: '#10b5a4',
   mintSoft: '#4fd8c8',
@@ -64,5 +70,5 @@ export const noirPillTones = {
   good: { bg: 'rgba(16, 181, 164, 0.12)', fg: '#4fd8c8', dot: '#10b5a4' },
   working: { bg: 'rgba(245, 165, 36, 0.12)', fg: '#f7c065', dot: '#f5a524' },
   attention: { bg: 'rgba(239, 75, 92, 0.14)', fg: '#f4818d', dot: '#ef4b5c' },
-  inactive: { bg: 'rgba(255, 255, 255, 0.04)', fg: '#6b7384', dot: '#4a5260' },
+  inactive: { bg: 'rgba(255, 255, 255, 0.04)', fg: '#828b9c', dot: '#4a5260' },
 } as const;

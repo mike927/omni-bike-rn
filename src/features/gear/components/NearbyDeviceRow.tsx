@@ -38,6 +38,15 @@ export function NearbyDeviceRow({
   // The connecting row shows its own status; any other row is locked while a
   // pairing is in flight so two selections can't race on shared hook state.
   const pressDisabled = isConnecting || disabled;
+  // Announce actionability honestly: a row locked while another device is pairing is not
+  // "tap to select", and the button must expose its disabled state to assistive tech.
+  const a11yAction = isError
+    ? 'tap to retry'
+    : isConnecting
+      ? 'connecting'
+      : pressDisabled
+        ? 'unavailable'
+        : 'tap to select';
 
   return (
     <View
@@ -47,7 +56,13 @@ export function NearbyDeviceRow({
         isError && styles.wrapError,
         disabled && styles.wrapDisabled,
       ]}>
-      <Pressable accessibilityRole="button" disabled={pressDisabled} onPress={onSelect} style={styles.row}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${name ?? 'Unknown Device'}, ${a11yAction}`}
+        accessibilityState={{ disabled: pressDisabled }}
+        disabled={pressDisabled}
+        onPress={onSelect}
+        style={styles.row}>
         <View style={styles.icon}>
           <Glyph color={iconColor} testID={target === 'hr' ? 'hr-glyph' : 'bike-glyph'} />
         </View>
@@ -96,6 +111,6 @@ const styles = StyleSheet.create({
   name: { fontSize: 15, fontWeight: '700', color: noir.ink },
   nameError: { color: noir.dangerSoft },
   id: { fontSize: 12.5, color: noir.ink3, marginTop: 2 },
-  action: { fontSize: 13, fontWeight: '700', color: noir.indigoSoft, paddingHorizontal: 6 },
+  action: { fontSize: 13, fontWeight: '700', color: noir.indigoText, paddingHorizontal: 6 },
   errorMsg: { fontSize: 12.5, lineHeight: 18, color: noir.dangerSoft },
 });

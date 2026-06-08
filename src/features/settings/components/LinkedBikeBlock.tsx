@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
   },
   title: { color: noir.ink, fontSize: 14, fontWeight: '700' },
   body: { color: noir.ink2, fontSize: 13, lineHeight: 19 },
-  link: { color: noir.indigoSoft, fontSize: 13, fontWeight: '700' },
+  link: { color: noir.indigoText, fontSize: 13, fontWeight: '700' },
   error: { color: noir.dangerSoft, fontSize: 13 },
   gearButton: { width: 22, alignItems: 'center', justifyContent: 'center' },
 });
