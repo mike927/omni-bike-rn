@@ -1,4 +1,28 @@
-import { clampSwipeTranslate, resolveSwipeOpen } from '../swipeableRowGesture';
+import { clampSwipeTranslate, resolveSwipeOpen, resolveSwipeRelease } from '../swipeableRowGesture';
+
+describe('resolveSwipeRelease (deterministic from startX + dx + velocity)', () => {
+  const openX = -156; // two 78px actions
+
+  it('opens when dragged past halfway with low velocity', () => {
+    expect(resolveSwipeRelease({ startX: -8, dx: -100, velocityX: 0, openX })).toBe('open');
+  });
+
+  it('closes when dragged only a short distance with low velocity', () => {
+    expect(resolveSwipeRelease({ startX: -8, dx: -30, velocityX: 0, openX })).toBe('closed');
+  });
+
+  it('opens on a left fling even when the drag was short', () => {
+    expect(resolveSwipeRelease({ startX: -8, dx: -20, velocityX: -1, openX })).toBe('open');
+  });
+
+  it('closes on a right fling', () => {
+    expect(resolveSwipeRelease({ startX: -150, dx: 0, velocityX: 1, openX })).toBe('closed');
+  });
+
+  it('an already-open row nudged slightly stays open (no spurious close)', () => {
+    expect(resolveSwipeRelease({ startX: -156, dx: 5, velocityX: 0, openX })).toBe('open');
+  });
+});
 
 describe('clampSwipeTranslate', () => {
   const openX = -156;

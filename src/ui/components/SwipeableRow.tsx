@@ -4,7 +4,7 @@ import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from 'react
 
 import { noir } from '../theme';
 import type { SwipeAction } from './SwipeAction';
-import { clampSwipeTranslate, resolveSwipeOpen } from './swipeableRowGesture';
+import { clampSwipeTranslate, resolveSwipeRelease } from './swipeableRowGesture';
 
 export type { SwipeAction } from './SwipeAction';
 
@@ -43,34 +43,23 @@ export function SwipeableRow({
   const closedX = -peek;
   const openX = -openWidth;
 
-  // The PanResponder is created once, so its callbacks must read live geometry
-  // from a ref — otherwise a row whose actions/width/peek change while mounted
-  // would keep clamping and snapping against the first render's values.
+  // The PanResponder is created once, so its callbacks read live geometry + open
+  // state from refs — never the first render's values, and never a lagging listener.
   const geom = useRef({ openWidth, openX, closedX });
   geom.current = { openWidth, openX, closedX };
 
   const tx = useRef(new Animated.Value(closedX)).current;
-  const currentX = useRef(closedX);
   const startX = useRef(closedX);
-
-  useEffect(() => {
-    const id = tx.addListener(({ value }) => {
-      currentX.current = value;
-    });
-    return () => tx.removeListener(id);
-  }, [tx]);
-
-  // Re-rest at the new closed offset whenever the geometry changes.
-  useEffect(() => {
-    tx.setValue(closedX);
-    currentX.current = closedX;
-  }, [tx, closedX, openWidth]);
+  const isOpen = useRef(false);
 
   const settle = useCallback(
     (open: boolean) => {
+      isOpen.current = open;
       Animated.spring(tx, {
         toValue: open ? geom.current.openX : geom.current.closedX,
-        useNativeDriver: true,
+        // Match the JS-thread setValue used during the drag — mixing a native-driven
+        // settle with JS setValue desyncs the value and can snap to the wrong place.
+        useNativeDriver: false,
         bounciness: 2,
         speed: 18,
       }).start();
@@ -78,19 +67,35 @@ export function SwipeableRow({
     [tx],
   );
 
+  // Re-rest closed whenever the geometry changes (actions/peek).
+  useEffect(() => {
+    isOpen.current = false;
+    tx.setValue(closedX);
+  }, [tx, closedX, openWidth]);
+
   const pan = useRef(
     PanResponder.create({
       // Claim the gesture only on a clearly-horizontal drag, so a vertical
       // FlatList/ScrollView scroll passes straight through.
       onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dx) > Math.abs(g.dy) * 1.4 && Math.abs(g.dx) > 6,
+      // Once we own a horizontal swipe, do NOT yield it back to the enclosing
+      // ScrollView/FlatList — otherwise the row terminates mid-swipe and snaps closed.
+      onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: () => {
-        startX.current = currentX.current;
+        startX.current = isOpen.current ? geom.current.openX : geom.current.closedX;
       },
       onPanResponderMove: (_e, g) => {
         tx.setValue(clampSwipeTranslate({ startX: startX.current, dx: g.dx, openX: geom.current.openX }));
       },
       onPanResponderRelease: (_e, g) => {
-        settle(resolveSwipeOpen({ translateX: currentX.current, velocityX: g.vx, openWidth: geom.current.openWidth }));
+        // Decide from the gesture itself (start + delta + velocity), not a lagging listener.
+        const target = resolveSwipeRelease({
+          startX: startX.current,
+          dx: g.dx,
+          velocityX: g.vx,
+          openX: geom.current.openX,
+        });
+        settle(target === 'open');
       },
       onPanResponderTerminate: () => settle(false),
     }),

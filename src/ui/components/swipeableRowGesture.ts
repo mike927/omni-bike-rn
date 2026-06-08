@@ -33,3 +33,24 @@ export function resolveSwipeOpen({ translateX, velocityX, openWidth }: SwipeSnap
   if (velocityX >= FLING) return false;
   return -translateX > openWidth / 2;
 }
+
+export interface SwipeReleaseInput {
+  /** Foreground translation when the drag began (closed or open offset). */
+  readonly startX: number;
+  /** Horizontal drag delta since the gesture began (negative = left). */
+  readonly dx: number;
+  /** Release horizontal velocity (negative = moving left). */
+  readonly velocityX: number;
+  /** Fully-open translation (negative; = -openWidth). */
+  readonly openX: number;
+}
+
+/**
+ * The actual on-release decision: derive the released position deterministically from the
+ * gesture (`startX + dx`, clamped) rather than from a lagging Animated listener, then snap.
+ * Returns the target rest state.
+ */
+export function resolveSwipeRelease({ startX, dx, velocityX, openX }: SwipeReleaseInput): 'open' | 'closed' {
+  const released = clampSwipeTranslate({ startX, dx, openX });
+  return resolveSwipeOpen({ translateX: released, velocityX, openWidth: -openX }) ? 'open' : 'closed';
+}
