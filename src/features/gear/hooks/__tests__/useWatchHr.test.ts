@@ -402,7 +402,11 @@ describe('useWatchHr', () => {
         expect(inst?.connect).toHaveBeenCalled();
       });
 
+      // Switch to a Bluetooth primary backed by a saved strap so the effective
+      // source genuinely moves off watch (a strapless bluetooth primary would fall
+      // back to the watch default on this watch-capable platform).
       act(() => {
+        useSavedGearStore.setState({ savedHrSource: SAVED_STRAP });
         useHrSourceStore.setState({ primary: 'bluetooth' });
       });
       rerender({});
@@ -415,6 +419,9 @@ describe('useWatchHr', () => {
 
     it('cancels a pending start when primary changes away from watch before connect resolves', async () => {
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
+      // A saved strap so the away-from-watch switch below resolves to bluetooth
+      // (not back to the watch default on this watch-capable platform).
+      useSavedGearStore.setState({ savedHrSource: SAVED_STRAP });
 
       let resolveConnect: (() => void) | null = null;
       const connectPromise = new Promise<void>((resolve) => {
@@ -446,7 +453,7 @@ describe('useWatchHr', () => {
       });
 
       act(() => {
-        useHrSourceStore.setState({ primary: null });
+        useHrSourceStore.setState({ primary: 'bluetooth' });
       });
       rerender({});
 
@@ -1094,9 +1101,11 @@ describe('useWatchHr', () => {
       });
     });
 
-    it('does not start the stream on mount when the effective default is not watch (no primary, Watch unavailable)', async () => {
-      // No explicit primary + Watch unavailable → default resolves to bike, not watch.
+    it('does not start the stream on mount when there is no HR source (no watch platform, no primary, no strap)', async () => {
+      // No watch platform + no explicit primary + no strap → effective source is null.
+      getIsAppleWatchAvailableMock().mockReturnValue(false);
       useHrSourceStore.setState({ primary: null, hydrated: true });
+      useSavedGearStore.setState({ savedHrSource: null });
       useDeviceConnectionStore.setState({ watchAvailability: 'unavailable' });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 

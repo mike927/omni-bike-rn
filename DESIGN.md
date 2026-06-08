@@ -189,8 +189,10 @@ label, the Training connection footer). Two distinct interactions, two distinct 
   **4px leading accent bar** (`primary`) + `primarySubtle` tint + bold `primary` name. **No radio.**
   Exactly one HR source selected at a time. a11y: `accessibilityState={{ selected }}`. When at least
   one source is available and the user hasn't picked one, the selected tile is the **effective
-  default** — the availability-ranked fallback `watch → bluetooth` (`resolveEffectivePrimary`). With
-  no watch and no saved strap there is **no HR source**, and the Heart-Rate status reads
+  default** — the priority-ranked fallback `watch → bluetooth` (`resolveEffectivePrimary`). Watch
+  candidacy is **platform-based**, so a watch-capable iPhone defaults to **Apple Watch** (rendered
+  `Unavailable` until the companion connects) rather than showing nothing. Only when the platform has
+  no Watch *and* no saved strap is there **no HR source** — the Heart-Rate status then reads
   **Not set up** (the "Add Bluetooth HR" CTA is the path forward). A primary that loses its backing
   device (e.g. a forgotten Bluetooth strap) falls back to that default.
 - **Management** (only tiles that have actions — the Smart Bike and a Bluetooth strap): a **right-edge

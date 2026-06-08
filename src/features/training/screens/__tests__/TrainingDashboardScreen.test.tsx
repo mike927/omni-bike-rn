@@ -107,9 +107,24 @@ jest.mock('../../../../store/hrSourceStore', () => ({
   useHrSourceStore: (selector: (s: typeof mockHrSourceStoreState) => unknown) => selector(mockHrSourceStoreState),
 }));
 
+// Watch candidacy is platform-based; mock it so tests can model both a
+// watch-capable iPhone and a no-watch platform independent of live availability.
+jest.mock('../../../../services/watch/isAppleWatchAvailable', () => ({
+  isAppleWatchAvailable: jest.fn().mockReturnValue(true),
+}));
+
+function getIsAppleWatchAvailableMock() {
+  return (
+    jest.requireMock('../../../../services/watch/isAppleWatchAvailable') as {
+      isAppleWatchAvailable: jest.Mock;
+    }
+  ).isAppleWatchAvailable;
+}
+
 describe('TrainingDashboardScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    getIsAppleWatchAvailableMock().mockReturnValue(true);
     Object.assign(mockSession, {
       phase: 'idle',
       elapsedSeconds: 0,
@@ -438,9 +453,17 @@ describe('TrainingDashboardScreen', () => {
     expect(getByLabelText('Polar H10: Ready')).toBeTruthy();
   });
 
-  it('shows "Heart rate · Not set up" in idle when no HR source is available (no watch, no strap)', () => {
-    // No primary, watch unavailable, no saved strap → no HR source to show; the
-    // bike connection is irrelevant to HR readiness now.
+  it('shows "Apple Watch · Unavailable" in idle on a watch-capable iPhone when the companion is unavailable (no primary, no strap)', () => {
+    // Watch candidacy is platform-based, so a watch-capable iPhone defaults to
+    // Watch even while the companion is currently unavailable — never "nothing".
+    Object.assign(mockDeviceConnection, { bikeConnected: true, watchAvailability: 'unavailable' });
+    const { getByLabelText } = render(<TrainingDashboardScreen />);
+
+    expect(getByLabelText('Apple Watch: Unavailable')).toBeTruthy();
+  });
+
+  it('shows "Heart rate · Not set up" in idle when there is no HR source (no watch platform, no strap)', () => {
+    getIsAppleWatchAvailableMock().mockReturnValue(false);
     Object.assign(mockDeviceConnection, { bikeConnected: true });
     const { getByLabelText } = render(<TrainingDashboardScreen />);
 
