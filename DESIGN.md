@@ -131,7 +131,9 @@ fill).
 - a11y: the label text carries the status for screen readers; the dot is decorative. Callers may
   pass `accessibilityLabel` for extra context (e.g. the device name).
 - **One chip everywhere.** Used by the Home Smart Bike + Heart Rate cards (via `SourceRow`), the
-  Settings `GearTile`, and the Training `ConnectionFooter` (Smart Bike + Heart Rate rows). Never
+  Settings `GearCard` / `SwipeableGearRow` (on a swipeable row it yields to the inline **Connect** chip
+  while the device is disconnected, returning once `Ready`), and the Training `ConnectionFooter`
+  (Smart Bike + Heart Rate rows). Never
   re-style the status inline — always render `StatusPill`. In particular, never show status as plain
   `Name · Status` text: the device name and its status never share a single line.
 
@@ -177,7 +179,9 @@ Resolver-driven visibility (same rules as `SourceRow`):
 ## Gear / HR-Source Tiles
 
 Pattern for device & HR-source rows in Settings → "My Gear" — the icon-led **`GearCard`**
-(`src/features/settings/components/GearCard.tsx`), rendered in Calm Noir under flat section labels
+(`src/features/settings/components/GearCard.tsx`) for selection-only rows, and **`SwipeableGearRow`**
+(`src/features/settings/components/SwipeableGearRow.tsx`, the same visual wrapped in a swipe row) for
+rows that also manage a device. Rendered in Calm Noir under flat section labels
 (`SectionLabel` / `Eyebrow`, no `SectionCard` box). One tile per device (never list a device twice).
 Each tile shows a **leading Ionicons icon box** (mirroring Home's `DeviceCard`), the device **name**,
 a **`kind`** sub-label, and a right-pinned **`StatusPill`** (`scheme="noir"`). The selected HR
@@ -185,8 +189,10 @@ source's kind reads "`<kind> · primary`" — an explicit selection cue alongsid
 trainer device is labelled **Smart Bike** everywhere it appears (Home card title, this section's
 label, the Training connection footer). Two distinct interactions, two distinct affordances:
 
-- **Selection** (HR sources only): tap the tile body → it becomes the primary source, shown by a
-  **4px leading accent bar** (`primary`) + `primarySubtle` tint + bold `primary` name. **No radio.**
+- **Selection** (HR sources only): tap the row body → it becomes the primary source. On the plain
+  `GearCard` (Apple Watch) this shows as a **4px leading accent bar** (`primary`) + `primarySubtle`
+  tint + bold `primary` name; on a swipeable row (the strap) the leading bar is dropped — a left-swipe
+  would clip it — so selection reads via the tint + bold `primary` name. **No radio.**
   Exactly one HR source selected at a time. a11y: `accessibilityState={{ selected }}`. When at least
   one source is available and the user hasn't picked one, the selected tile is the **effective
   default** — the priority-ranked fallback `watch → bluetooth` (`resolveEffectivePrimary`). Watch
@@ -195,14 +201,19 @@ label, the Training connection footer). Two distinct interactions, two distinct 
   no Watch *and* no saved strap is there **no HR source** — the Heart-Rate status then reads
   **Not set up** (the "Add Bluetooth HR" CTA is the path forward). A primary that loses its backing
   device (e.g. a forgotten Bluetooth strap) falls back to that default.
-- **Management** (only tiles that have actions — the Smart Bike and a Bluetooth strap): a **right-edge
-  chevron** (`Ionicons` `chevron-down`/`chevron-up`, `textMuted` → `primary` when open) reveals
-  Connect / Replace / Forget **inside** the tile on tap; the chevron rotates 180° when open.
-  Action buttons are conditionally rendered (absent from the tree until expanded). The chevron is
-  a separate press target from the body (expanding never selects).
-- Tiles with nothing to manage (**Apple Watch**) have **no chevron**.
-- The **Smart Bike** tile is an **expander, not a selectable** — no accent bar; tapping it toggles its
-  management; a11y: `accessibilityRole="button"` + `accessibilityState={{ expanded }}`.
+- **Management** (only rows with actions — the Smart Bike and a saved Bluetooth strap): a **left-swipe**
+  reveals **Replace · Forget** behind the row (`SwipeableGearRow` → `SwipeableRow`; Calm Noir "D4b").
+  A persistent `‹‹` handle + a slim trailing peek cue the gesture; the calm `Replace` (indigo) sits at
+  the swipe edge, the destructive `Forget` (red) tucked deeper. **Connect is inline** — a trailing chip
+  while the device is disconnected (`Connect` / disabled `Connecting…`), swapped for the `Ready`
+  `StatusPill` once connected. The action buttons stay **mounted** behind the row (revealed by swipe),
+  so they're reachable by VoiceOver/keyboard without the pointer-only gesture; destructive actions keep
+  their `Alert` confirm. Motion is RN-core `Animated` + `PanResponder` (no `react-native-gesture-handler`);
+  the responder refuses termination once a horizontal swipe is claimed so the enclosing `ScrollView`
+  can't steal it and snap the row shut.
+- Rows with nothing to manage (**Apple Watch**) are the plain, selection-only **`GearCard`** — no swipe, no handle.
+- The **Smart Bike** row is **not selectable** (no accent bar) and has **no chevron/expand** — its only
+  affordances are the inline Connect chip and the swipe management.
 - **Empty slots use `AddGearTile`** (`src/ui/components/AddGearTile.tsx`) — a **dashed**, full-width
   tap-to-add tile (`Ionicons add` + label in `primary`), visually distinct from a populated tile.
   The no-bike state is **＋ Set Up Smart Bike**. (The no-strap HR state still uses the plain
@@ -219,9 +230,11 @@ History (`src/features/history/`, mockup `design-mockups/app/screen-06-history.h
   via the pure `deriveHistorySummary(sessions, now)`.
 - **History row** (`WorkoutHistoryListItem`) — `noir.card`, radius `md`, showing date
   (`Sat, May 30`) + a compact metrics line (`18.4 km · 1h 2m · 512 kcal`), provider icons, and a
-  trailing chevron. **Tap** opens the ride summary; **long press** confirms delete (no inline trash
-  button, keeping the row clean). Delete is also exposed to assistive tech via an
-  `accessibilityActions` "Delete workout" action (VoiceOver rotor), so it isn't pointer-only.
+  trailing chevron. Wrapped in **`SwipeableRow`** (`src/ui/components/SwipeableRow.tsx`): **tap** opens
+  the ride summary; **swipe left** reveals **Delete** — the canonical delete interaction. A slim red
+  peek cues it (peek-only, no persistent handle, so it doesn't fight the forward chevron). Long-press
+  still deletes too, and Delete stays exposed to assistive tech via an `accessibilityActions`
+  "Delete workout" action (VoiceOver rotor) plus the always-mounted action button, so it isn't pointer-only.
 - **Provider status icons** (`ProviderStatusIcons`) — every row shows *all* known providers using
   their real glyphs (Strava `FontAwesome5 strava`, Apple Health `Ionicons heart`) but recoloured to
   the app palette: **`noir.mintSoft` when synced, `noir.ink3` when not**. Brand colours (e.g. Strava
