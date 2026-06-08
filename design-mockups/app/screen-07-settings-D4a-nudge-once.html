@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Omni Bike · Settings — Swipe (Nudge once)</title>
+<link rel="stylesheet" href="calm-noir.css" />
+<style>
+  /* ---- D4 variant A: nudge once on entry, then rest on the static peek ---- */
+  .swipe-row { position: relative; border-radius: var(--r-lg); }
+  .swipe-row .swipe-actions {
+    position: absolute; top: 0; right: 0; bottom: 0; width: 148px;
+    display: flex; flex-direction: row-reverse; gap: 8px;
+  }
+  .swipe-act {
+    flex: 1; border: none; cursor: pointer; font-family: inherit; border-radius: var(--r-lg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    font-size: 12px; font-weight: 700; letter-spacing: .01em; color: #fff;
+  }
+  .swipe-act.replace { background: linear-gradient(180deg, #3a47ff, #2e3dff); }
+  .swipe-act.forget  { background: linear-gradient(180deg, #ff5d6c, #ef4b5c); }
+  .swipe-act svg { display: block; }
+  /* card opens twice on load (teaching the gesture), then holds the slim peek */
+  .swipe-row .dev-card {
+    position: relative; z-index: 1; margin: 0;
+    box-shadow: var(--shadow-soft), 7px 0 18px -10px rgba(0,0,0,.55);
+    animation: nudge-once 1.9s cubic-bezier(.45,.05,.2,1) 2 forwards;
+  }
+  @keyframes nudge-once {
+    0%        { transform: translateX(-10px); }
+    32%       { transform: translateX(-120px); }
+    46%       { transform: translateX(-104px); }
+    70%, 100% { transform: translateX(-10px); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .swipe-row .dev-card { animation: none; transform: translateX(-10px); }
+  }
+
+  .chip-btn {
+    flex: 0 0 auto; font-family: inherit; border: none; cursor: pointer;
+    font-size: 13.5px; font-weight: 700; padding: 9px 16px; border-radius: var(--r-pill);
+    background: var(--indigo); color: #fff; box-shadow: 0 10px 20px -12px rgba(46,61,255,.9);
+  }
+  .tag {
+    font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--indigo-soft); background: var(--indigo-tint);
+    border-radius: 6px; padding: 2px 7px; vertical-align: middle; margin-left: 7px;
+  }
+</style>
+</head>
+<body>
+  <div class="device">
+    <div class="screen">
+
+      <div class="statusbar">
+        <span>9:41</span>
+        <span class="glyphs">
+          <svg width="18" height="12" viewBox="0 0 18 12" fill="none">
+            <rect x="0" y="8" width="3" height="4" rx="1" fill="#eef1f6"/>
+            <rect x="5" y="5" width="3" height="7" rx="1" fill="#eef1f6"/>
+            <rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="#eef1f6"/>
+            <rect x="15" y="0" width="3" height="12" rx="1" fill="#eef1f6"/>
+          </svg>
+          <svg width="17" height="12" viewBox="0 0 17 12" fill="none">
+            <path d="M8.5 2.2c2.7 0 5.2 1 7.1 2.8l-1.5 1.6A7.9 7.9 0 0 0 8.5 4.3 7.9 7.9 0 0 0 2.9 6.6L1.4 5C3.3 3.2 5.8 2.2 8.5 2.2Z" fill="#eef1f6"/>
+            <path d="M8.5 6.1c1.6 0 3.1.6 4.2 1.7l-1.6 1.6A3.7 3.7 0 0 0 8.5 8.3c-1 0-2 .4-2.7 1.1L4.3 7.8A6 6 0 0 1 8.5 6.1Z" fill="#eef1f6"/>
+            <circle cx="8.5" cy="11" r="1.3" fill="#eef1f6"/>
+          </svg>
+          <svg width="26" height="13" viewBox="0 0 26 13" fill="none">
+            <rect x="0.5" y="0.5" width="22" height="12" rx="3.5" stroke="#eef1f6" stroke-opacity="0.4"/>
+            <rect x="2" y="2" width="17" height="9" rx="2" fill="#eef1f6"/>
+            <rect x="24" y="4" width="1.6" height="5" rx="0.8" fill="#eef1f6" fill-opacity="0.45"/>
+          </svg>
+        </span>
+      </div>
+
+      <div class="content">
+
+        <div class="screen-head reveal d1">
+          <div class="h-title">Settings</div>
+          <div class="h-sub">Manage your saved gear and active connections.</div>
+        </div>
+
+        <div class="section-label tight reveal d1" style="margin-top: 4px;">
+          <h2>My Gear</h2>
+        </div>
+
+        <div class="eyebrow reveal d2" style="margin: 0 4px 10px;">Smart Bike</div>
+
+        <!-- Smart bike row: nudges twice on entry, then rests on the peek -->
+        <div class="swipe-row reveal d2">
+          <div class="swipe-actions">
+            <button class="swipe-act replace">
+              <svg class="lucide lucide-arrow-left-right" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>
+              Replace
+            </button>
+            <button class="swipe-act forget">
+              <svg class="lucide lucide-trash-2" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+              Forget
+            </button>
+          </div>
+          <div class="dev-card">
+            <div class="dev-icon">
+              <!-- Ionicons: bicycle -->
+              <svg width="22" height="22" viewBox="0 0 512 512" fill="currentColor"><path d="M388,448a92,92,0,1,1,92-92A92.1,92.1,0,0,1,388,448Zm0-152a60,60,0,1,0,60,60A60.07,60.07,0,0,0,388,296Z"/><path d="M124,448a92,92,0,1,1,92-92A92.1,92.1,0,0,1,124,448Zm0-152a60,60,0,1,0,60,60A60.07,60.07,0,0,0,124,296Z"/><path d="M320,128a31.89,31.89,0,0,0,32-32.1A31.55,31.55,0,0,0,320.2,64a32,32,0,1,0-.2,64Z"/><path d="M367.55,192H323.79a4,4,0,0,1-3.51-2.08l-31.74-58.17h0A31,31,0,0,0,239.16,124h0L169.3,194.4a32.56,32.56,0,0,0-9.3,22.4c0,17.4,12.6,23.6,18.5,27.1C207,260.32,227.07,272.33,238.08,279a4,4,0,0,1,1.92,3.41v69.12c0,8.61,6.62,16,15.23,16.43A16,16,0,0,0,272,352V266a16,16,0,0,0-6.66-13l-37-26.61a4,4,0,0,1-.58-6l42-44.79a4,4,0,0,1,6.42.79L298,215.77A16,16,0,0,0,312,224h56a16,16,0,0,0,16-16.77C383.58,198.62,376.16,192,367.55,192Z"/></svg>
+            </div>
+            <div class="dev-meta">
+              <div class="dev-name">Rave</div>
+              <div class="dev-kind">Smart trainer</div>
+            </div>
+            <button class="chip-btn">Connect</button>
+          </div>
+        </div>
+
+        <div class="eyebrow reveal d3" style="margin: 18px 4px 10px;">Heart Rate Source</div>
+        <div class="row-list reveal d3">
+
+          <div class="dev-card">
+            <div class="dev-icon muted">
+              <!-- Ionicons: watch -->
+              <svg width="22" height="22" viewBox="0 0 512 512" fill="currentColor"><rect x="136" y="136" width="240" height="240" rx="56" ry="56"/><path d="M336,96V32a16,16,0,0,0-16-16H192a16,16,0,0,0-16,16V96a80.09,80.09,0,0,0-80,80V336a80.09,80.09,0,0,0,80,80v64a16,16,0,0,0,16,16H320a16,16,0,0,0,16-16V416a80.09,80.09,0,0,0,80-80V176A80.09,80.09,0,0,0,336,96Zm56,224a72.08,72.08,0,0,1-72,72H192a72.08,72.08,0,0,1-72-72V192a72.08,72.08,0,0,1,72-72H320a72.08,72.08,0,0,1,72,72Z"/></svg>
+            </div>
+            <div class="dev-meta">
+              <div class="dev-name">Apple Watch</div>
+              <div class="dev-kind">Wrist sensor</div>
+            </div>
+            <button class="chip-btn">Connect</button>
+          </div>
+
+          <div class="dev-card selected">
+            <div class="dev-icon">
+              <!-- Ionicons: pulse -->
+              <svg width="22" height="22" viewBox="0 0 512 512" fill="currentColor"><path d="M432,272a48.09,48.09,0,0,0-45.25,32H347.53l-28.35-85.06a16,16,0,0,0-30.56.66L244.11,375.36l-52.33-314a16,16,0,0,0-31.3-1.25L99.51,304H48a16,16,0,0,0,0,32h64a16,16,0,0,0,15.52-12.12l45.34-181.37,51.36,308.12A16,16,0,0,0,239.1,464c.3,0,.6,0,.91,0a16,16,0,0,0,15.37-11.6l49.8-174.28,15.64,46.94A16,16,0,0,0,336,336h50.75A48,48,0,1,0,432,272Z"/></svg>
+            </div>
+            <div class="dev-meta">
+              <div class="dev-name">Bike pulse <span class="tag">Primary</span></div>
+              <div class="dev-kind">Built-in grip sensor</div>
+            </div>
+            <button class="chip-btn">Connect</button>
+          </div>
+        </div>
+
+        <button class="add-tile reveal d4" style="margin-top: 12px;">
+          <svg class="lucide lucide-plus" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+          Add Bluetooth HR
+        </button>
+
+      </div>
+
+      <div class="tabbar">
+        <div class="tab">
+          <svg width="24" height="24" viewBox="0 0 512 512" fill="none"><path d="M80,212V448a16,16,0,0,0,16,16h96V328a24,24,0,0,1,24-24h80a24,24,0,0,1,24,24V464h96a16,16,0,0,0,16-16V212" style="fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:32px"/><path d="M480,256,266.89,52c-5-5.28-16.69-5.34-21.78,0L32,256" style="fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:32px"/><polyline points="400 179 400 64 352 64 352 133" style="fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:32px"/></svg>
+          Home
+        </div>
+        <div class="tab">
+          <svg width="24" height="24" viewBox="0 0 512 512" fill="none"><path d="M256,64C150,64,64,150,64,256s86,192,192,192,192-86,192-192S362,64,256,64Z" style="fill:none;stroke:currentColor;stroke-miterlimit:10;stroke-width:32px"/><polyline points="256 128 256 272 352 272" style="fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:32px"/></svg>
+          History
+        </div>
+        <div class="tab active">
+          <svg width="24" height="24" viewBox="0 0 512 512" fill="currentColor"><circle cx="256" cy="256" r="48"/><path d="M470.39,300l-.47-.38-31.56-24.75a16.11,16.11,0,0,1-6.1-13.33l0-11.56a16,16,0,0,1,6.11-13.22L469.92,212l.47-.38a26.68,26.68,0,0,0,5.9-34.06l-42.71-73.9a1.59,1.59,0,0,1-.13-.22A26.86,26.86,0,0,0,401,92.14l-.35.13L363.55,107.2a15.94,15.94,0,0,1-14.47-1.29q-4.92-3.1-10-5.86a15.94,15.94,0,0,1-8.19-11.82L325.3,48.64l-.12-.72A27.22,27.22,0,0,0,298.76,26H213.24a26.92,26.92,0,0,0-26.45,22.39l-.09.56-5.57,39.67A16,16,0,0,1,173,100.44c-3.42,1.84-6.76,3.79-10,5.82a15.92,15.92,0,0,1-14.43,1.27l-37.13-15-.35-.14a26.87,26.87,0,0,0-32.48,11.34l-.13.22L35.71,177.9A26.71,26.71,0,0,0,41.61,212l.47.38,31.56,24.75a16.11,16.11,0,0,1,6.1,13.33l0,11.56a16,16,0,0,1-6.11,13.22L42.08,300l-.47.38a26.68,26.68,0,0,0-5.9,34.06l42.71,73.9a1.59,1.59,0,0,1,.13.22A26.86,26.86,0,0,0,111,419.86l.35-.13,37.07-14.93a15.94,15.94,0,0,1,14.47,1.29q4.92,3.11,10,5.86a15.94,15.94,0,0,1,8.19,11.82l5.56,39.59.12.72A27.22,27.22,0,0,0,213.24,486h85.52a26.92,26.92,0,0,0,26.45-22.39l.09-.56,5.57-39.67a16,16,0,0,1,8.18-11.82c3.42-1.84,6.76-3.79,10-5.82a15.92,15.92,0,0,1,14.43-1.27l37.13,14.95.35.14a26.85,26.85,0,0,0,32.48-11.34,2.53,2.53,0,0,1,.13-.22l42.71-73.89A26.7,26.7,0,0,0,470.39,300ZM335.91,259.76a80,80,0,1,1-83.66-83.67A80.21,80.21,0,0,1,335.91,259.76Z"/></svg>
+          Settings
+        </div>
+      </div>
+
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+  <div class="caption"><b>07 · Settings · Swipe — Nudge once</b> · concept D4a</div>
+</body>
+</html>
