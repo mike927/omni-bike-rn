@@ -1,13 +1,18 @@
 import Storage from 'expo-sqlite/kv-store';
 
-import type { HrSource } from '../hr/hrSource';
+import { isHrSource, type HrSource } from '../hr/hrSource';
 
 const STORAGE_KEY = 'omni:appPreferences';
 
 interface AppPreferences {
   onboardingCompleted: boolean;
-  /** The user's chosen primary HR source. Absent = no explicit preference set. */
-  primaryHrSource?: HrSource;
+  /**
+   * The user's chosen primary HR source. Absent = no explicit preference set.
+   * Stored as a string so a value later removed from `HrSource` (e.g. the legacy
+   * 'bike') round-trips through JSON without a type lie; {@link loadPrimaryHrSource}
+   * validates it on read.
+   */
+  primaryHrSource?: string;
 }
 
 const DEFAULT_PREFERENCES: AppPreferences = {
@@ -32,12 +37,17 @@ export async function markOnboardingCompleted(): Promise<void> {
 
 // Note: this replaces the legacy `watchHrEnabled` boolean. A pre-existing user's
 // `watchHrEnabled` value is intentionally NOT migrated — `primaryHrSource` starts
-// absent and is resolved to the default (watch > bluetooth > bike) until the user
-// picks one in Settings. A user who had explicitly disabled watch HR is reset to
-// that default; this is a one-time, non-destructive reset.
+// absent and is resolved to the default (watch > bluetooth) until the user picks
+// one in Settings. A user who had explicitly disabled watch HR is reset to that
+// default; this is a one-time, non-destructive reset.
+//
+// The stored value is validated through `isHrSource`, so a removed member (the
+// legacy 'bike') — or any unrecognized string — resolves to null (no explicit
+// preference), falling through to the availability default rather than leaking an
+// invalid source.
 export async function loadPrimaryHrSource(): Promise<HrSource | null> {
   const prefs = await loadAppPreferences();
-  return prefs.primaryHrSource ?? null;
+  return isHrSource(prefs.primaryHrSource) ? prefs.primaryHrSource : null;
 }
 
 export async function setPrimaryHrSource(source: HrSource): Promise<void> {

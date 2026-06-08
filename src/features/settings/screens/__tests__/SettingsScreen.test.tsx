@@ -58,9 +58,9 @@ const mockAutoReconnect = {
 const mockWatchHr = {
   watchAvailable: false,
   primary: null as HrSource | null,
-  effectivePrimary: 'bike' as HrSource,
+  effectivePrimary: null as HrSource | null,
   setPrimary: jest.fn(),
-  availableSources: ['bike'] as HrSource[],
+  availableSources: [] as HrSource[],
 };
 
 const mockSavedGear = {
@@ -126,9 +126,9 @@ describe('SettingsScreen', () => {
     Object.assign(mockWatchHr, {
       watchAvailable: false,
       primary: null,
-      effectivePrimary: 'bike',
+      effectivePrimary: null,
       setPrimary: jest.fn(),
-      availableSources: ['bike'] as HrSource[],
+      availableSources: [] as HrSource[],
     });
     useSavedGearStore.setState({ bikeReconnectState: 'idle', hrReconnectState: 'idle' });
   });
@@ -149,11 +149,12 @@ describe('SettingsScreen', () => {
     expect(getByText('Add Bluetooth HR')).toBeTruthy();
   });
 
-  it('shows saved bike name and Unavailable status when bike is saved and not connected', () => {
+  it('shows the saved bike name with a Connect chip when saved and not connected', () => {
     Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
-    const { getByText, getAllByText } = render(<SettingsScreen />);
+    const { getByText } = render(<SettingsScreen />);
     expect(getByText('Zipro Rave')).toBeTruthy();
-    expect(getAllByText('Unavailable').length).toBeGreaterThan(0);
+    // Swipe model: a disconnected saved row shows the inline Connect chip, not an "Unavailable" pill.
+    expect(getByText('Connect')).toBeTruthy();
   });
 
   it('shows saved bike name and Ready status when bike is connected', () => {
@@ -190,18 +191,19 @@ describe('SettingsScreen', () => {
     expect(mockSavedGear.forgetBike).toHaveBeenCalled();
   });
 
-  it('shows saved HR source name in the HR source row with Unavailable readiness when hr is not connected', () => {
+  it('shows the saved HR strap name with a Connect chip when not connected', () => {
     Object.assign(mockSavedGear, { savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' } });
-    Object.assign(mockWatchHr, { availableSources: ['bluetooth', 'bike'] });
-    const { getByText, getAllByText } = render(<SettingsScreen />);
+    Object.assign(mockWatchHr, { availableSources: ['bluetooth'] });
+    const { getByText } = render(<SettingsScreen />);
     expect(getByText('Polar H10')).toBeTruthy();
-    expect(getAllByText('Unavailable').length).toBeGreaterThan(0);
+    // Swipe model: a disconnected saved strap shows the inline Connect chip, not an "Unavailable" pill.
+    expect(getByText('Connect')).toBeTruthy();
   });
 
   it('shows saved HR source name in the HR source row with Ready readiness when hr is connected', () => {
     Object.assign(mockSavedGear, { savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' } });
     Object.assign(mockConnection, { hrConnected: true });
-    Object.assign(mockWatchHr, { availableSources: ['bluetooth', 'bike'] });
+    Object.assign(mockWatchHr, { availableSources: ['bluetooth'] });
     const { getAllByText } = render(<SettingsScreen />);
     expect(getAllByText('Polar H10').length).toBeGreaterThan(0);
     expect(getAllByText('Ready').length).toBeGreaterThan(0);
@@ -242,7 +244,7 @@ describe('SettingsScreen', () => {
       Object.assign(mockSavedGear, { savedBike: null, savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' } });
       Object.assign(mockConnection, { bikeConnected: false, hrConnected: false });
       Object.assign(mockAutoReconnect, { hrReconnectState: 'connecting' });
-      Object.assign(mockWatchHr, { availableSources: ['bluetooth', 'bike'] });
+      Object.assign(mockWatchHr, { availableSources: ['bluetooth'] });
       const { getByText, queryByText } = render(<SettingsScreen />);
       expect(getByText('Connecting...')).toBeTruthy();
       expect(queryByText('Connect')).toBeNull();
@@ -263,7 +265,7 @@ describe('SettingsScreen', () => {
     it('shows an inline Connect chip for the HR strap when saved and not connected', () => {
       Object.assign(mockSavedGear, { savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' } });
       Object.assign(mockConnection, { hrConnected: false });
-      Object.assign(mockWatchHr, { availableSources: ['bluetooth', 'bike'] });
+      Object.assign(mockWatchHr, { availableSources: ['bluetooth'] });
       const { getAllByText } = render(<SettingsScreen />);
       expect(getAllByText('Connect').length).toBeGreaterThan(0);
     });
@@ -271,7 +273,7 @@ describe('SettingsScreen', () => {
     it('calls retryHr when the HR strap Connect chip is pressed', () => {
       Object.assign(mockSavedGear, { savedBike: null, savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' } });
       Object.assign(mockConnection, { bikeConnected: false, hrConnected: false });
-      Object.assign(mockWatchHr, { availableSources: ['bluetooth', 'bike'] });
+      Object.assign(mockWatchHr, { availableSources: ['bluetooth'] });
       const { getByText } = render(<SettingsScreen />);
       fireEvent.press(getByText('Connect'));
       expect(mockAutoReconnect.retryHr).toHaveBeenCalled();
@@ -280,7 +282,7 @@ describe('SettingsScreen', () => {
     it('does not show a Connect chip for the HR strap when connected', () => {
       Object.assign(mockSavedGear, { savedBike: null, savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' } });
       Object.assign(mockConnection, { bikeConnected: false, hrConnected: true });
-      Object.assign(mockWatchHr, { availableSources: ['bluetooth', 'bike'] });
+      Object.assign(mockWatchHr, { availableSources: ['bluetooth'] });
       const { queryByText } = render(<SettingsScreen />);
       expect(queryByText('Connect')).toBeNull();
     });
@@ -288,7 +290,7 @@ describe('SettingsScreen', () => {
 
   describe('Primary HR source selector', () => {
     it('does not render the old Apple Watch HR toggle', () => {
-      Object.assign(mockWatchHr, { watchAvailable: true, availableSources: ['watch', 'bike'] });
+      Object.assign(mockWatchHr, { watchAvailable: true, availableSources: ['watch'] });
       const { queryByText } = render(<SettingsScreen />);
       expect(queryByText('Enable')).toBeNull();
       expect(queryByText('Disable')).toBeNull();
@@ -299,26 +301,20 @@ describe('SettingsScreen', () => {
       expect(getByText('Heart Rate Source')).toBeTruthy();
     });
 
-    it('always shows Bike pulse as an option', () => {
-      Object.assign(mockWatchHr, { availableSources: ['bike'] });
-      const { getByText } = render(<SettingsScreen />);
-      expect(getByText('Bike pulse')).toBeTruthy();
-    });
-
     it('shows Apple Watch option when watchAvailable is true', () => {
-      Object.assign(mockWatchHr, { watchAvailable: true, availableSources: ['watch', 'bike'] });
+      Object.assign(mockWatchHr, { watchAvailable: true, availableSources: ['watch'] });
       const { getByText } = render(<SettingsScreen />);
       expect(getByText('Apple Watch')).toBeTruthy();
     });
 
     it('does not show Apple Watch option when watchAvailable is false', () => {
-      Object.assign(mockWatchHr, { watchAvailable: false, availableSources: ['bike'] });
+      Object.assign(mockWatchHr, { watchAvailable: false, availableSources: [] });
       const { queryByText } = render(<SettingsScreen />);
       expect(queryByText('Apple Watch')).toBeNull();
     });
 
     it('shows saved strap name when bluetooth is available', () => {
-      Object.assign(mockWatchHr, { availableSources: ['bluetooth', 'bike'] });
+      Object.assign(mockWatchHr, { availableSources: ['bluetooth'] });
       Object.assign(mockSavedGear, { savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' } });
       const { getAllByText } = render(<SettingsScreen />);
       // The strap name appears at least once as the selector option label
@@ -328,8 +324,8 @@ describe('SettingsScreen', () => {
     it('calls setPrimary with "watch" when Apple Watch option is pressed', () => {
       Object.assign(mockWatchHr, {
         watchAvailable: true,
-        availableSources: ['watch', 'bike'],
-        primary: 'bike',
+        availableSources: ['watch'],
+        primary: null,
         setPrimary: jest.fn(),
       });
       const { getByText } = render(<SettingsScreen />);
@@ -339,8 +335,8 @@ describe('SettingsScreen', () => {
 
     it('calls setPrimary with "bluetooth" when strap option is pressed', () => {
       Object.assign(mockWatchHr, {
-        availableSources: ['bluetooth', 'bike'],
-        primary: 'bike',
+        availableSources: ['bluetooth'],
+        primary: null,
         setPrimary: jest.fn(),
       });
       Object.assign(mockSavedGear, { savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' } });
@@ -349,52 +345,27 @@ describe('SettingsScreen', () => {
       expect(mockWatchHr.setPrimary).toHaveBeenCalledWith('bluetooth');
     });
 
-    it('calls setPrimary with "bike" when Bike pulse option is pressed', () => {
-      Object.assign(mockWatchHr, {
-        availableSources: ['bike'],
-        primary: null,
-        setPrimary: jest.fn(),
-      });
-      const { getByText } = render(<SettingsScreen />);
-      fireEvent.press(getByText('Bike pulse'));
-      expect(mockWatchHr.setPrimary).toHaveBeenCalledWith('bike');
-    });
-
     it('shows watch readiness label (Ready) when watch is connected', () => {
-      Object.assign(mockWatchHr, { watchAvailable: true, availableSources: ['watch', 'bike'] });
+      Object.assign(mockWatchHr, { watchAvailable: true, availableSources: ['watch'] });
       Object.assign(mockConnection, { watchAvailability: 'connected' });
       const { getAllByText } = render(<SettingsScreen />);
-      // Both Apple Watch and Bike pulse show 'Ready' when watch is connected
+      // Apple Watch shows 'Ready' when the companion is connected
       expect(getAllByText('Ready').length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows watch readiness label (Unavailable) when watch is unavailable', () => {
-      Object.assign(mockWatchHr, { watchAvailable: true, availableSources: ['watch', 'bike'] });
-      Object.assign(mockConnection, { watchAvailability: 'unavailable', bikeConnected: false });
+      Object.assign(mockWatchHr, { watchAvailable: true, availableSources: ['watch'] });
+      Object.assign(mockConnection, { watchAvailability: 'unavailable' });
       const { getAllByText } = render(<SettingsScreen />);
-      // Watch shows Unavailable; bike also shows Unavailable when not connected
+      // Apple Watch shows Unavailable when the companion is unreachable
       expect(getAllByText('Unavailable').length).toBeGreaterThanOrEqual(1);
-    });
-
-    it('shows Ready readiness for Bike pulse when bike is connected', () => {
-      Object.assign(mockWatchHr, { availableSources: ['bike'] });
-      Object.assign(mockConnection, { bikeConnected: true });
-      const { getByText } = render(<SettingsScreen />);
-      expect(getByText('Ready')).toBeTruthy();
-    });
-
-    it('shows Unavailable readiness for Bike pulse when bike is not connected', () => {
-      Object.assign(mockWatchHr, { availableSources: ['bike'] });
-      Object.assign(mockConnection, { bikeConnected: false });
-      const { getByText } = render(<SettingsScreen />);
-      expect(getByText('Unavailable')).toBeTruthy();
     });
   });
 
   describe('My Gear — role-based layout', () => {
     it('strap name appears exactly once when saved strap is in availableSources', () => {
       Object.assign(mockSavedGear, { savedHrSource: { id: 'hr-1', name: 'HRM-Dual:031993', type: 'hr' } });
-      Object.assign(mockWatchHr, { availableSources: ['bluetooth', 'bike'], primary: 'bluetooth' });
+      Object.assign(mockWatchHr, { availableSources: ['bluetooth'], primary: 'bluetooth' });
       const { getAllByText } = render(<SettingsScreen />);
       // Name must appear exactly once — no duplicate standalone management row
       expect(getAllByText('HRM-Dual:031993').length).toBe(1);
@@ -402,7 +373,7 @@ describe('SettingsScreen', () => {
 
     it('exposes Replace and Forget for the saved HR strap (swipe actions, always reachable)', () => {
       Object.assign(mockSavedGear, { savedHrSource: { id: 'hr-1', name: 'HRM-Dual:031993', type: 'hr' } });
-      Object.assign(mockWatchHr, { availableSources: ['bluetooth', 'bike'] });
+      Object.assign(mockWatchHr, { availableSources: ['bluetooth'] });
       const { getByText } = render(<SettingsScreen />);
       expect(getByText('Replace')).toBeTruthy();
       expect(getByText('Forget')).toBeTruthy();
@@ -414,7 +385,7 @@ describe('SettingsScreen', () => {
         savedHrSource: { id: 'hr-1', name: 'HRM-Dual:031993', type: 'hr' },
       });
       Object.assign(mockWatchHr, {
-        availableSources: ['bluetooth', 'bike'],
+        availableSources: ['bluetooth'],
         primary: 'bluetooth',
         setPrimary: jest.fn(),
       });
@@ -430,7 +401,7 @@ describe('SettingsScreen', () => {
         savedHrSource: { id: 'hr-1', name: 'HRM-Dual:031993', type: 'hr' },
       });
       Object.assign(mockConnection, { bikeConnected: false, hrConnected: false });
-      Object.assign(mockWatchHr, { availableSources: ['bluetooth', 'bike'] });
+      Object.assign(mockWatchHr, { availableSources: ['bluetooth'] });
       const { getByText } = render(<SettingsScreen />);
       expect(getByText('Connect')).toBeTruthy();
       fireEvent.press(getByText('Connect'));
@@ -439,7 +410,7 @@ describe('SettingsScreen', () => {
 
     it('shows Add Bluetooth HR button (not bluetooth row) when no strap is saved; pressing it routes to gear-setup?target=hr', () => {
       Object.assign(mockSavedGear, { savedHrSource: null });
-      Object.assign(mockWatchHr, { availableSources: ['bike'] });
+      Object.assign(mockWatchHr, { availableSources: [] });
       const { getByText, queryByText } = render(<SettingsScreen />);
       // No bluetooth row label (strap name absent)
       expect(queryByText('HRM-Dual:031993')).toBeNull();
@@ -449,18 +420,18 @@ describe('SettingsScreen', () => {
       expect(mockPush).toHaveBeenCalledWith('/gear-setup?target=hr');
     });
 
-    it('only the HR strap is swipeable — watch and bike pulse have no management actions', () => {
+    it('only the HR strap is swipeable — Apple Watch has no management actions', () => {
       Object.assign(mockSavedGear, {
         savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' },
       });
       Object.assign(mockConnection, { hrConnected: true });
       Object.assign(mockWatchHr, {
         watchAvailable: true,
-        availableSources: ['watch', 'bluetooth', 'bike'],
+        availableSources: ['watch', 'bluetooth'],
         primary: 'bluetooth',
       });
       const { getAllByText } = render(<SettingsScreen />);
-      // Replace/Forget appear exactly once — for the strap only (watch & bike pulse can't be removed)
+      // Replace/Forget appear exactly once — for the strap only (Apple Watch can't be removed)
       expect(getAllByText('Replace')).toHaveLength(1);
       expect(getAllByText('Forget')).toHaveLength(1);
     });
@@ -468,8 +439,8 @@ describe('SettingsScreen', () => {
     it('selecting an HR source row calls setPrimary with the correct source', () => {
       Object.assign(mockWatchHr, {
         watchAvailable: true,
-        availableSources: ['watch', 'bluetooth', 'bike'],
-        primary: 'bike',
+        availableSources: ['watch', 'bluetooth'],
+        primary: null,
         setPrimary: jest.fn(),
       });
       Object.assign(mockSavedGear, { savedHrSource: { id: 'hr-1', name: 'HRM-Dual:031993', type: 'hr' } });
@@ -483,7 +454,7 @@ describe('SettingsScreen', () => {
     it('tapping bike tile body does NOT call setPrimary', () => {
       Object.assign(mockSavedGear, { savedBike: { id: 'uuid', name: 'Zipro Rave', type: 'bike' } });
       Object.assign(mockWatchHr, {
-        availableSources: ['bike'],
+        availableSources: [],
         setPrimary: jest.fn(),
       });
       const { getByText } = render(<SettingsScreen />);
@@ -497,8 +468,8 @@ describe('SettingsScreen', () => {
         savedHrSource: { id: 'hr-1', name: 'HRM-Dual:031993', type: 'hr' },
       });
       Object.assign(mockWatchHr, {
-        availableSources: ['bluetooth', 'bike'],
-        primary: 'bike',
+        availableSources: ['bluetooth'],
+        primary: null,
         setPrimary: jest.fn(),
       });
       const { getByTestId } = render(<SettingsScreen />);
@@ -508,21 +479,23 @@ describe('SettingsScreen', () => {
 
     it('selected HR source tile has accessibilityState selected=true', () => {
       Object.assign(mockWatchHr, {
-        availableSources: ['bike'],
-        primary: 'bike',
-        effectivePrimary: 'bike',
+        watchAvailable: true,
+        availableSources: ['watch'],
+        primary: 'watch',
+        effectivePrimary: 'watch',
       });
       const { getByTestId } = render(<SettingsScreen />);
-      const bikeHrTile = getByTestId('hr-tile-bike');
-      expect(bikeHrTile.props.accessibilityState).toMatchObject({ selected: true });
+      const watchHrTile = getByTestId('hr-tile-watch');
+      expect(watchHrTile.props.accessibilityState).toMatchObject({ selected: true });
     });
 
     it('unselected HR source tile has accessibilityState selected=false', () => {
+      Object.assign(mockSavedGear, { savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' } });
       Object.assign(mockWatchHr, {
         watchAvailable: true,
-        availableSources: ['watch', 'bike'],
-        primary: 'bike',
-        effectivePrimary: 'bike',
+        availableSources: ['watch', 'bluetooth'],
+        primary: 'bluetooth',
+        effectivePrimary: 'bluetooth',
       });
       const { getByTestId } = render(<SettingsScreen />);
       const watchTile = getByTestId('hr-tile-watch');
@@ -532,15 +505,16 @@ describe('SettingsScreen', () => {
     it('selects the effective-default tile when no explicit primary is set (finding #1)', () => {
       // No explicit choice: the resolved default (Watch, here connected) is shown
       // as selected so the UI never renders "nothing selected".
+      Object.assign(mockSavedGear, { savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' } });
       Object.assign(mockWatchHr, {
         watchAvailable: true,
-        availableSources: ['watch', 'bike'],
+        availableSources: ['watch', 'bluetooth'],
         primary: null,
         effectivePrimary: 'watch',
       });
       const { getByTestId } = render(<SettingsScreen />);
       expect(getByTestId('hr-tile-watch').props.accessibilityState).toMatchObject({ selected: true });
-      expect(getByTestId('hr-tile-bike').props.accessibilityState).toMatchObject({ selected: false });
+      expect(getByTestId('hr-tile-bluetooth').props.accessibilityState).toMatchObject({ selected: false });
     });
 
     it('bike tile body does NOT have accessibilityState.selected', () => {
@@ -568,16 +542,10 @@ describe('SettingsScreen', () => {
     it('Apple Watch HR tile has no chevron', () => {
       Object.assign(mockWatchHr, {
         watchAvailable: true,
-        availableSources: ['watch', 'bike'],
+        availableSources: ['watch'],
       });
       const { queryByTestId } = render(<SettingsScreen />);
       expect(queryByTestId('hr-watch-chevron')).toBeNull();
-    });
-
-    it('Bike pulse HR tile has no chevron', () => {
-      Object.assign(mockWatchHr, { availableSources: ['bike'] });
-      const { queryByTestId } = render(<SettingsScreen />);
-      expect(queryByTestId('hr-bike-chevron')).toBeNull();
     });
   });
 });

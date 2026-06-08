@@ -26,11 +26,10 @@ import { ProfileCard } from '../components/ProfileCard';
 import { IntegrationRow } from '../components/IntegrationRow';
 import { LinkedBikeBlock } from '../components/LinkedBikeBlock';
 
-const HR_ICON = { bluetooth: 'heart', watch: 'watch', bike: 'pulse' } as const;
+const HR_ICON = { bluetooth: 'heart', watch: 'watch' } as const;
 const HR_KIND = {
   bluetooth: 'Chest strap',
   watch: 'Wrist sensor',
-  bike: 'Built-in grip sensor',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -150,12 +149,12 @@ export function SettingsScreen() {
     return availableSources.map((source: HrSource) => {
       const isStrap = source === 'bluetooth';
       const name = hrSourceName(source, savedHrSource?.name ?? null);
-      const status = hrSourceIdleReadiness({ source, watchAvailability, hrConnected, bikeConnected });
+      const status = hrSourceIdleReadiness({ source, watchAvailability, hrConnected });
       const selected = effectivePrimary === source;
 
       // The saved Bluetooth strap is the only removable HR source — swipe it for
-      // Replace/Forget, Connect inline. Built-in sources (watch, bike pulse) are
-      // selection-only plain cards.
+      // Replace/Forget, Connect inline. The Apple Watch source is a selection-only
+      // plain card.
       if (isStrap) {
         return (
           <SwipeableGearRow

@@ -156,9 +156,9 @@ category **label** on the left (e.g. `Bluetooth HR`, `Apple Watch`, or the bike 
 **device-name sub-line** beneath it (`textSoft`, single line, ellipsized), and a right-pinned
 `StatusPill`. When a card lists more than one source (the Heart Rate card), a hairline `border`
 divider separates the rows. The chip never truncates; the device name yields space. The Home Heart
-Rate card always shows the **Bluetooth HR** row, the **Apple Watch** row when the Watch is a platform
-option, and a **Bike pulse** row when the bike is the effective HR source — so the source actually in
-effect is never invisible. The Apple Watch row reads `Off` unless the Watch is the effective primary.
+Rate card always shows the **Bluetooth HR** row and the **Apple Watch** row when the Watch is a
+platform option — so the source actually in effect is never invisible. The Apple Watch row reads
+`Off` unless the Watch is the effective primary.
 
 ## Home Device Card (`DeviceCard`)
 
@@ -172,8 +172,6 @@ is not set up or not the effective source, the card is **muted**: the icon box a
 Resolver-driven visibility (same rules as `SourceRow`):
 - **Apple Watch** card is rendered only when the Watch is a platform option (`watchAvailable` from
   `useWatchHrControls`).
-- **Bike pulse** card is rendered only when the bike is the effective primary HR source
-  (`effectivePrimary === 'bike'` from `useWatchHrControls`).
 - Smart Bike and Bluetooth HR cards are always present (muted when not saved).
 
 ## Gear / HR-Source Tiles
@@ -185,22 +183,24 @@ Each tile shows a **leading Ionicons icon box** (mirroring Home's `DeviceCard`),
 a **`kind`** sub-label, and a right-pinned **`StatusPill`** (`scheme="noir"`). The selected HR
 source's kind reads "`<kind> · primary`" — an explicit selection cue alongside the accent bar. The
 trainer device is labelled **Smart Bike** everywhere it appears (Home card title, this section's
-label, the Training connection footer); the bike-derived HR source keeps its distinct name **Bike
-pulse**. Two distinct interactions, two distinct affordances:
+label, the Training connection footer). Two distinct interactions, two distinct affordances:
 
 - **Selection** (HR sources only): tap the tile body → it becomes the primary source, shown by a
   **4px leading accent bar** (`primary`) + `primarySubtle` tint + bold `primary` name. **No radio.**
-  Exactly one HR source selected at a time. a11y: `accessibilityState={{ selected }}`. Until the
-  user picks one, the selected tile is the **effective default** — the availability-ranked fallback
-  `watch → bluetooth → bike` (`resolveEffectivePrimary`) — so a tile is always shown selected, never
-  "nothing selected". A primary that loses its backing device (e.g. a forgotten Bluetooth strap)
-  falls back to that default.
+  Exactly one HR source selected at a time. a11y: `accessibilityState={{ selected }}`. When at least
+  one source is available and the user hasn't picked one, the selected tile is the **effective
+  default** — the priority-ranked fallback `watch → bluetooth` (`resolveEffectivePrimary`). Watch
+  candidacy is **platform-based**, so a watch-capable iPhone defaults to **Apple Watch** (rendered
+  `Unavailable` until the companion connects) rather than showing nothing. Only when the platform has
+  no Watch *and* no saved strap is there **no HR source** — the Heart-Rate status then reads
+  **Not set up** (the "Add Bluetooth HR" CTA is the path forward). A primary that loses its backing
+  device (e.g. a forgotten Bluetooth strap) falls back to that default.
 - **Management** (only tiles that have actions — the Smart Bike and a Bluetooth strap): a **right-edge
   chevron** (`Ionicons` `chevron-down`/`chevron-up`, `textMuted` → `primary` when open) reveals
   Connect / Replace / Forget **inside** the tile on tap; the chevron rotates 180° when open.
   Action buttons are conditionally rendered (absent from the tree until expanded). The chevron is
   a separate press target from the body (expanding never selects).
-- Tiles with nothing to manage (**Apple Watch**, **Bike pulse**) have **no chevron**.
+- Tiles with nothing to manage (**Apple Watch**) have **no chevron**.
 - The **Smart Bike** tile is an **expander, not a selectable** — no accent bar; tapping it toggles its
   management; a11y: `accessibilityRole="button"` + `accessibilityState={{ expanded }}`.
 - **Empty slots use `AddGearTile`** (`src/ui/components/AddGearTile.tsx`) — a **dashed**, full-width

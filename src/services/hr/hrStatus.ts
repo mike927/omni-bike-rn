@@ -35,10 +35,11 @@ export interface HrSourceSummaryInput {
    */
   readonly reading: HrReading;
   /**
-   * The effective primary source for idle display. Always non-null — callers must
-   * resolve a default before calling (e.g. via `resolveEffectiveHrSource`).
+   * The effective primary source for idle display, or null when no HR source is
+   * available (no watch, no saved strap). Callers resolve this via
+   * `resolveEffectiveHrSource` / `resolveEffectivePrimary`.
    */
-  readonly primaryHrSource: HrSource;
+  readonly primaryHrSource: HrSource | null;
   readonly watchAvailability: WatchAvailability;
   readonly savedHrName: string | null;
   /** Whether a Bluetooth HR strap is currently connected. Used for idle BLE readiness. */
@@ -47,8 +48,6 @@ export interface HrSourceSummaryInput {
   readonly phase: TrainingPhase;
   /** Elapsed seconds in the current session. Used for the connecting-grace window. */
   readonly elapsedSeconds: number;
-  /** Whether the bike is currently connected. Used for idle bike-pulse readiness. */
-  readonly bikeConnected: boolean;
 }
 
 export interface HrSourceSummary {
@@ -63,8 +62,6 @@ export function hrSourceName(source: HrSource, savedHrName: string | null): stri
       return 'Apple Watch';
     case 'bluetooth':
       return savedHrName ?? 'Bluetooth HR';
-    case 'bike':
-      return 'Bike pulse';
   }
 }
 
@@ -72,7 +69,6 @@ export interface HrSourceIdleReadinessInput {
   readonly source: HrSource;
   readonly watchAvailability: WatchAvailability;
   readonly hrConnected: boolean;
-  readonly bikeConnected: boolean;
 }
 
 /**
@@ -84,15 +80,12 @@ export function hrSourceIdleReadiness({
   source,
   watchAvailability,
   hrConnected,
-  bikeConnected,
 }: HrSourceIdleReadinessInput): DeviceStatus {
   switch (source) {
     case 'watch':
       return watchAvailability === 'connected' ? 'ready' : 'unavailable';
     case 'bluetooth':
       return hrConnected ? 'ready' : 'unavailable';
-    case 'bike':
-      return bikeConnected ? 'ready' : 'unavailable';
   }
 }
 
@@ -108,7 +101,7 @@ export function hrSourceIdleReadiness({
  * Never falls back to a different source.
  *
  * Idle (`activeHrSource` is null): displays the effective primary source's
- * readiness status.
+ * readiness status, or "Heart rate · Not set up" when no source is available.
  */
 export function resolveHrSourceSummary({
   activeHrSource,
@@ -119,7 +112,6 @@ export function resolveHrSourceSummary({
   hrConnected,
   phase,
   elapsedSeconds,
-  bikeConnected,
 }: HrSourceSummaryInput): HrSourceSummary {
   // ── In-workout: locked source wins unconditionally ──────────────────────
   if (activeHrSource !== null) {
@@ -136,9 +128,14 @@ export function resolveHrSourceSummary({
     return { name: hrSourceName(activeHrSource, savedHrName), status };
   }
 
+  // ── Idle, no source available: nothing to select ────────────────────────
+  if (primaryHrSource === null) {
+    return { name: 'Heart rate', status: 'notSetUp' };
+  }
+
   // ── Idle: show primary source's readiness ────────────────────────────────
   return {
     name: hrSourceName(primaryHrSource, savedHrName),
-    status: hrSourceIdleReadiness({ source: primaryHrSource, watchAvailability, hrConnected, bikeConnected }),
+    status: hrSourceIdleReadiness({ source: primaryHrSource, watchAvailability, hrConnected }),
   };
 }

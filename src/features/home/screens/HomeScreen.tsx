@@ -6,7 +6,7 @@ import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
 import { bleDeviceStatus } from '../../../types/deviceStatus';
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { useWatchHrControls } from '../../gear/hooks/useWatchHrControls';
-import { hrSourceIdleReadiness, watchHrStatus } from '../../../services/hr/hrStatus';
+import { watchHrStatus } from '../../../services/hr/hrStatus';
 import { InterruptedSessionCard } from '../components/InterruptedSessionCard';
 import { DeviceCard } from '../components/DeviceCard';
 import { HomeHeader } from '../components/HomeHeader';
@@ -143,20 +143,6 @@ export function HomeScreen() {
               status={watchHrStatus(effectivePrimary === 'watch', watchAvailability ?? 'unavailable')}
               muted={effectivePrimary !== 'watch'}
               testID="device-watch"
-            />
-          ) : null}
-          {effectivePrimary === 'bike' ? (
-            <DeviceCard
-              icon="pulse"
-              name="Bike pulse"
-              kind="Heart Rate · From the bike"
-              status={hrSourceIdleReadiness({
-                source: 'bike',
-                watchAvailability: watchAvailability ?? 'unavailable',
-                hrConnected,
-                bikeConnected,
-              })}
-              testID="device-bikepulse"
             />
           ) : null}
         </View>

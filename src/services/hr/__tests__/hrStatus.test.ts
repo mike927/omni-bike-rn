@@ -40,7 +40,6 @@ describe('hrSourceIdleReadiness', () => {
         source: 'watch',
         watchAvailability: 'connected',
         hrConnected: false,
-        bikeConnected: false,
       }),
     ).toBe('ready');
   });
@@ -51,7 +50,6 @@ describe('hrSourceIdleReadiness', () => {
         source: 'watch',
         watchAvailability: 'unavailable',
         hrConnected: false,
-        bikeConnected: false,
       }),
     ).toBe('unavailable');
   });
@@ -62,7 +60,6 @@ describe('hrSourceIdleReadiness', () => {
         source: 'bluetooth',
         watchAvailability: 'unavailable',
         hrConnected: true,
-        bikeConnected: false,
       }),
     ).toBe('ready');
   });
@@ -73,29 +70,6 @@ describe('hrSourceIdleReadiness', () => {
         source: 'bluetooth',
         watchAvailability: 'unavailable',
         hrConnected: false,
-        bikeConnected: false,
-      }),
-    ).toBe('unavailable');
-  });
-
-  it('bike connected → ready', () => {
-    expect(
-      hrSourceIdleReadiness({
-        source: 'bike',
-        watchAvailability: 'unavailable',
-        hrConnected: false,
-        bikeConnected: true,
-      }),
-    ).toBe('ready');
-  });
-
-  it('bike disconnected → unavailable', () => {
-    expect(
-      hrSourceIdleReadiness({
-        source: 'bike',
-        watchAvailability: 'unavailable',
-        hrConnected: false,
-        bikeConnected: false,
       }),
     ).toBe('unavailable');
   });
@@ -133,39 +107,31 @@ describe('resolveHrSourceSummary', () => {
     live: false,
     awaitingFirstReading: false,
   };
-  const liveBikeReading = {
-    source: 'bike' as const,
-    bpm: 135,
-    live: true,
-    awaitingFirstReading: false,
-  };
-  const deadBikeReading = {
-    source: 'bike' as const,
+  const noSourceReading = {
+    source: null,
     bpm: null,
     live: false,
-    awaitingFirstReading: false,
+    awaitingFirstReading: true,
   };
 
-  // Common idle base: phase=Idle, elapsedSeconds=0, bikeConnected=true
+  // Common idle base: phase=Idle, elapsedSeconds=0
   const idleBase = {
-    primaryHrSource: 'bike' as const,
+    primaryHrSource: 'watch' as const,
     watchAvailability: 'unavailable' as const,
     savedHrName: null,
     hrConnected: false,
     phase: TrainingPhase.Idle,
     elapsedSeconds: 0,
-    bikeConnected: true,
   };
 
   // Common in-workout base: phase=Active, elapsedSeconds=60
   const activeBase = {
-    primaryHrSource: 'bike' as const,
+    primaryHrSource: 'watch' as const,
     watchAvailability: 'connected' as const,
     savedHrName: null,
     hrConnected: false,
     phase: TrainingPhase.Active,
     elapsedSeconds: 60,
-    bikeConnected: true,
   };
 
   describe('in-workout (activeHrSource is set)', () => {
@@ -215,38 +181,16 @@ describe('resolveHrSourceSummary', () => {
       ).toEqual({ name: 'Bluetooth HR', status: 'noSignal' });
     });
 
-    it('bike locked + live → Bike pulse · ready', () => {
-      expect(
-        resolveHrSourceSummary({
-          activeHrSource: 'bike',
-          reading: liveBikeReading,
-          ...activeBase,
-          watchAvailability: 'unavailable',
-        }),
-      ).toEqual({ name: 'Bike pulse', status: 'ready' });
-    });
-
-    it('bike locked + no signal → Bike pulse · noSignal', () => {
-      expect(
-        resolveHrSourceSummary({
-          activeHrSource: 'bike',
-          reading: deadBikeReading,
-          ...activeBase,
-          watchAvailability: 'unavailable',
-        }),
-      ).toEqual({ name: 'Bike pulse', status: 'noSignal' });
-    });
-
     it('never returns a different source than the locked one regardless of other signals', () => {
       const result = resolveHrSourceSummary({
-        activeHrSource: 'bike',
-        reading: liveBikeReading,
+        activeHrSource: 'bluetooth',
+        reading: liveBtReading,
         ...activeBase,
         watchAvailability: 'connected',
         savedHrName: 'Garmin HRM',
         hrConnected: true,
       });
-      expect(result.name).toBe('Bike pulse');
+      expect(result.name).toBe('Garmin HRM');
     });
 
     it('in-workout ignores primaryHrSource entirely', () => {
@@ -263,7 +207,7 @@ describe('resolveHrSourceSummary', () => {
       ).toEqual({ name: 'Garmin HRM', status: 'ready' });
     });
 
-    // NEW: paused state
+    // paused state
     it('in-workout + phase Paused (any reading) → paused', () => {
       expect(
         resolveHrSourceSummary({
@@ -286,7 +230,7 @@ describe('resolveHrSourceSummary', () => {
       ).toEqual({ name: 'Apple Watch', status: 'paused' });
     });
 
-    // NEW: connecting state (awaitingFirstReading + within grace)
+    // connecting state (awaitingFirstReading + within grace)
     it('in-workout, awaitingFirstReading, elapsedSeconds <= grace → connecting', () => {
       expect(
         resolveHrSourceSummary({
@@ -309,7 +253,7 @@ describe('resolveHrSourceSummary', () => {
       ).toEqual({ name: 'Apple Watch', status: 'connecting' });
     });
 
-    // NEW: grace expired → noSignal
+    // grace expired → noSignal
     it('in-workout, awaitingFirstReading, elapsedSeconds > grace → noSignal', () => {
       expect(
         resolveHrSourceSummary({
@@ -321,7 +265,7 @@ describe('resolveHrSourceSummary', () => {
       ).toEqual({ name: 'Apple Watch', status: 'noSignal' });
     });
 
-    // NEW: had signal then lost it (not awaiting) → noSignal regardless of elapsed
+    // had signal then lost it (not awaiting) → noSignal regardless of elapsed
     it('in-workout, NOT awaiting (lost signal), any elapsed → noSignal', () => {
       expect(
         resolveHrSourceSummary({
@@ -400,30 +344,18 @@ describe('resolveHrSourceSummary', () => {
       ).toEqual({ name: 'Bluetooth HR', status: 'unavailable' });
     });
 
-    it('primary bike + bikeConnected → Bike pulse · ready', () => {
+    it('no primary source available → Heart rate · notSetUp', () => {
+      // No watch, no saved strap → there is no HR source to show.
       expect(
         resolveHrSourceSummary({
           activeHrSource: null,
-          reading: deadBikeReading,
+          reading: noSourceReading,
           ...idleBase,
-          primaryHrSource: 'bike',
+          primaryHrSource: null,
           watchAvailability: 'unavailable',
-          bikeConnected: true,
+          hrConnected: false,
         }),
-      ).toEqual({ name: 'Bike pulse', status: 'ready' });
-    });
-
-    it('primary bike + bikeConnected false → Bike pulse · unavailable', () => {
-      expect(
-        resolveHrSourceSummary({
-          activeHrSource: null,
-          reading: deadBikeReading,
-          ...idleBase,
-          primaryHrSource: 'bike',
-          watchAvailability: 'unavailable',
-          bikeConnected: false,
-        }),
-      ).toEqual({ name: 'Bike pulse', status: 'unavailable' });
+      ).toEqual({ name: 'Heart rate', status: 'notSetUp' });
     });
   });
 });

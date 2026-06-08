@@ -7,6 +7,7 @@ import { useTrainingSessionStore } from '../../../../store/trainingSessionStore'
 import { useHrSourceStore } from '../../../../store/hrSourceStore';
 import { useSavedGearStore } from '../../../../store/savedGearStore';
 import { TrainingPhase } from '../../../../types/training';
+import { HR_NO_SIGNAL_TIMEOUT_MS } from '../../../../services/hr/hrSource';
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
 
@@ -218,8 +219,12 @@ describe('useWatchHr', () => {
       expect(WatchHrAdapter.mock.instances).toHaveLength(0);
     });
 
-    it('does not start the stream when phase transitions to Active but the effective primary is not watch', async () => {
-      useHrSourceStore.setState({ primary: 'bike', hydrated: true });
+    it('does not start the stream when phase transitions to Active but no HR source is available', async () => {
+      // No watch, no saved strap → effective primary is null, so the Watch stream
+      // must not start.
+      getIsAppleWatchAvailableMock().mockReturnValue(false);
+      useHrSourceStore.setState({ primary: null, hydrated: true });
+      useSavedGearStore.setState({ savedHrSource: null });
 
       const { rerender } = renderHook(() => useWatchHr());
 
@@ -397,7 +402,11 @@ describe('useWatchHr', () => {
         expect(inst?.connect).toHaveBeenCalled();
       });
 
+      // Switch to a Bluetooth primary backed by a saved strap so the effective
+      // source genuinely moves off watch (a strapless bluetooth primary would fall
+      // back to the watch default on this watch-capable platform).
       act(() => {
+        useSavedGearStore.setState({ savedHrSource: SAVED_STRAP });
         useHrSourceStore.setState({ primary: 'bluetooth' });
       });
       rerender({});
@@ -410,6 +419,9 @@ describe('useWatchHr', () => {
 
     it('cancels a pending start when primary changes away from watch before connect resolves', async () => {
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
+      // A saved strap so the away-from-watch switch below resolves to bluetooth
+      // (not back to the watch default on this watch-capable platform).
+      useSavedGearStore.setState({ savedHrSource: SAVED_STRAP });
 
       let resolveConnect: (() => void) | null = null;
       const connectPromise = new Promise<void>((resolve) => {
@@ -441,7 +453,7 @@ describe('useWatchHr', () => {
       });
 
       act(() => {
-        useHrSourceStore.setState({ primary: null });
+        useHrSourceStore.setState({ primary: 'bluetooth' });
       });
       rerender({});
 
@@ -548,23 +560,6 @@ describe('useWatchHr', () => {
       expect(WatchHrAdapter.mock.instances).toHaveLength(0);
     });
 
-    it('locks activeHrSource to bike primary', async () => {
-      useHrSourceStore.setState({ primary: 'bike', hydrated: true });
-
-      const { rerender } = renderHook(() => useWatchHr());
-
-      act(() => {
-        useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
-      });
-      rerender({});
-
-      await act(async () => {
-        await Promise.resolve();
-      });
-
-      expect(useDeviceConnectionStore.getState().activeHrSource).toBe('bike');
-    });
-
     it('unlocks activeHrSource (sets null) when session finishes', async () => {
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
@@ -640,7 +635,9 @@ describe('useWatchHr', () => {
     // `if (!watchAvailable) return;` guard, so it was never set on those platforms.
     it('locks and unlocks activeHrSource on platforms where Watch is not available', async () => {
       getIsAppleWatchAvailableMock().mockReturnValue(false);
-      useHrSourceStore.setState({ primary: 'bike', hydrated: true });
+      // A Bluetooth strap is the non-watch primary that is valid on a no-watch platform.
+      useHrSourceStore.setState({ primary: 'bluetooth', hydrated: true });
+      useSavedGearStore.setState({ savedHrSource: SAVED_STRAP });
 
       const { rerender } = renderHook(() => useWatchHr());
 
@@ -654,7 +651,7 @@ describe('useWatchHr', () => {
         await Promise.resolve();
       });
 
-      expect(useDeviceConnectionStore.getState().activeHrSource).toBe('bike');
+      expect(useDeviceConnectionStore.getState().activeHrSource).toBe('bluetooth');
 
       // Finished: lock must clear
       act(() => {
@@ -761,6 +758,41 @@ describe('useWatchHr', () => {
       await waitFor(() => {
         expect(getWatchConnectivityMock().resumeMirroredWorkout).toHaveBeenCalledTimes(1);
       });
+    });
+
+    it('coalesces a rapid pause/resume spam into a single final command (debounce)', async () => {
+      // A rapid Active⇄Paused toggle used to fire a pause/resume on every transition,
+      // flooding the Watch and (via a session.pause()-while-paused race) killing its
+      // HKWorkoutSession. The phone now debounces so only the settled, final intent is sent.
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
+      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+
+      const { rerender } = renderHook(() => useWatchHr());
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      const wc = getWatchConnectivityMock();
+      wc.pauseMirroredWorkout.mockClear();
+      wc.resumeMirroredWorkout.mockClear();
+
+      // Spam faster than the debounce window, ending on Active (final intent = resume).
+      const spam = [TrainingPhase.Paused, TrainingPhase.Active, TrainingPhase.Paused, TrainingPhase.Active];
+      for (const next of spam) {
+        act(() => {
+          useTrainingSessionStore.setState({ phase: next } as never);
+        });
+        rerender({});
+      }
+
+      await act(async () => {
+        jest.advanceTimersByTime(1_000);
+        await Promise.resolve();
+      });
+
+      // Exactly one command, matching the final phase; the intermediate toggles are dropped.
+      expect(wc.resumeMirroredWorkout).toHaveBeenCalledTimes(1);
+      expect(wc.pauseMirroredWorkout).toHaveBeenCalledTimes(0);
     });
   });
 
@@ -1069,9 +1101,11 @@ describe('useWatchHr', () => {
       });
     });
 
-    it('does not start the stream on mount when the effective default is not watch (no primary, Watch unavailable)', async () => {
-      // No explicit primary + Watch unavailable → default resolves to bike, not watch.
+    it('does not start the stream on mount when there is no HR source (no watch platform, no primary, no strap)', async () => {
+      // No watch platform + no explicit primary + no strap → effective source is null.
+      getIsAppleWatchAvailableMock().mockReturnValue(false);
       useHrSourceStore.setState({ primary: null, hydrated: true });
+      useSavedGearStore.setState({ savedHrSource: null });
       useDeviceConnectionStore.setState({ watchAvailability: 'unavailable' });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
@@ -1085,6 +1119,120 @@ describe('useWatchHr', () => {
         WatchHrAdapter: jest.Mock;
       };
       expect(WatchHrAdapter.mock.instances).toHaveLength(0);
+    });
+  });
+
+  describe('mid-ride HR drop recovery (T-03)', () => {
+    function getWatchHrAdapterMock() {
+      return (
+        jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
+          WatchHrAdapter: jest.Mock;
+        }
+      ).WatchHrAdapter;
+    }
+
+    // Drive a watch-primary Active ride to a live stream and deliver one HR sample,
+    // so `lastAppleWatchSampleAtMs` is set (the stream is "established and producing").
+    async function startLiveWatchStreamAndDeliverSample() {
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
+      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+
+      const view = renderHook(() => useWatchHr());
+      const WatchHrAdapter = getWatchHrAdapterMock();
+
+      await waitFor(() => {
+        const inst = WatchHrAdapter.mock.results[0]?.value as { connect: jest.Mock } | undefined;
+        expect(inst?.connect).toHaveBeenCalled();
+      });
+
+      const subscribeToHeartRate = (WatchHrAdapter.mock.results[0]?.value as { subscribeToHeartRate: jest.Mock })
+        .subscribeToHeartRate;
+      const hrCallback = subscribeToHeartRate.mock.calls[0]?.[0] as ((hr: number) => void) | undefined;
+      act(() => {
+        hrCallback?.(150);
+      });
+      expect(useDeviceConnectionStore.getState().latestAppleWatchHr).toBe(150);
+
+      return view;
+    }
+
+    it('reconnects when an established HR stream goes silent past the freshness window', async () => {
+      await startLiveWatchStreamAndDeliverSample();
+      const WatchHrAdapter = getWatchHrAdapterMock();
+      const adaptersBeforeDrop = WatchHrAdapter.mock.instances.length; // 1 — the live stream
+
+      // The Watch drops silently (no disconnect event), so the stream goes quiet.
+      // Once the silence exceeds the freshness window the drop watchdog must treat
+      // the (still non-null) adapter as dropped and reconnect — building a new adapter.
+      await act(async () => {
+        jest.advanceTimersByTime(HR_NO_SIGNAL_TIMEOUT_MS + 10_000);
+        await Promise.resolve();
+      });
+
+      expect(WatchHrAdapter.mock.instances.length).toBeGreaterThan(adaptersBeforeDrop);
+    });
+
+    it('does not reconnect on silence while Paused (pause silence is legitimate, not a drop)', async () => {
+      const { rerender } = await startLiveWatchStreamAndDeliverSample();
+      const WatchHrAdapter = getWatchHrAdapterMock();
+      const adaptersBeforePause = WatchHrAdapter.mock.instances.length;
+
+      act(() => {
+        useTrainingSessionStore.setState({ phase: TrainingPhase.Paused } as never);
+      });
+      rerender({});
+
+      // HR collection is suspended while paused, so the stream is silent by design.
+      await act(async () => {
+        jest.advanceTimersByTime(HR_NO_SIGNAL_TIMEOUT_MS + 10_000);
+        await Promise.resolve();
+      });
+
+      expect(WatchHrAdapter.mock.instances.length).toBe(adaptersBeforePause);
+    });
+
+    it('backs off between drop reconnects — no per-tick storm while still silent', async () => {
+      await startLiveWatchStreamAndDeliverSample();
+      const WatchHrAdapter = getWatchHrAdapterMock();
+      const before = WatchHrAdapter.mock.instances.length; // 1
+
+      // First stretch of silence past the window → exactly one reconnect (not one per tick).
+      await act(async () => {
+        jest.advanceTimersByTime(HR_NO_SIGNAL_TIMEOUT_MS + 10_000);
+        await Promise.resolve();
+      });
+      expect(WatchHrAdapter.mock.instances.length).toBe(before + 1);
+
+      // The reconnect's stream also stays silent (no new sample delivered). Advancing
+      // less than another freshness window must NOT reconnect again — the backoff holds.
+      await act(async () => {
+        jest.advanceTimersByTime(5_000);
+        await Promise.resolve();
+      });
+      expect(WatchHrAdapter.mock.instances.length).toBe(before + 1);
+    });
+
+    it('does not reconnect before the first sample arrives (Connecting…, not a drop)', async () => {
+      // adapterRef is set (connect resolved) but no HR sample has landed yet, so
+      // lastAppleWatchSampleAtMs stays null. That is the "Connecting…" state — owned by
+      // the reachability retry — not a drop, so the watchdog must leave it alone.
+      useHrSourceStore.setState({ primary: 'watch', hydrated: true });
+      useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
+      renderHook(() => useWatchHr());
+      const WatchHrAdapter = getWatchHrAdapterMock();
+
+      await waitFor(() => {
+        const inst = WatchHrAdapter.mock.results[0]?.value as { connect: jest.Mock } | undefined;
+        expect(inst?.connect).toHaveBeenCalled();
+      });
+      const before = WatchHrAdapter.mock.instances.length; // 1, no sample delivered
+
+      await act(async () => {
+        jest.advanceTimersByTime(HR_NO_SIGNAL_TIMEOUT_MS * 3);
+        await Promise.resolve();
+      });
+
+      expect(WatchHrAdapter.mock.instances.length).toBe(before);
     });
   });
 });
