@@ -37,7 +37,6 @@ export function TrainingDashboardScreen() {
   const {
     bikeConnected,
     hrConnected,
-    latestBikeMetrics,
     latestBluetoothHr,
     latestAppleWatchHr,
     lastAppleWatchSampleAtMs,
@@ -61,11 +60,11 @@ export function TrainingDashboardScreen() {
     lastAppleWatchSampleAtMs: lastAppleWatchSampleAtMs ?? null,
     latestBluetoothHr: latestBluetoothHr ?? null,
     lastBluetoothHrSampleAtMs: lastBluetoothHrSampleAtMs ?? null,
-    bikeHeartRate: latestBikeMetrics?.heartRate ?? null,
     nowMs: Date.now(),
   });
 
-  // effectiveHrSource is always non-null; pass it directly as the idle primary.
+  // effectiveHrSource may be null when no HR source is available; the summary
+  // renders that as "Heart rate · Not set up".
   const hrSummary = resolveHrSourceSummary({
     activeHrSource,
     reading,
@@ -75,7 +74,6 @@ export function TrainingDashboardScreen() {
     hrConnected,
     phase: session.phase,
     elapsedSeconds: session.elapsedSeconds,
-    bikeConnected,
   });
 
   // Diagnostic: log every HR-tile status transition so the in-workout state machine

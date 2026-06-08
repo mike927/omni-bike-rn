@@ -14,8 +14,8 @@ function strapNameFrom(savedHrSource: { name: string } | null): string | null {
   return savedHrSource?.name ?? null;
 }
 
-/** Reactive effective *primary* HR source (user choice → availability default; no session lock). */
-export function useEffectivePrimary(): HrSource {
+/** Reactive effective *primary* HR source (user choice → availability default; no session lock). Null when none available. */
+export function useEffectivePrimary(): HrSource | null {
   const primaryHrSource = useHrSourceStore((s) => s.primary);
   const watchAvailability = useDeviceConnectionStore((s) => s.watchAvailability);
   const savedHrSource = useSavedGearStore((s) => s.savedHrSource);
@@ -26,8 +26,8 @@ export function useEffectivePrimary(): HrSource {
   });
 }
 
-/** Reactive effective HR source including the per-session lock. */
-export function useEffectiveHrSource(): HrSource {
+/** Reactive effective HR source including the per-session lock. Null when none available. */
+export function useEffectiveHrSource(): HrSource | null {
   const activeHrSource = useDeviceConnectionStore((s) => s.activeHrSource);
   const primaryHrSource = useHrSourceStore((s) => s.primary);
   const watchAvailability = useDeviceConnectionStore((s) => s.watchAvailability);
@@ -44,7 +44,7 @@ export function useEffectiveHrSource(): HrSource {
  * Non-reactive effective HR source for services outside React (the
  * MetronomeEngine 1 Hz loop). Reads the same stores via `getState`.
  */
-export function getEffectiveHrSource(): HrSource {
+export function getEffectiveHrSource(): HrSource | null {
   const { activeHrSource, watchAvailability } = useDeviceConnectionStore.getState();
   const { primary } = useHrSourceStore.getState();
   const { savedHrSource } = useSavedGearStore.getState();

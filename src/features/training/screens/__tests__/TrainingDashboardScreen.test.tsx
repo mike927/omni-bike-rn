@@ -438,20 +438,13 @@ describe('TrainingDashboardScreen', () => {
     expect(getByLabelText('Polar H10: Ready')).toBeTruthy();
   });
 
-  it('shows "Bike pulse · Ready" in idle when no primary, watch unavailable, no saved gear, bike connected', () => {
-    // Bike pulse becomes the idle default; ready only when bike is connected.
+  it('shows "Heart rate · Not set up" in idle when no HR source is available (no watch, no strap)', () => {
+    // No primary, watch unavailable, no saved strap → no HR source to show; the
+    // bike connection is irrelevant to HR readiness now.
     Object.assign(mockDeviceConnection, { bikeConnected: true });
     const { getByLabelText } = render(<TrainingDashboardScreen />);
 
-    expect(getByLabelText('Bike pulse: Ready')).toBeTruthy();
-  });
-
-  it('shows "Bike pulse · Unavailable" in idle when bike is not connected', () => {
-    // Bike pulse becomes the idle default; shows Unavailable when bike is disconnected.
-    Object.assign(mockDeviceConnection, { bikeConnected: false });
-    const { getByLabelText } = render(<TrainingDashboardScreen />);
-
-    expect(getByLabelText('Bike pulse: Unavailable')).toBeTruthy();
+    expect(getByLabelText('Heart rate: Not set up')).toBeTruthy();
   });
 
   it('does not show Watch when bluetooth is locked mid-ride (locked source wins)', () => {

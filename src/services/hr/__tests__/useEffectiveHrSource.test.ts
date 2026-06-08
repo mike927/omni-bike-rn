@@ -9,8 +9,8 @@ import type { SavedDevice } from '../../../types/gear';
 const STRAP: SavedDevice = { id: 'hr-1', name: 'Polar H10', type: 'hr' };
 
 function setStores(opts: {
-  activeHrSource?: 'watch' | 'bluetooth' | 'bike' | null;
-  primary?: 'watch' | 'bluetooth' | 'bike' | null;
+  activeHrSource?: 'watch' | 'bluetooth' | null;
+  primary?: 'watch' | 'bluetooth' | null;
   watchAvailability?: 'connected' | 'unavailable';
   savedHrSource?: SavedDevice | null;
 }) {
@@ -32,9 +32,9 @@ describe('useEffectiveHrSource adapter', () => {
       setStores({ activeHrSource: null, primary: 'watch', watchAvailability: 'connected' });
       expect(getEffectiveHrSource()).toBe('watch');
     });
-    it('drops a stale bluetooth primary when no strap is saved', () => {
+    it('returns null when a stale bluetooth primary has no strap and no watch', () => {
       setStores({ activeHrSource: null, primary: 'bluetooth', watchAvailability: 'unavailable', savedHrSource: null });
-      expect(getEffectiveHrSource()).toBe('bike');
+      expect(getEffectiveHrSource()).toBeNull();
     });
   });
 
@@ -44,18 +44,18 @@ describe('useEffectiveHrSource adapter', () => {
       const { result } = renderHook(() => useEffectivePrimary());
       expect(result.current).toBe('bluetooth');
     });
-    it('falls back to bike when watch unavailable and no strap', () => {
+    it('returns null when watch unavailable and no strap', () => {
       setStores({ primary: null, savedHrSource: null, watchAvailability: 'unavailable' });
       const { result } = renderHook(() => useEffectivePrimary());
-      expect(result.current).toBe('bike');
+      expect(result.current).toBeNull();
     });
   });
 
   describe('useEffectiveHrSource (reactive)', () => {
     it('honors the active lock', () => {
-      setStores({ activeHrSource: 'bike', primary: 'watch', watchAvailability: 'connected' });
+      setStores({ activeHrSource: 'bluetooth', primary: 'watch', watchAvailability: 'connected' });
       const { result } = renderHook(() => useEffectiveHrSource());
-      expect(result.current).toBe('bike');
+      expect(result.current).toBe('bluetooth');
     });
   });
 });

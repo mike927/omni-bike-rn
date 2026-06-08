@@ -219,8 +219,12 @@ describe('useWatchHr', () => {
       expect(WatchHrAdapter.mock.instances).toHaveLength(0);
     });
 
-    it('does not start the stream when phase transitions to Active but the effective primary is not watch', async () => {
-      useHrSourceStore.setState({ primary: 'bike', hydrated: true });
+    it('does not start the stream when phase transitions to Active but no HR source is available', async () => {
+      // No watch, no saved strap → effective primary is null, so the Watch stream
+      // must not start.
+      getIsAppleWatchAvailableMock().mockReturnValue(false);
+      useHrSourceStore.setState({ primary: null, hydrated: true });
+      useSavedGearStore.setState({ savedHrSource: null });
 
       const { rerender } = renderHook(() => useWatchHr());
 
@@ -549,23 +553,6 @@ describe('useWatchHr', () => {
       expect(WatchHrAdapter.mock.instances).toHaveLength(0);
     });
 
-    it('locks activeHrSource to bike primary', async () => {
-      useHrSourceStore.setState({ primary: 'bike', hydrated: true });
-
-      const { rerender } = renderHook(() => useWatchHr());
-
-      act(() => {
-        useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
-      });
-      rerender({});
-
-      await act(async () => {
-        await Promise.resolve();
-      });
-
-      expect(useDeviceConnectionStore.getState().activeHrSource).toBe('bike');
-    });
-
     it('unlocks activeHrSource (sets null) when session finishes', async () => {
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
@@ -641,7 +628,9 @@ describe('useWatchHr', () => {
     // `if (!watchAvailable) return;` guard, so it was never set on those platforms.
     it('locks and unlocks activeHrSource on platforms where Watch is not available', async () => {
       getIsAppleWatchAvailableMock().mockReturnValue(false);
-      useHrSourceStore.setState({ primary: 'bike', hydrated: true });
+      // A Bluetooth strap is the non-watch primary that is valid on a no-watch platform.
+      useHrSourceStore.setState({ primary: 'bluetooth', hydrated: true });
+      useSavedGearStore.setState({ savedHrSource: SAVED_STRAP });
 
       const { rerender } = renderHook(() => useWatchHr());
 
@@ -655,7 +644,7 @@ describe('useWatchHr', () => {
         await Promise.resolve();
       });
 
-      expect(useDeviceConnectionStore.getState().activeHrSource).toBe('bike');
+      expect(useDeviceConnectionStore.getState().activeHrSource).toBe('bluetooth');
 
       // Finished: lock must clear
       act(() => {

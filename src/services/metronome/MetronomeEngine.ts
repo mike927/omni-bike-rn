@@ -67,7 +67,6 @@ export class MetronomeEngine {
       lastAppleWatchSampleAtMs,
       latestBluetoothHr,
       lastBluetoothHrSampleAtMs,
-      bikeHeartRate: latestBikeMetrics?.heartRate ?? null,
       nowMs,
     });
 
@@ -111,10 +110,9 @@ export class MetronomeEngine {
     const bikeTotalEnergyKcal = bikeMetrics?.totalEnergyKcal ?? null;
 
     const heartRate = hrReading.bpm;
-    // External HR is live when the locked source has a fresh signal AND it is
-    // not the bike's own built-in sensor (which doesn't need an external HR
-    // device to produce calorie estimates).
-    const hasLiveExternalHr = hrReading.live && hrReading.source !== 'bike';
+    // External HR is live when the resolved source (Apple Watch or a Bluetooth
+    // strap) has a fresh signal. A null source has live === false.
+    const hasLiveExternalHr = hrReading.live;
 
     return {
       metrics: {
