@@ -26,6 +26,7 @@ import { EffortStatTile } from '../components/EffortStatTile';
 import { PowerTrend } from '../components/PowerTrend';
 import { RideCompleteHero } from '../components/RideCompleteHero';
 import { deriveSummaryView } from './summaryViewModel';
+import { isAppleHealthSupported } from '../../../services/health/isAppleHealthSupported';
 
 const HOME_ROUTE = '/';
 const SETTINGS_ROUTE = '/(tabs)/settings';
@@ -63,6 +64,7 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: Readonly<
   const [isUploading, setIsUploading] = useState(false);
   const [isUploadingAppleHealth, setIsUploadingAppleHealth] = useState(false);
   const isPostFinishSource = source === POST_FINISH_TRAINING_SUMMARY_SOURCE;
+  const appleHealthSupported = isAppleHealthSupported();
   const primaryActionLabel = isPostFinishSource ? 'Save' : 'Done';
   const exitRoute = returnTo ?? HOME_ROUTE;
 
@@ -293,18 +295,20 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: Readonly<
               }}
             />
           </View>
-          <View style={styles.shareBtn}>
-            <ActionButton
-              scheme="noir"
-              variant="secondary"
-              fullWidth
-              label={uploadButtonLabel(APPLE_HEALTH_PROVIDER_LABEL, appleHealthUpload, isUploadingAppleHealth)}
-              disabled={isUploadingAppleHealth || appleHealthUpload?.uploadState === 'uploaded'}
-              onPress={() => {
-                void handleUploadToAppleHealth();
-              }}
-            />
-          </View>
+          {appleHealthSupported ? (
+            <View style={styles.shareBtn}>
+              <ActionButton
+                scheme="noir"
+                variant="secondary"
+                fullWidth
+                label={uploadButtonLabel(APPLE_HEALTH_PROVIDER_LABEL, appleHealthUpload, isUploadingAppleHealth)}
+                disabled={isUploadingAppleHealth || appleHealthUpload?.uploadState === 'uploaded'}
+                onPress={() => {
+                  void handleUploadToAppleHealth();
+                }}
+              />
+            </View>
+          ) : null}
         </View>
         {stravaFailed ? <Text style={styles.failedCaption}>{stravaFailed}</Text> : null}
         {appleFailed ? <Text style={styles.failedCaption}>{appleFailed}</Text> : null}
