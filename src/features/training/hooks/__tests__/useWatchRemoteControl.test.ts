@@ -7,10 +7,15 @@ import { useWatchRemoteControl, type WatchRemoteControlHandlers } from '../useWa
 type ControlPayload = { action: string; sentAtMs?: number };
 type ControlListener = (payload: ControlPayload) => void;
 
+let mockWcAvailable = true;
+
 jest.mock('watch-connectivity', () => {
   const listeners: Record<string, ControlListener> = {};
   return {
     __listeners: listeners,
+    get isWatchConnectivityAvailable() {
+      return mockWcAvailable;
+    },
     WatchConnectivity: {
       addListener: jest.fn((event: string, cb: ControlListener) => {
         listeners[event] = cb;
@@ -38,6 +43,7 @@ function emit(action: string) {
 }
 
 beforeEach(() => {
+  mockWcAvailable = true;
   jest.clearAllMocks();
   for (const key of Object.keys(getMock().__listeners)) {
     delete getMock().__listeners[key];
@@ -125,5 +131,12 @@ describe('useWatchRemoteControl', () => {
     const sub = getMock().WatchConnectivity.addListener.mock.results[0]?.value as { remove: jest.Mock };
     unmount();
     expect(sub.remove).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not subscribe (and does not throw) when unavailable (Android)', () => {
+    mockWcAvailable = false;
+    const handlers = makeHandlers();
+    expect(() => renderHook(() => useWatchRemoteControl(handlers))).not.toThrow();
+    expect(getMock().WatchConnectivity.addListener).not.toHaveBeenCalled();
   });
 });

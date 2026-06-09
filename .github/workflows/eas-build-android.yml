@@ -1,0 +1,61 @@
+name: EAS Build Android (manual)
+
+# Optional, manually-triggered build. Fire it from the Actions tab -> "Run workflow"
+# (pick the branch) once that branch's checks are green. The CI gate runs first and the
+# EAS build only starts if it passes, so the build is the last step once CI is green.
+# Requires an EXPO_TOKEN repository secret (expo.dev -> account -> Access tokens).
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: EAS build profile
+        type: choice
+        default: preview
+        options:
+          - preview
+          - development
+
+jobs:
+  ci-gate:
+    name: CI Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+      - name: Run CI gate
+        run: npm run ci:gate
+
+  build:
+    name: EAS Build (Android)
+    needs: ci-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Trigger EAS build (cloud, non-blocking)
+        run: eas build --platform android --profile ${{ inputs.profile }} --non-interactive --no-wait

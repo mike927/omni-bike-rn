@@ -25,6 +25,7 @@ import { SwipeableGearRow } from '../components/SwipeableGearRow';
 import { ProfileCard } from '../components/ProfileCard';
 import { IntegrationRow } from '../components/IntegrationRow';
 import { LinkedBikeBlock } from '../components/LinkedBikeBlock';
+import { isAppleHealthSupported } from '../../../services/health/isAppleHealthSupported';
 
 const HR_ICON = { bluetooth: 'heart', watch: 'watch' } as const;
 const HR_KIND = {
@@ -81,6 +82,7 @@ export function SettingsScreen() {
     errorMessage: providerBikeErrorMessage,
     openProviderGearManagement,
   } = useProviderBikeLinking('strava', savedBike);
+  const appleHealthSupported = isAppleHealthSupported();
 
   const handleStravaConnect = async () => {
     const result = await connect();
@@ -281,6 +283,7 @@ export function SettingsScreen() {
           appleHealthLoading={appleHealthLoading}
           onAppleHealthConnect={() => void handleAppleHealthConnect()}
           onAppleHealthDisconnect={() => void handleAppleHealthDisconnect()}
+          appleHealthSupported={appleHealthSupported}
         />
       </ScrollView>
     </SafeAreaView>
@@ -308,6 +311,7 @@ interface IntegrationsSectionProps {
   readonly appleHealthLoading: boolean;
   readonly onAppleHealthConnect: () => void;
   readonly onAppleHealthDisconnect: () => void;
+  readonly appleHealthSupported: boolean;
 }
 
 function IntegrationsSection({
@@ -327,6 +331,7 @@ function IntegrationsSection({
   appleHealthLoading,
   onAppleHealthConnect,
   onAppleHealthDisconnect,
+  appleHealthSupported,
 }: IntegrationsSectionProps) {
   const stravaStatusLabel = stravaConnected
     ? athleteName
@@ -396,13 +401,15 @@ function IntegrationsSection({
         ) : null}
       </IntegrationRow>
 
-      <IntegrationRow
-        icon={<Ionicons name="heart" size={22} color={noir.ink3} />}
-        name="Apple Health"
-        connected={appleHealthConnected}
-        statusLabel={appleHealthConnected ? 'Connected' : 'Not connected'}
-        action={appleHealthAction}
-      />
+      {appleHealthSupported ? (
+        <IntegrationRow
+          icon={<Ionicons name="heart" size={22} color={noir.ink3} />}
+          name="Apple Health"
+          connected={appleHealthConnected}
+          statusLabel={appleHealthConnected ? 'Connected' : 'Not connected'}
+          action={appleHealthAction}
+        />
+      ) : null}
     </>
   );
 }

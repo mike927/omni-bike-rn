@@ -14,6 +14,7 @@ import { useUserProfileStore } from '../../../store/userProfileStore';
 import type { BiologicalSex, ProfileFieldSource } from '../../../types/userProfile';
 import { AthleteHeroCard } from '../components/AthleteHeroCard';
 import { deriveProfileView } from './userProfileViewModel';
+import { isAppleHealthSupported } from '../../../services/health/isAppleHealthSupported';
 
 const SOURCE_LABELS: Record<ProfileFieldSource, string> = {
   'apple-health': 'Apple Health',
@@ -244,6 +245,20 @@ type SyncStatus =
   | { kind: 'success'; source: 'apple-health' | 'strava'; fieldCount: number }
   | { kind: 'error'; source: 'apple-health' | 'strava'; message: string };
 
+/**
+ * True when no sync provider is connected. Apple Health only counts where it is
+ * supported (iOS) — on Android the connection store has no real backing, so its
+ * value must not gate the "no provider connected" empty-state hint.
+ */
+function hasNoProviderConnected(
+  appleHealthSupported: boolean,
+  appleHealthConnected: boolean,
+  stravaConnected: boolean,
+): boolean {
+  const appleHealthActive = appleHealthSupported && appleHealthConnected;
+  return !appleHealthActive && !stravaConnected;
+}
+
 export function UserProfileScreen() {
   const router = useRouter();
   const profile = useUserProfileStore((s) => s.profile);
@@ -253,13 +268,14 @@ export function UserProfileScreen() {
   const stravaConnected = useStravaConnectionStore((s) => s.connected);
 
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({ kind: 'idle' });
+  const appleHealthSupported = isAppleHealthSupported();
 
   const isEmpty = useMemo(
     () =>
       profile.sex === null && profile.dateOfBirth === null && profile.weightKg === null && profile.heightCm === null,
     [profile.sex, profile.dateOfBirth, profile.weightKg, profile.heightCm],
   );
-  const noProviderConnected = !appleHealthConnected && !stravaConnected;
+  const noProviderConnected = hasNoProviderConnected(appleHealthSupported, appleHealthConnected, stravaConnected);
 
   const handleSyncFromAppleHealth = async () => {
     setSyncStatus({ kind: 'syncing', source: 'apple-health' });
@@ -317,7 +333,9 @@ export function UserProfileScreen() {
           <View style={styles.card}>
             {noProviderConnected ? (
               <Text style={styles.helperText}>
-                Connect Apple Health or Strava in Settings to sync your profile, or fill in the fields below manually.
+                {appleHealthSupported
+                  ? 'Connect Apple Health or Strava in Settings to sync your profile, or fill in the fields below manually.'
+                  : 'Connect Strava in Settings to sync your profile, or fill in the fields below manually.'}
               </Text>
             ) : (
               <Text style={styles.helperText}>
@@ -326,17 +344,19 @@ export function UserProfileScreen() {
               </Text>
             )}
             <View style={styles.syncButtonRow}>
-              <ActionButton
-                label={
-                  syncStatus.kind === 'syncing' && syncStatus.source === 'apple-health'
-                    ? 'Syncing…'
-                    : 'Sync from Apple Health'
-                }
-                scheme="noir"
-                variant="secondary"
-                disabled={!appleHealthConnected || syncStatus.kind === 'syncing'}
-                onPress={handleSyncFromAppleHealth}
-              />
+              {appleHealthSupported ? (
+                <ActionButton
+                  label={
+                    syncStatus.kind === 'syncing' && syncStatus.source === 'apple-health'
+                      ? 'Syncing…'
+                      : 'Sync from Apple Health'
+                  }
+                  scheme="noir"
+                  variant="secondary"
+                  disabled={!appleHealthConnected || syncStatus.kind === 'syncing'}
+                  onPress={handleSyncFromAppleHealth}
+                />
+              ) : null}
               <ActionButton
                 label={
                   syncStatus.kind === 'syncing' && syncStatus.source === 'strava' ? 'Syncing…' : 'Sync from Strava'

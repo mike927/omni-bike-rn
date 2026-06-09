@@ -1,4 +1,4 @@
-import { NativeModule, requireNativeModule } from 'expo-modules-core';
+import { NativeModule, requireOptionalNativeModule } from 'expo-modules-core';
 
 export type WatchHrPayload = { hr: number };
 export type WatchActiveKcalPayload = { activeKcal: number };
@@ -63,4 +63,19 @@ declare class WatchConnectivityNativeModule extends NativeModule<WatchConnectivi
   resumeMirroredWorkout(): Promise<void>;
 }
 
-export const WatchConnectivity = requireNativeModule<WatchConnectivityNativeModule>('WatchConnectivity');
+const watchConnectivityModule = requireOptionalNativeModule<WatchConnectivityNativeModule>('WatchConnectivity');
+
+/**
+ * True when the WatchConnectivity native module is linked (iOS). Consumers that
+ * are NOT already behind an `isAppleWatchAvailable` guard MUST check this before
+ * dereferencing `WatchConnectivity` — on Android the module is absent.
+ */
+export const isWatchConnectivityAvailable: boolean = watchConnectivityModule !== null;
+
+/**
+ * The WatchConnectivity native module. Typed non-null for the iOS-gated call
+ * sites (useWatchHr, WatchHrAdapter) that only run when `isAppleWatchAvailable`.
+ * On Android this is null at runtime; never dereference it without first
+ * checking `isWatchConnectivityAvailable` / `isAppleWatchAvailable`.
+ */
+export const WatchConnectivity = watchConnectivityModule as WatchConnectivityNativeModule;

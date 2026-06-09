@@ -1,4 +1,4 @@
-import { NativeModule, requireNativeModule } from 'expo-modules-core';
+import { NativeModule, requireOptionalNativeModule } from 'expo-modules-core';
 
 export interface HeartRateSampleInput {
   /** Beats per minute (positive). Samples with bpm <= 0 or outside [startDate, endDate] are dropped. */
@@ -71,4 +71,15 @@ declare class AppleHealthWorkoutNativeModule extends NativeModule {
   saveCyclingWorkout(options: SaveCyclingWorkoutOptions): Promise<string>;
 }
 
-export const AppleHealthWorkout = requireNativeModule<AppleHealthWorkoutNativeModule>('AppleHealthWorkout');
+const appleHealthWorkoutModule = requireOptionalNativeModule<AppleHealthWorkoutNativeModule>('AppleHealthWorkout');
+
+/** True when the AppleHealthWorkout native module is linked (iOS). */
+export const isAppleHealthWorkoutAvailable: boolean = appleHealthWorkoutModule !== null;
+
+/**
+ * The AppleHealthWorkout native module. Typed non-null for iOS-only callers in
+ * appleHealthAdapter, which only run behind Apple-Health UI/provider gating.
+ * Null at runtime on Android — never dereference without checking
+ * `isAppleHealthWorkoutAvailable`.
+ */
+export const AppleHealthWorkout = appleHealthWorkoutModule as AppleHealthWorkoutNativeModule;
