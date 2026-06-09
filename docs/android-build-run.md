@@ -58,14 +58,15 @@ EAS auto-generates the Android keystore on first build. When it finishes you get
 URL/QR. **Gotcha:** EAS runs `npm ci` (strict on peer deps) — the React 19 conflict errors the
 *Install dependencies* phase unless `.npmrc` contains `legacy-peer-deps=true` (it does; keep it).
 
-### Automated builds on merge
+### Manual build via GitHub Actions
 
-`.eas/workflows/build-android-preview.yml` is an **EAS Workflow** that builds a fresh `preview`
-APK on every push to `main` (i.e. when a PR merges) — on EAS infrastructure, pulling Strava from
-the `preview` EAS environment. **Prerequisite:** the GitHub repo must be connected to the EAS
-project (Expo dashboard → project → GitHub) or the `push` trigger never fires. **Note:** every
-merge consumes an EAS build credit (relevant on the Free plan) — gate the trigger to tags or
-`workflow_dispatch` if that becomes a concern.
+`.github/workflows/eas-build-android.yml` is a **manually-triggered** workflow: GitHub →
+**Actions** tab → **"EAS Build Android (manual)"** → **Run workflow** (pick the branch + profile,
+`preview` by default). It runs the **CI gate first** and only triggers the EAS build if it passes —
+so the build is a deliberate last step once checks are green. Kept manual (not auto-on-merge) to
+respect the Free plan's **15 Android builds/month**. **Requires** an `EXPO_TOKEN` repo secret
+(expo.dev → account → Access tokens → add it under GitHub repo Settings → Secrets and variables →
+Actions). The build runs on EAS (`--no-wait`), so the Action finishes fast and you watch it on expo.dev.
 
 ## Install & run on a device
 
