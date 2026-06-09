@@ -37,7 +37,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       backgroundColor: '#0b0e13',
     },
     edgeToEdgeEnabled: true,
+    // Disabled: the app uses a custom swipe-to-reveal row gesture (SwipeableRow);
+    // Android's predictive back gesture would fight it. Back nav still works.
     predictiveBackGestureEnabled: false,
+    // Legacy Bluetooth permissions for Android <= 11 only. The Android 12+ runtime
+    // permissions (BLUETOOTH_SCAN + BLUETOOTH_CONNECT, plus the ACCESS_FINE/COARSE_LOCATION
+    // fallback for <31) are injected into the manifest by the `react-native-ble-plx`
+    // config plugin (below) and requested at runtime in `useBlePermission` — ble-plx
+    // does NOT auto-request them, so without that runtime call BLE scan fails silently.
     permissions: [
       'android.permission.BLUETOOTH',
       'android.permission.BLUETOOTH_ADMIN',
@@ -80,8 +87,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     eas: {
       projectId: 'f6bf8618-33f0-423d-8763-592bb701a1e9',
     },
-    // Register a Strava API application at https://www.strava.com/settings/api
-    // then set these environment variables (or EAS secrets for CI builds).
+    // Register a Strava API application at https://www.strava.com/settings/api,
+    // then provide these as local env vars (`.env`) for local builds, or push them
+    // to EAS per-environment for cloud builds: `eas env:push <preview|development> --path .env`.
     stravaClientId: process.env.STRAVA_CLIENT_ID ?? '',
     stravaClientSecret: process.env.STRAVA_CLIENT_SECRET ?? '',
     stravaCallbackDomain: process.env.STRAVA_CALLBACK_DOMAIN ?? DEFAULT_STRAVA_CALLBACK_DOMAIN,
