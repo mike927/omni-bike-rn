@@ -395,3 +395,22 @@ The pushed **User Profile** and **Link Provider Bike** screens are now Calm Noir
 `headerShown: false` with a `noir.bg` `contentStyle` and their own in-screen back header (see their
 sections below). The **only** surface still on the old light `palette` is the root `_layout`
 error/loading fallback (small placeholder views, not a full screen).
+
+## Platform-conditional surfaces (iOS-only features)
+
+Some integrations have no Android equivalent and are **hidden on Android** rather than shown as
+dead UI — the app degrades to its core ride experience (BLE bike + BLE HR strap + training + history
++ Strava). Gating is centralized in two predicates, not scattered `Platform.OS` checks:
+
+- **`isAppleWatchAvailable(Platform.OS)`** — Apple Watch as an HR source and the on-wrist
+  Pause/Resume/End remote. On Android the HR-source picker simply omits the "watch" tile
+  (`availableHrSources` only offers it when supported); BLE strap is the only HR source.
+- **`isAppleHealthSupported(Platform.OS)`** — Apple Health (HealthKit) workout sync. On Android the
+  app hides: the Settings **Apple Health** integration row, the User-Profile **Sync from Apple
+  Health** button (and its empty-state copy), the Training-Summary **Save to Apple Health** button
+  (and its failed caption), and the **Apple Health** glyph in History rows. The Apple Health export
+  provider is also not registered.
+
+Strava and all BLE surfaces are cross-platform and always shown. Dark mode is enforced on Android via
+`expo-system-ui` (so `userInterfaceStyle: 'dark'` themes native surfaces — alerts, pickers — to match
+Calm Noir).
