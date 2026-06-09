@@ -52,6 +52,12 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      # `eas build` evaluates app.config.ts locally (to resolve config plugins like
+      # expo-router) before uploading, so node_modules must be installed here.
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
       - name: Setup EAS
         uses: expo/expo-github-action@v8
         with:
