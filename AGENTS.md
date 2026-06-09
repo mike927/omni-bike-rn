@@ -46,6 +46,8 @@ Run scripts via `npm run <name>` — see `package.json` for the full list. The o
 
 Default to `npm run ios` (device build) when an iPhone is detected via `xcrun devicectl list devices`. Otherwise fall back to `npm run ios:sim`.
 
+For a standalone on-device build with no Metro server (Release config), use `npm run ios:release`.
+
 ## Git workflow
 
 - **Branch before editing.** New feature/fix work starts on a fresh branch off `main` (`feat/…`, `fix/…`, `chore/…`, `docs/…`) — never edit on `main`, never defer branching to commit time.

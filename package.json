@@ -6,6 +6,7 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios --device",
+    "ios:release": "expo run:ios --device --configuration Release --no-bundler",
     "ios:sim": "expo run:ios",
     "apple-health:pull-logs": "node scripts/pull-apple-health-diagnostics.mjs",
     "skills:install": "node scripts/install-skills.mjs",
