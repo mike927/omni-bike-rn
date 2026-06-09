@@ -6,6 +6,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'Omni Bike',
   slug: 'omni-bike-rn',
+  owner: 'mikee927',
   scheme: 'omnibike',
   version: '1.0.0',
   orientation: 'portrait',
@@ -76,6 +77,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
   ],
   extra: {
+    eas: {
+      projectId: 'f6bf8618-33f0-423d-8763-592bb701a1e9',
+    },
     // Register a Strava API application at https://www.strava.com/settings/api
     // then set these environment variables (or EAS secrets for CI builds).
     stravaClientId: process.env.STRAVA_CLIENT_ID ?? '',
