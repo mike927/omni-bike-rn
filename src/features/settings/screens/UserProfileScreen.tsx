@@ -261,7 +261,7 @@ export function UserProfileScreen() {
       profile.sex === null && profile.dateOfBirth === null && profile.weightKg === null && profile.heightCm === null,
     [profile.sex, profile.dateOfBirth, profile.weightKg, profile.heightCm],
   );
-  const noProviderConnected = !appleHealthConnected && !stravaConnected;
+  const noProviderConnected = (appleHealthSupported ? !appleHealthConnected : true) && !stravaConnected;
 
   const handleSyncFromAppleHealth = async () => {
     setSyncStatus({ kind: 'syncing', source: 'apple-health' });

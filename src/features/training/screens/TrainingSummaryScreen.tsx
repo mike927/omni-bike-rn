@@ -311,7 +311,7 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: Readonly<
           ) : null}
         </View>
         {stravaFailed ? <Text style={styles.failedCaption}>{stravaFailed}</Text> : null}
-        {appleFailed ? <Text style={styles.failedCaption}>{appleFailed}</Text> : null}
+        {appleHealthSupported && appleFailed ? <Text style={styles.failedCaption}>{appleFailed}</Text> : null}
         {vm.gearLabel ? <Text style={styles.gearCaption}>Recorded on {vm.gearLabel}</Text> : null}
       </ScrollView>
 

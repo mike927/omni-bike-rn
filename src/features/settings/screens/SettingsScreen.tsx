@@ -78,6 +78,7 @@ export function SettingsScreen() {
     errorMessage: providerBikeErrorMessage,
     openProviderGearManagement,
   } = useProviderBikeLinking('strava', savedBike);
+  const appleHealthSupported = isAppleHealthSupported();
 
   const handleStravaConnect = async () => {
     const result = await connect();
@@ -278,7 +279,7 @@ export function SettingsScreen() {
           appleHealthLoading={appleHealthLoading}
           onAppleHealthConnect={() => void handleAppleHealthConnect()}
           onAppleHealthDisconnect={() => void handleAppleHealthDisconnect()}
-          appleHealthSupported={isAppleHealthSupported()}
+          appleHealthSupported={appleHealthSupported}
         />
       </ScrollView>
     </SafeAreaView>
