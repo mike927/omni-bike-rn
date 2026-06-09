@@ -10,6 +10,7 @@ import {
 } from '../../../services/export/providerIds';
 import { noir } from '../../../ui/theme';
 import type { ProviderStatusIconsProps } from './ProviderStatusIcons.types';
+import { isAppleHealthSupported } from '../../../services/health/isAppleHealthSupported';
 
 const ICON_SIZE = 18;
 
@@ -69,7 +70,9 @@ export function ProviderStatusIcons({ uploadedProviderIds }: Readonly<ProviderSt
 
   return (
     <View style={styles.container}>
-      {KNOWN_PROVIDER_DISPLAY_ORDER.map((providerId) => renderProviderIcon(providerId, uploadedSet.has(providerId)))}
+      {KNOWN_PROVIDER_DISPLAY_ORDER.filter(
+        (providerId) => providerId !== APPLE_HEALTH_PROVIDER_ID || isAppleHealthSupported(),
+      ).map((providerId) => renderProviderIcon(providerId, uploadedSet.has(providerId)))}
     </View>
   );
 }
