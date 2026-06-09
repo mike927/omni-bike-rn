@@ -35,8 +35,8 @@ Strava secrets — the cloud build can't read local `.env`, so push them per env
 (values stay on your machine + your EAS account):
 
 ```bash
-npx eas-cli env:push development --path .env --force
-npx eas-cli env:push preview     --path .env --force
+npm run eas:env:push:dev        # → eas env:push development --path .env
+npm run eas:env:push:preview    # → eas env:push preview --path .env
 # verify names only (values stay hidden):
 npx eas-cli env:list preview | grep -oE 'STRAVA_[A-Z_]+'
 ```
@@ -48,10 +48,10 @@ npx eas-cli env:list preview | grep -oE 'STRAVA_[A-Z_]+'
 
 ```bash
 # Standalone, install-and-open (recommended for just running it):
-npx eas-cli build --platform android --profile preview --non-interactive
+npm run eas:build:android       # → eas build --platform android --profile preview
 
 # Dev client (needs Metro; gives live logs for verification):
-npx eas-cli build --platform android --profile development --non-interactive
+npm run eas:build:android:dev   # → ... --profile development
 ```
 
 EAS auto-generates the Android keystore on first build. When it finishes you get an install

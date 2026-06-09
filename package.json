@@ -18,6 +18,10 @@
     "test:changed": "jest --changedSince=main",
     "ci:gate": "npm run lint && npm run typecheck && npm test -- --ci --runInBand",
     "build:smoke": "expo prebuild && expo export -p ios -p android",
+    "eas:build:android": "npx eas-cli build --platform android --profile preview",
+    "eas:build:android:dev": "npx eas-cli build --platform android --profile development",
+    "eas:env:push:preview": "npx eas-cli env:push preview --path .env",
+    "eas:env:push:dev": "npx eas-cli env:push development --path .env",
     "postinstall": "node scripts/postinstall.mjs",
     "prepare": "husky"
   },
