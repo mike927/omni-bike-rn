@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import { WatchConnectivity, type WatchControlRequestPayload } from 'watch-connectivity';
+import { WatchConnectivity, isWatchConnectivityAvailable, type WatchControlRequestPayload } from 'watch-connectivity';
 
 import { logWc } from '../../../services/watch/wcLog';
 
@@ -38,6 +38,7 @@ export function useWatchRemoteControl(handlers: WatchRemoteControlHandlers): voi
   }, [handlers]);
 
   useEffect(() => {
+    if (!isWatchConnectivityAvailable) return;
     const sub = WatchConnectivity.addListener(
       'onWatchControlRequest',
       ({ action, sentAtMs }: WatchControlRequestPayload) => {
