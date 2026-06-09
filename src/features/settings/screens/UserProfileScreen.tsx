@@ -14,6 +14,7 @@ import { useUserProfileStore } from '../../../store/userProfileStore';
 import type { BiologicalSex, ProfileFieldSource } from '../../../types/userProfile';
 import { AthleteHeroCard } from '../components/AthleteHeroCard';
 import { deriveProfileView } from './userProfileViewModel';
+import { isAppleHealthSupported } from '../../../services/health/isAppleHealthSupported';
 
 const SOURCE_LABELS: Record<ProfileFieldSource, string> = {
   'apple-health': 'Apple Health',
@@ -253,6 +254,7 @@ export function UserProfileScreen() {
   const stravaConnected = useStravaConnectionStore((s) => s.connected);
 
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({ kind: 'idle' });
+  const appleHealthSupported = isAppleHealthSupported();
 
   const isEmpty = useMemo(
     () =>
@@ -317,7 +319,9 @@ export function UserProfileScreen() {
           <View style={styles.card}>
             {noProviderConnected ? (
               <Text style={styles.helperText}>
-                Connect Apple Health or Strava in Settings to sync your profile, or fill in the fields below manually.
+                {appleHealthSupported
+                  ? 'Connect Apple Health or Strava in Settings to sync your profile, or fill in the fields below manually.'
+                  : 'Connect Strava in Settings to sync your profile, or fill in the fields below manually.'}
               </Text>
             ) : (
               <Text style={styles.helperText}>
@@ -326,17 +330,19 @@ export function UserProfileScreen() {
               </Text>
             )}
             <View style={styles.syncButtonRow}>
-              <ActionButton
-                label={
-                  syncStatus.kind === 'syncing' && syncStatus.source === 'apple-health'
-                    ? 'Syncing…'
-                    : 'Sync from Apple Health'
-                }
-                scheme="noir"
-                variant="secondary"
-                disabled={!appleHealthConnected || syncStatus.kind === 'syncing'}
-                onPress={handleSyncFromAppleHealth}
-              />
+              {appleHealthSupported ? (
+                <ActionButton
+                  label={
+                    syncStatus.kind === 'syncing' && syncStatus.source === 'apple-health'
+                      ? 'Syncing…'
+                      : 'Sync from Apple Health'
+                  }
+                  scheme="noir"
+                  variant="secondary"
+                  disabled={!appleHealthConnected || syncStatus.kind === 'syncing'}
+                  onPress={handleSyncFromAppleHealth}
+                />
+              ) : null}
               <ActionButton
                 label={
                   syncStatus.kind === 'syncing' && syncStatus.source === 'strava' ? 'Syncing…' : 'Sync from Strava'
