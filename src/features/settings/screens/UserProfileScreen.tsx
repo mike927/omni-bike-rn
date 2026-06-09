@@ -245,6 +245,20 @@ type SyncStatus =
   | { kind: 'success'; source: 'apple-health' | 'strava'; fieldCount: number }
   | { kind: 'error'; source: 'apple-health' | 'strava'; message: string };
 
+/**
+ * True when no sync provider is connected. Apple Health only counts where it is
+ * supported (iOS) — on Android the connection store has no real backing, so its
+ * value must not gate the "no provider connected" empty-state hint.
+ */
+function hasNoProviderConnected(
+  appleHealthSupported: boolean,
+  appleHealthConnected: boolean,
+  stravaConnected: boolean,
+): boolean {
+  const appleHealthActive = appleHealthSupported && appleHealthConnected;
+  return !appleHealthActive && !stravaConnected;
+}
+
 export function UserProfileScreen() {
   const router = useRouter();
   const profile = useUserProfileStore((s) => s.profile);
@@ -261,7 +275,7 @@ export function UserProfileScreen() {
       profile.sex === null && profile.dateOfBirth === null && profile.weightKg === null && profile.heightCm === null,
     [profile.sex, profile.dateOfBirth, profile.weightKg, profile.heightCm],
   );
-  const noProviderConnected = (appleHealthSupported ? !appleHealthConnected : true) && !stravaConnected;
+  const noProviderConnected = hasNoProviderConnected(appleHealthSupported, appleHealthConnected, stravaConnected);
 
   const handleSyncFromAppleHealth = async () => {
     setSyncStatus({ kind: 'syncing', source: 'apple-health' });

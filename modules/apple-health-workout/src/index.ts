@@ -74,7 +74,7 @@ declare class AppleHealthWorkoutNativeModule extends NativeModule {
 const appleHealthWorkoutModule = requireOptionalNativeModule<AppleHealthWorkoutNativeModule>('AppleHealthWorkout');
 
 /** True when the AppleHealthWorkout native module is linked (iOS). */
-export const isAppleHealthWorkoutAvailable: boolean = appleHealthWorkoutModule != null;
+export const isAppleHealthWorkoutAvailable: boolean = appleHealthWorkoutModule !== null;
 
 /**
  * The AppleHealthWorkout native module. Typed non-null for iOS-only callers in

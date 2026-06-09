@@ -70,7 +70,7 @@ const watchConnectivityModule = requireOptionalNativeModule<WatchConnectivityNat
  * are NOT already behind an `isAppleWatchAvailable` guard MUST check this before
  * dereferencing `WatchConnectivity` — on Android the module is absent.
  */
-export const isWatchConnectivityAvailable: boolean = watchConnectivityModule != null;
+export const isWatchConnectivityAvailable: boolean = watchConnectivityModule !== null;
 
 /**
  * The WatchConnectivity native module. Typed non-null for the iOS-gated call
