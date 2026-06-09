@@ -27,6 +27,7 @@ jest.mock('../../../services/profile/userProfileStorage', () => ({
 }));
 
 jest.mock('apple-health-workout', () => ({
+  isAppleHealthWorkoutAvailable: true,
   AppleHealthWorkout: {
     saveCyclingWorkout: jest.fn(),
     requestHealthKitAuthorization: jest.fn(() => Promise.resolve()),

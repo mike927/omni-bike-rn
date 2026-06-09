@@ -1,7 +1,12 @@
 import { NativeModules } from 'react-native';
 import type { HealthKitPermissions, HealthStatusResult } from 'react-native-health';
 
-import { AppleHealthWorkout, type CyclingQuantitySampleInput, type HeartRateSampleInput } from 'apple-health-workout';
+import {
+  AppleHealthWorkout,
+  isAppleHealthWorkoutAvailable,
+  type CyclingQuantitySampleInput,
+  type HeartRateSampleInput,
+} from 'apple-health-workout';
 import {
   appendAppleHealthDiagnostic,
   getAppleHealthDiagnosticsRelativePath,
@@ -113,6 +118,12 @@ function getHealthKit(): HealthKitNativeModule {
   }
 
   return healthKit;
+}
+
+function assertAppleHealthAvailable(): void {
+  if (!isAppleHealthWorkoutAvailable) {
+    throw new Error('Apple Health is only available on iOS.');
+  }
 }
 
 function formatHealthKitErrorMessage(error: HealthKitErrorLike, fallbackMessage: string): string {
@@ -251,6 +262,7 @@ async function requestHealthKitAuthorization(): Promise<void> {
 let initPromise: Promise<void> | null = null;
 
 export async function initWithWritePermissions(): Promise<void> {
+  assertAppleHealthAvailable();
   if (initPromise) return initPromise;
   initPromise = requestHealthKitAuthorization().catch((error: unknown) => {
     initPromise = null;
@@ -348,6 +360,7 @@ export async function saveWorkout(
   session: PersistedTrainingSession,
   samples: PersistedTrainingSample[],
 ): Promise<SaveWorkoutResult> {
+  assertAppleHealthAvailable();
   const startDate = new Date(session.startedAtMs).toISOString();
   const endDateMs = session.endedAtMs ?? session.startedAtMs + session.elapsedSeconds * 1000;
   const endDate = new Date(endDateMs).toISOString();
@@ -457,6 +470,7 @@ export async function getLatestHeightCm(): Promise<number | null> {
 }
 
 export async function loadProfileFromAppleHealth(): Promise<AppleHealthProfilePartial> {
+  assertAppleHealthAvailable();
   // Block on init so the four characteristic-type reads don't run before iOS
   // has prompted for the new Sex / DOB / Weight / Height read permissions.
   // Without this, on app upgrade the auto-sync runs to completion before the
