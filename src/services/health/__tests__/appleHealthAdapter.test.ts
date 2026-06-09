@@ -26,8 +26,12 @@ jest.mock('../../../services/profile/userProfileStorage', () => ({
   saveUserProfile: jest.fn().mockResolvedValue(undefined),
 }));
 
+let mockAppleHealthAvailable = true;
+
 jest.mock('apple-health-workout', () => ({
-  isAppleHealthWorkoutAvailable: true,
+  get isAppleHealthWorkoutAvailable() {
+    return mockAppleHealthAvailable;
+  },
   AppleHealthWorkout: {
     saveCyclingWorkout: jest.fn(),
     requestHealthKitAuthorization: jest.fn(() => Promise.resolve()),
@@ -87,6 +91,7 @@ function buildSample(index: number, overrides: SampleOverrides = {}): PersistedT
 }
 
 beforeEach(() => {
+  mockAppleHealthAvailable = true;
   jest.clearAllMocks();
   __resetHealthKitInitPromiseForTests();
   NativeModules.AppleHealthKit = {
@@ -138,6 +143,12 @@ describe('initWithWritePermissions', () => {
     mockRequestAuth.mockResolvedValueOnce(undefined);
     await expect(initWithWritePermissions()).resolves.toBeUndefined();
     expect(mockRequestAuth).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects with the iOS-only message when Apple Health is unavailable (Android)', async () => {
+    mockAppleHealthAvailable = false;
+    await expect(initWithWritePermissions()).rejects.toThrow('Apple Health is only available on iOS.');
+    expect(mockRequestAuth).not.toHaveBeenCalled();
   });
 });
 
@@ -202,6 +213,12 @@ describe('saveWorkout', () => {
   it('rejects when the native module rejects', async () => {
     mockSaveCyclingWorkout.mockRejectedValue(new Error('not authorized'));
     await expect(saveWorkout(SESSION, [])).rejects.toThrow('not authorized');
+  });
+
+  it('rejects with the iOS-only message when Apple Health is unavailable (Android)', async () => {
+    mockAppleHealthAvailable = false;
+    await expect(saveWorkout(SESSION, [])).rejects.toThrow('Apple Health is only available on iOS.');
+    expect(mockSaveCyclingWorkout).not.toHaveBeenCalled();
   });
 
   it('queries basal energy via the native module (source-filtered) and forwards the value', async () => {

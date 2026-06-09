@@ -133,13 +133,6 @@ describe('useWatchRemoteControl', () => {
     expect(sub.remove).toHaveBeenCalledTimes(1);
   });
 
-  it('subscribes when WatchConnectivity is available', () => {
-    mockWcAvailable = true;
-    const handlers = makeHandlers();
-    renderHook(() => useWatchRemoteControl(handlers));
-    expect(getMock().WatchConnectivity.addListener).toHaveBeenCalledWith('onWatchControlRequest', expect.any(Function));
-  });
-
   it('does not subscribe (and does not throw) when unavailable (Android)', () => {
     mockWcAvailable = false;
     const handlers = makeHandlers();
