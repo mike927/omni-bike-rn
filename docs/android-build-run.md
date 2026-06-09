@@ -58,6 +58,15 @@ EAS auto-generates the Android keystore on first build. When it finishes you get
 URL/QR. **Gotcha:** EAS runs `npm ci` (strict on peer deps) — the React 19 conflict errors the
 *Install dependencies* phase unless `.npmrc` contains `legacy-peer-deps=true` (it does; keep it).
 
+### Automated builds on merge
+
+`.eas/workflows/build-android-preview.yml` is an **EAS Workflow** that builds a fresh `preview`
+APK on every push to `main` (i.e. when a PR merges) — on EAS infrastructure, pulling Strava from
+the `preview` EAS environment. **Prerequisite:** the GitHub repo must be connected to the EAS
+project (Expo dashboard → project → GitHub) or the `push` trigger never fires. **Note:** every
+merge consumes an EAS build credit (relevant on the Free plan) — gate the trigger to tags or
+`workflow_dispatch` if that becomes a concern.
+
 ## Install & run on a device
 
 - **`preview` APK:** open the build's install page on the phone → **Install** → allow "install
