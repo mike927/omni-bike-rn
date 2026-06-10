@@ -189,7 +189,7 @@ Each card shows: a **rounded icon box** (Ionicons glyph, `indigoSoft` tint), the
 primary ink (bold, single line, ellipsized), a **kind** sub-label (`ink3`, e.g. `Smart Bike`,
 `Heart Rate · Bluetooth sensor`), and a right-pinned `StatusPill` with `scheme="noir"`. When the device
 is not set up or not the effective source, the card is **muted**: the icon box and name shift to
-`ink3`/`#1d222b` to signal it is present but inactive.
+`ink3`/`noir.iconBox` (`#1d222b`) to signal it is present but inactive.
 
 Resolver-driven visibility (same rules as `SourceRow`):
 - **Apple Watch** card is rendered only when the Watch is a platform option (`watchAvailable` from

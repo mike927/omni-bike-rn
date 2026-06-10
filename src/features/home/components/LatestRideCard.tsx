@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 12,
   },
-  ctaPressed: { backgroundColor: '#232c3d' },
+  ctaPressed: { backgroundColor: noir.cardPress },
   ctaLabel: { color: noir.indigoText, fontSize: 14, fontWeight: '700' },
   emptyTitle: { color: noir.ink, fontSize: 15, fontWeight: '700' },
   emptyBody: { color: noir.ink2, fontSize: 13.5, lineHeight: 19, marginTop: 6 },

@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   ctaPressed: {
-    backgroundColor: '#232c3d',
+    backgroundColor: noir.cardPress,
   },
   ctaLabel: {
     color: noir.indigoText,
