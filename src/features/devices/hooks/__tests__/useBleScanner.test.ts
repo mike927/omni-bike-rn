@@ -172,4 +172,48 @@ describe('useBleScanner', () => {
       expect(result.current.isScanning).toBe(false);
     });
   });
+
+  describe('unmount cleanup', () => {
+    it('does not start (and does stop) a scan when unmount lands during the pre-scan await', async () => {
+      let resolveState!: (state: string) => void;
+      (bleManager.state as jest.Mock).mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveState = resolve;
+          }),
+      );
+
+      const { result, unmount } = renderHook(() => useBleScanner());
+
+      let scanPromise!: Promise<void>;
+      act(() => {
+        scanPromise = result.current.scanForDevices();
+      });
+
+      unmount();
+
+      await act(async () => {
+        resolveState('PoweredOn');
+        await scanPromise;
+      });
+
+      expect(bleManager.startDeviceScan).not.toHaveBeenCalled();
+      expect(bleManager.stopDeviceScan).toHaveBeenCalled();
+    });
+
+    it('stops the scan on unmount while actively scanning', async () => {
+      (bleManager.state as jest.Mock).mockResolvedValue('PoweredOn');
+
+      const { result, unmount } = renderHook(() => useBleScanner());
+
+      await act(async () => {
+        await result.current.scanForDevices();
+      });
+
+      (bleManager.stopDeviceScan as jest.Mock).mockClear();
+      unmount();
+
+      expect(bleManager.stopDeviceScan).toHaveBeenCalledTimes(1);
+    });
+  });
 });

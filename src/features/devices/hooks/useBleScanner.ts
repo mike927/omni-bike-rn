@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Device } from 'react-native-ble-plx';
 import { bleManager } from '../../../services/ble/bleClient';
 
@@ -8,10 +8,12 @@ export function useBleScanner(serviceUUIDs: string[] | null = null, clientFilter
   const [devices, setDevices] = useState<Device[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const unmountedRef = useRef(false);
 
   const scanForDevices = useCallback(async () => {
     try {
       const state = await bleManager.state();
+      if (unmountedRef.current) return;
       if (state !== 'PoweredOn') {
         setError(`Bluetooth is not powered on (Current state: ${state})`);
         return;
@@ -64,6 +66,7 @@ export function useBleScanner(serviceUUIDs: string[] | null = null, clientFilter
         });
       });
     } catch (err: unknown) {
+      if (unmountedRef.current) return;
       setError(err instanceof Error ? err.message : String(err));
       setIsScanning(false);
     }
@@ -74,14 +77,16 @@ export function useBleScanner(serviceUUIDs: string[] | null = null, clientFilter
     setIsScanning(false);
   }, []);
 
-  // Cleanup on unmount
+  // Idempotent teardown: stopDeviceScan is safe with no scan active, so stop
+  // unconditionally instead of trusting isScanning, which is stale when unmount
+  // lands during the pre-scan await.
   useEffect(() => {
+    unmountedRef.current = false;
     return () => {
-      if (isScanning) {
-        void bleManager.stopDeviceScan();
-      }
+      unmountedRef.current = true;
+      void bleManager.stopDeviceScan();
     };
-  }, [isScanning]);
+  }, []);
 
   return {
     devices,
