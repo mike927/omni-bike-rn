@@ -19,7 +19,7 @@ module.exports = {
     '^@expo/vector-icons$': '<rootDir>/src/__mocks__/@expo/vector-icons.tsx',
     '^expo-linear-gradient$': '<rootDir>/src/__mocks__/expo-linear-gradient.tsx',
   },
-  roots: ['<rootDir>/src'],
+  roots: ['<rootDir>/src', '<rootDir>/app'],
   testMatch: ['**/*.test.ts', '**/*.test.tsx'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
 };
