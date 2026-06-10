@@ -2,10 +2,10 @@ import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { GearType } from '../../../types/gear';
+import { StatusPill } from '../../../ui/components/StatusPill';
 import { noir } from '../../../ui/theme';
 import { BikeGlyph } from './BikeGlyph';
 import { HrGlyph } from './HrGlyph';
-import { NoirStatusPill } from './NoirStatusPill';
 
 export type NearbyDeviceRowState = 'idle' | 'connecting' | 'error';
 
@@ -75,7 +75,11 @@ export function NearbyDeviceRow({
           </Text>
         </View>
         {isConnecting ? (
-          <NoirStatusPill status="connecting" />
+          // Wrap the pill so the row's center alignment applies — StatusPill itself
+          // sets alignSelf:'flex-start', which would otherwise top-align it.
+          <View style={styles.pillSlot}>
+            <StatusPill status="connecting" scheme="noir" />
+          </View>
         ) : (
           <Text style={styles.action}>{isError ? 'Retry' : 'Select'}</Text>
         )}
@@ -103,7 +107,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 13,
-    backgroundColor: '#1d222b',
+    backgroundColor: noir.iconBox,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -112,5 +116,6 @@ const styles = StyleSheet.create({
   nameError: { color: noir.dangerSoft },
   id: { fontSize: 12.5, color: noir.ink3, marginTop: 2 },
   action: { fontSize: 13, fontWeight: '700', color: noir.indigoText, paddingHorizontal: 6 },
+  pillSlot: { justifyContent: 'center' },
   errorMsg: { fontSize: 12.5, lineHeight: 18, color: noir.dangerSoft },
 });

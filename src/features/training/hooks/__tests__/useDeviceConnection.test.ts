@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { useDeviceConnection } from '../useDeviceConnection';
 import { useDeviceConnectionStore } from '../../../../store/deviceConnectionStore';
 import { useSavedGearStore } from '../../../../store/savedGearStore';
+import { ConnectInProgressError } from '../../../../services/ble/ConnectInProgressError';
 
 const mockBikeConnect = jest.fn();
 const mockBikeDisconnect = jest.fn();
@@ -323,5 +324,92 @@ describe('useDeviceConnection', () => {
     expect(useSavedGearStore.getState().hrReconnectState).toBe('disconnected');
     expect(useSavedGearStore.getState().bikeAutoReconnectSuppressed).toBe(true);
     expect(useSavedGearStore.getState().hrAutoReconnectSuppressed).toBe(true);
+  });
+
+  it('rejects a second bike connect while one is already in flight', async () => {
+    let resolveFirstConnect!: () => void;
+    mockBikeConnect.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveFirstConnect = resolve;
+        }),
+    );
+    mockBikeSubscribe.mockReturnValue({ remove: jest.fn() });
+
+    const { result } = renderHook(() => useDeviceConnection());
+
+    let firstAttempt!: Promise<void>;
+    act(() => {
+      firstAttempt = result.current.connectBike('bike-1');
+    });
+    await waitFor(() => {
+      expect(useDeviceConnectionStore.getState().bikeConnectionInProgress).toBe(true);
+    });
+
+    await act(async () => {
+      await expect(result.current.connectBike('bike-2')).rejects.toBeInstanceOf(ConnectInProgressError);
+    });
+
+    await act(async () => {
+      resolveFirstConnect();
+      await firstAttempt;
+    });
+
+    expect(mockBikeConnect).toHaveBeenCalledTimes(1);
+    expect(useDeviceConnectionStore.getState().bikeConnectionInProgress).toBe(false);
+  });
+
+  it('rejects a second HR connect while one is already in flight', async () => {
+    let resolveFirstConnect!: () => void;
+    mockHrConnect.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveFirstConnect = resolve;
+        }),
+    );
+    mockHrSubscribe.mockReturnValue({ remove: jest.fn() });
+
+    const { result } = renderHook(() => useDeviceConnection());
+
+    let firstAttempt!: Promise<void>;
+    act(() => {
+      firstAttempt = result.current.connectHr('hr-1');
+    });
+    await waitFor(() => {
+      expect(useDeviceConnectionStore.getState().hrConnectionInProgress).toBe(true);
+    });
+
+    await act(async () => {
+      await expect(result.current.connectHr('hr-2')).rejects.toBeInstanceOf(ConnectInProgressError);
+    });
+
+    await act(async () => {
+      resolveFirstConnect();
+      await firstAttempt;
+    });
+
+    expect(mockHrConnect).toHaveBeenCalledTimes(1);
+    expect(useDeviceConnectionStore.getState().hrConnectionInProgress).toBe(false);
+  });
+
+  it('allows a new bike connect after a failed attempt resets the in-progress flag', async () => {
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockBikeConnect.mockRejectedValueOnce(new Error('boom'));
+    mockBikeSubscribe.mockReturnValue({ remove: jest.fn() });
+
+    const { result } = renderHook(() => useDeviceConnection());
+
+    await act(async () => {
+      await expect(result.current.connectBike('bike-1')).rejects.toThrow('boom');
+    });
+    expect(useDeviceConnectionStore.getState().bikeConnectionInProgress).toBe(false);
+
+    mockBikeConnect.mockResolvedValueOnce(undefined);
+    await act(async () => {
+      await result.current.connectBike('bike-1');
+    });
+
+    expect(mockBikeConnect).toHaveBeenCalledTimes(2);
+    consoleSpy.mockRestore();
   });
 });

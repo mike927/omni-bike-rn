@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { noir } from '../../../ui/theme';
+import { noir, noirPillTones } from '../../../ui/theme';
 import type { AccuracyTone, ProfileViewModel } from '../screens/userProfileViewModel';
 
 interface AccuracyToneColors {
@@ -12,7 +12,7 @@ interface AccuracyToneColors {
 const TONE_COLORS: Record<AccuracyTone, AccuracyToneColors> = {
   good: { dot: noir.mint, fg: noir.mintSoft, bg: 'rgba(16,181,164,0.12)' },
   working: { dot: noir.amber, fg: noir.amberSoft, bg: 'rgba(245,165,36,0.12)' },
-  inactive: { dot: '#4a5260', fg: noir.ink3, bg: 'rgba(255,255,255,0.04)' },
+  inactive: noirPillTones.inactive,
 };
 
 export function AthleteHeroCard({ vm }: Readonly<{ vm: ProfileViewModel }>) {

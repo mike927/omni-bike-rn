@@ -54,6 +54,10 @@ export const noir = {
   amberSoft: '#f7c46b',
   danger: '#ef4b5c',
   dangerSoft: '#ff8a93',
+  // Muted icon-chip fill for device/gear rows (slightly lighter than card).
+  iconBox: '#1d222b',
+  // Pressed-state fill for noir cards and CTAs.
+  cardPress: '#232c3d',
 } as const;
 
 export const noirGradient = {

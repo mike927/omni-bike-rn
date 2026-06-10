@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconBoxMuted: { backgroundColor: '#1d222b' },
+  iconBoxMuted: { backgroundColor: noir.iconBox },
   meta: { flex: 1, minWidth: 0 },
   name: { color: noir.ink, fontSize: 15, fontWeight: '700', letterSpacing: -0.1 },
   nameMuted: { color: noir.ink3 },
