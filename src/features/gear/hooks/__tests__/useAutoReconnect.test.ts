@@ -4,6 +4,7 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { useAutoReconnect } from '../useAutoReconnect';
 import { useDeviceConnectionStore } from '../../../../store/deviceConnectionStore';
 import { useSavedGearStore } from '../../../../store/savedGearStore';
+import { ConnectInProgressError } from '../../../../services/ble/ConnectInProgressError';
 
 const mockAppStateListeners: ((nextState: 'active' | 'background' | 'inactive') => void)[] = [];
 
@@ -211,6 +212,26 @@ describe('failed state', () => {
 
     expect(result.current.bikeReconnectState).toBe('connecting');
     expect(consoleErrorSpy).not.toHaveBeenCalledWith('[useAutoReconnect] Bike connect failed:', timeoutError);
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('treats ConnectInProgressError as a transient retry (disconnected), not a hard failure', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const busyError = new ConnectInProgressError('bike');
+
+    mockConnectBike.mockRejectedValue(busyError);
+    useSavedGearStore.setState({ savedBike: bike, hydrated: true });
+
+    const { result } = renderHook(() => useAutoReconnect());
+
+    // A busy signal is transient — keeps the cycle alive, not a hard failure.
+    await waitFor(() => {
+      expect(result.current.bikeReconnectState).toBe('connecting');
+    });
+
+    expect(result.current.bikeReconnectState).toBe('connecting');
+    expect(consoleErrorSpy).not.toHaveBeenCalledWith('[useAutoReconnect] Bike connect failed:', busyError);
 
     consoleErrorSpy.mockRestore();
   });

@@ -10,6 +10,7 @@ import type { DisconnectDeviceConnectionsOptions } from './DisconnectDeviceConne
 import type { Subscription } from 'react-native-ble-plx';
 import { isExpectedBleConnectTimeoutError } from '../../../services/ble/isExpectedBleConnectTimeoutError';
 import { isExpectedBleDisconnectError } from '../../../services/ble/isExpectedBleDisconnectError';
+import { ConnectInProgressError } from '../../../services/ble/ConnectInProgressError';
 import type { WatchAvailability } from '../../../types/watch';
 
 /** Active BLE subscriptions, managed outside React state to avoid teardown races. */
@@ -167,6 +168,11 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
 
   const connectBike = useCallback(
     async (deviceId: string, options?: BleConnectionOptions) => {
+      // A second connect while one is in flight would construct a competing
+      // adapter: the loser leaks its BLE connection and clobbers bikeMetricsSub.
+      if (useDeviceConnectionStore.getState().bikeConnectionInProgress) {
+        throw new ConnectInProgressError('bike');
+      }
       useDeviceConnectionStore.getState().setBikeConnectionInProgress(true);
       try {
         await disconnectBike();
@@ -195,6 +201,10 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
 
   const connectHr = useCallback(
     async (deviceId: string, options?: BleConnectionOptions) => {
+      // Same re-entrancy hazard as connectBike, for hrSub.
+      if (useDeviceConnectionStore.getState().hrConnectionInProgress) {
+        throw new ConnectInProgressError('hr');
+      }
       useDeviceConnectionStore.getState().setHrConnectionInProgress(true);
       try {
         await disconnectHr();

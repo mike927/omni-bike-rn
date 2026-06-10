@@ -115,6 +115,7 @@ export const useDeviceConnectionStore = create<DeviceConnectionStore>((set) => (
       lastBluetoothHrSampleAtMs: null,
       activeHrSource: null,
     }),
+  // Test-only reset. Clears the in-progress flags — calling this mid-connect would defeat the connect re-entrancy guard.
   clearAll: () =>
     set({
       bikeAdapter: null,

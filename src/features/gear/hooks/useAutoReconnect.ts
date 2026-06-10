@@ -4,6 +4,7 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { isExpectedBleConnectTimeoutError } from '../../../services/ble/isExpectedBleConnectTimeoutError';
 import { useDeviceConnection } from '../../training/hooks/useDeviceConnection';
 import { isExpectedBleDisconnectError } from '../../../services/ble/isExpectedBleDisconnectError';
+import { isConnectInProgressError } from '../../../services/ble/ConnectInProgressError';
 import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
 import { useSavedGearStore } from '../../../store/savedGearStore';
 
@@ -15,7 +16,9 @@ const AUTO_RECONNECT_RETRY_DELAYS_MS = [0, 3000, 5000] as const;
 const MAX_AUTO_RECONNECT_ATTEMPTS = AUTO_RECONNECT_RETRY_DELAYS_MS.length;
 
 function toReconnectFailureState(err: unknown): 'failed' | 'disconnected' {
-  return isExpectedBleDisconnectError(err) || isExpectedBleConnectTimeoutError(err) ? 'disconnected' : 'failed';
+  return isExpectedBleDisconnectError(err) || isExpectedBleConnectTimeoutError(err) || isConnectInProgressError(err)
+    ? 'disconnected'
+    : 'failed';
 }
 
 // `attemptCount` = probes already made; returns the wait before the next probe.
