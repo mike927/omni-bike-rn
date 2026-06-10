@@ -31,7 +31,6 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
-    "@react-native-masked-view/masked-view": "0.3.2",
     "apple-health-workout": "file:modules/apple-health-workout",
     "buffer": "^6.0.3",
     "drizzle-orm": "^0.45.2",
@@ -52,7 +51,6 @@
     "expo-system-ui": "~6.0.9",
     "expo-web-browser": "~15.0.11",
     "react": "19.1.0",
-    "react-dom": "19.1.0",
     "react-native": "0.81.5",
     "react-native-ble-plx": "^3.5.1",
     "react-native-health": "^1.19.0",
@@ -60,7 +58,6 @@
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
     "react-native-svg": "15.12.1",
-    "react-native-web": "^0.21.2",
     "react-native-worklets": "0.5.1",
     "watch-connectivity": "file:modules/watch-connectivity",
     "zustand": "^5.0.12"
