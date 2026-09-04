@@ -16,9 +16,7 @@ import { useTrainingSessionPersistence } from '../features/training/hooks/useTra
 
 /** Boot status the root layout renders against. */
 export type AppInitState =
-  | { phase: 'loading' }
-  | { phase: 'error'; retry: () => void }
-  | { phase: 'ready'; onboardingCompleted: boolean };
+  { phase: 'loading' } | { phase: 'error'; retry: () => void } | { phase: 'ready'; onboardingCompleted: boolean };
 
 /**
  * Owns app boot: store hydration + provider registration, database init with
@@ -85,7 +83,10 @@ export function useAppInitialization(): AppInitState {
   }, [databaseInitAttempt]);
 
   if (isDatabaseError) {
-    return { phase: 'error', retry: () => setDatabaseInitAttempt((attempt) => attempt + 1) };
+    return {
+      phase: 'error',
+      retry: () => setDatabaseInitAttempt((attempt) => attempt + 1),
+    };
   }
 
   if (

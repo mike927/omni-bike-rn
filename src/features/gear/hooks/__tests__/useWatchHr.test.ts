@@ -123,10 +123,10 @@ afterEach(() => {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('useWatchHr', () => {
-  it('does not add any listeners when Watch is not available', () => {
+  it('does not add any listeners when Watch is not available', async () => {
     getIsAppleWatchAvailableMock().mockReturnValue(false);
 
-    renderHook(() => useWatchHr());
+    await renderHook(() => useWatchHr());
 
     const wc = getWatchConnectivityMock();
     expect(wc.addListener).not.toHaveBeenCalled();
@@ -135,7 +135,7 @@ describe('useWatchHr', () => {
   it('hydrates the persisted primary source preference on mount', async () => {
     getAppPreferencesMock().loadPrimaryHrSource.mockResolvedValue('watch');
 
-    renderHook(() => useWatchHr());
+    await renderHook(() => useWatchHr());
 
     await waitFor(() => {
       expect(useHrSourceStore.getState().primary).toBe('watch');
@@ -143,8 +143,8 @@ describe('useWatchHr', () => {
     });
   });
 
-  it('activates WatchConnectivity on mount to hydrate reachability state', () => {
-    renderHook(() => useWatchHr());
+  it('activates WatchConnectivity on mount to hydrate reachability state', async () => {
+    await renderHook(() => useWatchHr());
 
     expect(getWatchConnectivityMock().activate).toHaveBeenCalledTimes(1);
   });
@@ -153,12 +153,12 @@ describe('useWatchHr', () => {
     it('starts the stream when phase transitions to Active and primary is watch', async () => {
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
 
-      const { rerender } = renderHook(() => useWatchHr());
+      const { rerender } = await renderHook(() => useWatchHr());
 
-      act(() => {
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
       });
-      rerender({});
+      await rerender({});
 
       await waitFor(() => {
         const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
@@ -175,12 +175,12 @@ describe('useWatchHr', () => {
       useHrSourceStore.setState({ primary: null, hydrated: true });
       useDeviceConnectionStore.setState({ watchAvailability: 'connected' });
 
-      const { rerender } = renderHook(() => useWatchHr());
+      const { rerender } = await renderHook(() => useWatchHr());
 
-      act(() => {
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
       });
-      rerender({});
+      await rerender({});
 
       await waitFor(() => {
         const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
@@ -201,12 +201,12 @@ describe('useWatchHr', () => {
       useHrSourceStore.setState({ primary: null, hydrated: false });
       useDeviceConnectionStore.setState({ watchAvailability: 'connected' });
 
-      const { rerender } = renderHook(() => useWatchHr());
+      const { rerender } = await renderHook(() => useWatchHr());
 
-      act(() => {
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
       });
-      rerender({});
+      await rerender({});
 
       await act(async () => {
         await Promise.resolve();
@@ -226,12 +226,12 @@ describe('useWatchHr', () => {
       useHrSourceStore.setState({ primary: null, hydrated: true });
       useSavedGearStore.setState({ savedHrSource: null });
 
-      const { rerender } = renderHook(() => useWatchHr());
+      const { rerender } = await renderHook(() => useWatchHr());
 
-      act(() => {
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
       });
-      rerender({});
+      await rerender({});
 
       // Small wait to let any async effects settle
       await act(async () => {
@@ -252,7 +252,7 @@ describe('useWatchHr', () => {
       useSavedGearStore.setState({ savedHrSource: SAVED_STRAP });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
-      const { rerender } = renderHook(() => useWatchHr());
+      const { rerender } = await renderHook(() => useWatchHr());
 
       const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
         WatchHrAdapter: jest.Mock;
@@ -262,18 +262,18 @@ describe('useWatchHr', () => {
         expect(inst?.connect).toHaveBeenCalled();
       });
 
-      act(() => {
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Paused } as never);
       });
-      rerender({});
-      act(() => {
+      await rerender({});
+      await act(() => {
         useHrSourceStore.setState({ primary: 'bluetooth' });
       });
-      rerender({});
-      act(() => {
+      await rerender({});
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Finished } as never);
       });
-      rerender({});
+      await rerender({});
 
       await waitFor(() => {
         const inst = WatchHrAdapter.mock.results[0]?.value as { disconnect: jest.Mock } | undefined;
@@ -295,12 +295,12 @@ describe('useWatchHr', () => {
         subscribeToActiveKcal: jest.fn().mockReturnValue({ remove: jest.fn() }),
       }));
 
-      const { rerender } = renderHook(() => useWatchHr());
+      const { rerender } = await renderHook(() => useWatchHr());
 
-      act(() => {
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
       });
-      rerender({});
+      await rerender({});
 
       await waitFor(() => {
         expect(consoleErrorSpy).toHaveBeenCalledWith('[useWatchHr] Failed to connect Watch HR:', expect.any(Error));
@@ -311,7 +311,7 @@ describe('useWatchHr', () => {
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
-      const { rerender } = renderHook(() => useWatchHr());
+      const { rerender } = await renderHook(() => useWatchHr());
 
       const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
         WatchHrAdapter: jest.Mock;
@@ -322,10 +322,10 @@ describe('useWatchHr', () => {
         expect(inst?.connect).toHaveBeenCalled();
       });
 
-      act(() => {
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Paused } as never);
       });
-      rerender({});
+      await rerender({});
 
       await act(async () => {
         await Promise.resolve();
@@ -339,7 +339,7 @@ describe('useWatchHr', () => {
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
-      const { rerender } = renderHook(() => useWatchHr());
+      const { rerender } = await renderHook(() => useWatchHr());
 
       const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
         WatchHrAdapter: jest.Mock;
@@ -350,10 +350,10 @@ describe('useWatchHr', () => {
         expect(inst?.connect).toHaveBeenCalled();
       });
 
-      act(() => {
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Idle } as never);
       });
-      rerender({});
+      await rerender({});
 
       await waitFor(() => {
         const inst = WatchHrAdapter.mock.results[0]?.value as { disconnect: jest.Mock } | undefined;
@@ -365,7 +365,7 @@ describe('useWatchHr', () => {
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
-      const { rerender } = renderHook(() => useWatchHr());
+      const { rerender } = await renderHook(() => useWatchHr());
 
       const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
         WatchHrAdapter: jest.Mock;
@@ -376,10 +376,10 @@ describe('useWatchHr', () => {
         expect(inst?.connect).toHaveBeenCalled();
       });
 
-      act(() => {
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Finished } as never);
       });
-      rerender({});
+      await rerender({});
 
       await waitFor(() => {
         const inst = WatchHrAdapter.mock.results[0]?.value as { disconnect: jest.Mock } | undefined;
@@ -391,7 +391,7 @@ describe('useWatchHr', () => {
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
-      const { rerender } = renderHook(() => useWatchHr());
+      const { rerender } = await renderHook(() => useWatchHr());
 
       const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
         WatchHrAdapter: jest.Mock;
@@ -405,11 +405,11 @@ describe('useWatchHr', () => {
       // Switch to a Bluetooth primary backed by a saved strap so the effective
       // source genuinely moves off watch (a strapless bluetooth primary would fall
       // back to the watch default on this watch-capable platform).
-      act(() => {
+      await act(() => {
         useSavedGearStore.setState({ savedHrSource: SAVED_STRAP });
         useHrSourceStore.setState({ primary: 'bluetooth' });
       });
-      rerender({});
+      await rerender({});
 
       await waitFor(() => {
         const inst = WatchHrAdapter.mock.results[0]?.value as { disconnect: jest.Mock } | undefined;
@@ -441,21 +441,21 @@ describe('useWatchHr', () => {
         subscribeToActiveKcal,
       }));
 
-      const { rerender } = renderHook(() => useWatchHr());
+      const { rerender } = await renderHook(() => useWatchHr());
 
-      act(() => {
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
       });
-      rerender({});
+      await rerender({});
 
       await act(async () => {
         await Promise.resolve();
       });
 
-      act(() => {
+      await act(() => {
         useHrSourceStore.setState({ primary: 'bluetooth' });
       });
-      rerender({});
+      await rerender({});
 
       await act(async () => {
         resolveConnect?.();
@@ -489,21 +489,21 @@ describe('useWatchHr', () => {
         subscribeToActiveKcal,
       }));
 
-      const { rerender } = renderHook(() => useWatchHr());
+      const { rerender } = await renderHook(() => useWatchHr());
 
-      act(() => {
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
       });
-      rerender({});
+      await rerender({});
 
       await act(async () => {
         await Promise.resolve();
       });
 
-      act(() => {
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Finished } as never);
       });
-      rerender({});
+      await rerender({});
 
       await act(async () => {
         resolveConnect?.();
@@ -521,12 +521,12 @@ describe('useWatchHr', () => {
     it('locks activeHrSource to primary when Idle→Active', async () => {
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
 
-      const { rerender } = renderHook(() => useWatchHr());
+      const { rerender } = await renderHook(() => useWatchHr());
 
-      act(() => {
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
       });
-      rerender({});
+      await rerender({});
 
       await act(async () => {
         await Promise.resolve();
@@ -540,12 +540,12 @@ describe('useWatchHr', () => {
       useHrSourceStore.setState({ primary: 'bluetooth', hydrated: true });
       useSavedGearStore.setState({ savedHrSource: SAVED_STRAP });
 
-      const { rerender } = renderHook(() => useWatchHr());
+      const { rerender } = await renderHook(() => useWatchHr());
 
-      act(() => {
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
       });
-      rerender({});
+      await rerender({});
 
       await act(async () => {
         await Promise.resolve();
@@ -564,16 +564,16 @@ describe('useWatchHr', () => {
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
-      const { rerender } = renderHook(() => useWatchHr());
+      const { rerender } = await renderHook(() => useWatchHr());
 
       await act(async () => {
         await Promise.resolve();
       });
 
-      act(() => {
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Finished } as never);
       });
-      rerender({});
+      await rerender({});
 
       await act(async () => {
         await Promise.resolve();
@@ -586,16 +586,16 @@ describe('useWatchHr', () => {
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
-      const { rerender } = renderHook(() => useWatchHr());
+      const { rerender } = await renderHook(() => useWatchHr());
 
       await act(async () => {
         await Promise.resolve();
       });
 
-      act(() => {
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Idle } as never);
       });
-      rerender({});
+      await rerender({});
 
       await act(async () => {
         await Promise.resolve();
@@ -608,7 +608,7 @@ describe('useWatchHr', () => {
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
-      const { rerender } = renderHook(() => useWatchHr());
+      const { rerender } = await renderHook(() => useWatchHr());
 
       await act(async () => {
         await Promise.resolve();
@@ -617,10 +617,10 @@ describe('useWatchHr', () => {
       // Verify lock was set
       expect(useDeviceConnectionStore.getState().activeHrSource).toBe('watch');
 
-      act(() => {
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Paused } as never);
       });
-      rerender({});
+      await rerender({});
 
       await act(async () => {
         await Promise.resolve();
@@ -639,13 +639,13 @@ describe('useWatchHr', () => {
       useHrSourceStore.setState({ primary: 'bluetooth', hydrated: true });
       useSavedGearStore.setState({ savedHrSource: SAVED_STRAP });
 
-      const { rerender } = renderHook(() => useWatchHr());
+      const { rerender } = await renderHook(() => useWatchHr());
 
       // Idle→Active: lock must engage even without a Watch
-      act(() => {
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
       });
-      rerender({});
+      await rerender({});
 
       await act(async () => {
         await Promise.resolve();
@@ -654,10 +654,10 @@ describe('useWatchHr', () => {
       expect(useDeviceConnectionStore.getState().activeHrSource).toBe('bluetooth');
 
       // Finished: lock must clear
-      act(() => {
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Finished } as never);
       });
-      rerender({});
+      await rerender({});
 
       await act(async () => {
         await Promise.resolve();
@@ -666,14 +666,14 @@ describe('useWatchHr', () => {
       expect(useDeviceConnectionStore.getState().activeHrSource).toBeNull();
 
       // Idle: also clears (covers the other unlock branch)
-      act(() => {
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
       });
-      rerender({});
-      act(() => {
+      await rerender({});
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Idle } as never);
       });
-      rerender({});
+      await rerender({});
 
       await act(async () => {
         await Promise.resolve();
@@ -690,12 +690,12 @@ describe('useWatchHr', () => {
       // Bluetooth is only a valid retarget while its strap is saved (finding #3).
       useSavedGearStore.setState({ savedHrSource: SAVED_STRAP });
 
-      const { rerender } = renderHook(() => useWatchHr());
+      const { rerender } = await renderHook(() => useWatchHr());
 
-      act(() => {
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
       });
-      rerender({});
+      await rerender({});
 
       await act(async () => {
         await Promise.resolve();
@@ -704,10 +704,10 @@ describe('useWatchHr', () => {
       expect(useDeviceConnectionStore.getState().activeHrSource).toBe('watch');
 
       // Change primary to bluetooth while still Active
-      act(() => {
+      await act(() => {
         useHrSourceStore.setState({ primary: 'bluetooth' });
       });
-      rerender({});
+      await rerender({});
 
       await act(async () => {
         await Promise.resolve();
@@ -722,15 +722,15 @@ describe('useWatchHr', () => {
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
-      const { rerender } = renderHook(() => useWatchHr());
+      const { rerender } = await renderHook(() => useWatchHr());
       await act(async () => {
         await Promise.resolve();
       });
 
-      act(() => {
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Paused } as never);
       });
-      rerender({});
+      await rerender({});
 
       await waitFor(() => {
         expect(getWatchConnectivityMock().pauseMirroredWorkout).toHaveBeenCalledTimes(1);
@@ -741,19 +741,19 @@ describe('useWatchHr', () => {
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
-      const { rerender } = renderHook(() => useWatchHr());
+      const { rerender } = await renderHook(() => useWatchHr());
       await act(async () => {
         await Promise.resolve();
       });
 
-      act(() => {
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Paused } as never);
       });
-      rerender({});
-      act(() => {
+      await rerender({});
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
       });
-      rerender({});
+      await rerender({});
 
       await waitFor(() => {
         expect(getWatchConnectivityMock().resumeMirroredWorkout).toHaveBeenCalledTimes(1);
@@ -767,7 +767,7 @@ describe('useWatchHr', () => {
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
-      const { rerender } = renderHook(() => useWatchHr());
+      const { rerender } = await renderHook(() => useWatchHr());
       await act(async () => {
         await Promise.resolve();
       });
@@ -779,10 +779,10 @@ describe('useWatchHr', () => {
       // Spam faster than the debounce window, ending on Active (final intent = resume).
       const spam = [TrainingPhase.Paused, TrainingPhase.Active, TrainingPhase.Paused, TrainingPhase.Active];
       for (const next of spam) {
-        act(() => {
+        await act(() => {
           useTrainingSessionStore.setState({ phase: next } as never);
         });
-        rerender({});
+        await rerender({});
       }
 
       await act(async () => {
@@ -815,8 +815,8 @@ describe('useWatchHr', () => {
       )?.[1] as ((payload: { available: boolean }) => void) | undefined;
     }
 
-    it('registers all expected listeners on mount', () => {
-      renderHook(() => useWatchHr());
+    it('registers all expected listeners on mount', async () => {
+      await renderHook(() => useWatchHr());
       const wc = getWatchConnectivityMock();
       expect(wc.addListener).toHaveBeenCalledWith('onReachabilityChange', expect.any(Function));
       expect(wc.addListener).toHaveBeenCalledWith('onWatchCompanionStateChange', expect.any(Function));
@@ -824,33 +824,33 @@ describe('useWatchHr', () => {
       expect(wc.addListener).toHaveBeenCalledWith('onWatchAppState', expect.any(Function));
     });
 
-    it('companion available=true → watchAvailability becomes connected', () => {
+    it('companion available=true → watchAvailability becomes connected', async () => {
       useDeviceConnectionStore.setState({ watchAvailability: 'unavailable' });
-      renderHook(() => useWatchHr());
+      await renderHook(() => useWatchHr());
 
-      act(() => {
+      await act(() => {
         getCompanionCallback()?.({ available: true });
       });
 
       expect(useDeviceConnectionStore.getState().watchAvailability).toBe('connected');
     });
 
-    it('companion available=false → watchAvailability becomes unavailable', () => {
+    it('companion available=false → watchAvailability becomes unavailable', async () => {
       useDeviceConnectionStore.setState({ watchAvailability: 'connected' });
-      renderHook(() => useWatchHr());
+      await renderHook(() => useWatchHr());
 
-      act(() => {
+      await act(() => {
         getCompanionCallback()?.({ available: false });
       });
 
       expect(useDeviceConnectionStore.getState().watchAvailability).toBe('unavailable');
     });
 
-    it('reachability change does NOT change watchAvailability (only companion does)', () => {
+    it('reachability change does NOT change watchAvailability (only companion does)', async () => {
       useDeviceConnectionStore.setState({ watchAvailability: 'unavailable' });
-      renderHook(() => useWatchHr());
+      await renderHook(() => useWatchHr());
 
-      act(() => {
+      await act(() => {
         getReachabilityCallback()?.({ reachable: true });
       });
 
@@ -861,7 +861,7 @@ describe('useWatchHr', () => {
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
       useDeviceConnectionStore.setState({ watchAvailability: 'unavailable' });
-      renderHook(() => useWatchHr());
+      await renderHook(() => useWatchHr());
 
       const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
         WatchHrAdapter: jest.Mock;
@@ -876,7 +876,7 @@ describe('useWatchHr', () => {
         .subscribeToHeartRate;
       const hrCallback = subscribeToHeartRate.mock.calls[0]?.[0] as ((hr: number) => void) | undefined;
 
-      act(() => {
+      await act(() => {
         hrCallback?.(147);
       });
 
@@ -888,20 +888,20 @@ describe('useWatchHr', () => {
     it('ignores stale watch session state events from before the current start request', async () => {
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
 
-      const { rerender } = renderHook(() => useWatchHr());
+      const { rerender } = await renderHook(() => useWatchHr());
 
       const staleSentAtMs = Date.now() - 10_000;
 
-      act(() => {
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
       });
-      rerender({});
+      await rerender({});
 
       await act(async () => {
         await Promise.resolve();
       });
 
-      act(() => {
+      await act(() => {
         getSessionStateCallback()?.({ state: 'started', sentAtMs: staleSentAtMs });
       });
 
@@ -909,16 +909,16 @@ describe('useWatchHr', () => {
       expect(useDeviceConnectionStore.getState().watchAvailability).toBe('unavailable');
     });
 
-    it('does not clear latestAppleWatchHr when reachability changes', () => {
+    it('does not clear latestAppleWatchHr when reachability changes', async () => {
       useDeviceConnectionStore.setState({ latestAppleWatchHr: 72 });
-      renderHook(() => useWatchHr());
+      await renderHook(() => useWatchHr());
 
-      act(() => {
+      await act(() => {
         getReachabilityCallback()?.({ reachable: false });
       });
       expect(useDeviceConnectionStore.getState().latestAppleWatchHr).toBe(72);
 
-      act(() => {
+      await act(() => {
         getReachabilityCallback()?.({ reachable: true });
       });
       expect(useDeviceConnectionStore.getState().latestAppleWatchHr).toBe(72);
@@ -942,7 +942,7 @@ describe('useWatchHr', () => {
 
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
-      renderHook(() => useWatchHr());
+      await renderHook(() => useWatchHr());
 
       // Wait for the failing connect to settle (adapterRef stays null, startingRef resets).
       await waitFor(() => {
@@ -984,7 +984,7 @@ describe('useWatchHr', () => {
 
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
-      renderHook(() => useWatchHr());
+      await renderHook(() => useWatchHr());
 
       await waitFor(() => {
         expect(WatchHrAdapter.mock.instances).toHaveLength(1);
@@ -1005,7 +1005,7 @@ describe('useWatchHr', () => {
     it('forwards Watch-computed active kcal into the device store', async () => {
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
-      renderHook(() => useWatchHr());
+      await renderHook(() => useWatchHr());
 
       const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
         WatchHrAdapter: jest.Mock;
@@ -1020,7 +1020,7 @@ describe('useWatchHr', () => {
         .subscribeToActiveKcal;
       const kcalCallback = subscribeToActiveKcal.mock.calls[0]?.[0] as ((kcal: number) => void) | undefined;
 
-      act(() => {
+      await act(() => {
         kcalCallback?.(42.5);
       });
 
@@ -1031,7 +1031,7 @@ describe('useWatchHr', () => {
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
-      const { rerender } = renderHook(() => useWatchHr());
+      const { rerender } = await renderHook(() => useWatchHr());
 
       const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
         WatchHrAdapter: jest.Mock;
@@ -1046,15 +1046,15 @@ describe('useWatchHr', () => {
         .subscribeToActiveKcal;
       const kcalCallback = subscribeToActiveKcal.mock.calls[0]?.[0] as ((kcal: number) => void) | undefined;
 
-      act(() => {
+      await act(() => {
         kcalCallback?.(30);
       });
       expect(useDeviceConnectionStore.getState().latestAppleWatchActiveKcal).toBe(30);
 
-      act(() => {
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Finished } as never);
       });
-      rerender({});
+      await rerender({});
 
       await waitFor(() => {
         expect(useDeviceConnectionStore.getState().latestAppleWatchActiveKcal).toBeNull();
@@ -1067,7 +1067,7 @@ describe('useWatchHr', () => {
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
-      renderHook(() => useWatchHr());
+      await renderHook(() => useWatchHr());
 
       await waitFor(() => {
         const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
@@ -1082,7 +1082,7 @@ describe('useWatchHr', () => {
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
-      const { unmount } = renderHook(() => useWatchHr());
+      const { unmount } = await renderHook(() => useWatchHr());
 
       const { WatchHrAdapter } = jest.requireMock('../../../../services/watch/WatchHrAdapter') as {
         WatchHrAdapter: jest.Mock;
@@ -1093,7 +1093,7 @@ describe('useWatchHr', () => {
         expect(inst?.connect).toHaveBeenCalled();
       });
 
-      unmount();
+      await unmount();
 
       await waitFor(() => {
         const inst = WatchHrAdapter.mock.results[0]?.value as { disconnect: jest.Mock } | undefined;
@@ -1109,7 +1109,7 @@ describe('useWatchHr', () => {
       useDeviceConnectionStore.setState({ watchAvailability: 'unavailable' });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
-      renderHook(() => useWatchHr());
+      await renderHook(() => useWatchHr());
 
       await act(async () => {
         await Promise.resolve();
@@ -1137,7 +1137,7 @@ describe('useWatchHr', () => {
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
 
-      const view = renderHook(() => useWatchHr());
+      const view = await renderHook(() => useWatchHr());
       const WatchHrAdapter = getWatchHrAdapterMock();
 
       await waitFor(() => {
@@ -1148,7 +1148,7 @@ describe('useWatchHr', () => {
       const subscribeToHeartRate = (WatchHrAdapter.mock.results[0]?.value as { subscribeToHeartRate: jest.Mock })
         .subscribeToHeartRate;
       const hrCallback = subscribeToHeartRate.mock.calls[0]?.[0] as ((hr: number) => void) | undefined;
-      act(() => {
+      await act(() => {
         hrCallback?.(150);
       });
       expect(useDeviceConnectionStore.getState().latestAppleWatchHr).toBe(150);
@@ -1177,10 +1177,10 @@ describe('useWatchHr', () => {
       const WatchHrAdapter = getWatchHrAdapterMock();
       const adaptersBeforePause = WatchHrAdapter.mock.instances.length;
 
-      act(() => {
+      await act(() => {
         useTrainingSessionStore.setState({ phase: TrainingPhase.Paused } as never);
       });
-      rerender({});
+      await rerender({});
 
       // HR collection is suspended while paused, so the stream is silent by design.
       await act(async () => {
@@ -1188,7 +1188,7 @@ describe('useWatchHr', () => {
         await Promise.resolve();
       });
 
-      expect(WatchHrAdapter.mock.instances.length).toBe(adaptersBeforePause);
+      expect(WatchHrAdapter.mock.instances).toHaveLength(adaptersBeforePause);
     });
 
     it('backs off between drop reconnects — no per-tick storm while still silent', async () => {
@@ -1201,7 +1201,7 @@ describe('useWatchHr', () => {
         jest.advanceTimersByTime(HR_NO_SIGNAL_TIMEOUT_MS + 10_000);
         await Promise.resolve();
       });
-      expect(WatchHrAdapter.mock.instances.length).toBe(before + 1);
+      expect(WatchHrAdapter.mock.instances).toHaveLength(before + 1);
 
       // The reconnect's stream also stays silent (no new sample delivered). Advancing
       // less than another freshness window must NOT reconnect again — the backoff holds.
@@ -1209,7 +1209,7 @@ describe('useWatchHr', () => {
         jest.advanceTimersByTime(5_000);
         await Promise.resolve();
       });
-      expect(WatchHrAdapter.mock.instances.length).toBe(before + 1);
+      expect(WatchHrAdapter.mock.instances).toHaveLength(before + 1);
     });
 
     it('does not reconnect before the first sample arrives (Connecting…, not a drop)', async () => {
@@ -1218,7 +1218,7 @@ describe('useWatchHr', () => {
       // the reachability retry — not a drop, so the watchdog must leave it alone.
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
       useTrainingSessionStore.setState({ phase: TrainingPhase.Active } as never);
-      renderHook(() => useWatchHr());
+      await renderHook(() => useWatchHr());
       const WatchHrAdapter = getWatchHrAdapterMock();
 
       await waitFor(() => {
@@ -1232,7 +1232,7 @@ describe('useWatchHr', () => {
         await Promise.resolve();
       });
 
-      expect(WatchHrAdapter.mock.instances.length).toBe(before);
+      expect(WatchHrAdapter.mock.instances).toHaveLength(before);
     });
   });
 });

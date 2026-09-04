@@ -3,11 +3,11 @@ import { fireEvent, render } from '@testing-library/react-native';
 import { InterruptedSessionCard } from '../InterruptedSessionCard';
 
 describe('InterruptedSessionCard', () => {
-  it('renders the interrupted workout summary and fires both actions', () => {
+  it('renders the interrupted workout summary and fires both actions', async () => {
     const onResume = jest.fn();
     const onDiscard = jest.fn();
 
-    const { getByText } = render(
+    const { getByText } = await render(
       <InterruptedSessionCard
         session={{
           id: 'session-1',
@@ -32,8 +32,8 @@ describe('InterruptedSessionCard', () => {
     expect(getByText('Resume interrupted ride')).toBeTruthy();
     expect(getByText('5.40 km · 88.4 kcal')).toBeTruthy();
 
-    fireEvent.press(getByText('Resume'));
-    fireEvent.press(getByText('Discard'));
+    await fireEvent.press(getByText('Resume'));
+    await fireEvent.press(getByText('Discard'));
 
     expect(onResume).toHaveBeenCalledTimes(1);
     expect(onDiscard).toHaveBeenCalledTimes(1);

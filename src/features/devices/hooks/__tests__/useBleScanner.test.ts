@@ -19,7 +19,7 @@ describe('useBleScanner', () => {
     it('should set an error if Bluetooth is not powered on', async () => {
       (bleManager.state as jest.Mock).mockResolvedValue('PoweredOff');
 
-      const { result } = renderHook(() => useBleScanner());
+      const { result } = await renderHook(() => useBleScanner());
 
       await act(async () => {
         await result.current.scanForDevices();
@@ -36,7 +36,7 @@ describe('useBleScanner', () => {
     it('should start scanning and update state if Bluetooth is on', async () => {
       (bleManager.state as jest.Mock).mockResolvedValue('PoweredOn');
 
-      const { result } = renderHook(() => useBleScanner());
+      const { result } = await renderHook(() => useBleScanner());
 
       await act(async () => {
         await result.current.scanForDevices();
@@ -58,7 +58,7 @@ describe('useBleScanner', () => {
         listener(new Error('Scan failed'), null);
       });
 
-      const { result } = renderHook(() => useBleScanner());
+      const { result } = await renderHook(() => useBleScanner());
 
       await act(async () => {
         await result.current.scanForDevices();
@@ -80,7 +80,7 @@ describe('useBleScanner', () => {
         listener(null, mockDevice);
       });
 
-      const { result } = renderHook(() => useBleScanner());
+      const { result } = await renderHook(() => useBleScanner());
 
       await act(async () => {
         await result.current.scanForDevices();
@@ -106,7 +106,7 @@ describe('useBleScanner', () => {
       });
       const clientFilter = jest.fn().mockReturnValue(true);
 
-      const { result } = renderHook(() => useBleScanner(null, clientFilter));
+      const { result } = await renderHook(() => useBleScanner(null, clientFilter));
 
       await act(async () => {
         await result.current.scanForDevices();
@@ -126,7 +126,7 @@ describe('useBleScanner', () => {
       });
       const clientFilter = jest.fn().mockReturnValue(false);
 
-      const { result } = renderHook(() => useBleScanner(null, clientFilter));
+      const { result } = await renderHook(() => useBleScanner(null, clientFilter));
 
       await act(async () => {
         await result.current.scanForDevices();
@@ -148,7 +148,7 @@ describe('useBleScanner', () => {
         listener(null, mockDevice); // duplicate
       });
 
-      const { result } = renderHook(() => useBleScanner());
+      const { result } = await renderHook(() => useBleScanner());
 
       await act(async () => {
         await result.current.scanForDevices();
@@ -161,10 +161,10 @@ describe('useBleScanner', () => {
   });
 
   describe('stopScanning', () => {
-    it('should stop the scan and update state', () => {
-      const { result } = renderHook(() => useBleScanner());
+    it('should stop the scan and update state', async () => {
+      const { result } = await renderHook(() => useBleScanner());
 
-      act(() => {
+      await act(() => {
         result.current.stopScanning();
       });
 
@@ -183,14 +183,14 @@ describe('useBleScanner', () => {
           }),
       );
 
-      const { result, unmount } = renderHook(() => useBleScanner());
+      const { result, unmount } = await renderHook(() => useBleScanner());
 
       let scanPromise!: Promise<void>;
-      act(() => {
+      await act(() => {
         scanPromise = result.current.scanForDevices();
       });
 
-      unmount();
+      await unmount();
 
       await act(async () => {
         resolveState('PoweredOn');
@@ -204,14 +204,14 @@ describe('useBleScanner', () => {
     it('stops the scan on unmount while actively scanning', async () => {
       (bleManager.state as jest.Mock).mockResolvedValue('PoweredOn');
 
-      const { result, unmount } = renderHook(() => useBleScanner());
+      const { result, unmount } = await renderHook(() => useBleScanner());
 
       await act(async () => {
         await result.current.scanForDevices();
       });
 
       (bleManager.stopDeviceScan as jest.Mock).mockClear();
-      unmount();
+      await unmount();
 
       expect(bleManager.stopDeviceScan).toHaveBeenCalledTimes(1);
     });

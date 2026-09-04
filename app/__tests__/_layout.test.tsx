@@ -14,7 +14,7 @@ import { useUserProfileStore } from '../../src/store/userProfileStore';
 const mockUseSegments = jest.fn();
 const mockReactNative = jest.requireActual<typeof ReactNative>('react-native');
 const MockStack = Object.assign(
-  function MockStack({ children }: { children: ReactNode }) {
+  function MockStackComponent({ children }: { children: ReactNode }) {
     return (
       <>
         {Children.map(children, (child) => {
@@ -169,7 +169,7 @@ describe('RootLayout onboarding gate', () => {
     appPreferencesState.onboardingCompleted = false;
     mockUseSegments.mockReturnValue([]);
 
-    render(<RootLayout />);
+    await render(<RootLayout />);
 
     await waitFor(() => {
       expect(screen.getByText('Redirect:/onboarding')).toBeTruthy();
@@ -185,7 +185,7 @@ describe('RootLayout onboarding gate', () => {
     appPreferencesState.onboardingCompleted = true;
     mockUseSegments.mockReturnValue(['onboarding']);
 
-    render(<RootLayout />);
+    await render(<RootLayout />);
 
     await waitFor(() => {
       expect(screen.getByText('Redirect:/')).toBeTruthy();

@@ -81,9 +81,9 @@ describe('useTrainingSessionPersistence', () => {
   });
 
   it('creates one draft session when training starts', async () => {
-    renderHook(() => useTrainingSessionPersistence());
+    await renderHook(() => useTrainingSessionPersistence());
 
-    act(() => {
+    await act(() => {
       useTrainingSessionStore.getState().start();
     });
 
@@ -93,9 +93,9 @@ describe('useTrainingSessionPersistence', () => {
   });
 
   it('appends one sample per active tick', async () => {
-    renderHook(() => useTrainingSessionPersistence());
+    await renderHook(() => useTrainingSessionPersistence());
 
-    act(() => {
+    await act(() => {
       useTrainingSessionStore.getState().start();
     });
 
@@ -103,7 +103,7 @@ describe('useTrainingSessionPersistence', () => {
       expect(mockCreateDraftSession).toHaveBeenCalledTimes(1);
     });
 
-    act(() => {
+    await act(() => {
       useTrainingSessionStore.getState().tick(tickInput);
     });
 
@@ -113,9 +113,9 @@ describe('useTrainingSessionPersistence', () => {
   });
 
   it('does not create a duplicate draft when resuming', async () => {
-    renderHook(() => useTrainingSessionPersistence());
+    await renderHook(() => useTrainingSessionPersistence());
 
-    act(() => {
+    await act(() => {
       useTrainingSessionStore.getState().start();
       useTrainingSessionStore.getState().pause();
       useTrainingSessionStore.getState().resume();
@@ -130,9 +130,9 @@ describe('useTrainingSessionPersistence', () => {
   });
 
   it('finalizes the session when training finishes', async () => {
-    renderHook(() => useTrainingSessionPersistence());
+    await renderHook(() => useTrainingSessionPersistence());
 
-    act(() => {
+    await act(() => {
       useTrainingSessionStore.getState().start();
     });
 
@@ -140,7 +140,7 @@ describe('useTrainingSessionPersistence', () => {
       expect(mockCreateDraftSession).toHaveBeenCalledTimes(1);
     });
 
-    act(() => {
+    await act(() => {
       useTrainingSessionStore.getState().tick(tickInput);
       useTrainingSessionStore.getState().finish();
     });
@@ -151,9 +151,9 @@ describe('useTrainingSessionPersistence', () => {
   });
 
   it('deletes the draft when reset happens before finish', async () => {
-    renderHook(() => useTrainingSessionPersistence());
+    await renderHook(() => useTrainingSessionPersistence());
 
-    act(() => {
+    await act(() => {
       useTrainingSessionStore.getState().start();
     });
 
@@ -161,7 +161,7 @@ describe('useTrainingSessionPersistence', () => {
       expect(mockCreateDraftSession).toHaveBeenCalledTimes(1);
     });
 
-    act(() => {
+    await act(() => {
       useTrainingSessionStore.getState().tick(tickInput);
       useTrainingSessionStore.getState().reset();
     });
@@ -172,9 +172,9 @@ describe('useTrainingSessionPersistence', () => {
   });
 
   it('keeps the completed session when reset happens after finish', async () => {
-    renderHook(() => useTrainingSessionPersistence());
+    await renderHook(() => useTrainingSessionPersistence());
 
-    act(() => {
+    await act(() => {
       useTrainingSessionStore.getState().start();
     });
 
@@ -182,7 +182,7 @@ describe('useTrainingSessionPersistence', () => {
       expect(mockCreateDraftSession).toHaveBeenCalledTimes(1);
     });
 
-    act(() => {
+    await act(() => {
       useTrainingSessionStore.getState().tick(tickInput);
       useTrainingSessionStore.getState().finish();
       useTrainingSessionStore.getState().reset();
@@ -196,9 +196,9 @@ describe('useTrainingSessionPersistence', () => {
   });
 
   it('does not persist anything while disabled', async () => {
-    renderHook(() => useTrainingSessionPersistence(false));
+    await renderHook(() => useTrainingSessionPersistence(false));
 
-    act(() => {
+    await act(() => {
       useTrainingSessionStore.getState().start();
       useTrainingSessionStore.getState().tick(tickInput);
       useTrainingSessionStore.getState().finish();
@@ -213,9 +213,9 @@ describe('useTrainingSessionPersistence', () => {
   });
 
   it('increments sequence number on each tick', async () => {
-    renderHook(() => useTrainingSessionPersistence());
+    await renderHook(() => useTrainingSessionPersistence());
 
-    act(() => {
+    await act(() => {
       useTrainingSessionStore.getState().start();
     });
 
@@ -223,7 +223,7 @@ describe('useTrainingSessionPersistence', () => {
       expect(mockCreateDraftSession).toHaveBeenCalledTimes(1);
     });
 
-    act(() => {
+    await act(() => {
       useTrainingSessionStore.getState().tick(tickInput);
       useTrainingSessionStore.getState().tick(tickInput);
       useTrainingSessionStore.getState().tick(tickInput);
@@ -243,9 +243,9 @@ describe('useTrainingSessionPersistence', () => {
       throw new Error('disk full');
     });
 
-    renderHook(() => useTrainingSessionPersistence());
+    await renderHook(() => useTrainingSessionPersistence());
 
-    act(() => {
+    await act(() => {
       useTrainingSessionStore.getState().start();
     });
 
@@ -253,7 +253,7 @@ describe('useTrainingSessionPersistence', () => {
       expect(mockCreateDraftSession).toHaveBeenCalledTimes(1);
     });
 
-    act(() => {
+    await act(() => {
       useTrainingSessionStore.getState().tick(tickInput);
     });
 
@@ -263,9 +263,9 @@ describe('useTrainingSessionPersistence', () => {
   });
 
   it('continues a restored session sequence when the hook is already mounted', async () => {
-    renderHook(() => useTrainingSessionPersistence());
+    await renderHook(() => useTrainingSessionPersistence());
 
-    act(() => {
+    await act(() => {
       seedFromPersistedSession('restored-session', 3);
       useTrainingSessionStore.setState({
         phase: TrainingPhase.Paused,
@@ -276,7 +276,7 @@ describe('useTrainingSessionPersistence', () => {
       });
     });
 
-    act(() => {
+    await act(() => {
       useTrainingSessionStore.getState().resume();
       useTrainingSessionStore.getState().tick(tickInput);
     });
@@ -297,7 +297,7 @@ describe('useTrainingSessionPersistence', () => {
   });
 
   it('consumes a queued persisted seed when the hook mounts later', async () => {
-    act(() => {
+    await act(() => {
       seedFromPersistedSession('queued-session', 1);
       useTrainingSessionStore.setState({
         phase: TrainingPhase.Paused,
@@ -308,9 +308,9 @@ describe('useTrainingSessionPersistence', () => {
       });
     });
 
-    renderHook(() => useTrainingSessionPersistence());
+    await renderHook(() => useTrainingSessionPersistence());
 
-    act(() => {
+    await act(() => {
       useTrainingSessionStore.getState().resume();
       useTrainingSessionStore.getState().tick(tickInput);
     });

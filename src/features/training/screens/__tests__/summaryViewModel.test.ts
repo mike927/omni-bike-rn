@@ -91,12 +91,12 @@ describe('deriveSummaryView', () => {
 
   it('downsamples a long power series to 12 averaged buckets', () => {
     const powers = Array.from({ length: 60 }, (_, i) => i);
-    expect(downsamplePower(powers).length).toBe(12);
+    expect(downsamplePower(powers)).toHaveLength(12);
     const vm = deriveSummaryView({
       session: baseSession,
       samples: powers.map((p, i) => sample(p, 150, 30, 90, i)),
     });
-    expect(vm.powerTrend.length).toBe(12);
+    expect(vm.powerTrend).toHaveLength(12);
   });
 
   it('passes short power series through unchanged and is empty with no samples', () => {

@@ -1,5 +1,11 @@
-const { createRunOncePlugin, withPodfile, withPodfileProperties, withXcodeProject } = require('@expo/config-plugins');
-const { createGeneratedHeaderComment, removeContents } = require('@expo/config-plugins/build/utils/generateCode');
+const {
+  CodeGenerator,
+  createRunOncePlugin,
+  withPodfile,
+  withPodfileProperties,
+  withXcodeProject,
+} = require('expo/config-plugins');
+const { createGeneratedHeaderComment, removeContents } = CodeGenerator;
 
 const DEFAULT_IOS_DEPLOYMENT_TARGET = '18.0';
 const PLUGIN_NAME = 'with-ios-warning-fixes';
@@ -68,7 +74,7 @@ function applyPodfilePostInstallFixes(src, deploymentTarget) {
   const generatedHeader = createGeneratedHeaderComment(fixBlock, PODFILE_FIX_TAG, '#');
   const generatedBlock = `${generatedHeader}\n${fixBlock}\n# @generated end ${PODFILE_FIX_TAG}`;
 
-  // eslint-disable-next-line sonarjs/slow-regex -- build-time config plugin, not runtime; input is a single Podfile
+  // eslint-disable-next-line sonarjs/super-linear-regex -- build-time config plugin, not runtime; input is a single Podfile
   const postInstallPattern = /(post_install do \|installer\|[\s\S]*?react_native_post_install\([\s\S]*?\n\s*\))/m;
 
   if (!postInstallPattern.test(sanitized)) {

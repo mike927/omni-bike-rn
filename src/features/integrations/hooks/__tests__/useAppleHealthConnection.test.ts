@@ -36,11 +36,11 @@ beforeEach(() => {
 });
 
 describe('useAppleHealthConnection', () => {
-  it('returns isConnected from store', () => {
+  it('returns isConnected from store', async () => {
     mockUseStore.mockImplementation((selector: (s: MockStoreState) => unknown) =>
       selector({ connected: true, setConnected: mockSetConnected, setDisconnected: mockSetDisconnected }),
     );
-    const { result } = renderHook(() => useAppleHealthConnection());
+    const { result } = await renderHook(() => useAppleHealthConnection());
     expect(result.current.isConnected).toBe(true);
   });
 
@@ -48,7 +48,7 @@ describe('useAppleHealthConnection', () => {
     it('calls initWithWritePermissions, flips store flag, and returns success', async () => {
       mockInit.mockResolvedValue(undefined);
       mockSetConnected.mockResolvedValue(undefined);
-      const { result } = renderHook(() => useAppleHealthConnection());
+      const { result } = await renderHook(() => useAppleHealthConnection());
 
       const outcome = await act(() => result.current.connect());
 
@@ -59,7 +59,7 @@ describe('useAppleHealthConnection', () => {
 
     it('returns failure when initWithWritePermissions throws', async () => {
       mockInit.mockRejectedValue(new Error('permission denied'));
-      const { result } = renderHook(() => useAppleHealthConnection());
+      const { result } = await renderHook(() => useAppleHealthConnection());
 
       const outcome = await act(() => result.current.connect());
 
@@ -72,7 +72,7 @@ describe('useAppleHealthConnection', () => {
   describe('disconnect', () => {
     it('flips store flag and returns success', async () => {
       mockSetDisconnected.mockResolvedValue(undefined);
-      const { result } = renderHook(() => useAppleHealthConnection());
+      const { result } = await renderHook(() => useAppleHealthConnection());
 
       const outcome = await act(() => result.current.disconnect());
 
@@ -82,7 +82,7 @@ describe('useAppleHealthConnection', () => {
 
     it('returns failure when setDisconnected throws', async () => {
       mockSetDisconnected.mockRejectedValue(new Error('storage error'));
-      const { result } = renderHook(() => useAppleHealthConnection());
+      const { result } = await renderHook(() => useAppleHealthConnection());
 
       const outcome = await act(() => result.current.disconnect());
 

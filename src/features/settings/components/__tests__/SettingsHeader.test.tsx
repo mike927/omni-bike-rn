@@ -1,8 +1,8 @@
 import { render } from '@testing-library/react-native';
 import { SettingsHeader } from '../SettingsHeader';
 
-it('renders title and subtitle', () => {
-  const { getByText } = render(
+it('renders title and subtitle', async () => {
+  const { getByText } = await render(
     <SettingsHeader title="Settings" subtitle="Manage your preferences and integrations." />,
   );
   expect(getByText('Settings')).toBeTruthy();

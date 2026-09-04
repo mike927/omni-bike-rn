@@ -52,8 +52,8 @@ beforeEach(() => {
 });
 
 describe('UserProfileScreen', () => {
-  it('shows a no-provider helper when neither Apple Health nor Strava is connected', () => {
-    const { getByText } = render(<UserProfileScreen />);
+  it('shows a no-provider helper when neither Apple Health nor Strava is connected', async () => {
+    const { getByText } = await render(<UserProfileScreen />);
     expect(
       getByText(
         'Connect Apple Health or Strava in Settings to sync your profile, or fill in the fields below manually.',
@@ -61,9 +61,9 @@ describe('UserProfileScreen', () => {
     ).toBeTruthy();
   });
 
-  it('replaces the no-provider helper with the explicit-sync helper when a provider connects', () => {
+  it('replaces the no-provider helper with the explicit-sync helper when a provider connects', async () => {
     useAppleHealthConnectionStore.setState({ connected: true, hydrated: true });
-    const { queryByText, getByText } = render(<UserProfileScreen />);
+    const { queryByText, getByText } = await render(<UserProfileScreen />);
     expect(
       queryByText(
         'Connect Apple Health or Strava in Settings to sync your profile, or fill in the fields below manually.',
@@ -76,7 +76,7 @@ describe('UserProfileScreen', () => {
     ).toBeTruthy();
   });
 
-  it('shows the source badge for fields auto-filled from Apple Health', () => {
+  it('shows the source badge for fields auto-filled from Apple Health', async () => {
     useUserProfileStore.setState({
       profile: {
         sex: 'female',
@@ -92,14 +92,14 @@ describe('UserProfileScreen', () => {
       },
       hydrated: true,
     });
-    const { getAllByText } = render(<UserProfileScreen />);
+    const { getAllByText } = await render(<UserProfileScreen />);
     // Badge appears once per row (4 rows, 4 badges).
     expect(getAllByText('Apple Health')).toHaveLength(4);
   });
 
   it('writes a manual sex selection through setManual', async () => {
-    const { getByLabelText } = render(<UserProfileScreen />);
-    fireEvent.press(getByLabelText('Female'));
+    const { getByLabelText } = await render(<UserProfileScreen />);
+    await fireEvent.press(getByLabelText('Female'));
     await waitFor(() => {
       const profile = useUserProfileStore.getState().profile;
       expect(profile.sex).toBe('female');
@@ -118,8 +118,8 @@ describe('UserProfileScreen', () => {
       },
       hydrated: true,
     });
-    const { getByLabelText } = render(<UserProfileScreen />);
-    fireEvent.press(getByLabelText('Clear Weight'));
+    const { getByLabelText } = await render(<UserProfileScreen />);
+    await fireEvent.press(getByLabelText('Clear Weight'));
     await waitFor(() => {
       const profile = useUserProfileStore.getState().profile;
       expect(profile.weightKg).toBeNull();
@@ -138,12 +138,12 @@ describe('UserProfileScreen', () => {
       },
       hydrated: true,
     });
-    const { getByDisplayValue } = render(<UserProfileScreen />);
+    const { getByDisplayValue } = await render(<UserProfileScreen />);
     const weightInput = getByDisplayValue('75');
-    fireEvent.changeText(weightInput, '');
-    fireEvent(weightInput, 'blur');
-    fireEvent.changeText(weightInput, 'abc');
-    fireEvent(weightInput, 'blur');
+    await fireEvent.changeText(weightInput, '');
+    await fireEvent(weightInput, 'blur');
+    await fireEvent.changeText(weightInput, 'abc');
+    await fireEvent(weightInput, 'blur');
     const profile = useUserProfileStore.getState().profile;
     expect(profile.weightKg).toBe(75);
     expect(profile.sources.weightKg).toBe('apple-health');
@@ -160,25 +160,25 @@ describe('UserProfileScreen', () => {
       },
       hydrated: true,
     });
-    const { getByDisplayValue } = render(<UserProfileScreen />);
+    const { getByDisplayValue } = await render(<UserProfileScreen />);
     const dobInput = getByDisplayValue('1990-05-12');
-    fireEvent.changeText(dobInput, '199');
-    fireEvent(dobInput, 'blur');
-    fireEvent.changeText(dobInput, '');
-    fireEvent(dobInput, 'blur');
+    await fireEvent.changeText(dobInput, '199');
+    await fireEvent(dobInput, 'blur');
+    await fireEvent.changeText(dobInput, '');
+    await fireEvent(dobInput, 'blur');
     const profile = useUserProfileStore.getState().profile;
     expect(profile.dateOfBirth).toBe('1990-05-12');
     expect(profile.sources.dateOfBirth).toBe('apple-health');
   });
 
-  it('exposes accessibility labels on the numeric and date inputs', () => {
-    const { getByLabelText } = render(<UserProfileScreen />);
+  it('exposes accessibility labels on the numeric and date inputs', async () => {
+    const { getByLabelText } = await render(<UserProfileScreen />);
     expect(getByLabelText('Weight')).toBeTruthy();
     expect(getByLabelText('Height')).toBeTruthy();
     expect(getByLabelText('Date of Birth')).toBeTruthy();
   });
 
-  it('surfaces an inline error on an invalid numeric entry while keeping the saved value', () => {
+  it('surfaces an inline error on an invalid numeric entry while keeping the saved value', async () => {
     useUserProfileStore.setState({
       profile: {
         sex: null,
@@ -189,15 +189,15 @@ describe('UserProfileScreen', () => {
       },
       hydrated: true,
     });
-    const { getByDisplayValue, getByText } = render(<UserProfileScreen />);
+    const { getByDisplayValue, getByText } = await render(<UserProfileScreen />);
     const weightInput = getByDisplayValue('75');
-    fireEvent.changeText(weightInput, 'abc');
-    fireEvent(weightInput, 'blur');
+    await fireEvent.changeText(weightInput, 'abc');
+    await fireEvent(weightInput, 'blur');
     expect(getByText('Enter a valid weight in kg.')).toBeTruthy();
     expect(useUserProfileStore.getState().profile.weightKg).toBe(75);
   });
 
-  it('surfaces an inline error on an invalid date format', () => {
+  it('surfaces an inline error on an invalid date format', async () => {
     useUserProfileStore.setState({
       profile: {
         sex: null,
@@ -208,14 +208,14 @@ describe('UserProfileScreen', () => {
       },
       hydrated: true,
     });
-    const { getByDisplayValue, getByText } = render(<UserProfileScreen />);
+    const { getByDisplayValue, getByText } = await render(<UserProfileScreen />);
     const dobInput = getByDisplayValue('1990-05-12');
-    fireEvent.changeText(dobInput, '12/05/1990');
-    fireEvent(dobInput, 'blur');
+    await fireEvent.changeText(dobInput, '12/05/1990');
+    await fireEvent(dobInput, 'blur');
     expect(getByText('Use the date format yyyy-mm-dd.')).toBeTruthy();
   });
 
-  it('does not show an error when a field is simply cleared by blurring an empty draft', () => {
+  it('does not show an error when a field is simply cleared by blurring an empty draft', async () => {
     useUserProfileStore.setState({
       profile: {
         sex: null,
@@ -226,14 +226,14 @@ describe('UserProfileScreen', () => {
       },
       hydrated: true,
     });
-    const { getByDisplayValue, queryByText } = render(<UserProfileScreen />);
+    const { getByDisplayValue, queryByText } = await render(<UserProfileScreen />);
     const weightInput = getByDisplayValue('75');
-    fireEvent.changeText(weightInput, '');
-    fireEvent(weightInput, 'blur');
+    await fireEvent.changeText(weightInput, '');
+    await fireEvent(weightInput, 'blur');
     expect(queryByText('Enter a valid weight in kg.')).toBeNull();
   });
 
-  it('clears the inline error once the user edits the field again', () => {
+  it('clears the inline error once the user edits the field again', async () => {
     useUserProfileStore.setState({
       profile: {
         sex: null,
@@ -244,12 +244,12 @@ describe('UserProfileScreen', () => {
       },
       hydrated: true,
     });
-    const { getByDisplayValue, getByText, queryByText } = render(<UserProfileScreen />);
+    const { getByDisplayValue, getByText, queryByText } = await render(<UserProfileScreen />);
     const weightInput = getByDisplayValue('75');
-    fireEvent.changeText(weightInput, 'abc');
-    fireEvent(weightInput, 'blur');
+    await fireEvent.changeText(weightInput, 'abc');
+    await fireEvent(weightInput, 'blur');
     expect(getByText('Enter a valid weight in kg.')).toBeTruthy();
-    fireEvent.changeText(getByDisplayValue('75'), '8');
+    await fireEvent.changeText(getByDisplayValue('75'), '8');
     expect(queryByText('Enter a valid weight in kg.')).toBeNull();
   });
 
@@ -264,12 +264,12 @@ describe('UserProfileScreen', () => {
       },
       hydrated: true,
     });
-    const { getByDisplayValue, getByText, queryByText, getByLabelText } = render(<UserProfileScreen />);
+    const { getByDisplayValue, getByText, queryByText, getByLabelText } = await render(<UserProfileScreen />);
     const weightInput = getByDisplayValue('75');
-    fireEvent.changeText(weightInput, 'abc');
-    fireEvent(weightInput, 'blur');
+    await fireEvent.changeText(weightInput, 'abc');
+    await fireEvent(weightInput, 'blur');
     expect(getByText('Enter a valid weight in kg.')).toBeTruthy();
-    fireEvent.press(getByLabelText('Clear Weight'));
+    await fireEvent.press(getByLabelText('Clear Weight'));
     await waitFor(() => expect(queryByText('Enter a valid weight in kg.')).toBeNull());
   });
 
@@ -284,21 +284,21 @@ describe('UserProfileScreen', () => {
       },
       hydrated: true,
     });
-    const { getByDisplayValue, getByText, queryByText, getByLabelText } = render(<UserProfileScreen />);
+    const { getByDisplayValue, getByText, queryByText, getByLabelText } = await render(<UserProfileScreen />);
     const dobInput = getByDisplayValue('1990-05-12');
-    fireEvent.changeText(dobInput, '12/05/1990');
-    fireEvent(dobInput, 'blur');
+    await fireEvent.changeText(dobInput, '12/05/1990');
+    await fireEvent(dobInput, 'blur');
     expect(getByText('Use the date format yyyy-mm-dd.')).toBeTruthy();
-    fireEvent.press(getByLabelText('Clear Date of Birth'));
+    await fireEvent.press(getByLabelText('Clear Date of Birth'));
     await waitFor(() => expect(queryByText('Use the date format yyyy-mm-dd.')).toBeNull());
   });
 
-  it('does not load from a provider when its sync button is disabled (provider not connected)', () => {
+  it('does not load from a provider when its sync button is disabled (provider not connected)', async () => {
     mockLoadAppleHealth.mockResolvedValue({});
     mockLoadStrava.mockResolvedValue({});
-    const { getByText } = render(<UserProfileScreen />);
-    fireEvent.press(getByText('Sync from Apple Health'));
-    fireEvent.press(getByText('Sync from Strava'));
+    const { getByText } = await render(<UserProfileScreen />);
+    await fireEvent.press(getByText('Sync from Apple Health'));
+    await fireEvent.press(getByText('Sync from Strava'));
     expect(mockLoadAppleHealth).not.toHaveBeenCalled();
     expect(mockLoadStrava).not.toHaveBeenCalled();
   });
@@ -316,8 +316,8 @@ describe('UserProfileScreen', () => {
       hydrated: true,
     });
     mockLoadAppleHealth.mockResolvedValue({ sex: 'male', dateOfBirth: '1985-01-01', weightKg: 80, heightCm: 180 });
-    const { getByText } = render(<UserProfileScreen />);
-    fireEvent.press(getByText('Sync from Apple Health'));
+    const { getByText } = await render(<UserProfileScreen />);
+    await fireEvent.press(getByText('Sync from Apple Health'));
     await waitFor(() => {
       expect(mockLoadAppleHealth).toHaveBeenCalledTimes(1);
     });
@@ -343,8 +343,8 @@ describe('UserProfileScreen', () => {
       hydrated: true,
     });
     mockLoadStrava.mockResolvedValue({ sex: 'female', weightKg: 62 });
-    const { getByText } = render(<UserProfileScreen />);
-    fireEvent.press(getByText('Sync from Strava'));
+    const { getByText } = await render(<UserProfileScreen />);
+    await fireEvent.press(getByText('Sync from Strava'));
     await waitFor(() => {
       expect(mockLoadStrava).toHaveBeenCalledTimes(1);
     });
@@ -365,8 +365,8 @@ describe('UserProfileScreen', () => {
   it('shows an error message when the provider load fails', async () => {
     useAppleHealthConnectionStore.setState({ connected: true, hydrated: true });
     mockLoadAppleHealth.mockRejectedValue(new Error('hk read failed'));
-    const { getByText } = render(<UserProfileScreen />);
-    fireEvent.press(getByText('Sync from Apple Health'));
+    const { getByText } = await render(<UserProfileScreen />);
+    await fireEvent.press(getByText('Sync from Apple Health'));
     await waitFor(() => {
       expect(getByText('Apple Health sync failed: hk read failed')).toBeTruthy();
     });

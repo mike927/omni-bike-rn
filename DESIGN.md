@@ -119,8 +119,7 @@ never as plain `Name · Status` text. The device name and its status never share
 | `ready` | Ready | usable (idle) / live-streaming (in-workout) |
 | `paused` | Paused | active workout, source intentionally paused |
 | `noSignal` | No signal | locked source, no fresh data for >15 s |
-| `unavailable` | Unavailable | saved / selected but not reachable now |
-| `off` | Off | exists but not the selected source |
+| `unavailable` | Unavailable | configured but not currently available |
 
 In-workout the HR tile resolves `paused → ready → connecting → noSignal` (state machine in
 `hrStatus.ts`); idle readiness gates each source on its own connection (watch companion presence,
@@ -144,7 +143,7 @@ fill).
 | `good` | `ready` | `success` `#10b5a4` (teal) | usable / live |
 | `working` | `connecting` | `warning` `#f5a524` (amber), **dot pulses** | in progress |
 | `attention` | `noSignal` | `danger` `#ef4b5c` (coral) | needs a look |
-| `inactive` | `unavailable`, `off`, `paused`, `notSetUp` | `tabInactive` `#7b8794` (gray) | not active |
+| `inactive` | `unavailable`, `paused`, `notSetUp` | `tabInactive` `#7b8794` (gray) | not active |
 
 - Only `connecting` animates — the dot pulses (opacity loop, `react-native-reanimated`). All other
   states render a static dot.
@@ -169,7 +168,7 @@ tones map to the same logical meaning; only the exact hex values differ to read 
 | `good` | `ready` | `rgba(16, 181, 164, 0.12)` | `#4fd8c8` (mintSoft) | `#10b5a4` (mint) |
 | `working` | `connecting` | `rgba(245, 165, 36, 0.12)` | `#f7c065` (amber light) | `#f5a524` (amber) |
 | `attention` | `noSignal` | `rgba(239, 75, 92, 0.14)` | `#f4818d` (coral light) | `#ef4b5c` (coral) |
-| `inactive` | `unavailable`, `off`, `paused`, `notSetUp` | `rgba(255, 255, 255, 0.04)` | `#828b9c` (ink3) | `#4a5260` (dim) |
+| `inactive` | `unavailable`, `paused`, `notSetUp` | `rgba(255, 255, 255, 0.04)` | `#828b9c` (ink3) | `#4a5260` (dim) |
 
 ## Source Row (`SourceRow`)
 
@@ -179,17 +178,20 @@ category **label** on the left (e.g. `Bluetooth HR`, `Apple Watch`, or the bike 
 `StatusPill`. When a card lists more than one source (the Heart Rate card), a hairline `border`
 divider separates the rows. The chip never truncates; the device name yields space. The Home Heart
 Rate card always shows the **Bluetooth HR** row and the **Apple Watch** row when the Watch is a
-platform option — so the source actually in effect is never invisible. The Apple Watch row reads
-`Off` unless the Watch is the effective primary.
+platform option — so the source actually in effect is never invisible. Readiness is independent
+of source selection: an unselected Watch can still be `Ready`.
 
 ## Home Device Card (`DeviceCard`)
 
 The noir-first pattern for representing a device on the Home screen (`src/features/home/components/DeviceCard.tsx`).
 Each card shows: a **rounded icon box** (Ionicons glyph, `indigoSoft` tint), the device **name** in
 primary ink (bold, single line, ellipsized), a **kind** sub-label (`ink3`, e.g. `Smart Bike`,
-`Heart Rate · Bluetooth sensor`), and a right-pinned `StatusPill` with `scheme="noir"`. When the device
+`Heart rate · Selected` or `Heart rate · Not selected`), and a right-pinned `StatusPill` with `scheme="noir"`. When the device
 is not set up or not the effective source, the card is **muted**: the icon box and name shift to
-`ink3`/`noir.iconBox` (`#1d222b`) to signal it is present but inactive.
+`ink3`/`noir.iconBox` (`#1d222b`) to signal it is present but not selected. The selected HR source
+has an indigo border, tint and name. Readiness pills are never dimmed by selection. The section
+is titled **Your gear** (not all saved devices are necessarily connected).
+Selection subtitles wrap on narrow screens; never truncate the `Selected` / `Not selected` cue.
 
 Resolver-driven visibility (same rules as `SourceRow`):
 - **Apple Watch** card is rendered only when the Watch is a platform option (`watchAvailable` from
@@ -205,7 +207,8 @@ rows that also manage a device. Rendered in Calm Noir under flat section labels
 (`SectionLabel` / `Eyebrow`, no `SectionCard` box). One tile per device (never list a device twice).
 Each tile shows a **leading Ionicons icon box** (mirroring Home's `DeviceCard`), the device **name**,
 a **`kind`** sub-label, and a right-pinned **`StatusPill`** (`scheme="noir"`). The selected HR
-source's kind reads "`<kind> · primary`" — an explicit selection cue alongside the accent bar. The
+source's kind reads **Heart rate · Selected**; other sources read **Heart rate · Not selected**.
+Selection is a separate cue alongside the accent styling, never a readiness status. The
 trainer device is labelled **Smart Bike** everywhere it appears (Home card title, this section's
 label, the Training connection footer). Two distinct interactions, two distinct affordances:
 
@@ -365,7 +368,7 @@ state is cheaper to drive; all accents are the canonical tokens (mint `#10b5a4` 
   the first sample), the **elapsed** `mm:ss` (from the workout builder, excludes paused time), and
   phase-driven controls: **Pause + End** (active) → **Resume + End** (paused). Pause is amber-tinted,
   Resume is mint-filled, End is danger-tinted.
-- **Idle** — a calm "Ready to ride · Start your ride on iPhone" prompt (Start stays on the phone,
+- **Idle** — a calm "Waiting for ride · Start on iPhone" prompt (Start stays on the phone,
   where the BLE bike connects).
 - **Always-On** (`isLuminanceReduced`) — status + HR + elapsed only, no buttons, dimmed.
 - **Status derivation** — `Connecting…` (active, no sample yet) → `Ready` (fresh HR) → `No signal`

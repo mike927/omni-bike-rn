@@ -6,8 +6,8 @@ const defaults = {
   onOpenProviderGear: jest.fn(),
 };
 
-it('branch 1: savedBikeName null → shows "Save a bike first", no relink/link gear icon', () => {
-  const { getByText, queryByLabelText } = render(
+it('branch 1: savedBikeName null → shows "Save a bike first", no relink/link gear icon', async () => {
+  const { getByText, queryByLabelText } = await render(
     <LinkedBikeBlock
       savedBikeName={null}
       currentLink={null}
@@ -22,8 +22,8 @@ it('branch 1: savedBikeName null → shows "Save a bike first", no relink/link g
   expect(queryByLabelText('Relink Strava bike')).toBeNull();
 });
 
-it('branch 2: linked → shows "Linked to Canyon Aeroad" and a Relink gear icon', () => {
-  const { getByText, getByLabelText } = render(
+it('branch 2: linked → shows "Linked to Canyon Aeroad" and a Relink gear icon', async () => {
+  const { getByText, getByLabelText } = await render(
     <LinkedBikeBlock
       savedBikeName="Zipro"
       currentLink={{ providerGearName: 'Canyon Aeroad', stale: false }}
@@ -37,8 +37,8 @@ it('branch 2: linked → shows "Linked to Canyon Aeroad" and a Relink gear icon'
   expect(getByLabelText('Relink Strava bike')).toBeTruthy();
 });
 
-it('branch 3: not linked → shows "Not linked" and a Link gear icon', () => {
-  const { getByText, getByLabelText } = render(
+it('branch 3: not linked → shows "Not linked" and a Link gear icon', async () => {
+  const { getByText, getByLabelText } = await render(
     <LinkedBikeBlock
       savedBikeName="Zipro"
       currentLink={null}
@@ -52,8 +52,8 @@ it('branch 3: not linked → shows "Not linked" and a Link gear icon', () => {
   expect(getByLabelText('Link Strava bike')).toBeTruthy();
 });
 
-it('branch 4: no_provider_gear → shows "No Strava bikes found" and "Open Strava Gear" link', () => {
-  const { getByText } = render(
+it('branch 4: no_provider_gear → shows "No Strava bikes found" and "Open Strava Gear" link', async () => {
+  const { getByText } = await render(
     <LinkedBikeBlock
       savedBikeName="Zipro"
       currentLink={null}
@@ -67,9 +67,9 @@ it('branch 4: no_provider_gear → shows "No Strava bikes found" and "Open Strav
   expect(getByText('Open Strava Gear')).toBeTruthy();
 });
 
-it('pressing the gear icon calls onLink', () => {
+it('pressing the gear icon calls onLink', async () => {
   const onLink = jest.fn();
-  const { getByLabelText } = render(
+  const { getByLabelText } = await render(
     <LinkedBikeBlock
       savedBikeName="Zipro"
       currentLink={{ providerGearName: 'Canyon Aeroad', stale: false }}
@@ -80,6 +80,6 @@ it('pressing the gear icon calls onLink', () => {
       onOpenProviderGear={jest.fn()}
     />,
   );
-  fireEvent.press(getByLabelText('Relink Strava bike'));
+  await fireEvent.press(getByLabelText('Relink Strava bike'));
   expect(onLink).toHaveBeenCalled();
 });

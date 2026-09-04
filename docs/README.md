@@ -9,6 +9,7 @@ Repository-owned reference documents that agents and humans can consult when imp
 
 ## Platform Findings
 
+- [Tech stack and upgrade checks](./tech-stack.md) — supported version matrix and native compatibility constraints
 - [Apple Watch wake-on-start from iPhone](./apple-watch/wake-on-start.md) — investigation notes for programmatically foregrounding the Watch app when a ride starts on iPhone
 
 ## Usage

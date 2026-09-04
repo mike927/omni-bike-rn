@@ -8,8 +8,8 @@ const INITIAL_METRICS = {
   insets: { top: 47, left: 0, right: 0, bottom: 34 },
 };
 
-function renderBoundary(retry: () => Promise<void> = jest.fn()) {
-  render(
+async function renderBoundary(retry: () => Promise<void> = jest.fn()) {
+  await render(
     <SafeAreaProvider initialMetrics={INITIAL_METRICS}>
       <AppErrorBoundary error={new Error('boom from a screen')} retry={retry} />
     </SafeAreaProvider>,
@@ -18,18 +18,18 @@ function renderBoundary(retry: () => Promise<void> = jest.fn()) {
 }
 
 describe('AppErrorBoundary', () => {
-  it('renders a recoverable fallback instead of a white screen', () => {
-    renderBoundary();
+  it('renders a recoverable fallback instead of a white screen', async () => {
+    await renderBoundary();
 
     expect(screen.getByText('Something went wrong')).toBeTruthy();
     expect(screen.getByText('Try again')).toBeTruthy();
   });
 
-  it('calls retry when the user taps Try again', () => {
+  it('calls retry when the user taps Try again', async () => {
     const retry = jest.fn(() => Promise.resolve());
-    renderBoundary(retry);
+    await renderBoundary(retry);
 
-    fireEvent.press(screen.getByText('Try again'));
+    await fireEvent.press(screen.getByText('Try again'));
 
     expect(retry).toHaveBeenCalledTimes(1);
   });

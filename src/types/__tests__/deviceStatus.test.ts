@@ -8,7 +8,6 @@ describe('deviceStatusLabel', () => {
     ['noSignal', 'No signal'],
     ['paused', 'Paused'],
     ['unavailable', 'Unavailable'],
-    ['off', 'Off'],
   ];
 
   it.each(cases)('maps %s → "%s"', (status, label) => {
@@ -45,7 +44,6 @@ describe('deviceStatusTone', () => {
     ['noSignal', 'attention'],
     ['paused', 'inactive'],
     ['unavailable', 'inactive'],
-    ['off', 'inactive'],
     ['notSetUp', 'inactive'],
   ];
 

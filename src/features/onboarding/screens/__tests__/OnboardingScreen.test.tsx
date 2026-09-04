@@ -58,39 +58,39 @@ describe('OnboardingScreen', () => {
     useWindowDimensionsSpy.mockRestore();
   });
 
-  it('renders the first onboarding page', () => {
-    render(<OnboardingScreen />);
+  it('renders the first onboarding page', async () => {
+    await render(<OnboardingScreen />);
 
     expect(screen.getByText('See your ride in real time')).toBeTruthy();
     expect(screen.getByText('Search for Smart Bike')).toBeTruthy();
     expect(screen.getByText('Skip')).toBeTruthy();
   });
 
-  it('opens the modal pairing flow for bike on page 1 primary CTA', () => {
-    render(<OnboardingScreen />);
+  it('opens the modal pairing flow for bike on page 1 primary CTA', async () => {
+    await render(<OnboardingScreen />);
 
-    fireEvent.press(screen.getByText('Search for Smart Bike'));
+    await fireEvent.press(screen.getByText('Search for Smart Bike'));
 
     expect(mockPush).toHaveBeenCalledWith('/onboarding-gear-setup?target=bike');
     // Primary CTA must not advance the carousel on pages 1-2.
     expect(screen.getByText('Search for Smart Bike')).toBeTruthy();
   });
 
-  it('opens the modal pairing flow for HR on page 2 primary CTA', () => {
-    render(<OnboardingScreen />);
+  it('opens the modal pairing flow for HR on page 2 primary CTA', async () => {
+    await render(<OnboardingScreen />);
 
-    fireEvent.press(screen.getByText('Skip'));
-    fireEvent.press(screen.getByText('Pair Device'));
+    await fireEvent.press(screen.getByText('Skip'));
+    await fireEvent.press(screen.getByText('Pair Device'));
 
     expect(mockPush).toHaveBeenCalledWith('/onboarding-gear-setup?target=hr');
   });
 
   it('completes onboarding when Finish is pressed on the last page', async () => {
-    render(<OnboardingScreen />);
+    await render(<OnboardingScreen />);
 
-    fireEvent.press(screen.getByText('Skip'));
-    fireEvent.press(screen.getByText('Skip'));
-    fireEvent.press(screen.getByText('Finish'));
+    await fireEvent.press(screen.getByText('Skip'));
+    await fireEvent.press(screen.getByText('Skip'));
+    await fireEvent.press(screen.getByText('Finish'));
 
     await waitFor(() => {
       expect(mockCompleteOnboarding).toHaveBeenCalledTimes(1);
@@ -98,31 +98,31 @@ describe('OnboardingScreen', () => {
     });
   });
 
-  it('auto-advances from bike page to HR page after a new bike is paired', () => {
-    const { rerender } = render(<OnboardingScreen />);
+  it('auto-advances from bike page to HR page after a new bike is paired', async () => {
+    const { rerender } = await render(<OnboardingScreen />);
 
     expect(screen.getByText('See your ride in real time')).toBeTruthy();
 
     savedGearState.savedBike = { id: 'dev-1', name: 'Zipro' } as unknown;
-    rerender(<OnboardingScreen />);
+    await rerender(<OnboardingScreen />);
 
     expect(screen.getByText('Train to your heart rate')).toBeTruthy();
   });
 
-  it('auto-advances from HR page to the finish page after a new HR source is paired', () => {
-    const { rerender } = render(<OnboardingScreen />);
+  it('auto-advances from HR page to the finish page after a new HR source is paired', async () => {
+    const { rerender } = await render(<OnboardingScreen />);
 
-    fireEvent.press(screen.getByText('Skip'));
+    await fireEvent.press(screen.getByText('Skip'));
     expect(screen.getByText('Train to your heart rate')).toBeTruthy();
 
     savedGearState.savedHrSource = { id: 'dev-2', name: 'HR Strap' } as unknown;
-    rerender(<OnboardingScreen />);
+    await rerender(<OnboardingScreen />);
 
     expect(screen.getByText("One tap and you're riding")).toBeTruthy();
   });
 
-  it('does not advance when focus returns without saving a bike', () => {
-    render(<OnboardingScreen />);
+  it('does not advance when focus returns without saving a bike', async () => {
+    await render(<OnboardingScreen />);
 
     expect(screen.getByText('See your ride in real time')).toBeTruthy();
   });
@@ -135,8 +135,8 @@ describe('OnboardingScreen', () => {
     expect(getOnboardingPageIndex(800, pageWidth)).toBe(2);
   });
 
-  it('renders each per-page hero illustration', () => {
-    render(<OnboardingScreen />);
+  it('renders each per-page hero illustration', async () => {
+    await render(<OnboardingScreen />);
 
     expect(screen.getByTestId('onboarding-illustration-bike')).toBeTruthy();
     expect(screen.getByTestId('onboarding-illustration-hr')).toBeTruthy();

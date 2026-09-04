@@ -59,7 +59,7 @@ describe('GearSetupScreen', () => {
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
     mockStartScan.mockResolvedValue('denied');
 
-    render(<GearSetupScreen target="bike" />); // scanning starts automatically on mount
+    await render(<GearSetupScreen target="bike" />); // scanning starts automatically on mount
 
     await waitFor(() => {
       expect(alertSpy).toHaveBeenCalledWith(
@@ -71,7 +71,7 @@ describe('GearSetupScreen', () => {
   });
 
   describe('HR broadcast hint', () => {
-    it('shows the Garmin/Polar broadcast hint when HR validation fails with missing_hr_service', () => {
+    it('shows the Garmin/Polar broadcast hint when HR validation fails with missing_hr_service', async () => {
       Object.assign(mockGearSetupState, {
         step: 'error',
         devices: [{ id: 'AB:CD', name: 'Garmin Venu' }],
@@ -79,14 +79,14 @@ describe('GearSetupScreen', () => {
         validationError: 'missing_hr_service',
       });
 
-      const { getByText, queryByText } = render(<GearSetupScreen target="hr" />);
+      const { getByText, queryByText } = await render(<GearSetupScreen target="hr" />);
 
       expect(getByText('Pairing a Garmin or Polar watch?')).toBeTruthy();
       // Step list is collapsed by default — step 1 text should not be visible yet.
       expect(queryByText(/hold UP to open the menu/)).toBeNull();
     });
 
-    it('expands the broadcast hint step list when tapped', () => {
+    it('expands the broadcast hint step list when tapped', async () => {
       Object.assign(mockGearSetupState, {
         step: 'error',
         devices: [{ id: 'AB:CD', name: 'Garmin Venu' }],
@@ -94,9 +94,9 @@ describe('GearSetupScreen', () => {
         validationError: 'missing_hr_service',
       });
 
-      const { getByText } = render(<GearSetupScreen target="hr" />);
+      const { getByText } = await render(<GearSetupScreen target="hr" />);
 
-      fireEvent.press(getByText('Pairing a Garmin or Polar watch?'));
+      await fireEvent.press(getByText('Pairing a Garmin or Polar watch?'));
 
       // The step text is intentionally family-agnostic: it names multiple
       // Garmin families with their distinct button paths rather than
@@ -109,13 +109,13 @@ describe('GearSetupScreen', () => {
     });
   });
 
-  it('shows a connecting status on the selected device row while connecting', () => {
+  it('shows a connecting status on the selected device row while connecting', async () => {
     Object.assign(mockGearSetupState, {
       step: 'connecting',
       devices: [{ id: 'D4:9F', name: 'Wahoo KICKR Bike' }],
       selectedDevice: { id: 'D4:9F', name: 'Wahoo KICKR Bike' },
     });
-    const { getByText } = render(<GearSetupScreen target="bike" />);
+    const { getByText } = await render(<GearSetupScreen target="bike" />);
     expect(getByText('Wahoo KICKR Bike')).toBeTruthy();
     expect(getByText('Connecting...')).toBeTruthy();
   });
@@ -127,26 +127,26 @@ describe('GearSetupScreen', () => {
       selectedDevice: { id: 'D4:9F', name: 'Wahoo KICKR Bike' },
       signalConfirmed: true,
     });
-    render(<GearSetupScreen target="bike" />);
+    await render(<GearSetupScreen target="bike" />);
     await waitFor(() => {
       expect(mockGearSetupState.save).toHaveBeenCalled();
       expect(mockBack).toHaveBeenCalled();
     });
   });
 
-  it('shows the FTMS error inline on the device row on validation failure', () => {
+  it('shows the FTMS error inline on the device row on validation failure', async () => {
     Object.assign(mockGearSetupState, {
       step: 'error',
       devices: [{ id: 'X', name: 'Generic Fitness 5C2' }],
       selectedDevice: { id: 'X', name: 'Generic Fitness 5C2' },
       validationError: 'missing_indoor_bike_characteristic',
     });
-    const { getByText } = render(<GearSetupScreen target="bike" />);
+    const { getByText } = await render(<GearSetupScreen target="bike" />);
     expect(getByText(/does not broadcast indoor bike data/i)).toBeTruthy();
     expect(getByText('Retry')).toBeTruthy();
   });
 
-  it('locks the other device rows while one device is connecting', () => {
+  it('locks the other device rows while one device is connecting', async () => {
     const selectDevice = jest.fn();
     Object.assign(mockGearSetupState, {
       step: 'connecting',
@@ -157,10 +157,10 @@ describe('GearSetupScreen', () => {
       selectedDevice: { id: 'A', name: 'Wahoo KICKR Bike' },
       selectDevice,
     });
-    const { getByText } = render(<GearSetupScreen target="bike" />);
+    const { getByText } = await render(<GearSetupScreen target="bike" />);
     // Device A shows "Connecting...", so the only "Select" belongs to the idle
     // row B — which must be locked while a pairing is in flight.
-    fireEvent.press(getByText('Select'));
+    await fireEvent.press(getByText('Select'));
     expect(selectDevice).not.toHaveBeenCalled();
   });
 
@@ -173,20 +173,20 @@ describe('GearSetupScreen', () => {
       signalConfirmed: true,
       save: jest.fn().mockRejectedValue(new Error('persist failed')),
     });
-    render(<GearSetupScreen target="bike" />);
+    await render(<GearSetupScreen target="bike" />);
     await waitFor(() => expect(alertSpy).toHaveBeenCalled());
     expect(alertSpy.mock.calls[0]?.[0]).toMatch(/Save Device/);
     expect(mockBack).not.toHaveBeenCalled();
   });
 
   describe('HR sensor transparency', () => {
-    it('does not surface any watch-specific guidance on HR gear setup in the default state', () => {
+    it('does not surface any watch-specific guidance on HR gear setup in the default state', async () => {
       // Regression guard: the HR gear-setup screen must treat chest straps
       // and broadcast-capable watches identically. Previously a "Garmin
       // Connect Tip" SectionCard with a dual-recording hint was rendered
       // unconditionally on target="hr"; it was removed because the HR source
       // type should be transparent to the user at gear-setup time.
-      const { queryByText } = render(<GearSetupScreen target="hr" />);
+      const { queryByText } = await render(<GearSetupScreen target="hr" />);
 
       expect(queryByText('Want this workout in Garmin Connect too?')).toBeNull();
       expect(queryByText('Garmin Connect Tip')).toBeNull();

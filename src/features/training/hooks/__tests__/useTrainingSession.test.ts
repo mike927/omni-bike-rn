@@ -61,9 +61,9 @@ describe('useTrainingSession', () => {
   });
 
   it('should not echo control writes when syncing a bike-started status', async () => {
-    const { result } = renderHook(() => useTrainingSession());
+    const { result } = await renderHook(() => useTrainingSession());
 
-    act(() => {
+    await act(() => {
       useDeviceConnectionStore.getState().updateBikeMetrics({
         speed: 25,
         cadence: 80,
@@ -80,10 +80,10 @@ describe('useTrainingSession', () => {
     expect(mockEngineStart).toHaveBeenCalledTimes(1);
   });
 
-  it('should still send a control write for a user-initiated start', () => {
-    const { result } = renderHook(() => useTrainingSession());
+  it('should still send a control write for a user-initiated start', async () => {
+    const { result } = await renderHook(() => useTrainingSession());
 
-    act(() => {
+    await act(() => {
       result.current.start();
     });
 
@@ -92,13 +92,13 @@ describe('useTrainingSession', () => {
     expect(mockEngineStart).toHaveBeenCalledTimes(1);
   });
 
-  it('should not start a session when the bike is not connected', () => {
+  it('should not start a session when the bike is not connected', async () => {
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     useDeviceConnectionStore.getState().setBikeAdapter(null);
 
-    const { result } = renderHook(() => useTrainingSession());
+    const { result } = await renderHook(() => useTrainingSession());
 
-    act(() => {
+    await act(() => {
       result.current.start();
     });
 
@@ -110,19 +110,19 @@ describe('useTrainingSession', () => {
     warnSpy.mockRestore();
   });
 
-  it('should not resume a paused session when the bike is not connected', () => {
+  it('should not resume a paused session when the bike is not connected', async () => {
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     useDeviceConnectionStore.getState().setBikeAdapter(null);
 
-    const { result } = renderHook(() => useTrainingSession());
+    const { result } = await renderHook(() => useTrainingSession());
 
-    act(() => {
+    await act(() => {
       useTrainingSessionStore.setState({ phase: TrainingPhase.Paused });
     });
 
     expect(result.current.phase).toBe(TrainingPhase.Paused);
 
-    act(() => {
+    await act(() => {
       result.current.resume();
     });
 
@@ -135,16 +135,16 @@ describe('useTrainingSession', () => {
   });
 
   it('should stop the bike when finishing an active session', async () => {
-    const { result } = renderHook(() => useTrainingSession());
+    const { result } = await renderHook(() => useTrainingSession());
 
-    act(() => {
+    await act(() => {
       result.current.start();
     });
 
     mockSetControlState.mockClear();
     mockEngineStop.mockClear();
 
-    act(() => {
+    await act(() => {
       result.current.finish();
     });
 
@@ -165,16 +165,16 @@ describe('useTrainingSession', () => {
     });
     mockSetControlState.mockReturnValueOnce(stopPromise);
 
-    const { result } = renderHook(() => useTrainingSession());
+    const { result } = await renderHook(() => useTrainingSession());
 
-    act(() => {
+    await act(() => {
       result.current.start();
     });
 
     mockSetControlState.mockClear();
     mockDisconnect.mockClear();
 
-    act(() => {
+    await act(() => {
       result.current.finish();
     });
 
@@ -193,9 +193,9 @@ describe('useTrainingSession', () => {
   });
 
   it('should keep the bike adapter connected after finish so summary done can disconnect cleanly', async () => {
-    const { result } = renderHook(() => useTrainingSession());
+    const { result } = await renderHook(() => useTrainingSession());
 
-    act(() => {
+    await act(() => {
       result.current.start();
     });
 
@@ -203,7 +203,7 @@ describe('useTrainingSession', () => {
     mockDisconnect.mockClear();
     mockHrDisconnect.mockClear();
 
-    act(() => {
+    await act(() => {
       result.current.finish();
     });
 
@@ -218,13 +218,13 @@ describe('useTrainingSession', () => {
   });
 
   it('should freeze (pause) the session when the bike reports Stopped while Active', async () => {
-    const { result } = renderHook(() => useTrainingSession());
+    const { result } = await renderHook(() => useTrainingSession());
 
-    act(() => {
+    await act(() => {
       result.current.start();
     });
 
-    act(() => {
+    await act(() => {
       useDeviceConnectionStore.getState().updateBikeMetrics({
         speed: 0,
         cadence: 0,
@@ -241,19 +241,19 @@ describe('useTrainingSession', () => {
   });
 
   it('should ignore a bike Stopped echo when already Paused', async () => {
-    const { result } = renderHook(() => useTrainingSession());
+    const { result } = await renderHook(() => useTrainingSession());
 
-    act(() => {
+    await act(() => {
       result.current.start();
     });
 
-    act(() => {
+    await act(() => {
       result.current.pause();
     });
 
     expect(result.current.phase).toBe(TrainingPhase.Paused);
 
-    act(() => {
+    await act(() => {
       useDeviceConnectionStore.getState().updateBikeMetrics({
         speed: 0,
         cadence: 0,
@@ -270,16 +270,16 @@ describe('useTrainingSession', () => {
   });
 
   it('should freeze (pause) the session when the bike disconnects while Active', async () => {
-    const { result } = renderHook(() => useTrainingSession());
+    const { result } = await renderHook(() => useTrainingSession());
 
-    act(() => {
+    await act(() => {
       result.current.start();
     });
 
     mockSetControlState.mockClear();
     mockEngineStop.mockClear();
 
-    act(() => {
+    await act(() => {
       useDeviceConnectionStore.getState().clearBikeConnection();
     });
 
@@ -291,14 +291,14 @@ describe('useTrainingSession', () => {
     expect(mockEngineStop).toHaveBeenCalledTimes(1);
   });
 
-  it('should freeze (pause) the session and mark the bike disconnected when telemetry goes stale while Active', () => {
+  it('should freeze (pause) the session and mark the bike disconnected when telemetry goes stale while Active', async () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2026-04-14T12:00:00.000Z'));
 
     try {
-      const { result } = renderHook(() => useTrainingSession());
+      const { result } = await renderHook(() => useTrainingSession());
 
-      act(() => {
+      await act(() => {
         useDeviceConnectionStore.getState().updateBikeMetrics({
           speed: 25,
           cadence: 80,
@@ -310,7 +310,7 @@ describe('useTrainingSession', () => {
       mockSetControlState.mockClear();
       mockEngineStop.mockClear();
 
-      act(() => {
+      await act(() => {
         jest.advanceTimersByTime(5000);
         useTrainingSessionStore.setState({ elapsedSeconds: 5 });
       });
@@ -328,20 +328,20 @@ describe('useTrainingSession', () => {
   });
 
   it('should keep a paused session paused when the bike disconnects', async () => {
-    const { result } = renderHook(() => useTrainingSession());
+    const { result } = await renderHook(() => useTrainingSession());
 
-    act(() => {
+    await act(() => {
       result.current.start();
     });
 
-    act(() => {
+    await act(() => {
       result.current.pause();
     });
 
     mockSetControlState.mockClear();
     mockEngineStop.mockClear();
 
-    act(() => {
+    await act(() => {
       useDeviceConnectionStore.getState().clearBikeConnection();
     });
 
@@ -355,9 +355,9 @@ describe('useTrainingSession', () => {
 
   it('should send bike reset, disconnect devices, and reset the session', async () => {
     const disconnectAllSpy = jest.spyOn(deviceConnectionModule, 'disconnectAllDeviceConnections');
-    const { result } = renderHook(() => useTrainingSession());
+    const { result } = await renderHook(() => useTrainingSession());
 
-    act(() => {
+    await act(() => {
       result.current.start();
     });
 
@@ -395,9 +395,9 @@ describe('useTrainingSession', () => {
       }
     });
 
-    const { result } = renderHook(() => useTrainingSession());
+    const { result } = await renderHook(() => useTrainingSession());
 
-    act(() => {
+    await act(() => {
       result.current.start();
     });
 
@@ -418,13 +418,13 @@ describe('useTrainingSession', () => {
     });
     mockSetControlState.mockReturnValue(stopPromise);
 
-    const { result } = renderHook(() => useTrainingSession());
+    const { result } = await renderHook(() => useTrainingSession());
 
-    act(() => {
+    await act(() => {
       result.current.start();
     });
 
-    act(() => {
+    await act(() => {
       result.current.finish();
     });
 
@@ -449,13 +449,13 @@ describe('useTrainingSession', () => {
 
   it('should send bike reset and disconnect when done is pressed from summary', async () => {
     const disconnectAllSpy = jest.spyOn(deviceConnectionModule, 'disconnectAllDeviceConnections');
-    const { result } = renderHook(() => useTrainingSession());
+    const { result } = await renderHook(() => useTrainingSession());
 
-    act(() => {
+    await act(() => {
       result.current.start();
     });
 
-    act(() => {
+    await act(() => {
       result.current.finish();
     });
 
@@ -494,9 +494,9 @@ describe('useTrainingSession', () => {
     const disconnectAllSpy = jest.spyOn(deviceConnectionModule, 'disconnectAllDeviceConnections');
     jest.spyOn(trainingSessionPersistenceModule, 'getActiveSessionId').mockReturnValue('session-22');
 
-    const { result } = renderHook(() => useTrainingSession());
+    const { result } = await renderHook(() => useTrainingSession());
 
-    act(() => {
+    await act(() => {
       result.current.start();
     });
 
@@ -515,13 +515,13 @@ describe('useTrainingSession', () => {
   });
 
   it('should stay finished if the bike disconnects after finish', async () => {
-    const { result } = renderHook(() => useTrainingSession());
+    const { result } = await renderHook(() => useTrainingSession());
 
-    act(() => {
+    await act(() => {
       result.current.start();
     });
 
-    act(() => {
+    await act(() => {
       result.current.finish();
     });
 
@@ -531,7 +531,7 @@ describe('useTrainingSession', () => {
 
     mockEngineStop.mockClear();
 
-    act(() => {
+    await act(() => {
       useDeviceConnectionStore.getState().clearBikeConnection();
     });
 
@@ -543,7 +543,7 @@ describe('useTrainingSession', () => {
   });
 
   it('should return null from finishAndDisconnect when idle', async () => {
-    const { result } = renderHook(() => useTrainingSession());
+    const { result } = await renderHook(() => useTrainingSession());
 
     let sessionId: string | null = 'not-null';
     await act(async () => {
@@ -555,7 +555,7 @@ describe('useTrainingSession', () => {
   });
 
   it('should avoid issuing a bike reset command when already idle', async () => {
-    const { result } = renderHook(() => useTrainingSession());
+    const { result } = await renderHook(() => useTrainingSession());
 
     await act(async () => {
       await result.current.reset();

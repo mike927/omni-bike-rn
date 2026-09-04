@@ -3,21 +3,8 @@ import {
   WATCH_HR_UNAVAILABLE_HINT,
   hrSourceIdleReadiness,
   resolveHrSourceSummary,
-  watchHrStatus,
 } from '../hrStatus';
 import { TrainingPhase } from '../../../types/training';
-
-describe('watchHrStatus', () => {
-  it('is off when Watch is not the primary source, regardless of availability', () => {
-    expect(watchHrStatus(false, 'connected')).toBe('off');
-    expect(watchHrStatus(false, 'unavailable')).toBe('off');
-  });
-
-  it('maps companion availability to ready/unavailable when Watch is primary', () => {
-    expect(watchHrStatus(true, 'connected')).toBe('ready');
-    expect(watchHrStatus(true, 'unavailable')).toBe('unavailable');
-  });
-});
 
 describe('WATCH_HR_UNAVAILABLE_HINT', () => {
   it('exposes the canonical Watch-unavailable hint copy', () => {

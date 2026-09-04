@@ -1,10 +1,10 @@
 import { act, renderHook } from '@testing-library/react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from 'expo-router';
 
 import { useLatestWorkout } from '../useLatestWorkout';
 import { getLatestFinishedSession } from '../../../../services/db/trainingSessionRepository';
 
-jest.mock('@react-navigation/native', () => ({
+jest.mock('expo-router', () => ({
   useFocusEffect: jest.fn(),
 }));
 
@@ -20,7 +20,7 @@ describe('useLatestWorkout', () => {
     jest.clearAllMocks();
   });
 
-  it('refreshes the latest workout whenever the screen gains focus', () => {
+  it('refreshes the latest workout whenever the screen gains focus', async () => {
     let focusCallback: (() => void) | undefined;
 
     mockUseFocusEffect.mockImplementation((callback) => {
@@ -43,20 +43,20 @@ describe('useLatestWorkout', () => {
       updatedAtMs: 200,
     });
 
-    const { result } = renderHook(() => useLatestWorkout());
+    const { result } = await renderHook(() => useLatestWorkout());
 
-    act(() => {
+    await act(() => {
       focusCallback?.();
     });
     expect(result.current).toBeNull();
 
-    act(() => {
+    await act(() => {
       focusCallback?.();
     });
     expect(result.current?.id).toBe('session-2');
   });
 
-  it('returns null and does not throw when the read fails', () => {
+  it('returns null and does not throw when the read fails', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     let focusCallback: (() => void) | undefined;
 
@@ -67,13 +67,13 @@ describe('useLatestWorkout', () => {
       throw new Error('db read failed');
     });
 
-    const { result } = renderHook(() => useLatestWorkout());
+    const { result } = await renderHook(() => useLatestWorkout());
 
-    expect(() =>
+    await expect(
       act(() => {
         focusCallback?.();
       }),
-    ).not.toThrow();
+    ).resolves.toBeUndefined();
     expect(result.current).toBeNull();
     expect(errorSpy).toHaveBeenCalled();
 

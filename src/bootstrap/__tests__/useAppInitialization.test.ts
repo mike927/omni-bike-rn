@@ -59,13 +59,13 @@ beforeEach(() => {
 describe('useAppInitialization', () => {
   it('registers providers and hydrates the stores on mount', async () => {
     mockInit.mockResolvedValue(undefined);
-    renderHook(() => useAppInitialization());
+    await renderHook(() => useAppInitialization());
     await waitFor(() => expect(registerExportProviders).toHaveBeenCalled());
   });
 
   it('reports ready once the database initializes and all stores are hydrated', async () => {
     mockInit.mockResolvedValue(undefined);
-    const { result } = renderHook(() => useAppInitialization());
+    const { result } = await renderHook(() => useAppInitialization());
     await waitFor(() => expect(result.current.phase).toBe('ready'));
     expect(result.current).toEqual({ phase: 'ready', onboardingCompleted: false });
   });
@@ -73,7 +73,7 @@ describe('useAppInitialization', () => {
   it('passes through onboardingCompleted', async () => {
     mockInit.mockResolvedValue(undefined);
     setAllHydrated(true);
-    const { result } = renderHook(() => useAppInitialization());
+    const { result } = await renderHook(() => useAppInitialization());
     await waitFor(() => expect(result.current.phase).toBe('ready'));
     expect(result.current).toEqual({ phase: 'ready', onboardingCompleted: true });
   });
@@ -81,14 +81,14 @@ describe('useAppInitialization', () => {
   it('stays loading while a store is not yet hydrated', async () => {
     mockInit.mockResolvedValue(undefined);
     mockStore(useUserProfileStore, { hydrate: jest.fn().mockResolvedValue(undefined), hydrated: false });
-    const { result } = renderHook(() => useAppInitialization());
+    const { result } = await renderHook(() => useAppInitialization());
     await waitFor(() => expect(registerExportProviders).toHaveBeenCalled());
     expect(result.current.phase).toBe('loading');
   });
 
   it('reports error and retry re-runs database init when init fails', async () => {
     mockInit.mockRejectedValueOnce(new Error('db boom')).mockResolvedValueOnce(undefined);
-    const { result } = renderHook(() => useAppInitialization());
+    const { result } = await renderHook(() => useAppInitialization());
     await waitFor(() => expect(result.current.phase).toBe('error'));
     const errorState = result.current;
     if (errorState.phase !== 'error') throw new Error('expected error phase');

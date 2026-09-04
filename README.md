@@ -6,12 +6,13 @@ Indoor cycling companion app built with Expo Router and React Native.
 
 - Project progress and current status live in [`plan.md`](plan.md).
 - Trusted local reference documents live in [`docs/README.md`](docs/README.md).
+- Current versions, compatibility decisions and upgrade checks live in [`docs/tech-stack.md`](docs/tech-stack.md).
 
 ## Core Commands
 
 ```bash
 npm run start
-npm run ios -- --device
+npm run ios
 npm run lint
 npm run typecheck
 npm test -- --ci --runInBand
@@ -25,7 +26,7 @@ This app uses native modules such as `react-native-ble-plx` and includes `expo-d
 
 ### When To Run Which Command
 
-`npm run ios -- --device`
+`npm run ios`
 
 - Run this the first time you want the app on your iPhone.
 - Run this again if you deleted the app from the phone.
@@ -44,7 +45,7 @@ This app uses native modules such as `react-native-ble-plx` and includes `expo-d
 1. Install or reinstall the iPhone development build when needed:
 
    ```bash
-   npm run ios -- --device
+   npm run ios
    ```
 
 2. Start Metro:
@@ -58,13 +59,17 @@ This app uses native modules such as `react-native-ble-plx` and includes `expo-d
 ### After A Code Change
 
 - For JavaScript, TypeScript, routing, hooks, state, and styling changes: keep using `npm run start`.
-- For `app.json`, native package, permission, plugin, or iOS project changes: rerun `npm run ios -- --device`, then `npm run start`.
+- For `app.config.ts`, native package, permission, plugin, or iOS project changes: rerun `npm run ios`, then `npm run start`.
 
 ### Quick Rule Of Thumb
 
 If the phone already has the Omni Bike development app installed, start with `npm run start`.
 
-If the phone cannot open the project, says the app is unavailable, or native setup changed, run `npm run ios -- --device`.
+If the phone cannot open the project, says the app is unavailable, or native setup changed, run `npm run ios`.
+
+`npm run build:smoke` exports the iOS and Android JavaScript bundles; it does not build native apps.
+Never run a clean iOS prebuild: the checked-in `ios/` directory contains the Apple Watch target.
+Expo SDK 57 makes prebuild clean by default, so even a bare `expo prebuild` is unsafe here.
 
 ## Development Standards
 

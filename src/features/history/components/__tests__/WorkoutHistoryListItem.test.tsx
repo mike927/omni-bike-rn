@@ -24,9 +24,9 @@ function buildSession(overrides: Partial<PersistedTrainingSession>): PersistedTr
 }
 
 describe('WorkoutHistoryListItem', () => {
-  it('renders the compact date and metrics line', () => {
+  it('renders the compact date and metrics line', async () => {
     const session = buildSession({});
-    const { getByText } = render(
+    const { getByText } = await render(
       <WorkoutHistoryListItem session={session} uploadedProviderIds={[]} onPress={jest.fn()} onDelete={jest.fn()} />,
     );
 
@@ -34,26 +34,26 @@ describe('WorkoutHistoryListItem', () => {
     expect(getByText('18.4 km · 1h 2m · 512 kcal')).toBeTruthy();
   });
 
-  it('opens the summary when pressed', () => {
+  it('opens the summary when pressed', async () => {
     const session = buildSession({});
     const onPress = jest.fn();
-    const { getByLabelText } = render(
+    const { getByLabelText } = await render(
       <WorkoutHistoryListItem session={session} uploadedProviderIds={[]} onPress={onPress} onDelete={jest.fn()} />,
     );
 
-    fireEvent.press(getByLabelText(`Workout on ${formatHistoryDate(session.startedAtMs)}`));
+    await fireEvent.press(getByLabelText(`Workout on ${formatHistoryDate(session.startedAtMs)}`));
 
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
-  it('requests deletion on long press', () => {
+  it('requests deletion on long press', async () => {
     const session = buildSession({});
     const onDelete = jest.fn();
-    const { getByLabelText } = render(
+    const { getByLabelText } = await render(
       <WorkoutHistoryListItem session={session} uploadedProviderIds={[]} onPress={jest.fn()} onDelete={onDelete} />,
     );
 
-    fireEvent(getByLabelText(`Workout on ${formatHistoryDate(session.startedAtMs)}`), 'longPress');
+    await fireEvent(getByLabelText(`Workout on ${formatHistoryDate(session.startedAtMs)}`), 'longPress');
 
     expect(onDelete).toHaveBeenCalledTimes(1);
   });
@@ -61,40 +61,40 @@ describe('WorkoutHistoryListItem', () => {
   // The Delete button is always mounted behind the row, so it is reachable by VoiceOver/keyboard
   // without performing the (pointer-only) swipe. This asserts that reachability, not the drag —
   // the drag→open motion is covered by the pure gesture math (swipeableRowGesture) + on-device test.
-  it('exposes a Delete action reachable without the swipe gesture (a11y) that deletes', () => {
+  it('exposes a Delete action reachable without the swipe gesture (a11y) that deletes', async () => {
     const session = buildSession({});
     const onDelete = jest.fn();
-    const { getByLabelText } = render(
+    const { getByLabelText } = await render(
       <WorkoutHistoryListItem session={session} uploadedProviderIds={[]} onPress={jest.fn()} onDelete={onDelete} />,
     );
 
-    fireEvent.press(getByLabelText('Delete'));
+    await fireEvent.press(getByLabelText('Delete'));
 
     expect(onDelete).toHaveBeenCalledTimes(1);
   });
 
-  it('exposes an accessible delete action for assistive tech (not only long press)', () => {
+  it('exposes an accessible delete action for assistive tech (not only long press)', async () => {
     const session = buildSession({});
     const onDelete = jest.fn();
-    const { getByLabelText } = render(
+    const { getByLabelText } = await render(
       <WorkoutHistoryListItem session={session} uploadedProviderIds={[]} onPress={jest.fn()} onDelete={onDelete} />,
     );
 
     const row = getByLabelText(`Workout on ${formatHistoryDate(session.startedAtMs)}`);
     expect(row.props.accessibilityActions).toEqual([{ name: 'delete', label: 'Delete workout' }]);
 
-    fireEvent(row, 'accessibilityAction', { nativeEvent: { actionName: 'delete' } });
+    await fireEvent(row, 'accessibilityAction', { nativeEvent: { actionName: 'delete' } });
     expect(onDelete).toHaveBeenCalledTimes(1);
   });
 
-  it('ignores unrelated accessibility actions', () => {
+  it('ignores unrelated accessibility actions', async () => {
     const session = buildSession({});
     const onDelete = jest.fn();
-    const { getByLabelText } = render(
+    const { getByLabelText } = await render(
       <WorkoutHistoryListItem session={session} uploadedProviderIds={[]} onPress={jest.fn()} onDelete={onDelete} />,
     );
 
-    fireEvent(getByLabelText(`Workout on ${formatHistoryDate(session.startedAtMs)}`), 'accessibilityAction', {
+    await fireEvent(getByLabelText(`Workout on ${formatHistoryDate(session.startedAtMs)}`), 'accessibilityAction', {
       nativeEvent: { actionName: 'activate' },
     });
 

@@ -32,14 +32,14 @@ function getMock() {
   };
 }
 
-function emitPayload(payload: ControlPayload) {
-  act(() => {
+async function emitPayload(payload: ControlPayload) {
+  await act(() => {
     getMock().__listeners.onWatchControlRequest?.(payload);
   });
 }
 
-function emit(action: string) {
-  emitPayload({ action });
+async function emit(action: string) {
+  await emitPayload({ action });
 }
 
 beforeEach(() => {
@@ -59,65 +59,68 @@ function makeHandlers() {
 }
 
 describe('useWatchRemoteControl', () => {
-  it('subscribes to onWatchControlRequest on mount', () => {
+  it('subscribes to onWatchControlRequest on mount', async () => {
     const handlers = makeHandlers();
-    renderHook(() => useWatchRemoteControl(handlers));
+    await renderHook(() => useWatchRemoteControl(handlers));
     expect(getMock().WatchConnectivity.addListener).toHaveBeenCalledWith('onWatchControlRequest', expect.any(Function));
   });
 
-  it('routes a "pause" request to onPause only', () => {
+  it('routes a "pause" request to onPause only', async () => {
     const handlers = makeHandlers();
-    renderHook(() => useWatchRemoteControl(handlers));
-    emit('pause');
+    await renderHook(() => useWatchRemoteControl(handlers));
+    await emit('pause');
     expect(handlers.onPause).toHaveBeenCalledTimes(1);
     expect(handlers.onResume).not.toHaveBeenCalled();
     expect(handlers.onFinish).not.toHaveBeenCalled();
   });
 
-  it('routes a "resume" request to onResume only', () => {
+  it('routes a "resume" request to onResume only', async () => {
     const handlers = makeHandlers();
-    renderHook(() => useWatchRemoteControl(handlers));
-    emit('resume');
+    await renderHook(() => useWatchRemoteControl(handlers));
+    await emit('resume');
     expect(handlers.onResume).toHaveBeenCalledTimes(1);
     expect(handlers.onPause).not.toHaveBeenCalled();
     expect(handlers.onFinish).not.toHaveBeenCalled();
   });
 
-  it('routes an "end" request to onFinish only', () => {
+  it('routes an "end" request to onFinish only', async () => {
     const handlers = makeHandlers();
-    renderHook(() => useWatchRemoteControl(handlers));
-    emit('end');
+    await renderHook(() => useWatchRemoteControl(handlers));
+    await emit('end');
     expect(handlers.onFinish).toHaveBeenCalledTimes(1);
     expect(handlers.onPause).not.toHaveBeenCalled();
     expect(handlers.onResume).not.toHaveBeenCalled();
   });
 
-  it('ignores unknown actions', () => {
+  it('ignores unknown actions', async () => {
     const handlers = makeHandlers();
-    renderHook(() => useWatchRemoteControl(handlers));
-    emit('explode');
+    await renderHook(() => useWatchRemoteControl(handlers));
+    await emit('explode');
     expect(handlers.onPause).not.toHaveBeenCalled();
     expect(handlers.onResume).not.toHaveBeenCalled();
     expect(handlers.onFinish).not.toHaveBeenCalled();
   });
 
-  it('ignores stale queued control requests', () => {
+  it('ignores stale queued control requests', async () => {
     jest.spyOn(Date, 'now').mockReturnValue(120_000);
     const handlers = makeHandlers();
-    renderHook(() => useWatchRemoteControl(handlers));
-    emitPayload({ action: 'end', sentAtMs: 59_999 });
+    await renderHook(() => useWatchRemoteControl(handlers));
+    await emitPayload({ action: 'end', sentAtMs: 59_999 });
     expect(handlers.onFinish).not.toHaveBeenCalled();
   });
 
-  it('dispatches to the latest handler without re-subscribing on re-render', () => {
+  it('dispatches to the latest handler without re-subscribing on re-render', async () => {
     const first = makeHandlers();
     const second = makeHandlers();
-    const { rerender } = renderHook((props: { h: WatchRemoteControlHandlers }) => useWatchRemoteControl(props.h), {
-      initialProps: { h: first },
-    });
+    const { rerender } = await renderHook(
+      (props: { h: WatchRemoteControlHandlers }) => useWatchRemoteControl(props.h),
+      {
+        initialProps: { h: first },
+      },
+    );
 
-    rerender({ h: second });
-    emit('pause');
+    await rerender({ h: second });
+    await emit('pause');
 
     expect(second.onPause).toHaveBeenCalledTimes(1);
     expect(first.onPause).not.toHaveBeenCalled();
@@ -125,18 +128,18 @@ describe('useWatchRemoteControl', () => {
     expect(getMock().WatchConnectivity.addListener).toHaveBeenCalledTimes(1);
   });
 
-  it('removes the listener on unmount', () => {
+  it('removes the listener on unmount', async () => {
     const handlers = makeHandlers();
-    const { unmount } = renderHook(() => useWatchRemoteControl(handlers));
+    const { unmount } = await renderHook(() => useWatchRemoteControl(handlers));
     const sub = getMock().WatchConnectivity.addListener.mock.results[0]?.value as { remove: jest.Mock };
-    unmount();
+    await unmount();
     expect(sub.remove).toHaveBeenCalledTimes(1);
   });
 
-  it('does not subscribe (and does not throw) when unavailable (Android)', () => {
+  it('does not subscribe (and does not throw) when unavailable (Android)', async () => {
     mockWcAvailable = false;
     const handlers = makeHandlers();
-    expect(() => renderHook(() => useWatchRemoteControl(handlers))).not.toThrow();
+    await expect(renderHook(() => useWatchRemoteControl(handlers))).resolves.toBeDefined();
     expect(getMock().WatchConnectivity.addListener).not.toHaveBeenCalled();
   });
 });

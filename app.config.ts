@@ -12,12 +12,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'dark',
-  newArchEnabled: true,
-  splash: {
-    image: './assets/splash-icon.png',
-    resizeMode: 'contain',
-    backgroundColor: '#0b0e13',
-  },
   ios: {
     supportsTablet: false,
     bundleIdentifier: 'app.omnibike',
@@ -36,7 +30,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#0b0e13',
     },
-    edgeToEdgeEnabled: true,
     // Disabled: the app uses a custom swipe-to-reveal row gesture (SwipeableRow);
     // Android's predictive back gesture would fight it. Back nav still works.
     predictiveBackGestureEnabled: false,
@@ -54,6 +47,19 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   plugins: [
     'expo-router',
+    'expo-font',
+    'expo-sqlite',
+    'expo-status-bar',
+    [
+      'expo-splash-screen',
+      {
+        image: './assets/splash-icon.png',
+        resizeMode: 'contain',
+        backgroundColor: '#0b0e13',
+        // Preserve the full-screen aspect-fit layout from the SDK 54 splash config.
+        enableFullScreenImage_legacy: true,
+      },
+    ],
     [
       'react-native-ble-plx',
       {

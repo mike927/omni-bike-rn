@@ -1,4 +1,4 @@
-import { fireEvent, render } from '@testing-library/react-native';
+import { fireEvent, render, within } from '@testing-library/react-native';
 
 import {
   buildTrainingSummaryRoute,
@@ -136,87 +136,117 @@ describe('HomeScreen', () => {
     });
   });
 
-  it('shows the setup hero when no bike is saved', () => {
+  it('shows the setup hero when no bike is saved', async () => {
     // savedBike null (default mock), idle phase
-    const { getByText } = render(<HomeScreen />);
+    const { getByText } = await render(<HomeScreen />);
     expect(getByText('Set up your Smart Bike')).toBeTruthy();
   });
 
-  it('shows Start Ride and navigates to training when bike connected and idle', () => {
+  it.each([
+    ['watch', 'connected', 'Selected', 'Ready'],
+    ['bluetooth', 'connected', 'Not selected', 'Ready'],
+    ['watch', 'unavailable', 'Selected', 'Unavailable'],
+    ['bluetooth', 'unavailable', 'Not selected', 'Unavailable'],
+  ] as const)('separates Watch readiness from selection (%s, %s)', async (primary, availability, selection, status) => {
+    Object.assign(mockWatchHrControls, { effectivePrimary: primary });
+    Object.assign(mockConnection, { watchAvailability: availability });
+    const { getByTestId, getByText } = await render(<HomeScreen />);
+    const card = within(getByTestId('device-watch'));
+    expect(card.getByText(`Heart rate · ${selection}`)).toBeTruthy();
+    expect(card.getByText(status)).toBeTruthy();
+    expect(getByText('Your gear')).toBeTruthy();
+  });
+
+  it.each([
+    ['bluetooth', true, 'Selected', 'Ready'],
+    ['watch', true, 'Not selected', 'Ready'],
+    ['bluetooth', false, 'Selected', 'Unavailable'],
+    ['watch', false, 'Not selected', 'Unavailable'],
+  ] as const)('separates strap readiness from selection (%s, %s)', async (primary, connected, selection, status) => {
+    Object.assign(mockWatchHrControls, { effectivePrimary: primary });
+    Object.assign(mockSavedGear, { savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' } });
+    Object.assign(mockConnection, { hrConnected: connected });
+    const { getByTestId } = await render(<HomeScreen />);
+    const card = within(getByTestId('device-hr'));
+    expect(card.getByText(`Heart rate · ${selection}`)).toBeTruthy();
+    expect(card.getByText(status)).toBeTruthy();
+  });
+
+  it('shows Start Ride and navigates to training when bike connected and idle', async () => {
     Object.assign(mockSavedGear, {
       savedBike: { id: 'bike-1', name: 'KICKR Bike', type: 'bike' },
     });
     Object.assign(mockConnection, { bikeConnected: true });
 
-    const { getByTestId, getByText } = render(<HomeScreen />);
+    const { getByTestId, getByText } = await render(<HomeScreen />);
     expect(getByText('Start Ride')).toBeTruthy();
-    fireEvent.press(getByTestId('ride-hero'));
+    await fireEvent.press(getByTestId('ride-hero'));
     expect(mockPush).toHaveBeenCalledWith('/training');
   });
 
-  it('shows Resume Ride when a session is active', () => {
+  it('shows Resume Ride when a session is active', async () => {
     Object.assign(mockSavedGear, {
       savedBike: { id: 'bike-1', name: 'KICKR Bike', type: 'bike' },
     });
     Object.assign(mockConnection, { bikeConnected: true });
     Object.assign(mockSession, { phase: TrainingPhase.Active });
 
-    const { getByText } = render(<HomeScreen />);
+    const { getByText } = await render(<HomeScreen />);
     expect(getByText('Resume Ride')).toBeTruthy();
   });
 
-  it('shows Resume Ride when a session is paused', () => {
+  it('shows Resume Ride when a session is paused', async () => {
     Object.assign(mockSavedGear, {
       savedBike: { id: 'bike-1', name: 'KICKR Bike', type: 'bike' },
     });
     Object.assign(mockConnection, { bikeConnected: true });
     Object.assign(mockSession, { phase: TrainingPhase.Paused });
 
-    const { getByText } = render(<HomeScreen />);
+    const { getByText } = await render(<HomeScreen />);
     expect(getByText('Resume Ride')).toBeTruthy();
   });
 
-  it('renders the Apple Watch device card only when the watch is available', () => {
+  it('renders the Apple Watch device card only when the watch is available', async () => {
     Object.assign(mockWatchHrControls, { watchAvailable: true });
-    const { getByTestId } = render(<HomeScreen />);
+    const { getByTestId } = await render(<HomeScreen />);
     expect(getByTestId('device-watch')).toBeTruthy();
   });
 
-  it('omits the Apple Watch device card when the watch is not available', () => {
+  it('omits the Apple Watch device card when the watch is not available', async () => {
     Object.assign(mockWatchHrControls, { watchAvailable: false });
-    const { queryByTestId } = render(<HomeScreen />);
+    const { queryByTestId } = await render(<HomeScreen />);
     expect(queryByTestId('device-watch')).toBeNull();
   });
 
-  it('renders bike and HR device cards', () => {
-    const { getByTestId } = render(<HomeScreen />);
+  it('renders bike and HR device cards', async () => {
+    const { getByTestId } = await render(<HomeScreen />);
     expect(getByTestId('device-bike')).toBeTruthy();
     expect(getByTestId('device-hr')).toBeTruthy();
   });
 
-  it('shows saved bike name in the bike device card', () => {
+  it('shows saved bike name in the bike device card', async () => {
     Object.assign(mockSavedGear, {
       savedBike: { id: 'bike-1', name: 'Zipro Rave', type: 'bike' },
     });
-    const { getByText } = render(<HomeScreen />);
+    const { getByText } = await render(<HomeScreen />);
     expect(getByText('Zipro Rave')).toBeTruthy();
   });
 
-  it('shows saved HR source name in the HR device card', () => {
+  it('shows saved HR source name in the HR device card', async () => {
     Object.assign(mockSavedGear, {
       savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' },
     });
-    const { getByText } = render(<HomeScreen />);
+    const { getByText } = await render(<HomeScreen />);
     expect(getByText('Polar H10')).toBeTruthy();
   });
 
-  it('navigates to settings when Manage is pressed', () => {
-    const { getByText } = render(<HomeScreen />);
-    fireEvent.press(getByText('Manage'));
+  it('navigates to settings when Manage is pressed', async () => {
+    const { getByText } = await render(<HomeScreen />);
+    await fireEvent.press(getByText('Manage'));
     expect(mockPush).toHaveBeenCalledWith('/(tabs)/settings');
   });
 
-  it('navigates to the saved-session summary from the latest ride card', () => {
+  it('navigates to the saved-session summary from the latest ride card', async () => {
     mockLatestWorkoutHook.mockReturnValue({
       id: 's1',
       status: 'finished',
@@ -233,17 +263,17 @@ describe('HomeScreen', () => {
       updatedAtMs: 200,
     });
 
-    const { getByLabelText } = render(<HomeScreen />);
-    fireEvent.press(getByLabelText('View summary'));
+    const { getByLabelText } = await render(<HomeScreen />);
+    await fireEvent.press(getByLabelText('View summary'));
     expect(mockPush).toHaveBeenCalledWith(buildTrainingSummaryRoute('s1', SAVED_SESSION_TRAINING_SUMMARY_SOURCE, '/'));
   });
 
-  it('shows empty latest ride state when no workout exists', () => {
-    const { getByText } = render(<HomeScreen />);
+  it('shows empty latest ride state when no workout exists', async () => {
+    const { getByText } = await render(<HomeScreen />);
     expect(getByText('No rides yet')).toBeTruthy();
   });
 
-  it('renders and resumes an interrupted session from Home', () => {
+  it('renders and resumes an interrupted session from Home', async () => {
     const resumeInterruptedSession = jest.fn(() => true);
     mockInterruptedSessionHook.mockReturnValue({
       interruptedSession: {
@@ -265,31 +295,31 @@ describe('HomeScreen', () => {
       discardInterruptedSession: jest.fn(),
     });
 
-    const { getByText } = render(<HomeScreen />);
+    const { getByText } = await render(<HomeScreen />);
 
     expect(getByText('Resume interrupted ride')).toBeTruthy();
 
-    fireEvent.press(getByText('Resume'));
+    await fireEvent.press(getByText('Resume'));
     expect(resumeInterruptedSession).toHaveBeenCalledTimes(1);
     expect(mockPush).toHaveBeenCalledWith('/training');
   });
 
-  it('does not show the interrupted session card when no session is interrupted', () => {
-    const { queryByText } = render(<HomeScreen />);
+  it('does not show the interrupted session card when no session is interrupted', async () => {
+    const { queryByText } = await render(<HomeScreen />);
     expect(queryByText('Resume interrupted ride')).toBeNull();
   });
 
   describe('Apple Watch HR device card', () => {
-    it('shows the Apple Watch card when the watch is available and is the effective primary', () => {
+    it('shows the Apple Watch card when the watch is available and is the effective primary', async () => {
       Object.assign(mockConnection, { watchAvailability: 'connected' });
       Object.assign(mockWatchHrControls, { watchAvailable: true, primary: 'watch', effectivePrimary: 'watch' });
-      const { getByTestId } = render(<HomeScreen />);
+      const { getByTestId } = await render(<HomeScreen />);
       expect(getByTestId('device-watch')).toBeTruthy();
     });
 
-    it('omits the Apple Watch row entirely when the Watch is not available', () => {
+    it('omits the Apple Watch row entirely when the Watch is not available', async () => {
       Object.assign(mockWatchHrControls, { watchAvailable: false, primary: null, effectivePrimary: null });
-      const { queryByTestId } = render(<HomeScreen />);
+      const { queryByTestId } = await render(<HomeScreen />);
       expect(queryByTestId('device-watch')).toBeNull();
     });
   });

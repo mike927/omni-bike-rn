@@ -62,18 +62,18 @@ describe('HistoryScreen', () => {
     });
   });
 
-  it('shows the empty state and routes home from Start Training', () => {
-    const { getByText } = render(<HistoryScreen />);
+  it('shows the empty state and routes home from Start Training', async () => {
+    const { getByText } = await render(<HistoryScreen />);
 
     expect(getByText('No Workouts Yet')).toBeTruthy();
     expect(getByText('Your completed cycling sessions will appear here.')).toBeTruthy();
 
-    fireEvent.press(getByText('Start Training'));
+    await fireEvent.press(getByText('Start Training'));
 
     expect(mockReplace).toHaveBeenCalledWith('/');
   });
 
-  it('shows a load-error state with Retry instead of the empty state', () => {
+  it('shows a load-error state with Retry instead of the empty state', async () => {
     const refresh = jest.fn();
     mockUseWorkoutHistory.mockReturnValue({
       items: [],
@@ -83,16 +83,16 @@ describe('HistoryScreen', () => {
       deleteWorkout: mockDeleteWorkout,
     });
 
-    const { getByText, queryByText } = render(<HistoryScreen />);
+    const { getByText, queryByText } = await render(<HistoryScreen />);
 
     expect(getByText('Could Not Load Workouts')).toBeTruthy();
     expect(queryByText('No Workouts Yet')).toBeNull();
 
-    fireEvent.press(getByText('Retry'));
+    await fireEvent.press(getByText('Retry'));
     expect(refresh).toHaveBeenCalledTimes(1);
   });
 
-  it('alerts the user when a delete fails', () => {
+  it('alerts the user when a delete fails', async () => {
     const session = buildSession('session-7');
     mockDeleteWorkout.mockReturnValue(false);
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_, __, buttons) => {
@@ -107,8 +107,8 @@ describe('HistoryScreen', () => {
       deleteWorkout: mockDeleteWorkout,
     });
 
-    const { getByLabelText } = render(<HistoryScreen />);
-    fireEvent(getByLabelText(`Workout on ${formatHistoryDate(session.startedAtMs)}`), 'longPress');
+    const { getByLabelText } = await render(<HistoryScreen />);
+    await fireEvent(getByLabelText(`Workout on ${formatHistoryDate(session.startedAtMs)}`), 'longPress');
 
     expect(mockDeleteWorkout).toHaveBeenCalledWith('session-7');
     expect(alertSpy).toHaveBeenCalledWith(
@@ -119,7 +119,7 @@ describe('HistoryScreen', () => {
     alertSpy.mockRestore();
   });
 
-  it('opens a saved workout summary from the list', () => {
+  it('opens a saved workout summary from the list', async () => {
     const session = buildSession('session-7');
 
     mockUseWorkoutHistory.mockReturnValue({
@@ -129,15 +129,15 @@ describe('HistoryScreen', () => {
       deleteWorkout: mockDeleteWorkout,
     });
 
-    const { getByLabelText } = render(<HistoryScreen />);
-    fireEvent.press(getByLabelText(`Workout on ${formatHistoryDate(session.startedAtMs)}`));
+    const { getByLabelText } = await render(<HistoryScreen />);
+    await fireEvent.press(getByLabelText(`Workout on ${formatHistoryDate(session.startedAtMs)}`));
 
     expect(mockPush).toHaveBeenCalledWith(
       buildTrainingSummaryRoute('session-7', SAVED_SESSION_TRAINING_SUMMARY_SOURCE, '/history'),
     );
   });
 
-  it('prompts before deleting a workout via long press', () => {
+  it('prompts before deleting a workout via long press', async () => {
     const session = buildSession('session-7');
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_, __, buttons) => {
       buttons?.[1]?.onPress?.();
@@ -150,8 +150,8 @@ describe('HistoryScreen', () => {
       deleteWorkout: mockDeleteWorkout,
     });
 
-    const { getByLabelText } = render(<HistoryScreen />);
-    fireEvent(getByLabelText(`Workout on ${formatHistoryDate(session.startedAtMs)}`), 'longPress');
+    const { getByLabelText } = await render(<HistoryScreen />);
+    await fireEvent(getByLabelText(`Workout on ${formatHistoryDate(session.startedAtMs)}`), 'longPress');
 
     expect(mockDeleteWorkout).toHaveBeenCalledWith('session-7');
     expect(mockPush).not.toHaveBeenCalled();
@@ -164,7 +164,7 @@ describe('HistoryScreen', () => {
     alertSpy.mockRestore();
   });
 
-  it('shows the provider sync state for an uploaded session', () => {
+  it('shows the provider sync state for an uploaded session', async () => {
     const session = buildSession('session-7');
 
     mockUseWorkoutHistory.mockReturnValue({
@@ -174,13 +174,13 @@ describe('HistoryScreen', () => {
       deleteWorkout: mockDeleteWorkout,
     });
 
-    const { getByLabelText } = render(<HistoryScreen />);
+    const { getByLabelText } = await render(<HistoryScreen />);
 
     expect(getByLabelText('Uploaded to Strava')).toBeTruthy();
     expect(getByLabelText('Not synced to Apple Health')).toBeTruthy();
   });
 
-  it('renders the monthly summary strip and recent-rides section', () => {
+  it('renders the monthly summary strip and recent-rides section', async () => {
     const session = buildSession('session-7');
 
     mockUseWorkoutHistory.mockReturnValue({
@@ -190,7 +190,7 @@ describe('HistoryScreen', () => {
       deleteWorkout: mockDeleteWorkout,
     });
 
-    const { getByText } = render(<HistoryScreen />);
+    const { getByText } = await render(<HistoryScreen />);
 
     expect(getByText('This Month')).toBeTruthy();
     expect(getByText('Recent rides')).toBeTruthy();
