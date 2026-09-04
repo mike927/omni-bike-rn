@@ -13,7 +13,7 @@ Version audit: 2026-09-03. The target is the latest mutually compatible stable v
 | Quality | ESLint 9.39.5, Jest 30.5.1, React Native Testing Library 14.0.1, test-renderer 1.2.0 |
 | CI | Node 24 LTS, checkout/setup-node v7, Expo GitHub Action v9 |
 
-`.nvmrc` selects Node 24 for local development. Verification below ran on the existing local Node 25.9.0; hosted CI was not dispatched.
+`.nvmrc` selects Node 24 for local development. Local verification below ran on the existing Node 25.9.0; hosted Node 24 verification runs on PR #106.
 
 ## Compatibility decisions
 
@@ -42,7 +42,7 @@ Verified locally on 2026-09-04:
 
 - Clean `npm ci` without legacy peer resolution; `npm ls --all` exits successfully.
 - Online `expo install --check`: versions are up to date against the supported matrix.
-- `npm run ci:gate`: lint, TypeScript, 107 suites / 1009 tests pass; process exits successfully.
+- `npm run ci:gate`: lint, TypeScript, 107 suites / 1016 tests pass after the HR status clarification; process exits successfully.
 - Additional full test run with `--detectOpenHandles`: 1009 tests pass, no open handles reported. One earlier run printed the one-second shutdown warning but exited successfully; the final normal run did not reproduce it.
 - `npm run db:check` and `git diff --check` pass.
 - JavaScript export succeeds for both iOS and Android. Android native/cloud build was not run.
@@ -52,7 +52,15 @@ Verified locally on 2026-09-04:
 - After the user re-establishes the Watch connection in Xcode, explicit Watch installation and launch both succeed. The prior CoreDevice pairing blocker is resolved.
 - Fresh iPhone evidence at 07:09:23: `sessionWatchStateDidChange paired=true installed=true`, then `emitCompanionState available=true paired=true installed=true activationState=2 reachable=false`. Watch evidence: `activationDidCompleteWith state=2 error=nil reachable=false`. Both apps recognize an installed companion; live workout/HR transport still needs the physical test below.
 
-Physical-device BLE, Apple Health and WatchConnectivity checks remain pending. See [device verification handoff](./tech-stack-device-check.md). Native builds and unit tests cannot prove these transports work.
+The user confirmed the HR label device test. Logs pulled after that confirmation also prove a short Watch workout starts, delivers HR through workout mirroring, and ends:
+
+| Check | Result | Evidence (2026-09-04, device time) |
+| --- | --- | --- |
+| Watch session starts | Pass | `07:29:45.244 didReceiveApplicationContext sessionState=started` |
+| Phone receives Watch HR | Pass | `07:29:53.032 mirrored workoutSession didReceiveDataFromRemoteWorkoutSession hr=88` (four samples received through 07:30:07) |
+| Watch session ends | Pass | `07:30:11.406 didReceiveApplicationContext sessionState=ended` |
+
+Physical-device BLE, Apple Health save, pause/resume and extended background checks remain pending; this short log does not establish those behaviors. See [device verification handoff](./tech-stack-device-check.md). Native builds and unit tests cannot prove these transports work.
 
 ## Known upstream diagnostics
 
