@@ -24,17 +24,17 @@ jobs:
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
           cache-dependency-path: package-lock.json
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm ci
       - name: Run CI gate
         run: npm run ci:gate
 
@@ -47,19 +47,19 @@ jobs:
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
           cache-dependency-path: package-lock.json
       # `eas build` evaluates app.config.ts locally (to resolve config plugins like
       # expo-router) before uploading, so node_modules must be installed here.
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm ci
       - name: Setup EAS
-        uses: expo/expo-github-action@v8
+        uses: expo/expo-github-action@v9
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}

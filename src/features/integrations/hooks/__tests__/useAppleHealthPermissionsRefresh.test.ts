@@ -30,25 +30,25 @@ describe('useAppleHealthPermissionsRefresh', () => {
   it('re-invokes initWithWritePermissions once when hydrated and connected', async () => {
     mockStore({ hydrated: true, connected: true });
 
-    renderHook(() => useAppleHealthPermissionsRefresh());
+    await renderHook(() => useAppleHealthPermissionsRefresh());
 
     await waitFor(() => {
       expect(mockInit).toHaveBeenCalledTimes(1);
     });
   });
 
-  it('does not invoke initWithWritePermissions while the store is still hydrating', () => {
+  it('does not invoke initWithWritePermissions while the store is still hydrating', async () => {
     mockStore({ hydrated: false, connected: true });
 
-    renderHook(() => useAppleHealthPermissionsRefresh());
+    await renderHook(() => useAppleHealthPermissionsRefresh());
 
     expect(mockInit).not.toHaveBeenCalled();
   });
 
-  it('does not invoke initWithWritePermissions when the user is not connected', () => {
+  it('does not invoke initWithWritePermissions when the user is not connected', async () => {
     mockStore({ hydrated: true, connected: false });
 
-    renderHook(() => useAppleHealthPermissionsRefresh());
+    await renderHook(() => useAppleHealthPermissionsRefresh());
 
     expect(mockInit).not.toHaveBeenCalled();
   });
@@ -56,14 +56,14 @@ describe('useAppleHealthPermissionsRefresh', () => {
   it('only refreshes once per mount even if the hook re-renders', async () => {
     mockStore({ hydrated: true, connected: true });
 
-    const { rerender } = renderHook(() => useAppleHealthPermissionsRefresh());
+    const { rerender } = await renderHook(() => useAppleHealthPermissionsRefresh());
 
     await waitFor(() => {
       expect(mockInit).toHaveBeenCalledTimes(1);
     });
 
-    rerender({});
-    rerender({});
+    await rerender({});
+    await rerender({});
 
     expect(mockInit).toHaveBeenCalledTimes(1);
   });
@@ -73,7 +73,7 @@ describe('useAppleHealthPermissionsRefresh', () => {
     mockInit.mockRejectedValue(new Error('permission refresh denied'));
     mockStore({ hydrated: true, connected: true });
 
-    renderHook(() => useAppleHealthPermissionsRefresh());
+    await renderHook(() => useAppleHealthPermissionsRefresh());
 
     await waitFor(() => {
       expect(consoleErrorSpy).toHaveBeenCalledWith(

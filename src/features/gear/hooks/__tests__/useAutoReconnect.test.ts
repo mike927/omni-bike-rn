@@ -100,11 +100,16 @@ beforeEach(() => {
   });
 });
 
+afterEach(() => {
+  jest.clearAllTimers();
+  jest.useRealTimers();
+});
+
 describe('auto-reconnect on mount', () => {
   it('reconnects bike when hydrated and saved bike exists with no active adapter', async () => {
     useSavedGearStore.setState({ savedBike: bike, hydrated: true });
 
-    const { result } = renderHook(() => useAutoReconnect());
+    const { result } = await renderHook(() => useAutoReconnect());
 
     expect(['connecting', 'connected']).toContain(result.current.bikeReconnectState);
 
@@ -119,7 +124,7 @@ describe('auto-reconnect on mount', () => {
   it('reconnects HR when hydrated and saved HR source exists', async () => {
     useSavedGearStore.setState({ savedHrSource: hr, hydrated: true });
 
-    const { result } = renderHook(() => useAutoReconnect());
+    const { result } = await renderHook(() => useAutoReconnect());
 
     expect(['connecting', 'connected']).toContain(result.current.hrReconnectState);
 
@@ -131,24 +136,24 @@ describe('auto-reconnect on mount', () => {
     expect(result.current.hrReconnectState).toBe('connected');
   });
 
-  it('does not reconnect if not yet hydrated', () => {
+  it('does not reconnect if not yet hydrated', async () => {
     useSavedGearStore.setState({ savedBike: bike, hydrated: false });
 
-    renderHook(() => useAutoReconnect());
+    await renderHook(() => useAutoReconnect());
 
     expect(mockConnectBike).not.toHaveBeenCalled();
   });
 
-  it('does not reconnect if adapter already active', () => {
+  it('does not reconnect if adapter already active', async () => {
     useSavedGearStore.setState({ savedBike: bike, hydrated: true });
     useDeviceConnectionStore.setState({ bikeAdapter: {} as never });
 
-    renderHook(() => useAutoReconnect());
+    await renderHook(() => useAutoReconnect());
 
     expect(mockConnectBike).not.toHaveBeenCalled();
   });
 
-  it('does not reconnect automatically when bike auto-reconnect is suppressed', () => {
+  it('does not reconnect automatically when bike auto-reconnect is suppressed', async () => {
     useSavedGearStore.setState({
       savedBike: bike,
       hydrated: true,
@@ -156,7 +161,7 @@ describe('auto-reconnect on mount', () => {
       bikeAutoReconnectSuppressed: true,
     });
 
-    renderHook(() => useAutoReconnect());
+    await renderHook(() => useAutoReconnect());
 
     expect(mockConnectBike).not.toHaveBeenCalled();
   });
@@ -167,7 +172,7 @@ describe('failed state', () => {
     mockConnectBike.mockRejectedValue(new Error('BLE error'));
     useSavedGearStore.setState({ savedBike: bike, hydrated: true });
 
-    const { result } = renderHook(() => useAutoReconnect());
+    const { result } = await renderHook(() => useAutoReconnect());
 
     await waitFor(() => {
       expect(result.current.bikeReconnectState).toBe('failed');
@@ -178,12 +183,14 @@ describe('failed state', () => {
 
   it('treats cancelled reconnect attempts as a transient retry without logging an error', async () => {
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const cancelledError = Object.assign(new Error('Operation was cancelled'), { errorCode: 2 });
+    const cancelledError = Object.assign(new Error('Operation was cancelled'), {
+      errorCode: 2,
+    });
 
     mockConnectBike.mockRejectedValue(cancelledError);
     useSavedGearStore.setState({ savedBike: bike, hydrated: true });
 
-    const { result } = renderHook(() => useAutoReconnect());
+    const { result } = await renderHook(() => useAutoReconnect());
 
     // Transient failure keeps the cycle alive (still "connecting"), not a hard failure.
     await waitFor(() => {
@@ -203,7 +210,7 @@ describe('failed state', () => {
     mockConnectBike.mockRejectedValue(timeoutError);
     useSavedGearStore.setState({ savedBike: bike, hydrated: true });
 
-    const { result } = renderHook(() => useAutoReconnect());
+    const { result } = await renderHook(() => useAutoReconnect());
 
     // Transient timeout keeps the cycle alive (still "connecting"), not a hard failure.
     await waitFor(() => {
@@ -223,7 +230,7 @@ describe('failed state', () => {
     mockConnectBike.mockRejectedValue(busyError);
     useSavedGearStore.setState({ savedBike: bike, hydrated: true });
 
-    const { result } = renderHook(() => useAutoReconnect());
+    const { result } = await renderHook(() => useAutoReconnect());
 
     // A busy signal is transient — keeps the cycle alive, not a hard failure.
     await waitFor(() => {
@@ -237,26 +244,43 @@ describe('failed state', () => {
   });
 
   it('marks bike as disconnected when the adapter disappears after a successful connect', async () => {
-    useSavedGearStore.setState({ savedBike: bike, hydrated: true, bikeReconnectState: 'connected' });
+    jest.useFakeTimers();
+    useSavedGearStore.setState({
+      savedBike: bike,
+      hydrated: true,
+      bikeReconnectState: 'connected',
+    });
     useDeviceConnectionStore.setState({ bikeAdapter: {} as never });
 
-    const { result } = renderHook(() => useAutoReconnect());
+    const { result } = await renderHook(() => useAutoReconnect());
 
-    act(() => {
+    await act(() => {
       useDeviceConnectionStore.setState({ bikeAdapter: null });
     });
 
     expect(result.current.bikeReconnectState).toBe('disconnected');
+
+    await act(async () => {
+      jest.advanceTimersByTime(0);
+      await Promise.resolve();
+    });
+
+    expect(mockConnectBike).toHaveBeenCalledWith('bike-uuid');
+    expect(result.current.bikeReconnectState).toBe('connected');
   });
 
   it('does not mark the bike disconnected or schedule auto-retry while another bike connect is still in flight', async () => {
     jest.useFakeTimers();
-    useSavedGearStore.setState({ savedBike: bike, hydrated: true, bikeReconnectState: 'connected' });
+    useSavedGearStore.setState({
+      savedBike: bike,
+      hydrated: true,
+      bikeReconnectState: 'connected',
+    });
     useDeviceConnectionStore.setState({ bikeConnectionInProgress: true });
 
-    const { result } = renderHook(() => useAutoReconnect());
+    const { result } = await renderHook(() => useAutoReconnect());
 
-    act(() => {
+    await act(() => {
       useDeviceConnectionStore.setState({ bikeAdapter: null });
     });
 
@@ -268,7 +292,7 @@ describe('failed state', () => {
 
     expect(mockConnectBike).not.toHaveBeenCalled();
 
-    act(() => {
+    await act(() => {
       useDeviceConnectionStore.setState({ bikeConnectionInProgress: false });
     });
 
@@ -288,11 +312,15 @@ describe('retry', () => {
           };
         }),
     );
-    useSavedGearStore.setState({ savedBike: bike, hydrated: true, bikeReconnectState: 'failed' });
+    useSavedGearStore.setState({
+      savedBike: bike,
+      hydrated: true,
+      bikeReconnectState: 'failed',
+    });
 
-    const { result } = renderHook(() => useAutoReconnect());
+    const { result } = await renderHook(() => useAutoReconnect());
 
-    act(() => {
+    await act(() => {
       result.current.retryBike();
     });
 
@@ -314,9 +342,9 @@ describe('retry', () => {
       bikeAutoReconnectSuppressed: true,
     });
 
-    const { result } = renderHook(() => useAutoReconnect());
+    const { result } = await renderHook(() => useAutoReconnect());
 
-    act(() => {
+    await act(() => {
       result.current.retryBike();
     });
 
@@ -339,11 +367,15 @@ describe('retry', () => {
           };
         }),
     );
-    useSavedGearStore.setState({ savedBike: bike, hydrated: true, bikeReconnectState: 'failed' });
+    useSavedGearStore.setState({
+      savedBike: bike,
+      hydrated: true,
+      bikeReconnectState: 'failed',
+    });
 
-    const { result } = renderHook(() => useAutoReconnect());
+    const { result } = await renderHook(() => useAutoReconnect());
 
-    act(() => {
+    await act(() => {
       result.current.retryBike();
       result.current.retryBike();
     });
@@ -369,16 +401,23 @@ describe('retry', () => {
           };
         }),
     );
-    useSavedGearStore.setState({ savedBike: bike, hydrated: true, bikeReconnectState: 'failed' });
+    useSavedGearStore.setState({
+      savedBike: bike,
+      hydrated: true,
+      bikeReconnectState: 'failed',
+    });
 
-    const { result } = renderHook(() => useAutoReconnect());
+    const { result } = await renderHook(() => useAutoReconnect());
 
-    act(() => {
+    await act(() => {
       result.current.retryBike();
     });
 
-    act(() => {
-      useSavedGearStore.setState({ savedBike: null, bikeReconnectState: 'idle' });
+    await act(() => {
+      useSavedGearStore.setState({
+        savedBike: null,
+        bikeReconnectState: 'idle',
+      });
     });
 
     await act(async () => {
@@ -390,12 +429,51 @@ describe('retry', () => {
     expect(useDeviceConnectionStore.getState().bikeAdapter).toBeNull();
   });
 
+  it('disconnects a stale HR reconnect when the saved source is forgotten mid-attempt', async () => {
+    let resolveConnect!: () => void;
+    mockConnectHr.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveConnect = () => {
+            useDeviceConnectionStore.setState({ hrAdapter: {} as never });
+            resolve();
+          };
+        }),
+    );
+    useSavedGearStore.setState({
+      savedHrSource: hr,
+      hydrated: true,
+      hrReconnectState: 'failed',
+    });
+
+    const { result } = await renderHook(() => useAutoReconnect());
+
+    await act(() => {
+      result.current.retryHr();
+    });
+
+    await act(() => {
+      useSavedGearStore.setState({
+        savedHrSource: null,
+        hrReconnectState: 'idle',
+      });
+    });
+
+    await act(async () => {
+      resolveConnect();
+    });
+
+    expect(mockDisconnectHr).toHaveBeenCalledTimes(1);
+    expect(useSavedGearStore.getState().hrReconnectState).toBe('idle');
+    expect(useDeviceConnectionStore.getState().hrAdapter).toBeNull();
+  });
+
   it('probes on the immediate / +3s / +5s cadence while the app is active', async () => {
     jest.useFakeTimers();
     mockConnectBike.mockRejectedValue(new Error('Operation timed out'));
     useSavedGearStore.setState({ savedBike: bike, hydrated: true });
 
-    renderHook(() => useAutoReconnect());
+    await renderHook(() => useAutoReconnect());
 
     // Probe 1 fired immediately on mount; flush its failure so probe 2 is scheduled.
     await act(async () => {
@@ -432,7 +510,7 @@ describe('retry', () => {
     mockConnectBike.mockRejectedValue(new Error('Operation timed out'));
     useSavedGearStore.setState({ savedBike: bike, hydrated: true });
 
-    renderHook(() => useAutoReconnect());
+    await renderHook(() => useAutoReconnect());
 
     // Probe 1 — immediate (on mount); flush its failure so probe 2 is scheduled.
     await act(async () => {
@@ -466,7 +544,7 @@ describe('retry', () => {
     mockConnectBike.mockRejectedValue(new Error('Operation timed out'));
     useSavedGearStore.setState({ savedBike: bike, hydrated: true });
 
-    const { result } = renderHook(() => useAutoReconnect());
+    const { result } = await renderHook(() => useAutoReconnect());
 
     // Probe 1 on mount; flush its failure so probe 2 is scheduled.
     await act(async () => {
@@ -483,14 +561,14 @@ describe('retry', () => {
     expect(result.current.bikeReconnectState).toBe('connecting');
 
     // A successful connect (adapter appears) resets the probe budget.
-    act(() => {
+    await act(() => {
       useDeviceConnectionStore.setState({ bikeAdapter: {} as never });
     });
 
     expect(result.current.bikeReconnectState).toBe('connected');
 
     // The adapter drops again → a fresh cycle.
-    act(() => {
+    await act(() => {
       useDeviceConnectionStore.setState({ bikeAdapter: null });
     });
 
@@ -509,7 +587,7 @@ describe('retry', () => {
     mockConnectBike.mockRejectedValue(new Error('Operation timed out'));
     useSavedGearStore.setState({ savedBike: bike, hydrated: true });
 
-    renderHook(() => useAutoReconnect());
+    await renderHook(() => useAutoReconnect());
 
     await waitFor(() => {
       expect(mockConnectBike).toHaveBeenCalledTimes(1);
@@ -517,7 +595,7 @@ describe('retry', () => {
 
     expect(mockConnectBike).toHaveBeenCalledTimes(1);
 
-    act(() => {
+    await act(() => {
       emitAppStateChange('background');
     });
 
@@ -527,7 +605,7 @@ describe('retry', () => {
 
     expect(mockConnectBike).toHaveBeenCalledTimes(1);
 
-    act(() => {
+    await act(() => {
       emitAppStateChange('active');
     });
 
@@ -549,7 +627,7 @@ describe('adapter appeared externally', () => {
     );
     useSavedGearStore.setState({ savedBike: bike, hydrated: true });
 
-    const { result } = renderHook(() => useAutoReconnect());
+    const { result } = await renderHook(() => useAutoReconnect());
 
     await waitFor(() => {
       expect(result.current.bikeReconnectState).toBe('connected');

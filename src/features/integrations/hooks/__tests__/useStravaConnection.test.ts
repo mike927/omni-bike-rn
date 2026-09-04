@@ -56,13 +56,13 @@ describe('useStravaConnection', () => {
     );
   });
 
-  it('returns isConnected=false and null athleteName when disconnected', () => {
-    const { result } = renderHook(() => useStravaConnection());
+  it('returns isConnected=false and null athleteName when disconnected', async () => {
+    const { result } = await renderHook(() => useStravaConnection());
     expect(result.current.isConnected).toBe(false);
     expect(result.current.athleteName).toBeNull();
   });
 
-  it('returns isConnected=true and formatted athleteName when connected', () => {
+  it('returns isConnected=true and formatted athleteName when connected', async () => {
     mockUseStore.mockImplementation((selector: (s: MockStoreState) => unknown) =>
       selector({
         connected: true,
@@ -71,7 +71,7 @@ describe('useStravaConnection', () => {
         setDisconnected: mockSetDisconnected,
       }),
     );
-    const { result } = renderHook(() => useStravaConnection());
+    const { result } = await renderHook(() => useStravaConnection());
     expect(result.current.isConnected).toBe(true);
     expect(result.current.athleteName).toBe('Jane Rider');
   });
@@ -79,7 +79,7 @@ describe('useStravaConnection', () => {
   describe('connect', () => {
     it('calls authorizeWithStrava and returns success', async () => {
       mockAuthorize.mockResolvedValue(SAMPLE_TOKENS);
-      const { result } = renderHook(() => useStravaConnection());
+      const { result } = await renderHook(() => useStravaConnection());
 
       const outcome = await act(() => result.current.connect());
 
@@ -89,7 +89,7 @@ describe('useStravaConnection', () => {
 
     it('returns failure when authorizeWithStrava throws', async () => {
       mockAuthorize.mockRejectedValue(new Error('Auth cancelled'));
-      const { result } = renderHook(() => useStravaConnection());
+      const { result } = await renderHook(() => useStravaConnection());
 
       const outcome = await act(() => result.current.connect());
 
@@ -101,7 +101,7 @@ describe('useStravaConnection', () => {
   describe('disconnect', () => {
     it('calls disconnectStrava and returns success', async () => {
       mockDisconnect.mockResolvedValue(undefined);
-      const { result } = renderHook(() => useStravaConnection());
+      const { result } = await renderHook(() => useStravaConnection());
 
       const outcome = await act(() => result.current.disconnect());
 
@@ -111,7 +111,7 @@ describe('useStravaConnection', () => {
 
     it('returns failure when disconnectStrava throws', async () => {
       mockDisconnect.mockRejectedValue(new Error('Network error'));
-      const { result } = renderHook(() => useStravaConnection());
+      const { result } = await renderHook(() => useStravaConnection());
 
       const outcome = await act(() => result.current.disconnect());
 

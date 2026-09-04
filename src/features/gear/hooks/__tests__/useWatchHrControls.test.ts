@@ -41,27 +41,27 @@ beforeEach(() => {
 });
 
 describe('useWatchHrControls', () => {
-  it('returns watchAvailable from isAppleWatchAvailable', () => {
+  it('returns watchAvailable from isAppleWatchAvailable', async () => {
     getIsAppleWatchAvailableMock().mockReturnValue(true);
-    const { result } = renderHook(() => useWatchHrControls());
+    const { result } = await renderHook(() => useWatchHrControls());
     expect(result.current.watchAvailable).toBe(true);
   });
 
   describe('primary HR source', () => {
-    it('returns primary from hrSourceStore', () => {
+    it('returns primary from hrSourceStore', async () => {
       useHrSourceStore.setState({ primary: 'watch', hydrated: true });
-      const { result } = renderHook(() => useWatchHrControls());
+      const { result } = await renderHook(() => useWatchHrControls());
       expect(result.current.primary).toBe('watch');
     });
 
-    it('returns null primary when not yet set', () => {
+    it('returns null primary when not yet set', async () => {
       useHrSourceStore.setState({ primary: null, hydrated: false });
-      const { result } = renderHook(() => useWatchHrControls());
+      const { result } = await renderHook(() => useWatchHrControls());
       expect(result.current.primary).toBeNull();
     });
 
     it('calls hrSourceStore.setPrimary when setPrimary is called', async () => {
-      const { result } = renderHook(() => useWatchHrControls());
+      const { result } = await renderHook(() => useWatchHrControls());
 
       await act(async () => {
         await result.current.setPrimary('watch');
@@ -71,60 +71,60 @@ describe('useWatchHrControls', () => {
       expect(useHrSourceStore.getState().primary).toBe('watch');
     });
 
-    it('returns empty availableSources when watch unavailable and no strap', () => {
+    it('returns empty availableSources when watch unavailable and no strap', async () => {
       getIsAppleWatchAvailableMock().mockReturnValue(false);
       useSavedGearStore.setState({ savedHrSource: null, hydrated: true });
-      const { result } = renderHook(() => useWatchHrControls());
+      const { result } = await renderHook(() => useWatchHrControls());
       expect(result.current.availableSources).toEqual([]);
     });
 
-    it('returns availableSources with only watch when watch available and no strap', () => {
+    it('returns availableSources with only watch when watch available and no strap', async () => {
       getIsAppleWatchAvailableMock().mockReturnValue(true);
       useSavedGearStore.setState({ savedHrSource: null, hydrated: true });
-      const { result } = renderHook(() => useWatchHrControls());
+      const { result } = await renderHook(() => useWatchHrControls());
       expect(result.current.availableSources).toEqual(['watch']);
     });
 
-    it('returns availableSources with watch and bluetooth when both sources available', () => {
+    it('returns availableSources with watch and bluetooth when both sources available', async () => {
       getIsAppleWatchAvailableMock().mockReturnValue(true);
       useSavedGearStore.setState({
         savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' },
         hydrated: true,
       });
-      const { result } = renderHook(() => useWatchHrControls());
+      const { result } = await renderHook(() => useWatchHrControls());
       expect(result.current.availableSources).toEqual(['watch', 'bluetooth']);
     });
   });
 
   describe('effectivePrimary', () => {
-    it('returns the explicit primary when it is still valid', () => {
+    it('returns the explicit primary when it is still valid', async () => {
       useHrSourceStore.setState({ primary: 'bluetooth', hydrated: true });
       useSavedGearStore.setState({ savedHrSource: { id: 'hr-1', name: 'Polar H10', type: 'hr' }, hydrated: true });
-      const { result } = renderHook(() => useWatchHrControls());
+      const { result } = await renderHook(() => useWatchHrControls());
       expect(result.current.effectivePrimary).toBe('bluetooth');
     });
 
-    it('resolves the availability-ranked default when no primary is set (Watch connected)', () => {
+    it('resolves the availability-ranked default when no primary is set (Watch connected)', async () => {
       useHrSourceStore.setState({ primary: null, hydrated: true });
       useDeviceConnectionStore.setState({ watchAvailability: 'connected' });
-      const { result } = renderHook(() => useWatchHrControls());
+      const { result } = await renderHook(() => useWatchHrControls());
       expect(result.current.effectivePrimary).toBe('watch');
     });
 
-    it('resolves to null when no primary is set and the Watch is unavailable with no strap', () => {
+    it('resolves to null when no primary is set and the Watch is unavailable with no strap', async () => {
       getIsAppleWatchAvailableMock().mockReturnValue(false);
       useHrSourceStore.setState({ primary: null, hydrated: true });
       useSavedGearStore.setState({ savedHrSource: null, hydrated: true });
       useDeviceConnectionStore.setState({ watchAvailability: 'unavailable' });
-      const { result } = renderHook(() => useWatchHrControls());
+      const { result } = await renderHook(() => useWatchHrControls());
       expect(result.current.effectivePrimary).toBeNull();
     });
 
-    it('falls through a stale bluetooth primary when no strap is saved', () => {
+    it('falls through a stale bluetooth primary when no strap is saved', async () => {
       useHrSourceStore.setState({ primary: 'bluetooth', hydrated: true });
       useSavedGearStore.setState({ savedHrSource: null, hydrated: true });
       useDeviceConnectionStore.setState({ watchAvailability: 'connected' });
-      const { result } = renderHook(() => useWatchHrControls());
+      const { result } = await renderHook(() => useWatchHrControls());
       expect(result.current.effectivePrimary).toBe('watch');
     });
   });

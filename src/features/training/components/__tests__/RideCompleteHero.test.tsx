@@ -3,8 +3,8 @@ import { render } from '@testing-library/react-native';
 import { RideCompleteHero } from '../RideCompleteHero';
 
 describe('RideCompleteHero', () => {
-  it('renders the ride-complete headline and totals', () => {
-    const { getByText } = render(
+  it('renders the ride-complete headline and totals', async () => {
+    const { getByText } = await render(
       <RideCompleteHero
         hero={{
           distance: '28.4',

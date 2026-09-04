@@ -11,7 +11,7 @@ import { resolveEffectiveHrSource, resolveEffectivePrimary, type HrSource } from
 // (`isAppleWatchAvailable`), matching `useWatchHrControls`, so a Watch-capable
 // iPhone keeps Watch as the default even while the companion is currently
 // `unavailable` (pre-connect/backgrounded). Readiness is a separate axis rendered
-// by `watchHrStatus` / `hrSourceIdleReadiness` from live `watchAvailability`.
+// by `hrSourceIdleReadiness` from live `watchAvailability`.
 // Deriving candidacy from live availability would resolve a no-primary/no-strap
 // iPhone to `null` whenever the companion is transiently unavailable — dropping
 // the documented Watch default and stalling the Watch lifecycle.

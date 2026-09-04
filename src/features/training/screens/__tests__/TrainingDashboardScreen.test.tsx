@@ -165,55 +165,55 @@ describe('TrainingDashboardScreen', () => {
     });
   });
 
-  it('renders without crashing', () => {
-    expect(() => render(<TrainingDashboardScreen />)).not.toThrow();
+  it('renders without crashing', async () => {
+    await expect(render(<TrainingDashboardScreen />)).resolves.toBeDefined();
   });
 
   describe('Smart Bike status pill', () => {
-    it('reads "Not set up" when no bike is saved (finding #4)', () => {
+    it('reads "Not set up" when no bike is saved (finding #4)', async () => {
       mockSavedGear.savedBike = null;
       Object.assign(mockDeviceConnection, { bikeConnected: false });
 
-      const { getByLabelText } = render(<TrainingDashboardScreen />);
+      const { getByLabelText } = await render(<TrainingDashboardScreen />);
 
       expect(getByLabelText('No bike yet: Not set up')).toBeTruthy();
     });
 
-    it('reads "Unavailable" when a bike is saved but not connected', () => {
+    it('reads "Unavailable" when a bike is saved but not connected', async () => {
       mockSavedGear.savedBike = { id: 'bike-1', name: 'Zipro Rave', type: 'bike' };
       Object.assign(mockDeviceConnection, { bikeConnected: false });
 
-      const { getByLabelText } = render(<TrainingDashboardScreen />);
+      const { getByLabelText } = await render(<TrainingDashboardScreen />);
 
       expect(getByLabelText('Zipro Rave: Unavailable')).toBeTruthy();
     });
   });
 
-  it('shows disconnected-bike recovery actions before a workout starts', () => {
-    const { getByText } = render(<TrainingDashboardScreen />);
+  it('shows disconnected-bike recovery actions before a workout starts', async () => {
+    const { getByText } = await render(<TrainingDashboardScreen />);
 
     expect(getByText('Smart Bike connection required')).toBeTruthy();
 
-    fireEvent.press(getByText('Start Ride'));
+    await fireEvent.press(getByText('Start Ride'));
     expect(mockSession.start).not.toHaveBeenCalled();
 
-    fireEvent.press(getByText('Set Up Smart Bike'));
+    await fireEvent.press(getByText('Set Up Smart Bike'));
     expect(mockPush).toHaveBeenCalledWith('/gear-setup?target=bike');
 
-    fireEvent.press(getByText('Back Home'));
+    await fireEvent.press(getByText('Back Home'));
     expect(mockReplace).toHaveBeenCalledWith('/');
   });
 
-  it('starts the workout once the bike is connected', () => {
+  it('starts the workout once the bike is connected', async () => {
     Object.assign(mockDeviceConnection, { bikeConnected: true });
 
-    const { getByText } = render(<TrainingDashboardScreen />);
-    fireEvent.press(getByText('Start Ride'));
+    const { getByText } = await render(<TrainingDashboardScreen />);
+    await fireEvent.press(getByText('Start Ride'));
 
     expect(mockSession.start).toHaveBeenCalledTimes(1);
   });
 
-  it('shows Pause and Finish while active', () => {
+  it('shows Pause and Finish while active', async () => {
     Object.assign(mockSession, {
       phase: 'active',
       elapsedSeconds: 321,
@@ -237,7 +237,7 @@ describe('TrainingDashboardScreen', () => {
       activeHrSource: 'bluetooth',
     });
 
-    const { getByText, queryByText } = render(<TrainingDashboardScreen />);
+    const { getByText, queryByText } = await render(<TrainingDashboardScreen />);
 
     expect(getByText('Pause')).toBeTruthy();
     expect(getByText('Finish')).toBeTruthy();
@@ -247,7 +247,7 @@ describe('TrainingDashboardScreen', () => {
     expect(queryByText('View Summary')).toBeNull();
   });
 
-  it('renders a Calories tile that tracks the session total', () => {
+  it('renders a Calories tile that tracks the session total', async () => {
     Object.assign(mockSession, {
       phase: 'active',
       totalCalories: 123.4,
@@ -262,28 +262,28 @@ describe('TrainingDashboardScreen', () => {
     });
     Object.assign(mockDeviceConnection, { bikeConnected: true });
 
-    const { getByText } = render(<TrainingDashboardScreen />);
+    const { getByText } = await render(<TrainingDashboardScreen />);
 
     expect(getByText('CAL')).toBeTruthy();
     expect(getByText('123')).toBeTruthy();
   });
 
-  it('shows Resume and Finish while paused', () => {
+  it('shows Resume and Finish while paused', async () => {
     Object.assign(mockSession, { phase: 'paused' });
     Object.assign(mockDeviceConnection, { bikeConnected: true });
 
-    const { getByText, queryByText } = render(<TrainingDashboardScreen />);
+    const { getByText, queryByText } = await render(<TrainingDashboardScreen />);
 
     expect(getByText('Resume')).toBeTruthy();
     expect(getByText('Finish')).toBeTruthy();
     expect(queryByText('Pause')).toBeNull();
   });
 
-  it('shows reconnection guidance when a paused session has no bike connection', () => {
+  it('shows reconnection guidance when a paused session has no bike connection', async () => {
     Object.assign(mockSession, { phase: 'paused' });
     Object.assign(mockDeviceConnection, { bikeConnected: false });
 
-    const { getByText } = render(<TrainingDashboardScreen />);
+    const { getByText } = await render(<TrainingDashboardScreen />);
 
     expect(getByText('Smart Bike connection required')).toBeTruthy();
     expect(
@@ -291,11 +291,11 @@ describe('TrainingDashboardScreen', () => {
     ).toBeTruthy();
   });
 
-  it('does not show a summary action once the session is already finished', () => {
+  it('does not show a summary action once the session is already finished', async () => {
     Object.assign(mockSession, { phase: 'finished' });
     Object.assign(mockDeviceConnection, { bikeConnected: true });
 
-    const { getByText, queryByText } = render(<TrainingDashboardScreen />);
+    const { getByText, queryByText } = await render(<TrainingDashboardScreen />);
 
     expect(queryByText('Pause')).toBeNull();
     expect(queryByText('Resume')).toBeNull();
@@ -319,9 +319,9 @@ describe('TrainingDashboardScreen', () => {
     });
     Object.assign(mockDeviceConnection, { bikeConnected: true });
 
-    const { getByText, queryByText } = render(<TrainingDashboardScreen />);
+    const { getByText, queryByText } = await render(<TrainingDashboardScreen />);
 
-    fireEvent.press(getByText('Finish'));
+    await fireEvent.press(getByText('Finish'));
 
     expect(getByText('Finishing...')).toBeTruthy();
     expect(queryByText('Finish')).toBeNull();
@@ -335,7 +335,7 @@ describe('TrainingDashboardScreen', () => {
     });
   });
 
-  it('shows the session HR from the engine as the big Heart Rate metric', () => {
+  it('shows the session HR from the engine as the big Heart Rate metric', async () => {
     Object.assign(mockSession, {
       phase: 'active',
       currentMetrics: {
@@ -356,14 +356,14 @@ describe('TrainingDashboardScreen', () => {
       activeHrSource: 'bluetooth',
     });
 
-    const { getByText } = render(<TrainingDashboardScreen />);
+    const { getByText } = await render(<TrainingDashboardScreen />);
 
     // Engine HR wins; raw latestBluetoothHr is not surfaced separately.
     // Value + unit are separate nodes in the hero card.
     expect(getByText('151')).toBeTruthy();
   });
 
-  it('shows -- for Heart Rate when session HR is null (engine has no value)', () => {
+  it('shows -- for Heart Rate when session HR is null (engine has no value)', async () => {
     Object.assign(mockSession, {
       phase: 'active',
       currentMetrics: {
@@ -377,14 +377,14 @@ describe('TrainingDashboardScreen', () => {
     });
     Object.assign(mockDeviceConnection, { bikeConnected: true });
 
-    const { getByText } = render(<TrainingDashboardScreen />);
+    const { getByText } = await render(<TrainingDashboardScreen />);
 
     expect(getByText('--')).toBeTruthy();
   });
 
   // HR tile read-only tests
 
-  it('shows "Apple Watch · Ready" when watch is locked as activeHrSource and sample is fresh', () => {
+  it('shows "Apple Watch · Ready" when watch is locked as activeHrSource and sample is fresh', async () => {
     Object.assign(mockSession, {
       phase: 'active',
       currentMetrics: {
@@ -404,13 +404,13 @@ describe('TrainingDashboardScreen', () => {
     });
     Object.assign(mockDeviceConnectionStoreState, { activeHrSource: 'watch' });
 
-    const { getByLabelText } = render(<TrainingDashboardScreen />);
+    const { getByLabelText } = await render(<TrainingDashboardScreen />);
 
     // Status is rendered as a StatusPill in the connection footer (never as "Name · Status" text).
     expect(getByLabelText('Apple Watch: Ready')).toBeTruthy();
   });
 
-  it('shows "Apple Watch · No signal" when watch is locked but sample is stale', () => {
+  it('shows "Apple Watch · No signal" when watch is locked but sample is stale', async () => {
     Object.assign(mockSession, {
       phase: 'active',
       currentMetrics: {
@@ -430,12 +430,12 @@ describe('TrainingDashboardScreen', () => {
     });
     Object.assign(mockDeviceConnectionStoreState, { activeHrSource: 'watch' });
 
-    const { getByLabelText } = render(<TrainingDashboardScreen />);
+    const { getByLabelText } = await render(<TrainingDashboardScreen />);
 
     expect(getByLabelText('Apple Watch: No signal')).toBeTruthy();
   });
 
-  it('shows "Polar H10 · Ready" when BLE is locked as activeHrSource', () => {
+  it('shows "Polar H10 · Ready" when BLE is locked as activeHrSource', async () => {
     Object.assign(mockDeviceConnection, {
       bikeConnected: true,
       hrConnected: true,
@@ -448,29 +448,29 @@ describe('TrainingDashboardScreen', () => {
     });
     mockSavedGear.savedHrSource = { id: 'x', name: 'Polar H10', type: 'hr' };
 
-    const { getByLabelText } = render(<TrainingDashboardScreen />);
+    const { getByLabelText } = await render(<TrainingDashboardScreen />);
 
     expect(getByLabelText('Polar H10: Ready')).toBeTruthy();
   });
 
-  it('shows "Apple Watch · Unavailable" in idle on a watch-capable iPhone when the companion is unavailable (no primary, no strap)', () => {
+  it('shows "Apple Watch · Unavailable" in idle on a watch-capable iPhone when the companion is unavailable (no primary, no strap)', async () => {
     // Watch candidacy is platform-based, so a watch-capable iPhone defaults to
     // Watch even while the companion is currently unavailable — never "nothing".
     Object.assign(mockDeviceConnection, { bikeConnected: true, watchAvailability: 'unavailable' });
-    const { getByLabelText } = render(<TrainingDashboardScreen />);
+    const { getByLabelText } = await render(<TrainingDashboardScreen />);
 
     expect(getByLabelText('Apple Watch: Unavailable')).toBeTruthy();
   });
 
-  it('shows "Heart rate · Not set up" in idle when there is no HR source (no watch platform, no strap)', () => {
+  it('shows "Heart rate · Not set up" in idle when there is no HR source (no watch platform, no strap)', async () => {
     getIsAppleWatchAvailableMock().mockReturnValue(false);
     Object.assign(mockDeviceConnection, { bikeConnected: true });
-    const { getByLabelText } = render(<TrainingDashboardScreen />);
+    const { getByLabelText } = await render(<TrainingDashboardScreen />);
 
     expect(getByLabelText('Heart rate: Not set up')).toBeTruthy();
   });
 
-  it('does not show Watch when bluetooth is locked mid-ride (locked source wins)', () => {
+  it('does not show Watch when bluetooth is locked mid-ride (locked source wins)', async () => {
     Object.assign(mockSession, {
       phase: 'active',
       currentMetrics: {
@@ -496,7 +496,7 @@ describe('TrainingDashboardScreen', () => {
     });
     mockSavedGear.savedHrSource = { id: 'y', name: 'Polar H10', type: 'hr' };
 
-    const { getByLabelText, queryByText } = render(<TrainingDashboardScreen />);
+    const { getByLabelText, queryByText } = await render(<TrainingDashboardScreen />);
 
     expect(getByLabelText('Polar H10: Ready')).toBeTruthy();
     expect(queryByText(/Apple Watch/)).toBeNull();

@@ -4,30 +4,30 @@ import { StyleSheet, Text, View } from 'react-native';
 import { StatusPill } from '../../../ui/components/StatusPill';
 import { deviceStatusLabel, type DeviceStatus } from '../../../types/deviceStatus';
 import { noir } from '../../../ui/theme';
+import { gearSelectionLabel } from '../../../ui/gearSelectionLabel';
 
 export interface DeviceCardProps {
   readonly icon: keyof typeof Ionicons.glyphMap;
   readonly name: string;
   readonly kind: string;
   readonly status: DeviceStatus;
-  /** Dim the icon + name when the source is not set up / off. */
+  /** Dim the icon + name when the source is not set up / not selected. */
   readonly muted?: boolean;
+  readonly selected?: boolean;
   readonly testID?: string;
 }
 
-export function DeviceCard({ icon, name, kind, status, muted = false, testID }: DeviceCardProps) {
+export function DeviceCard({ icon, name, kind, status, muted = false, selected, testID }: DeviceCardProps) {
   return (
-    <View style={styles.card} testID={testID}>
+    <View style={[styles.card, selected && styles.cardSelected]} testID={testID}>
       <View style={[styles.iconBox, muted && styles.iconBoxMuted]}>
         <Ionicons name={icon} size={22} color={muted ? noir.ink3 : noir.indigoSoft} />
       </View>
       <View style={styles.meta}>
-        <Text style={[styles.name, muted && styles.nameMuted]} numberOfLines={1}>
+        <Text style={[styles.name, muted && styles.nameMuted, selected && styles.nameSelected]} numberOfLines={1}>
           {name}
         </Text>
-        <Text style={styles.kind} numberOfLines={1}>
-          {kind}
-        </Text>
+        <Text style={styles.kind}>{gearSelectionLabel(kind, selected)}</Text>
       </View>
       <StatusPill status={status} scheme="noir" accessibilityLabel={`${name}: ${deviceStatusLabel(status)}`} />
     </View>
@@ -54,9 +54,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  cardSelected: {
+    borderColor: 'rgba(46, 61, 255, 0.4)',
+    backgroundColor: 'rgba(46, 61, 255, 0.14)',
+  },
+  nameSelected: { color: noir.indigoText },
   iconBoxMuted: { backgroundColor: noir.iconBox },
   meta: { flex: 1, minWidth: 0 },
-  name: { color: noir.ink, fontSize: 15, fontWeight: '700', letterSpacing: -0.1 },
+  name: {
+    color: noir.ink,
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: -0.1,
+  },
   nameMuted: { color: noir.ink3 },
   kind: { color: noir.ink3, fontSize: 12.5, marginTop: 2 },
 });

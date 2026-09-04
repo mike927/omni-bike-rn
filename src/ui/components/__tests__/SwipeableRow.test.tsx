@@ -6,8 +6,8 @@ import { SwipeableRow } from '../SwipeableRow';
 const forget = (onPress: () => void) =>
   ({ key: 'forget', label: 'Forget', icon: 'trash-outline', tone: 'danger', onPress }) as const;
 
-it('renders its children', () => {
-  const { getByText } = render(
+it('renders its children', async () => {
+  const { getByText } = await render(
     <SwipeableRow actions={[forget(() => {})]}>
       <Text>Rave</Text>
     </SwipeableRow>,
@@ -15,19 +15,19 @@ it('renders its children', () => {
   expect(getByText('Rave')).toBeTruthy();
 });
 
-it('exposes each action as a reachable button that fires its handler', () => {
+it('exposes each action as a reachable button that fires its handler', async () => {
   const onForget = jest.fn();
-  const { getByLabelText } = render(
+  const { getByLabelText } = await render(
     <SwipeableRow actions={[forget(onForget)]}>
       <Text>Rave</Text>
     </SwipeableRow>,
   );
-  fireEvent.press(getByLabelText('Forget'));
+  await fireEvent.press(getByLabelText('Forget'));
   expect(onForget).toHaveBeenCalledTimes(1);
 });
 
-it('renders one button per action', () => {
-  const { getByLabelText } = render(
+it('renders one button per action', async () => {
+  const { getByLabelText } = await render(
     <SwipeableRow
       actions={[
         { key: 'replace', label: 'Replace', icon: 'swap-horizontal-outline', onPress: () => {} },
@@ -40,15 +40,15 @@ it('renders one button per action', () => {
   expect(getByLabelText('Forget')).toBeTruthy();
 });
 
-it('tracks a changing actions prop (geometry stays in sync while mounted)', () => {
-  const { getByLabelText, queryByLabelText, rerender } = render(
+it('tracks a changing actions prop (geometry stays in sync while mounted)', async () => {
+  const { getByLabelText, queryByLabelText, rerender } = await render(
     <SwipeableRow actions={[forget(() => {})]}>
       <Text>Rave</Text>
     </SwipeableRow>,
   );
   expect(queryByLabelText('Replace')).toBeNull();
 
-  rerender(
+  await rerender(
     <SwipeableRow
       actions={[
         { key: 'replace', label: 'Replace', icon: 'swap-horizontal-outline', onPress: () => {} },

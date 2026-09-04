@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from 'expo-router';
 
 import { getProviderUploadsBySessionId } from '../../../../services/db/providerUploadRepository';
 import { deleteSession, getFinishedSessions } from '../../../../services/db/trainingSessionRepository';
@@ -7,7 +7,7 @@ import { APPLE_HEALTH_PROVIDER_ID, STRAVA_PROVIDER_ID } from '../../../../servic
 import type { PersistedProviderUpload, PersistedTrainingSession } from '../../../../types/sessionPersistence';
 import { useWorkoutHistory } from '../useWorkoutHistory';
 
-jest.mock('@react-navigation/native', () => ({
+jest.mock('expo-router', () => ({
   useFocusEffect: jest.fn(),
 }));
 
@@ -78,20 +78,20 @@ describe('useWorkoutHistory', () => {
     mockGetProviderUploadsBySessionId.mockReturnValue([]);
   });
 
-  it('refreshes items whenever the screen gains focus', () => {
+  it('refreshes items whenever the screen gains focus', async () => {
     const { trigger } = primeFocusCallback();
     mockGetFinishedSessions.mockReturnValueOnce([]).mockReturnValueOnce([buildSession('session-2')]);
 
-    const { result } = renderHook(() => useWorkoutHistory());
+    const { result } = await renderHook(() => useWorkoutHistory());
 
-    act(() => {
+    await act(() => {
       trigger();
     });
 
     expect(result.current.items).toEqual([]);
     expect(result.current.isLoading).toBe(false);
 
-    act(() => {
+    await act(() => {
       trigger();
     });
 
@@ -99,19 +99,19 @@ describe('useWorkoutHistory', () => {
     expect(result.current.isLoading).toBe(false);
   });
 
-  it('deletes a workout and refreshes the item list', () => {
+  it('deletes a workout and refreshes the item list', async () => {
     const { trigger } = primeFocusCallback();
     mockGetFinishedSessions.mockReturnValueOnce([buildSession('session-1')]).mockReturnValueOnce([]);
 
-    const { result } = renderHook(() => useWorkoutHistory());
+    const { result } = await renderHook(() => useWorkoutHistory());
 
-    act(() => {
+    await act(() => {
       trigger();
     });
 
     expect(result.current.items.map((item) => item.session.id)).toEqual(['session-1']);
 
-    act(() => {
+    await act(() => {
       result.current.deleteWorkout('session-1');
     });
 
@@ -119,16 +119,16 @@ describe('useWorkoutHistory', () => {
     expect(result.current.items).toEqual([]);
   });
 
-  it('sets loadError and keeps an empty list when fetching sessions fails', () => {
+  it('sets loadError and keeps an empty list when fetching sessions fails', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     const { trigger } = primeFocusCallback();
     mockGetFinishedSessions.mockImplementation(() => {
       throw new Error('db read failed');
     });
 
-    const { result } = renderHook(() => useWorkoutHistory());
+    const { result } = await renderHook(() => useWorkoutHistory());
 
-    act(() => {
+    await act(() => {
       trigger();
     });
 
@@ -139,7 +139,7 @@ describe('useWorkoutHistory', () => {
     errorSpy.mockRestore();
   });
 
-  it('deleteWorkout returns false when the delete fails', () => {
+  it('deleteWorkout returns false when the delete fails', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     const { trigger } = primeFocusCallback();
     mockGetFinishedSessions.mockReturnValue([buildSession('session-1')]);
@@ -147,14 +147,14 @@ describe('useWorkoutHistory', () => {
       throw new Error('delete failed');
     });
 
-    const { result } = renderHook(() => useWorkoutHistory());
+    const { result } = await renderHook(() => useWorkoutHistory());
 
-    act(() => {
+    await act(() => {
       trigger();
     });
 
     let outcome = true;
-    act(() => {
+    await act(() => {
       outcome = result.current.deleteWorkout('session-1');
     });
 
@@ -163,7 +163,7 @@ describe('useWorkoutHistory', () => {
     errorSpy.mockRestore();
   });
 
-  it('includes only providers whose uploadState is uploaded', () => {
+  it('includes only providers whose uploadState is uploaded', async () => {
     const { trigger } = primeFocusCallback();
     mockGetFinishedSessions.mockReturnValueOnce([buildSession('session-1')]);
     mockGetProviderUploadsBySessionId.mockReturnValueOnce([
@@ -171,9 +171,9 @@ describe('useWorkoutHistory', () => {
       buildUpload({ providerId: APPLE_HEALTH_PROVIDER_ID, uploadState: 'failed' }),
     ]);
 
-    const { result } = renderHook(() => useWorkoutHistory());
+    const { result } = await renderHook(() => useWorkoutHistory());
 
-    act(() => {
+    await act(() => {
       trigger();
     });
 
@@ -181,7 +181,7 @@ describe('useWorkoutHistory', () => {
     expect(result.current.items[0]?.uploadedProviderIds).toEqual([STRAVA_PROVIDER_ID]);
   });
 
-  it('returns uploadedProviderIds in canonical order regardless of DB row order', () => {
+  it('returns uploadedProviderIds in canonical order regardless of DB row order', async () => {
     const { trigger } = primeFocusCallback();
     mockGetFinishedSessions.mockReturnValueOnce([buildSession('session-1')]);
     mockGetProviderUploadsBySessionId.mockReturnValueOnce([
@@ -189,25 +189,25 @@ describe('useWorkoutHistory', () => {
       buildUpload({ providerId: STRAVA_PROVIDER_ID, uploadState: 'uploaded', createdAtMs: 200 }),
     ]);
 
-    const { result } = renderHook(() => useWorkoutHistory());
+    const { result } = await renderHook(() => useWorkoutHistory());
 
-    act(() => {
+    await act(() => {
       trigger();
     });
 
     expect(result.current.items[0]?.uploadedProviderIds).toEqual([STRAVA_PROVIDER_ID, APPLE_HEALTH_PROVIDER_ID]);
   });
 
-  it('filters out unknown provider IDs that are not in KNOWN_PROVIDER_DISPLAY_ORDER', () => {
+  it('filters out unknown provider IDs that are not in KNOWN_PROVIDER_DISPLAY_ORDER', async () => {
     const { trigger } = primeFocusCallback();
     mockGetFinishedSessions.mockReturnValueOnce([buildSession('session-1')]);
     mockGetProviderUploadsBySessionId.mockReturnValueOnce([
       buildUpload({ providerId: 'garmin_connect', uploadState: 'uploaded' }),
     ]);
 
-    const { result } = renderHook(() => useWorkoutHistory());
+    const { result } = await renderHook(() => useWorkoutHistory());
 
-    act(() => {
+    await act(() => {
       trigger();
     });
 

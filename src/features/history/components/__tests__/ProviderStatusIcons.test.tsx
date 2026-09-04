@@ -16,22 +16,22 @@ describe('providerIconColor', () => {
 });
 
 describe('ProviderStatusIcons', () => {
-  it('always renders both providers, marking only the synced one', () => {
-    const { getByLabelText } = render(<ProviderStatusIcons uploadedProviderIds={[STRAVA_PROVIDER_ID]} />);
+  it('always renders both providers, marking only the synced one', async () => {
+    const { getByLabelText } = await render(<ProviderStatusIcons uploadedProviderIds={[STRAVA_PROVIDER_ID]} />);
 
     expect(getByLabelText('Uploaded to Strava')).toBeTruthy();
     expect(getByLabelText('Not synced to Apple Health')).toBeTruthy();
   });
 
-  it('marks both providers as not synced when nothing is uploaded', () => {
-    const { getByLabelText } = render(<ProviderStatusIcons uploadedProviderIds={[]} />);
+  it('marks both providers as not synced when nothing is uploaded', async () => {
+    const { getByLabelText } = await render(<ProviderStatusIcons uploadedProviderIds={[]} />);
 
     expect(getByLabelText('Not uploaded to Strava')).toBeTruthy();
     expect(getByLabelText('Not synced to Apple Health')).toBeTruthy();
   });
 
-  it('marks both providers as synced when both are uploaded', () => {
-    const { getByLabelText } = render(
+  it('marks both providers as synced when both are uploaded', async () => {
+    const { getByLabelText } = await render(
       <ProviderStatusIcons uploadedProviderIds={[APPLE_HEALTH_PROVIDER_ID, STRAVA_PROVIDER_ID]} />,
     );
 
@@ -39,8 +39,8 @@ describe('ProviderStatusIcons', () => {
     expect(getByLabelText('Synced to Apple Health')).toBeTruthy();
   });
 
-  it('renders providers in canonical order regardless of input order', () => {
-    const { getAllByRole } = render(
+  it('renders providers in canonical order regardless of input order', async () => {
+    const { getAllByRole } = await render(
       <ProviderStatusIcons uploadedProviderIds={[APPLE_HEALTH_PROVIDER_ID, STRAVA_PROVIDER_ID]} />,
     );
 

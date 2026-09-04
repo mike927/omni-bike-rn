@@ -5,6 +5,7 @@ import { deviceStatusLabel, type DeviceStatus } from '../../../types/deviceStatu
 import { StatusPill } from '../../../ui/components/StatusPill';
 import { SwipeableRow } from '../../../ui/components/SwipeableRow';
 import { noir } from '../../../ui/theme';
+import { gearSelectionLabel } from '../../../ui/gearSelectionLabel';
 
 // ---------------------------------------------------------------------------
 // SwipeableGearRow — a saved-gear tile whose management actions (Replace /
@@ -24,7 +25,7 @@ export interface SwipeableGearRowProps {
   readonly name: string;
   readonly kind: string;
   readonly status: DeviceStatus;
-  /** Defined ⇒ row is selectable (tap selects); `true` adds "· primary" + accent styling. */
+  /** Defined ⇒ row shows selection state (tap selects); `true` adds accent styling. */
   readonly selected?: boolean;
   readonly onSelectPress?: () => void;
   readonly bodyTestId?: string;
@@ -59,9 +60,7 @@ export function SwipeableGearRow({
         <Text style={[styles.name, muted && styles.nameMuted, isSelected && styles.nameSelected]} numberOfLines={1}>
           {name}
         </Text>
-        <Text style={styles.kind} numberOfLines={1}>
-          {isSelected ? `${kind} · primary` : kind}
-        </Text>
+        <Text style={styles.kind}>{gearSelectionLabel(kind, selected)}</Text>
       </View>
     </>
   );

@@ -44,13 +44,13 @@ describe('useDeviceConnection', () => {
     });
   });
 
-  it('exposes the latest Apple Watch sample timestamp from the store', () => {
-    act(() => {
+  it('exposes the latest Apple Watch sample timestamp from the store', async () => {
+    await act(() => {
       useDeviceConnectionStore.getState().updateAppleWatchHr(148);
     });
     const sampledAt = useDeviceConnectionStore.getState().lastAppleWatchSampleAtMs;
 
-    const { result } = renderHook(() => useDeviceConnection());
+    const { result } = await renderHook(() => useDeviceConnection());
 
     expect(result.current.lastAppleWatchSampleAtMs).toBe(sampledAt);
   });
@@ -63,7 +63,7 @@ describe('useDeviceConnection', () => {
     mockBikeDisconnect.mockResolvedValue(undefined);
     mockBikeSubscribe.mockReturnValueOnce(firstBikeSubscription).mockReturnValueOnce(secondBikeSubscription);
 
-    const { result } = renderHook(() => useDeviceConnection());
+    const { result } = await renderHook(() => useDeviceConnection());
 
     await act(async () => {
       await result.current.connectBike('bike-1');
@@ -89,10 +89,10 @@ describe('useDeviceConnection', () => {
     );
     mockBikeSubscribe.mockReturnValue({ remove: jest.fn() });
 
-    const { result } = renderHook(() => useDeviceConnection());
+    const { result } = await renderHook(() => useDeviceConnection());
 
     let connectPromise!: Promise<void>;
-    act(() => {
+    await act(() => {
       connectPromise = result.current.connectBike('bike-1');
     });
 
@@ -118,7 +118,7 @@ describe('useDeviceConnection', () => {
     mockHrDisconnect.mockResolvedValue(undefined);
     mockHrSubscribe.mockReturnValueOnce(firstHrSubscription).mockReturnValueOnce(secondHrSubscription);
 
-    const { result } = renderHook(() => useDeviceConnection());
+    const { result } = await renderHook(() => useDeviceConnection());
 
     await act(async () => {
       await result.current.connectHr('hr-1');
@@ -151,14 +151,14 @@ describe('useDeviceConnection', () => {
       hrReconnectState: 'connected',
     });
 
-    const { result } = renderHook(() => useDeviceConnection());
+    const { result } = await renderHook(() => useDeviceConnection());
 
     await act(async () => {
       await result.current.connectBike('bike-1');
       await result.current.connectHr('hr-1');
     });
 
-    act(() => {
+    await act(() => {
       useDeviceConnectionStore.getState().updateBikeMetrics({ speed: 32, cadence: 90, power: 210 });
       useDeviceConnectionStore.getState().updateBluetoothHr(145);
     });
@@ -190,7 +190,7 @@ describe('useDeviceConnection', () => {
       bikeReconnectState: 'connected',
     });
 
-    const { result } = renderHook(() => useDeviceConnection());
+    const { result } = await renderHook(() => useDeviceConnection());
 
     await act(async () => {
       await result.current.connectBike('bike-1');
@@ -218,7 +218,7 @@ describe('useDeviceConnection', () => {
     });
 
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const { result } = renderHook(() => useDeviceConnection());
+    const { result } = await renderHook(() => useDeviceConnection());
 
     await act(async () => {
       await result.current.connectHr('hr-1');
@@ -244,7 +244,7 @@ describe('useDeviceConnection', () => {
     mockBikeConnect.mockRejectedValue(timeoutError);
 
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const { result } = renderHook(() => useDeviceConnection());
+    const { result } = await renderHook(() => useDeviceConnection());
 
     await act(async () => {
       await result.current.connectBike('bike-1').catch(() => {});
@@ -259,7 +259,7 @@ describe('useDeviceConnection', () => {
     mockHrConnect.mockRejectedValue(timeoutError);
 
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const { result } = renderHook(() => useDeviceConnection());
+    const { result } = await renderHook(() => useDeviceConnection());
 
     await act(async () => {
       await result.current.connectHr('hr-1').catch(() => {});
@@ -274,7 +274,7 @@ describe('useDeviceConnection', () => {
     mockBikeConnect.mockRejectedValue(unexpectedError);
 
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const { result } = renderHook(() => useDeviceConnection());
+    const { result } = await renderHook(() => useDeviceConnection());
 
     await act(async () => {
       await result.current.connectBike('bike-1').catch(() => {});
@@ -285,7 +285,7 @@ describe('useDeviceConnection', () => {
   });
 
   it('should leave reconnect state idle when intentionally disconnecting without saved gear', async () => {
-    const { result } = renderHook(() => useDeviceConnection());
+    const { result } = await renderHook(() => useDeviceConnection());
 
     await act(async () => {
       await result.current.disconnectAll();
@@ -312,7 +312,7 @@ describe('useDeviceConnection', () => {
       hrReconnectState: 'connected',
     });
 
-    const { result } = renderHook(() => useDeviceConnection());
+    const { result } = await renderHook(() => useDeviceConnection());
 
     await act(async () => {
       await result.current.connectBike('bike-1');
@@ -336,10 +336,10 @@ describe('useDeviceConnection', () => {
     );
     mockBikeSubscribe.mockReturnValue({ remove: jest.fn() });
 
-    const { result } = renderHook(() => useDeviceConnection());
+    const { result } = await renderHook(() => useDeviceConnection());
 
     let firstAttempt!: Promise<void>;
-    act(() => {
+    await act(() => {
       firstAttempt = result.current.connectBike('bike-1');
     });
     await waitFor(() => {
@@ -369,10 +369,10 @@ describe('useDeviceConnection', () => {
     );
     mockHrSubscribe.mockReturnValue({ remove: jest.fn() });
 
-    const { result } = renderHook(() => useDeviceConnection());
+    const { result } = await renderHook(() => useDeviceConnection());
 
     let firstAttempt!: Promise<void>;
-    act(() => {
+    await act(() => {
       firstAttempt = result.current.connectHr('hr-1');
     });
     await waitFor(() => {
@@ -397,7 +397,7 @@ describe('useDeviceConnection', () => {
     mockBikeConnect.mockRejectedValueOnce(new Error('boom'));
     mockBikeSubscribe.mockReturnValue({ remove: jest.fn() });
 
-    const { result } = renderHook(() => useDeviceConnection());
+    const { result } = await renderHook(() => useDeviceConnection());
 
     await act(async () => {
       await expect(result.current.connectBike('bike-1')).rejects.toThrow('boom');

@@ -20,20 +20,20 @@ beforeEach(() => {
 });
 
 describe('useSavedGear', () => {
-  it('reflects hydrated state from store', () => {
-    const { result } = renderHook(() => useSavedGear());
+  it('reflects hydrated state from store', async () => {
+    const { result } = await renderHook(() => useSavedGear());
     expect(result.current.hydrated).toBe(false);
 
-    act(() => {
+    await act(() => {
       useSavedGearStore.setState({ hydrated: true });
     });
 
     expect(result.current.hydrated).toBe(true);
   });
 
-  it('returns savedBike and savedHrSource from store', () => {
+  it('returns savedBike and savedHrSource from store', async () => {
     useSavedGearStore.setState({ savedBike: bike, savedHrSource: hr });
-    const { result } = renderHook(() => useSavedGear());
+    const { result } = await renderHook(() => useSavedGear());
     expect(result.current.savedBike).toEqual(bike);
     expect(result.current.savedHrSource).toEqual(hr);
   });
@@ -42,7 +42,7 @@ describe('useSavedGear', () => {
     const removeBike = jest.fn().mockResolvedValue(undefined);
     useSavedGearStore.setState({ savedBike: bike, removeBike });
 
-    const { result } = renderHook(() => useSavedGear());
+    const { result } = await renderHook(() => useSavedGear());
 
     await act(async () => {
       await result.current.forgetBike();
@@ -55,7 +55,7 @@ describe('useSavedGear', () => {
     const removeHr = jest.fn().mockResolvedValue(undefined);
     useSavedGearStore.setState({ savedHrSource: hr, removeHr });
 
-    const { result } = renderHook(() => useSavedGear());
+    const { result } = await renderHook(() => useSavedGear());
 
     await act(async () => {
       await result.current.forgetHr();

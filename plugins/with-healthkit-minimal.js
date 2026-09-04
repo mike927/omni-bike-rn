@@ -1,4 +1,4 @@
-const { createRunOncePlugin, withEntitlementsPlist, withInfoPlist } = require('@expo/config-plugins');
+const { createRunOncePlugin, withEntitlementsPlist, withInfoPlist } = require('expo/config-plugins');
 
 const PLUGIN_NAME = 'with-healthkit-minimal';
 

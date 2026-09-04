@@ -22,8 +22,8 @@ describe('useBlePermission', () => {
   });
 
   describe('initial state', () => {
-    it('should start with status unknown', () => {
-      const { result } = renderHook(() => useBlePermission());
+    it('should start with status unknown', async () => {
+      const { result } = await renderHook(() => useBlePermission());
       expect(result.current.status).toBe('unknown');
     });
   });
@@ -32,10 +32,10 @@ describe('useBlePermission', () => {
     it('returns granted and updates status when Bluetooth is PoweredOn', async () => {
       (bleManager.state as jest.Mock).mockResolvedValue('PoweredOn');
 
-      const { result } = renderHook(() => useBlePermission());
+      const { result } = await renderHook(() => useBlePermission());
 
       let returnValue: string | undefined;
-      act(() => {
+      await act(() => {
         void result.current.requestBlePermission().then((v) => {
           returnValue = v;
         });
@@ -51,10 +51,10 @@ describe('useBlePermission', () => {
     it('returns granted and updates status when Bluetooth is PoweredOff (hardware present, permission allowed)', async () => {
       (bleManager.state as jest.Mock).mockResolvedValue('PoweredOff');
 
-      const { result } = renderHook(() => useBlePermission());
+      const { result } = await renderHook(() => useBlePermission());
 
       let returnValue: string | undefined;
-      act(() => {
+      await act(() => {
         void result.current.requestBlePermission().then((v) => {
           returnValue = v;
         });
@@ -70,10 +70,10 @@ describe('useBlePermission', () => {
     it('returns denied and updates status when Bluetooth is Unauthorized', async () => {
       (bleManager.state as jest.Mock).mockResolvedValue('Unauthorized');
 
-      const { result } = renderHook(() => useBlePermission());
+      const { result } = await renderHook(() => useBlePermission());
 
       let returnValue: string | undefined;
-      act(() => {
+      await act(() => {
         void result.current.requestBlePermission().then((v) => {
           returnValue = v;
         });
@@ -89,10 +89,10 @@ describe('useBlePermission', () => {
     it('returns denied and updates status when Bluetooth is Unsupported', async () => {
       (bleManager.state as jest.Mock).mockResolvedValue('Unsupported');
 
-      const { result } = renderHook(() => useBlePermission());
+      const { result } = await renderHook(() => useBlePermission());
 
       let returnValue: string | undefined;
-      act(() => {
+      await act(() => {
         void result.current.requestBlePermission().then((v) => {
           returnValue = v;
         });
@@ -109,10 +109,10 @@ describe('useBlePermission', () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
       (bleManager.state as jest.Mock).mockRejectedValue(new Error('BLE unavailable'));
 
-      const { result } = renderHook(() => useBlePermission());
+      const { result } = await renderHook(() => useBlePermission());
 
       let returnValue: string | undefined;
-      act(() => {
+      await act(() => {
         void result.current.requestBlePermission().then((v) => {
           returnValue = v;
         });
@@ -131,11 +131,11 @@ describe('useBlePermission', () => {
     it('transitions status from unknown → granted → denied across multiple calls', async () => {
       (bleManager.state as jest.Mock).mockResolvedValueOnce('PoweredOn').mockResolvedValueOnce('Unauthorized');
 
-      const { result } = renderHook(() => useBlePermission());
+      const { result } = await renderHook(() => useBlePermission());
 
       expect(result.current.status).toBe('unknown');
 
-      act(() => {
+      await act(() => {
         void result.current.requestBlePermission();
       });
 
@@ -143,7 +143,7 @@ describe('useBlePermission', () => {
         expect(result.current.status).toBe('granted');
       });
 
-      act(() => {
+      await act(() => {
         void result.current.requestBlePermission();
       });
 
@@ -184,10 +184,10 @@ describe('useBlePermission', () => {
       });
       (bleManager.state as jest.Mock).mockResolvedValue('PoweredOn');
 
-      const { result } = renderHook(() => useBlePermission());
+      const { result } = await renderHook(() => useBlePermission());
 
       let returnValue: string | undefined;
-      act(() => {
+      await act(() => {
         void result.current.requestBlePermission().then((v) => {
           returnValue = v;
         });
@@ -213,10 +213,10 @@ describe('useBlePermission', () => {
         [PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT]: PermissionsAndroid.RESULTS.GRANTED,
       });
 
-      const { result } = renderHook(() => useBlePermission());
+      const { result } = await renderHook(() => useBlePermission());
 
       let returnValue: string | undefined;
-      act(() => {
+      await act(() => {
         void result.current.requestBlePermission().then((v) => {
           returnValue = v;
         });
@@ -242,10 +242,10 @@ describe('useBlePermission', () => {
       });
       (bleManager.state as jest.Mock).mockResolvedValue('PoweredOn');
 
-      const { result } = renderHook(() => useBlePermission());
+      const { result } = await renderHook(() => useBlePermission());
 
       let returnValue: string | undefined;
-      act(() => {
+      await act(() => {
         void result.current.requestBlePermission().then((v) => {
           returnValue = v;
         });
@@ -264,10 +264,10 @@ describe('useBlePermission', () => {
       // Platform.OS stays 'ios' (default in jest react-native preset)
       (bleManager.state as jest.Mock).mockResolvedValue('PoweredOn');
 
-      const { result } = renderHook(() => useBlePermission());
+      const { result } = await renderHook(() => useBlePermission());
 
       let returnValue: string | undefined;
-      act(() => {
+      await act(() => {
         void result.current.requestBlePermission().then((v) => {
           returnValue = v;
         });
@@ -288,10 +288,10 @@ describe('useBlePermission', () => {
 
       mockRequestMultiple.mockRejectedValue(new Error('permissions unavailable'));
 
-      const { result } = renderHook(() => useBlePermission());
+      const { result } = await renderHook(() => useBlePermission());
 
       let returnValue: string | undefined;
-      act(() => {
+      await act(() => {
         void result.current.requestBlePermission().then((v) => {
           returnValue = v;
         });

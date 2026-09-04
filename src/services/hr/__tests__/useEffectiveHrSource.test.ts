@@ -62,9 +62,9 @@ describe('useEffectiveHrSource adapter', () => {
   });
 
   describe('useEffectivePrimary (reactive)', () => {
-    it('resolves the primary from store state', () => {
+    it('resolves the primary from store state', async () => {
       setStores({ primary: 'bluetooth', savedHrSource: STRAP, watchAvailability: 'unavailable' });
-      const { result } = renderHook(() => useEffectivePrimary());
+      const { result } = await renderHook(() => useEffectivePrimary());
       expect(result.current).toBe('bluetooth');
     });
 
@@ -72,32 +72,32 @@ describe('useEffectiveHrSource adapter', () => {
     // iPhone with no explicit primary and no strap must default to 'watch' even while
     // the companion is currently unavailable — never to null (which would render
     // "nothing selected" and stop the Watch lifecycle from ever starting).
-    it('defaults to watch on a watch-capable platform even when the companion is unavailable', () => {
+    it('defaults to watch on a watch-capable platform even when the companion is unavailable', async () => {
       getIsAppleWatchAvailableMock().mockReturnValue(true);
       setStores({ primary: null, savedHrSource: null, watchAvailability: 'unavailable' });
-      const { result } = renderHook(() => useEffectivePrimary());
+      const { result } = await renderHook(() => useEffectivePrimary());
       expect(result.current).toBe('watch');
     });
 
-    it('returns null when the platform has no watch and no strap is saved', () => {
+    it('returns null when the platform has no watch and no strap is saved', async () => {
       getIsAppleWatchAvailableMock().mockReturnValue(false);
       setStores({ primary: null, savedHrSource: null, watchAvailability: 'unavailable' });
-      const { result } = renderHook(() => useEffectivePrimary());
+      const { result } = await renderHook(() => useEffectivePrimary());
       expect(result.current).toBeNull();
     });
 
-    it('falls back to bluetooth when the platform has no watch but a strap is saved', () => {
+    it('falls back to bluetooth when the platform has no watch but a strap is saved', async () => {
       getIsAppleWatchAvailableMock().mockReturnValue(false);
       setStores({ primary: null, savedHrSource: STRAP, watchAvailability: 'unavailable' });
-      const { result } = renderHook(() => useEffectivePrimary());
+      const { result } = await renderHook(() => useEffectivePrimary());
       expect(result.current).toBe('bluetooth');
     });
   });
 
   describe('useEffectiveHrSource (reactive)', () => {
-    it('honors the active lock', () => {
+    it('honors the active lock', async () => {
       setStores({ activeHrSource: 'bluetooth', primary: 'watch', watchAvailability: 'connected' });
-      const { result } = renderHook(() => useEffectiveHrSource());
+      const { result } = await renderHook(() => useEffectiveHrSource());
       expect(result.current).toBe('bluetooth');
     });
   });

@@ -6,7 +6,7 @@ import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
 import { bleDeviceStatus } from '../../../types/deviceStatus';
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
 import { useWatchHrControls } from '../../gear/hooks/useWatchHrControls';
-import { watchHrStatus } from '../../../services/hr/hrStatus';
+import { hrSourceIdleReadiness } from '../../../services/hr/hrStatus';
 import { InterruptedSessionCard } from '../components/InterruptedSessionCard';
 import { DeviceCard } from '../components/DeviceCard';
 import { HomeHeader } from '../components/HomeHeader';
@@ -45,7 +45,10 @@ export function HomeScreen() {
     bikeName: savedBike?.name ?? null,
     hrName: savedHrSource?.name ?? null,
   });
-  const header = deriveHeader({ hasSavedBike: savedBike !== null, bikeConnected });
+  const header = deriveHeader({
+    hasSavedBike: savedBike !== null,
+    bikeConnected,
+  });
 
   const handleHeroPress = () => {
     if (hero.route) {
@@ -71,7 +74,11 @@ export function HomeScreen() {
       'This interrupted workout and its saved samples will be permanently deleted.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Discard', style: 'destructive', onPress: () => discardInterruptedSession() },
+        {
+          text: 'Discard',
+          style: 'destructive',
+          onPress: () => discardInterruptedSession(),
+        },
       ],
     );
   };
@@ -82,7 +89,11 @@ export function HomeScreen() {
     reconnect: bikeReconnectState,
   });
   const hrStatus = savedHrSource
-    ? bleDeviceStatus({ hasSavedDevice: true, connected: hrConnected, reconnect: hrReconnectState })
+    ? bleDeviceStatus({
+        hasSavedDevice: true,
+        connected: hrConnected,
+        reconnect: hrReconnectState,
+      })
     : 'notSetUp';
 
   return (
@@ -109,7 +120,7 @@ export function HomeScreen() {
         />
 
         <View style={styles.sectionLabel}>
-          <Text style={styles.sectionTitle}>Connected</Text>
+          <Text style={styles.sectionTitle}>Your gear</Text>
           <Text
             style={styles.sectionLink}
             accessibilityRole="button"
@@ -130,17 +141,23 @@ export function HomeScreen() {
           <DeviceCard
             icon="heart"
             name={savedHrSource?.name ?? 'No sensor yet'}
-            kind="Heart Rate · Bluetooth sensor"
+            kind="Heart rate"
             status={hrStatus}
-            muted={savedHrSource === null}
+            selected={savedHrSource ? effectivePrimary === 'bluetooth' : undefined}
+            muted={savedHrSource === null || effectivePrimary !== 'bluetooth'}
             testID="device-hr"
           />
           {watchAvailable ? (
             <DeviceCard
               icon="watch"
               name="Apple Watch"
-              kind="Heart Rate · Secondary source"
-              status={watchHrStatus(effectivePrimary === 'watch', watchAvailability ?? 'unavailable')}
+              kind="Heart rate"
+              status={hrSourceIdleReadiness({
+                source: 'watch',
+                watchAvailability: watchAvailability ?? 'unavailable',
+                hrConnected,
+              })}
+              selected={effectivePrimary === 'watch'}
               muted={effectivePrimary !== 'watch'}
               testID="device-watch"
             />

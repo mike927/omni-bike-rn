@@ -49,6 +49,8 @@ export function useAutoReconnect() {
   const [hrRetrySignal, setHrRetrySignal] = useState(0);
   const bikeAttemptingRef = useRef(false);
   const hrAttemptingRef = useRef(false);
+  const bikeAttemptDeviceIdRef = useRef<string | null>(null);
+  const hrAttemptDeviceIdRef = useRef<string | null>(null);
   const bikeRetryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hrRetryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bikeRetryAttemptCountRef = useRef(0);
@@ -97,6 +99,7 @@ export function useAutoReconnect() {
       }
 
       bikeAttemptingRef.current = true;
+      bikeAttemptDeviceIdRef.current = deviceId;
       setBikeReconnectState('connecting');
 
       try {
@@ -106,16 +109,20 @@ export function useAutoReconnect() {
         if (!isCurrentSavedBikeAttempt(deviceId)) {
           await disconnectBike();
           bikeAttemptingRef.current = false;
+          bikeAttemptDeviceIdRef.current = null;
           return;
         }
         bikeAttemptingRef.current = false;
+        bikeAttemptDeviceIdRef.current = null;
         setBikeReconnectState('connected');
       } catch (err: unknown) {
         if (!isCurrentSavedBikeAttempt(deviceId)) {
           bikeAttemptingRef.current = false;
+          bikeAttemptDeviceIdRef.current = null;
           return;
         }
         bikeAttemptingRef.current = false;
+        bikeAttemptDeviceIdRef.current = null;
         const nextState = toReconnectFailureState(err);
 
         if (nextState === 'failed') {
@@ -150,6 +157,7 @@ export function useAutoReconnect() {
       }
 
       hrAttemptingRef.current = true;
+      hrAttemptDeviceIdRef.current = deviceId;
       setHrReconnectState('connecting');
 
       try {
@@ -159,16 +167,20 @@ export function useAutoReconnect() {
         if (!isCurrentSavedHrAttempt(deviceId)) {
           await disconnectHr();
           hrAttemptingRef.current = false;
+          hrAttemptDeviceIdRef.current = null;
           return;
         }
         hrAttemptingRef.current = false;
+        hrAttemptDeviceIdRef.current = null;
         setHrReconnectState('connected');
       } catch (err: unknown) {
         if (!isCurrentSavedHrAttempt(deviceId)) {
           hrAttemptingRef.current = false;
+          hrAttemptDeviceIdRef.current = null;
           return;
         }
         hrAttemptingRef.current = false;
+        hrAttemptDeviceIdRef.current = null;
         const nextState = toReconnectFailureState(err);
 
         if (nextState === 'failed') {
@@ -227,24 +239,36 @@ export function useAutoReconnect() {
   useEffect(() => {
     if (bikeAdapter === null) return;
 
+    const pendingAttemptDeviceId = bikeAttemptDeviceIdRef.current;
+    if (bikeAttemptingRef.current && (!pendingAttemptDeviceId || !isCurrentSavedBikeAttempt(pendingAttemptDeviceId))) {
+      return;
+    }
+
     bikeAttemptingRef.current = false;
+    bikeAttemptDeviceIdRef.current = null;
     bikeRetryAttemptCountRef.current = 0;
     clearBikeRetryTimeout();
     if (bikeReconnectState !== 'connected') {
       setBikeReconnectState('connected');
     }
-  }, [bikeReconnectState, bikeAdapter, clearBikeRetryTimeout, setBikeReconnectState]);
+  }, [bikeReconnectState, bikeAdapter, clearBikeRetryTimeout, isCurrentSavedBikeAttempt, setBikeReconnectState]);
 
   useEffect(() => {
     if (hrAdapter === null) return;
 
+    const pendingAttemptDeviceId = hrAttemptDeviceIdRef.current;
+    if (hrAttemptingRef.current && (!pendingAttemptDeviceId || !isCurrentSavedHrAttempt(pendingAttemptDeviceId))) {
+      return;
+    }
+
     hrAttemptingRef.current = false;
+    hrAttemptDeviceIdRef.current = null;
     hrRetryAttemptCountRef.current = 0;
     clearHrRetryTimeout();
     if (hrReconnectState !== 'connected') {
       setHrReconnectState('connected');
     }
-  }, [hrReconnectState, hrAdapter, clearHrRetryTimeout, setHrReconnectState]);
+  }, [hrReconnectState, hrAdapter, clearHrRetryTimeout, isCurrentSavedHrAttempt, setHrReconnectState]);
 
   // ── Adapter disappeared (post-workout disconnect) ──────────────────
   useEffect(() => {

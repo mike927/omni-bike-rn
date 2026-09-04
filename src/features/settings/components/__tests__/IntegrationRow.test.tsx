@@ -2,8 +2,8 @@ import { render } from '@testing-library/react-native';
 import { Text } from 'react-native';
 import { IntegrationRow } from '../IntegrationRow';
 
-it('renders all four texts: name, statusLabel, action, and children', () => {
-  const { getByText } = render(
+it('renders all four texts: name, statusLabel, action, and children', async () => {
+  const { getByText } = await render(
     <IntegrationRow
       icon={<Text>icon</Text>}
       name="Strava"

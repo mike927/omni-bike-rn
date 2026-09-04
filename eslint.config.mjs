@@ -1,25 +1,30 @@
-import { FlatCompat } from '@eslint/eslintrc';
-import js from '@eslint/js';
+import expoConfig from 'eslint-config-expo/flat.js';
 import jestPlugin from 'eslint-plugin-jest';
 import prettier from 'eslint-plugin-prettier/recommended';
 import promisePlugin from 'eslint-plugin-promise';
 import sonarjs from 'eslint-plugin-sonarjs';
 import testingLibrary from 'eslint-plugin-testing-library';
-// eslint-disable-next-line import/namespace -- false positive: eslint-plugin-import cannot parse ESM `with` syntax in unicorn
+// eslint-disable-next-line import/namespace, import/no-named-as-default, import/no-named-as-default-member -- eslint-plugin-import cannot parse unicorn's ESM import attributes
 import unicornPlugin from 'eslint-plugin-unicorn';
 import unusedImports from 'eslint-plugin-unused-imports';
-
-const compat = new FlatCompat({
-  baseDirectory: import.meta.dirname,
-  recommendedConfig: js.configs.recommended,
-});
 
 export default [
   // ── Ignored paths (transient inputs not part of the app) ──
   { ignores: ['design_handoff_*/**'] },
 
   // ── Layer 1: Expo defaults (React, React Native, TypeScript, import rules) ──
-  ...compat.extends('expo'),
+  ...expoConfig,
+  {
+    // SDK 57 adds React Compiler diagnostics to Expo's defaults. Compiler
+    // adoption is separate from this dependency migration: keep the existing
+    // Hooks correctness checks while preserving native ref/Reanimated patterns.
+    rules: {
+      'react-hooks/refs': 'off',
+      'react-hooks/immutability': 'off',
+      'react-hooks/purity': 'off',
+      'react-hooks/set-state-in-effect': 'off',
+    },
+  },
 
   // ── Layer 2: Strict TypeScript rules ──
   {
@@ -112,6 +117,8 @@ export default [
       'sonarjs/todo-tag': 'off',
       'sonarjs/fixme-tag': 'off',
       'sonarjs/no-commented-code': 'off',
+      // Keep explicit scenario tests; the new rule only changes their style.
+      'sonarjs/parameterized-tests': 'off',
 
       // ── Off: idiomatic React Native / hook patterns ──
       'sonarjs/no-nested-conditional': 'off', // nested ternaries are standard JSX
@@ -153,6 +160,9 @@ export default [
     rules: {
       ...testingLibrary.configs['flat/react'].rules,
       'testing-library/prefer-screen-queries': 'off',
+      // RNTL 14 fireEvent and userEvent are async, unlike the DOM preset.
+      'testing-library/no-await-sync-events': 'off',
+      'testing-library/await-async-events': ['error', { eventModule: ['fireEvent', 'userEvent'] }],
     },
   },
 

@@ -28,14 +28,6 @@ import { LinkedBikeBlock } from '../components/LinkedBikeBlock';
 import { isAppleHealthSupported } from '../../../services/health/isAppleHealthSupported';
 
 const HR_ICON = { bluetooth: 'heart', watch: 'watch' } as const;
-const HR_KIND = {
-  // Bluetooth HR devices can be straps, watches (Garmin Venu/Forerunner), or
-  // optical armbands — we can't verify form factor, so use a connection-based
-  // label that is always true rather than over-claiming "Chest strap".
-  bluetooth: 'Bluetooth sensor',
-  // Apple Watch is known to be wrist-worn, so the form-factor label is accurate.
-  watch: 'Wrist sensor',
-} as const;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -167,7 +159,7 @@ export function SettingsScreen() {
             key={source}
             icon={HR_ICON[source]}
             name={name}
-            kind={HR_KIND[source]}
+            kind="Heart rate"
             status={status}
             selected={selected}
             onSelectPress={() => void setPrimary(source)}
@@ -194,7 +186,7 @@ export function SettingsScreen() {
           key={source}
           icon={HR_ICON[source]}
           name={name}
-          kind={HR_KIND[source]}
+          kind="Heart rate"
           status={status}
           selected={selected}
           onSelectPress={() => void setPrimary(source)}

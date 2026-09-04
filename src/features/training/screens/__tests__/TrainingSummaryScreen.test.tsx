@@ -82,10 +82,10 @@ describe('TrainingSummaryScreen', () => {
     mockAppleHealthGetState.mockReturnValue({ connected: true });
   });
 
-  it('shows a missing-session state when no persisted session exists', () => {
+  it('shows a missing-session state when no persisted session exists', async () => {
     mockGetSessionById.mockReturnValue(null);
 
-    const { getByText } = render(
+    const { getByText } = await render(
       <TrainingSummaryScreen sessionId="missing" source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE} returnTo={null} />,
     );
 
@@ -93,8 +93,8 @@ describe('TrainingSummaryScreen', () => {
     expect(getByText('Back Home')).toBeTruthy();
   });
 
-  it('renders the ride-complete hero, effort averages and share row', () => {
-    const { getByText } = render(
+  it('renders the ride-complete hero, effort averages and share row', async () => {
+    const { getByText } = await render(
       <TrainingSummaryScreen sessionId="session-1" source={POST_FINISH_TRAINING_SUMMARY_SOURCE} returnTo="/" />,
     );
 
@@ -107,16 +107,16 @@ describe('TrainingSummaryScreen', () => {
     expect(getByText('Apple Health')).toBeTruthy();
   });
 
-  it('deletes the session after confirming discard', () => {
+  it('deletes the session after confirming discard', async () => {
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_, __, buttons) => {
       buttons?.[1]?.onPress?.();
     });
 
-    const { getByText } = render(
+    const { getByText } = await render(
       <TrainingSummaryScreen sessionId="session-1" source={POST_FINISH_TRAINING_SUMMARY_SOURCE} returnTo="/" />,
     );
 
-    fireEvent.press(getByText('Discard'));
+    await fireEvent.press(getByText('Discard'));
 
     expect(mockDeleteSession).toHaveBeenCalledWith('session-1');
     expect(mockReplace).toHaveBeenCalledWith('/');
@@ -124,12 +124,12 @@ describe('TrainingSummaryScreen', () => {
     alertSpy.mockRestore();
   });
 
-  it('returns to the provided route when discarding a saved workout summary', () => {
+  it('returns to the provided route when discarding a saved workout summary', async () => {
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((_, __, buttons) => {
       buttons?.[1]?.onPress?.();
     });
 
-    const { getByText } = render(
+    const { getByText } = await render(
       <TrainingSummaryScreen
         sessionId="session-1"
         source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE}
@@ -137,7 +137,7 @@ describe('TrainingSummaryScreen', () => {
       />,
     );
 
-    fireEvent.press(getByText('Discard'));
+    await fireEvent.press(getByText('Discard'));
 
     expect(mockDeleteSession).toHaveBeenCalledWith('session-1');
     expect(mockReplace).toHaveBeenCalledWith('/history');
@@ -146,11 +146,11 @@ describe('TrainingSummaryScreen', () => {
   });
 
   it('returns home when save is pressed after finishing a ride', async () => {
-    const { getByText } = render(
+    const { getByText } = await render(
       <TrainingSummaryScreen sessionId="session-1" source={POST_FINISH_TRAINING_SUMMARY_SOURCE} returnTo="/" />,
     );
 
-    fireEvent.press(getByText('Save'));
+    await fireEvent.press(getByText('Save'));
 
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith('/');
@@ -158,7 +158,7 @@ describe('TrainingSummaryScreen', () => {
   });
 
   it('shows Done for already-saved workouts and returns to the previous screen', async () => {
-    const { getByText, queryByText } = render(
+    const { getByText, queryByText } = await render(
       <TrainingSummaryScreen
         sessionId="session-1"
         source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE}
@@ -169,7 +169,7 @@ describe('TrainingSummaryScreen', () => {
     expect(getByText('Done')).toBeTruthy();
     expect(queryByText('Save')).toBeNull();
 
-    fireEvent.press(getByText('Done'));
+    await fireEvent.press(getByText('Done'));
 
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith('/history');
@@ -177,11 +177,11 @@ describe('TrainingSummaryScreen', () => {
   });
 
   it('falls back to home when a saved workout summary has no explicit return route', async () => {
-    const { getByText } = render(
+    const { getByText } = await render(
       <TrainingSummaryScreen sessionId="session-1" source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE} returnTo={null} />,
     );
 
-    fireEvent.press(getByText('Done'));
+    await fireEvent.press(getByText('Done'));
 
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith('/');
@@ -207,7 +207,7 @@ describe('TrainingSummaryScreen', () => {
     });
 
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
-    const { getByText } = render(
+    const { getByText } = await render(
       <TrainingSummaryScreen
         sessionId="session-1"
         source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE}
@@ -215,7 +215,7 @@ describe('TrainingSummaryScreen', () => {
       />,
     );
 
-    fireEvent.press(getByText('Strava'));
+    await fireEvent.press(getByText('Strava'));
 
     await waitFor(() => {
       expect(mockUploadSessionToProvider).toHaveBeenCalledWith('session-1', 'strava');
@@ -230,7 +230,7 @@ describe('TrainingSummaryScreen', () => {
     mockStravaGetState.mockReturnValue({ connected: false });
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
 
-    const { getByText } = render(
+    const { getByText } = await render(
       <TrainingSummaryScreen
         sessionId="session-1"
         source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE}
@@ -238,7 +238,7 @@ describe('TrainingSummaryScreen', () => {
       />,
     );
 
-    fireEvent.press(getByText('Strava'));
+    await fireEvent.press(getByText('Strava'));
 
     await waitFor(() => {
       expect(alertSpy).toHaveBeenCalledWith('Strava Not Connected', expect.any(String), expect.any(Array));
@@ -272,7 +272,7 @@ describe('TrainingSummaryScreen', () => {
     });
 
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
-    const { getByText } = render(
+    const { getByText } = await render(
       <TrainingSummaryScreen
         sessionId="session-1"
         source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE}
@@ -280,7 +280,7 @@ describe('TrainingSummaryScreen', () => {
       />,
     );
 
-    fireEvent.press(getByText('Apple Health'));
+    await fireEvent.press(getByText('Apple Health'));
 
     await waitFor(() => {
       expect(mockUploadSessionToProvider).toHaveBeenCalledWith('session-1', 'apple_health');
@@ -295,7 +295,7 @@ describe('TrainingSummaryScreen', () => {
     mockAppleHealthGetState.mockReturnValue({ connected: false });
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
 
-    const { getByText } = render(
+    const { getByText } = await render(
       <TrainingSummaryScreen
         sessionId="session-1"
         source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE}
@@ -303,7 +303,7 @@ describe('TrainingSummaryScreen', () => {
       />,
     );
 
-    fireEvent.press(getByText('Apple Health'));
+    await fireEvent.press(getByText('Apple Health'));
 
     await waitFor(() => {
       expect(alertSpy).toHaveBeenCalledWith('Apple Health Not Connected', expect.any(String), expect.any(Array));
@@ -313,7 +313,7 @@ describe('TrainingSummaryScreen', () => {
     alertSpy.mockRestore();
   });
 
-  it('shows a retry state when the latest Strava upload failed', () => {
+  it('shows a retry state when the latest Strava upload failed', async () => {
     mockGetProviderUpload.mockReturnValue({
       id: 'upload-1',
       sessionId: 'session-1',
@@ -325,7 +325,7 @@ describe('TrainingSummaryScreen', () => {
       updatedAtMs: 200,
     });
 
-    const { getByText } = render(
+    const { getByText } = await render(
       <TrainingSummaryScreen
         sessionId="session-1"
         source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE}
@@ -337,7 +337,7 @@ describe('TrainingSummaryScreen', () => {
     expect(getByText('Strava upload failed: Rate limited')).toBeTruthy();
   });
 
-  it('shows a retry state when the latest Apple Health upload failed', () => {
+  it('shows a retry state when the latest Apple Health upload failed', async () => {
     mockGetProviderUpload.mockImplementation((_sessionId: string, providerId: string) =>
       providerId === 'apple_health'
         ? {
@@ -353,7 +353,7 @@ describe('TrainingSummaryScreen', () => {
         : null,
     );
 
-    const { getByText } = render(
+    const { getByText } = await render(
       <TrainingSummaryScreen
         sessionId="session-1"
         source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE}
@@ -365,16 +365,16 @@ describe('TrainingSummaryScreen', () => {
     expect(getByText('Apple Health upload failed: HealthKit denied')).toBeTruthy();
   });
 
-  it('hides the header back control right after finishing a ride', () => {
-    const { queryByLabelText } = render(
+  it('hides the header back control right after finishing a ride', async () => {
+    const { queryByLabelText } = await render(
       <TrainingSummaryScreen sessionId="session-1" source={POST_FINISH_TRAINING_SUMMARY_SOURCE} returnTo="/" />,
     );
 
     expect(queryByLabelText('Go back')).toBeNull();
   });
 
-  it('shows the header back control when viewing an already-saved workout', () => {
-    const { getByLabelText } = render(
+  it('shows the header back control when viewing an already-saved workout', async () => {
+    const { getByLabelText } = await render(
       <TrainingSummaryScreen
         sessionId="session-1"
         source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE}

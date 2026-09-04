@@ -45,10 +45,10 @@ describe('useInterruptedSessionRecovery', () => {
     mockNormalizeRecoveredSessionToPaused.mockReturnValue(null);
   });
 
-  it('runs the stale-session sweep when enabled', () => {
+  it('runs the stale-session sweep when enabled', async () => {
     const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1234);
 
-    renderHook(() => useInterruptedSessionRecovery(true));
+    await renderHook(() => useInterruptedSessionRecovery(true));
 
     expect(mockFinalizeStaleOpenSessions).toHaveBeenCalledWith(
       1234,
@@ -58,7 +58,7 @@ describe('useInterruptedSessionRecovery', () => {
     nowSpy.mockRestore();
   });
 
-  it('stores the latest paused interrupted session for Home recovery', () => {
+  it('stores the latest paused interrupted session for Home recovery', async () => {
     mockGetLatestOpenSession.mockReturnValue({
       id: 'session-1',
       status: 'paused',
@@ -75,12 +75,12 @@ describe('useInterruptedSessionRecovery', () => {
       updatedAtMs: 300,
     });
 
-    renderHook(() => useInterruptedSessionRecovery(true));
+    await renderHook(() => useInterruptedSessionRecovery(true));
 
     expect(useInterruptedSessionStore.getState().interruptedSession?.id).toBe('session-1');
   });
 
-  it('normalizes recovered active sessions before exposing them', () => {
+  it('normalizes recovered active sessions before exposing them', async () => {
     mockGetLatestOpenSession.mockReturnValue({
       id: 'session-active',
       status: 'active',
@@ -112,22 +112,22 @@ describe('useInterruptedSessionRecovery', () => {
       updatedAtMs: 300,
     });
 
-    renderHook(() => useInterruptedSessionRecovery(true));
+    await renderHook(() => useInterruptedSessionRecovery(true));
 
     expect(mockNormalizeRecoveredSessionToPaused).toHaveBeenCalledWith('session-active');
     expect(useInterruptedSessionStore.getState().interruptedSession?.status).toBe('paused');
   });
 
-  it('skips recovery when an in-memory session is already active', () => {
+  it('skips recovery when an in-memory session is already active', async () => {
     useTrainingSessionStore.setState({ phase: TrainingPhase.Active });
 
-    renderHook(() => useInterruptedSessionRecovery(true));
+    await renderHook(() => useInterruptedSessionRecovery(true));
 
     expect(mockFinalizeStaleOpenSessions).not.toHaveBeenCalled();
     expect(mockGetLatestOpenSession).not.toHaveBeenCalled();
   });
 
-  it('degrades gracefully (no throw) when a recovery DB read fails on launch', () => {
+  it('degrades gracefully (no throw) when a recovery DB read fails on launch', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     mockFinalizeStaleOpenSessions.mockImplementation(() => {
       throw new Error('corrupt open-session row');
@@ -148,7 +148,7 @@ describe('useInterruptedSessionRecovery', () => {
       updatedAtMs: 100,
     });
 
-    expect(() => renderHook(() => useInterruptedSessionRecovery(true))).not.toThrow();
+    await expect(renderHook(() => useInterruptedSessionRecovery(true))).resolves.toBeDefined();
     expect(useInterruptedSessionStore.getState().interruptedSession).toBeNull();
     expect(errorSpy).toHaveBeenCalled();
 

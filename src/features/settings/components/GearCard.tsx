@@ -4,6 +4,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { StatusPill } from '../../../ui/components/StatusPill';
 import { deviceStatusLabel, type DeviceStatus } from '../../../types/deviceStatus';
 import { noir } from '../../../ui/theme';
+import { gearSelectionLabel } from '../../../ui/gearSelectionLabel';
 
 // ---------------------------------------------------------------------------
 // GearCard — icon-led Calm Noir card for bike + HR-source tiles.
@@ -15,7 +16,7 @@ import { noir } from '../../../ui/theme';
 export interface GearCardProps {
   readonly icon: keyof typeof Ionicons.glyphMap;
   readonly name: string;
-  /** Sub-label under the name; rendered as `${kind} · primary` when selected. */
+  /** Sub-label under the name; selectable sources also show their selection state. */
   readonly kind: string;
   readonly status: DeviceStatus;
   /**
@@ -122,9 +123,7 @@ export function GearCard({
             <Text style={[styles.name, muted && styles.nameMuted, isSelected && styles.nameSelected]} numberOfLines={1}>
               {name}
             </Text>
-            <Text style={styles.kind} numberOfLines={1}>
-              {isSelected ? `${kind} · primary` : kind}
-            </Text>
+            <Text style={styles.kind}>{gearSelectionLabel(kind, selected)}</Text>
           </View>
         </TouchableOpacity>
         <View style={styles.trailing}>

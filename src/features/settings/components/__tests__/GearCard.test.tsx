@@ -3,9 +3,9 @@ import { Text } from 'react-native';
 
 import { GearCard } from '../GearCard';
 
-it('selectable card calls onSelectPress and exposes selected a11y state', () => {
+it('selectable card calls onSelectPress and exposes selected a11y state', async () => {
   const onSelect = jest.fn();
-  const { getByTestId } = render(
+  const { getByTestId } = await render(
     <GearCard
       icon="heart"
       name="Polar H10"
@@ -18,27 +18,31 @@ it('selectable card calls onSelectPress and exposes selected a11y state', () => 
   );
   const body = getByTestId('hr-tile-bluetooth');
   expect(body.props.accessibilityState).toMatchObject({ selected: true });
-  fireEvent.press(body);
+  await fireEvent.press(body);
   expect(onSelect).toHaveBeenCalled();
 });
 
-it('appends "· primary" to kind when selected', () => {
-  const { getByText } = render(
+it.each([
+  [true, 'Selected'],
+  [false, 'Not selected'],
+] as const)('shows selection %s separately from readiness', async (selected, label) => {
+  const { getByText } = await render(
     <GearCard
       icon="heart"
       name="Polar H10"
       kind="Chest strap"
       status="ready"
-      selected
+      selected={selected}
       onSelectPress={() => {}}
       headerTestId="t"
     />,
   );
-  expect(getByText('Chest strap · primary')).toBeTruthy();
+  expect(getByText(`Chest strap · ${label}`)).toBeTruthy();
+  expect(getByText('Ready')).toBeTruthy();
 });
 
-it('expand-only card (selected undefined) is role=button with expanded state, not selected', () => {
-  const { getByTestId } = render(
+it('expand-only card (selected undefined) is role=button with expanded state, not selected', async () => {
+  const { getByTestId } = await render(
     <GearCard
       icon="bicycle"
       name="Zipro"
@@ -58,9 +62,9 @@ it('expand-only card (selected undefined) is role=button with expanded state, no
   expect(getByTestId('bike-tile-chevron')).toBeTruthy();
 });
 
-it('renders actions only when expanded; chevron toggle does not select', () => {
+it('renders actions only when expanded; chevron toggle does not select', async () => {
   const onToggle = jest.fn();
-  const { getByTestId, queryByText, rerender, getByText } = render(
+  const { getByTestId, queryByText, rerender, getByText } = await render(
     <GearCard
       icon="heart"
       name="Polar"
@@ -77,9 +81,9 @@ it('renders actions only when expanded; chevron toggle does not select', () => {
     />,
   );
   expect(queryByText('ACTIONS')).toBeNull();
-  fireEvent.press(getByTestId('hr-strap-chevron'));
+  await fireEvent.press(getByTestId('hr-strap-chevron'));
   expect(onToggle).toHaveBeenCalled();
-  rerender(
+  await rerender(
     <GearCard
       icon="heart"
       name="Polar"

@@ -14,8 +14,7 @@ export type DeviceStatus =
   | 'ready' // connected and working (idle, or streaming live mid-workout)
   | 'noSignal' // connected but no fresh data (mid-workout staleness)
   | 'paused' // active workout, source intentionally paused
-  | 'unavailable' // configured but not reachable right now
-  | 'off'; // exists but is not the selected/active source
+  | 'unavailable'; // configured but not currently available
 
 const DEVICE_STATUS_LABELS: Record<DeviceStatus, string> = {
   notSetUp: 'Not set up',
@@ -24,7 +23,6 @@ const DEVICE_STATUS_LABELS: Record<DeviceStatus, string> = {
   noSignal: 'No signal',
   paused: 'Paused',
   unavailable: 'Unavailable',
-  off: 'Off',
 };
 
 /** Single source of truth for the user-facing label of any device status. */
@@ -66,7 +64,6 @@ const DEVICE_STATUS_TONES: Record<DeviceStatus, DeviceStatusTone> = {
   noSignal: 'attention',
   paused: 'inactive',
   unavailable: 'inactive',
-  off: 'inactive',
 };
 
 /** Single source of truth for the semantic tone of any device status. */

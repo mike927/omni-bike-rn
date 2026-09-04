@@ -1,6 +1,22 @@
 # ROADMAP — omni-bike-rn
 
+## Tech Stack Upgrade — September 2026
+
+- [x] Upgrade Expo 54 → 55 → 56 → 57 and align React Native, React and native dependencies.
+- [x] Update compatible stable development tooling and CI; verify installation and quality gate.
+- [x] Update and build iOS while preserving the Apple Watch companion target.
+- [ ] Verify BLE, HealthKit and WatchConnectivity on physical devices after the upgrade.
+
+Versions, verification evidence and remaining upstream diagnostics: [tech stack](docs/tech-stack.md).
+
 Active development roadmap. Update states as work progresses.
+
+## HR Source Status Clarity
+
+- [x] Separate readiness from HR source selection on Home and Settings; replace Watch idle copy with `Waiting for ride · Start on iPhone`.
+- [x] Verify the updated labels on the iPhone and Apple Watch (user confirmed).
+
+Device check: [HR status clarity](docs/hr-status-device-check.md).
 
 **States:**
 - `[ ]` — Not started

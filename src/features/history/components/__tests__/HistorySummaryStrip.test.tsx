@@ -3,8 +3,8 @@ import { render } from '@testing-library/react-native';
 import { HistorySummaryStrip } from '../HistorySummaryStrip';
 
 describe('HistorySummaryStrip', () => {
-  it('renders the monthly ride count, rounded distance, and compact time', () => {
-    const { getByText } = render(
+  it('renders the monthly ride count, rounded distance, and compact time', async () => {
+    const { getByText } = await render(
       <HistorySummaryStrip summary={{ rideCount: 12, totalDistanceMeters: 214300, totalDurationSeconds: 34800 }} />,
     );
 
@@ -20,8 +20,8 @@ describe('HistorySummaryStrip', () => {
     expect(getByText('9h 40m')).toBeTruthy();
   });
 
-  it('renders zeros without crashing for an empty month', () => {
-    const { getByText } = render(
+  it('renders zeros without crashing for an empty month', async () => {
+    const { getByText } = await render(
       <HistorySummaryStrip summary={{ rideCount: 0, totalDistanceMeters: 0, totalDurationSeconds: 0 }} />,
     );
 

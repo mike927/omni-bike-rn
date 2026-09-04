@@ -68,35 +68,35 @@ afterEach(() => {
 });
 
 describe('scan service filter', () => {
-  it('uses the FTMS service filter and no client filter for bike scans', () => {
-    renderHook(() => useGearSetup('bike'));
+  it('uses the FTMS service filter and no client filter for bike scans', async () => {
+    await renderHook(() => useGearSetup('bike'));
     expect(mockUseBleScanner).toHaveBeenCalledWith(BIKE_SCAN_SERVICE_UUIDS, null);
   });
 
-  it('uses null (no OS filter) + isLikelyHrCandidate client filter for HR scans', () => {
+  it('uses null (no OS filter) + isLikelyHrCandidate client filter for HR scans', async () => {
     // Regression guard: iOS scanForPeripherals(withServices:) filters by the
     // advertisement packet. Garmin Venu and similar watches do not advertise
     // 0x180D, so filtering silently drops them. The OS filter must stay null
     // and the client-side heuristic must stay wired in to keep the scan list
     // free of laptops/TVs/headphones.
-    renderHook(() => useGearSetup('hr'));
+    await renderHook(() => useGearSetup('hr'));
     expect(mockUseBleScanner).toHaveBeenCalledWith(null, isLikelyHrCandidate);
   });
 });
 
 describe('live metrics exposure', () => {
-  it('exposes the latest bike metrics from the device connection store', () => {
+  it('exposes the latest bike metrics from the device connection store', async () => {
     useDeviceConnectionStore.getState().updateBikeMetrics({ speed: 30, cadence: 90, power: 120 });
 
-    const { result } = renderHook(() => useGearSetup('bike'));
+    const { result } = await renderHook(() => useGearSetup('bike'));
 
     expect(result.current.latestBikeMetrics).toEqual({ speed: 30, cadence: 90, power: 120 });
   });
 
-  it('exposes the latest bluetooth HR from the device connection store', () => {
+  it('exposes the latest bluetooth HR from the device connection store', async () => {
     useDeviceConnectionStore.getState().updateBluetoothHr(142);
 
-    const { result } = renderHook(() => useGearSetup('hr'));
+    const { result } = await renderHook(() => useGearSetup('hr'));
 
     expect(result.current.latestBluetoothHr).toBe(142);
   });
@@ -106,7 +106,7 @@ describe('valid device flow (bike)', () => {
   it('transitions through validating → connecting → awaiting_signal → ready on live signal', async () => {
     mockValidateBike.mockResolvedValue({ valid: true });
 
-    const { result } = renderHook(() => useGearSetup('bike'));
+    const { result } = await renderHook(() => useGearSetup('bike'));
 
     await act(async () => {
       await result.current.selectDevice(bikeDevice as never);
@@ -114,7 +114,7 @@ describe('valid device flow (bike)', () => {
 
     expect(result.current.step).toBe('awaiting_signal');
 
-    act(() => {
+    await act(() => {
       useDeviceConnectionStore.setState({ latestBikeMetrics: { speed: 10, cadence: 80, power: 150 } });
     });
 
@@ -127,7 +127,7 @@ describe('invalid device sets error', () => {
   it('sets validationError and step to error when bike validation fails', async () => {
     mockValidateBike.mockResolvedValue({ valid: false, reason: 'missing_ftms_service' });
 
-    const { result } = renderHook(() => useGearSetup('bike'));
+    const { result } = await renderHook(() => useGearSetup('bike'));
 
     await act(async () => {
       await result.current.selectDevice(bikeDevice as never);
@@ -141,7 +141,7 @@ describe('invalid device sets error', () => {
   it('sets validationError and step to error when HR validation fails', async () => {
     mockValidateHr.mockResolvedValue({ valid: false, reason: 'missing_hr_service' });
 
-    const { result } = renderHook(() => useGearSetup('hr'));
+    const { result } = await renderHook(() => useGearSetup('hr'));
 
     await act(async () => {
       await result.current.selectDevice(hrDevice as never);
@@ -157,7 +157,7 @@ describe('scan permissions', () => {
   it('does not start scanning when Bluetooth permission is denied', async () => {
     mockRequestBlePermission.mockResolvedValue('denied');
 
-    const { result } = renderHook(() => useGearSetup('bike'));
+    const { result } = await renderHook(() => useGearSetup('bike'));
 
     let permissionResult: Awaited<ReturnType<typeof result.current.startScan>> | undefined;
 
@@ -174,7 +174,7 @@ describe('signal timeout', () => {
   it('sets no_live_signal error after 8s with no data', async () => {
     mockValidateBike.mockResolvedValue({ valid: true });
 
-    const { result } = renderHook(() => useGearSetup('bike'));
+    const { result } = await renderHook(() => useGearSetup('bike'));
 
     await act(async () => {
       await result.current.selectDevice(bikeDevice as never);
@@ -182,7 +182,7 @@ describe('signal timeout', () => {
 
     expect(result.current.step).toBe('awaiting_signal');
 
-    act(() => {
+    await act(() => {
       jest.advanceTimersByTime(8000);
     });
 
@@ -200,7 +200,7 @@ describe('connection failures', () => {
     mockValidateHr.mockResolvedValue({ valid: true });
     mockConnectHr.mockRejectedValue(new Error('BLE timeout'));
 
-    const { result } = renderHook(() => useGearSetup('hr'));
+    const { result } = await renderHook(() => useGearSetup('hr'));
 
     await act(async () => {
       await result.current.selectDevice(hrDevice as never);
@@ -216,13 +216,13 @@ describe('cleanup', () => {
   it('disconnects an unsaved setup connection when the hook unmounts', async () => {
     mockValidateBike.mockResolvedValue({ valid: true });
 
-    const { result, unmount } = renderHook(() => useGearSetup('bike'));
+    const { result, unmount } = await renderHook(() => useGearSetup('bike'));
 
     await act(async () => {
       await result.current.selectDevice(bikeDevice as never);
     });
 
-    unmount();
+    await unmount();
 
     await waitFor(() => {
       expect(mockDisconnectBike).toHaveBeenCalledTimes(1);
@@ -238,13 +238,13 @@ describe('save', () => {
     const persistBike = jest.fn().mockResolvedValue(undefined);
     useSavedGearStore.setState({ persistBike } as never);
 
-    const { result } = renderHook(() => useGearSetup('bike'));
+    const { result } = await renderHook(() => useGearSetup('bike'));
 
     await act(async () => {
       await result.current.selectDevice(bikeDevice as never);
     });
 
-    act(() => {
+    await act(() => {
       useDeviceConnectionStore.setState({ latestBikeMetrics: { speed: 10, cadence: 80, power: 150 } });
     });
 
@@ -260,7 +260,7 @@ describe('save', () => {
     const persistBike = jest.fn().mockResolvedValue(undefined);
     useSavedGearStore.setState({ persistBike } as never);
 
-    const { result } = renderHook(() => useGearSetup('bike'));
+    const { result } = await renderHook(() => useGearSetup('bike'));
 
     await act(async () => {
       await result.current.selectDevice(bikeDevice as never);

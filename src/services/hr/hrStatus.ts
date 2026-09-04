@@ -10,19 +10,6 @@ import { TrainingPhase } from '../../types/training';
  */
 export const HR_CONNECTING_GRACE_SECONDS = 30;
 
-/**
- * Watch HR status for the read-only surfaces (Home card, Training tile).
- *
- * Collapses to `off` when the Watch is not the selected primary source, so every
- * screen reports the same state Settings does instead of a misleading
- * availability label. When the Watch IS primary, maps the companion-presence
- * availability to `ready` / `unavailable`.
- */
-export function watchHrStatus(watchIsPrimary: boolean, watchAvailability: WatchAvailability): DeviceStatus {
-  if (!watchIsPrimary) return 'off';
-  return watchAvailability === 'connected' ? 'ready' : 'unavailable';
-}
-
 export const WATCH_HR_UNAVAILABLE_HINT =
   'Open the Omni Bike app on your Apple Watch. If it is not installed yet, add it from the iPhone Watch app.';
 
@@ -72,9 +59,8 @@ export interface HrSourceIdleReadinessInput {
 }
 
 /**
- * Readiness status for a source when no workout is active (idle). Used by the
- * Primary HR Source radio options, where each option shows its own true
- * readiness (never `off` — that collapse only applies to read-only surfaces).
+ * Readiness status for a source when no workout is active (idle). Shared by
+ * Home, Settings and the idle Training summary, independently of selection.
  */
 export function hrSourceIdleReadiness({
   source,

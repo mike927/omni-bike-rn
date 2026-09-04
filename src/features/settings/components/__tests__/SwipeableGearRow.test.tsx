@@ -2,10 +2,10 @@ import { fireEvent, render } from '@testing-library/react-native';
 
 import { SwipeableGearRow } from '../SwipeableGearRow';
 
-it('exposes Replace and Forget swipe actions that call their handlers', () => {
+it('exposes Replace and Forget swipe actions that call their handlers', async () => {
   const onReplace = jest.fn();
   const onForget = jest.fn();
-  const { getByText } = render(
+  const { getByText } = await render(
     <SwipeableGearRow
       icon="bicycle"
       name="Rave"
@@ -15,15 +15,15 @@ it('exposes Replace and Forget swipe actions that call their handlers', () => {
       onForget={onForget}
     />,
   );
-  fireEvent.press(getByText('Replace'));
+  await fireEvent.press(getByText('Replace'));
   expect(onReplace).toHaveBeenCalledTimes(1);
-  fireEvent.press(getByText('Forget'));
+  await fireEvent.press(getByText('Forget'));
   expect(onForget).toHaveBeenCalledTimes(1);
 });
 
-it('renders an inline Connect chip when provided and fires it', () => {
+it('renders an inline Connect chip when provided and fires it', async () => {
   const onConnect = jest.fn();
-  const { getByText } = render(
+  const { getByText } = await render(
     <SwipeableGearRow
       icon="bicycle"
       name="Rave"
@@ -34,12 +34,12 @@ it('renders an inline Connect chip when provided and fires it', () => {
       onForget={() => {}}
     />,
   );
-  fireEvent.press(getByText('Connect'));
+  await fireEvent.press(getByText('Connect'));
   expect(onConnect).toHaveBeenCalledTimes(1);
 });
 
-it('omits the Connect chip when not provided (e.g. connected)', () => {
-  const { queryByText } = render(
+it('omits the Connect chip when not provided (e.g. connected)', async () => {
+  const { queryByText } = await render(
     <SwipeableGearRow
       icon="bicycle"
       name="Rave"
@@ -52,9 +52,9 @@ it('omits the Connect chip when not provided (e.g. connected)', () => {
   expect(queryByText('Connect')).toBeNull();
 });
 
-it('selectable row calls onSelectPress and exposes selected a11y state', () => {
+it('selectable row calls onSelectPress and exposes selected a11y state', async () => {
   const onSelect = jest.fn();
-  const { getByTestId } = render(
+  const { getByTestId } = await render(
     <SwipeableGearRow
       icon="heart"
       name="Polar H10"
@@ -69,28 +69,32 @@ it('selectable row calls onSelectPress and exposes selected a11y state', () => {
   );
   const body = getByTestId('hr-tile-bluetooth');
   expect(body.props.accessibilityState).toMatchObject({ selected: true });
-  fireEvent.press(body);
+  await fireEvent.press(body);
   expect(onSelect).toHaveBeenCalledTimes(1);
 });
 
-it('appends "· primary" to the kind when selected', () => {
-  const { getByText } = render(
+it.each([
+  [true, 'Selected'],
+  [false, 'Not selected'],
+] as const)('shows selection %s separately from readiness', async (selected, label) => {
+  const { getByText } = await render(
     <SwipeableGearRow
       icon="heart"
       name="Polar H10"
       kind="Chest strap"
       status="ready"
-      selected
+      selected={selected}
       onSelectPress={() => {}}
       onReplace={() => {}}
       onForget={() => {}}
     />,
   );
-  expect(getByText('Chest strap · primary')).toBeTruthy();
+  expect(getByText(`Chest strap · ${label}`)).toBeTruthy();
+  expect(getByText('Ready')).toBeTruthy();
 });
 
-it('a non-selectable row (bike) does not call onSelectPress and has no selected state', () => {
-  const { getByTestId } = render(
+it('a non-selectable row (bike) does not call onSelectPress and has no selected state', async () => {
+  const { getByTestId } = await render(
     <SwipeableGearRow
       icon="bicycle"
       name="Rave"

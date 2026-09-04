@@ -54,7 +54,7 @@ describe('ProviderGearLinkScreen', () => {
     jest.clearAllMocks();
   });
 
-  it('renders available provider bikes and a Link Bike action', () => {
+  it('renders available provider bikes and a Link Bike action', async () => {
     mockUseSavedGear.mockReturnValue({ savedBike: { id: 'b1', name: 'Wahoo KICKR Bike', type: 'bike' } });
     const gear = {
       providerId: 'strava',
@@ -71,16 +71,16 @@ describe('ProviderGearLinkScreen', () => {
       }),
     );
 
-    const { getByText } = render(<ProviderGearLinkScreen providerId="strava" />);
+    const { getByText } = await render(<ProviderGearLinkScreen providerId="strava" />);
     expect(getByText('Wahoo Kickr Bike')).toBeTruthy();
     expect(getByText('Link Bike')).toBeTruthy();
   });
 
-  it('shows the bike-required state when no bike is saved', () => {
+  it('shows the bike-required state when no bike is saved', async () => {
     mockUseSavedGear.mockReturnValue({ savedBike: null });
     mockUseLinking.mockReturnValue(makeLinkingResult());
 
-    const { getByText } = render(<ProviderGearLinkScreen providerId="strava" />);
+    const { getByText } = await render(<ProviderGearLinkScreen providerId="strava" />);
     expect(getByText('Save a bike in Omni Bike before linking provider gear.')).toBeTruthy();
   });
 });
