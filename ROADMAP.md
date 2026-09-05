@@ -13,7 +13,7 @@ Active development roadmap. Update states as work progresses.
 
 ## Codebase Audit Remediation — September 2026
 
-- [ ] Resolve or explicitly disposition the [2026-09-05 audit issues](docs/audits/2026-09-05/README.md) (A01–A11). Per-issue status and ownership live in each ticket; use `[~]` here when remediation starts and `[x]` only when every issue has a documented outcome.
+- [~] Resolve or explicitly disposition the [2026-09-05 audit issues](docs/audits/2026-09-05/README.md) (A01–A11). Per-issue status and ownership live in each ticket; use `[~]` here when remediation starts and `[x]` only when every issue has a documented outcome.
 
 A11 tracks the remaining physical verification already listed in Tech Stack Upgrade; it is the same acceptance work, not a second device campaign.
 
