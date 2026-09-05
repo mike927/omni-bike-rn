@@ -8,7 +8,7 @@
 | --- | --- |
 | Status | Done |
 | Owner | automated remediation agent |
-| Branch / PR | `fix/a07-normalized-tcx-distance` / PR_URL_PLACEHOLDER |
+| Branch / PR | `fix/a07-normalized-tcx-distance` / https://github.com/mike927/omni-bike-rn/pull/114 |
 | Last updated | 2026-09-05 |
 | Type | Bug |
 | Category | correctness |
@@ -128,6 +128,8 @@ Each new test was checked against the pre-fix code rather than only against the 
 - Repository restored from `main`: the new column write and read-back tests fail.
 - Monotonic clamp removed: `never decreases, because a TCX trackpoint distance is cumulative` fails.
 - Legacy reconstruction removed: the four legacy-row tests fail.
+
+PR: https://github.com/mike927/omni-bike-rn/pull/114 (commit `ba56f74`).
 
 ### Remaining limitations
 
