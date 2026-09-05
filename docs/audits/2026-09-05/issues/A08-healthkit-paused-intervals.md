@@ -8,7 +8,7 @@
 | --- | --- |
 | Status | In progress |
 | Owner | automated remediation agent |
-| Branch / PR | `fix/a08-healthkit-paused-intervals` / PR_URL_PLACEHOLDER |
+| Branch / PR | `fix/a08-healthkit-paused-intervals` / https://github.com/mike927/omni-bike-rn/pull/115 |
 | Last updated | 2026-09-05 |
 | Type | Bug |
 | Category | correctness |
