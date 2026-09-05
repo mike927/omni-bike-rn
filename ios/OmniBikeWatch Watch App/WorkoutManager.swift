@@ -304,8 +304,10 @@ final class WorkoutManager: NSObject, ObservableObject {
                     // startWorkout calls no-op on `session != nil`, and the
                     // iPhone never hears about the failure. End the HK session,
                     // clear local state, and publish `.failed` so the companion
-                    // can recover. The `.ended` delegate will later run a
-                    // second (idempotent) teardown.
+                    // can recover. `teardownSession` clears `session` first, so
+                    // this session's own `.ended` callback then fails the
+                    // ownership guard in `didChangeTo` and is ignored: no second
+                    // teardown, and no `.ended` published on top of the `.failed`.
                     DispatchQueue.main.async {
                         guard let self else { return }
                         self.session?.end()
@@ -659,6 +661,14 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
     func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
         wcLog("[WC-Watch] HKWorkoutSession didFailWithError: \(error.localizedDescription)")
         DispatchQueue.main.async {
+            // The same ownership rule as `didChangeTo`. A failure reported by a session we
+            // have already torn down must not tear down the session that replaced it, which
+            // would drop our only reference to a live HKWorkoutSession and leave a ride no
+            // command from either device could end.
+            guard workoutSession === self.session else {
+                wcLog("[WC-Watch] didFailWithError from a session we no longer own, ignoring")
+                return
+            }
             self.transition(to: .idle)
             self.publishSessionState(WatchSessionStatePayload.failed)
             self.teardownSession()

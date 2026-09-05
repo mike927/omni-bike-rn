@@ -31,6 +31,7 @@ struct WatchLifecycleTests {
         stopSupersedesAnInFlightPause()
         endingIsNeverDeferredByTheInterlock()
         anUnstampedCommandAppliesWithoutMovingTheOrderingMark()
+        aStaleStampedCommandNeverLowersTheOrderingMark()
         withoutASessionThereIsNothingToReconcile()
         aRideCancelledDuringStartUpIsEndedNotLeaked()
 
@@ -82,6 +83,13 @@ struct WatchLifecycleTests {
         _ = model.record(.pause, sentAtMs: 400)
         expect(model.action(for: .running, transitionInFlight: false), .pause,
                "pause issued mid-resume is applied when the running callback lands")
+        // The pause is now in flight: `session.state` still reads running until the paused
+        // callback lands, and issuing pause() a second time is the double transition
+        // HealthKit answers with "Unable to perform 'pause' from current state 'Paused'",
+        // failing the whole session mid-ride. This is the destructive half of the interlock,
+        // so it is asserted in its own right rather than only through the resume side.
+        expect(model.action(for: .running, transitionInFlight: true), .none,
+               "no second transition while the pause is in flight")
     }
 
     /// The duplicate-transition interlock is what keeps a redundant pause() from tearing
@@ -276,6 +284,28 @@ struct WatchLifecycleTests {
         expect(model.desired, .running, "the wake starts the ride")
         expect(model.lastCommandSentAtMs, 200, "the ordering mark is untouched by an unstamped command")
         expect(model.record(.pause, sentAtMs: 250).intentApplied, true, "later stamped commands still apply")
+    }
+
+    /// The ordering mark is a high-water mark, so it may only ever move forwards. A stamped
+    /// command older than the newest applied one is rejected before it reaches the mark, and
+    /// that matters well beyond the stale command itself: lowering the mark would re-open the
+    /// whole band of stamps between it and the real high-water mark, so a command that is
+    /// still older than the phone's newest intent would then be applied. That is A09's own
+    /// defect class, reachable through three commands across the two transports.
+    private static func aStaleStampedCommandNeverLowersTheOrderingMark() {
+        var model = WatchLifecycleModel()
+        _ = model.record(.start, sentAtMs: 100)
+        _ = model.record(.resume, sentAtMs: 300)
+        let stalePause = model.record(.pause, sentAtMs: 200)
+        expect(stalePause.intentApplied, false, "a stale stamped command is rejected")
+        expect(model.lastCommandSentAtMs, 300, "a stale stamped command does not lower the ordering mark")
+
+        // The band a lowered mark would have re-opened. Still older than the resume the phone
+        // actually wants, so it must be rejected too, and the ride must keep running.
+        expect(model.record(.pause, sentAtMs: 250).intentApplied, false,
+               "a command inside the band a lowered mark would re-open stays rejected")
+        expect(model.desired, .running, "the phone's newest intent still owns the desired state")
+        expect(model.action(for: .running, transitionInFlight: false), .none, "the ride keeps running")
     }
 
     /// A session exists but HealthKit has not reported it running yet. There is nothing to
