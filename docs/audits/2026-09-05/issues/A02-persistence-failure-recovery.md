@@ -67,15 +67,18 @@ Confirm durable draft creation before normal recording begins. Expose persistenc
 - 2026-09-05 — Imported from the audit of `965cbec`. No remediation performed; status is Not started.
 - 2026-09-05 - Claimed by the automated remediation agent on `fix/a02-persistence-failure-recovery`; revalidated the finding against `cd1bbb7` (post A01/A06).
 - 2026-09-05 - Reproduced both failure modes in Jest, then made the durable persistence outcome part of the session lifecycle. Acceptance met by unit tests; `npm run ci:gate` green. PR opened; status Done pending coordinator review and merge.
+- 2026-09-05 - Review returned CHANGES_REQUIRED (two Important, five Minor, two test gaps; the design and the fix itself upheld). Fix round 1 addressed all ten on the same branch: corrected the now-false `homeViewModel` comment, bound the store's session-id keying with a new test file, dropped the dead `SessionSaveOutcome.sessionId`, made `beginSession` report `pending` instead of a durable row, made a failed Discard report `failed` and tell the user, made the `restoreSession` Idle guard the single total gate (the seed now follows it), named the real loss in the at-risk copy, and closed both test gaps. Every fix mutation-checked; `npm run ci:gate` green (111 suites / 1069 tests).
 
 ## Completion / disposition record
 
 **Change summary.** The durable outcome of writing a ride is now part of the session lifecycle instead of a
 fire-and-forget side effect.
 
-- `src/store/sessionPersistenceStore.ts` (new): the ride's storage state (`idle` / `recording` / `atRisk` /
-  `saved` / `unsaved`), its stable session id, a dropped-sample counter and the last error. Reports are keyed
-  by session id, so a late write from an abandoned ride cannot flag the current one.
+- `src/store/sessionPersistenceStore.ts` (new): the ride's storage state (`idle` / `pending` / `recording` /
+  `atRisk` / `saved` / `unsaved`), its stable session id, a dropped-sample counter and the last error. A new
+  ride starts `pending` and is promoted to `recording` only once its draft row exists. Reports are keyed
+  by session id, so a late write from an abandoned ride cannot flag the current one; that keying is covered
+  by `src/store/__tests__/sessionPersistenceStore.test.ts`.
 - `useTrainingSessionPersistence`: a failed draft no longer clears the ride's identity, it marks the ride
   `atRisk` and keeps recording in memory; the Finished transition writes the ride durably (creating the row
   first when the draft never landed) and reports `saved` or `unsaved`; a failed sample write is counted and
@@ -86,14 +89,19 @@ fire-and-forget side effect.
   have succeeded. Added `retryFinishSave` (same identity, no duplicate rows) and `discardUnsavedSession`
   (the only other way out of the unsaved state). Also fixed the two defects deferred here from A01: the
   teardown is now latched so overlapping callers run it once (`disconnectPauseSuppressed` can no longer be
-  cleared early), and `restoreSession` self-guards on Idle like its siblings.
+  cleared early), and `restoreSession` self-guards on Idle like its siblings. `restoreSession` returns whether
+  it restored, and `useInterruptedSession` seeds the persisted identity only after that guard has passed, so a
+  refused restore cannot leave a hijacked identity behind. `discardUnsavedSession` returns `discarded` or
+  `failed`: the ride always leaves memory, but a row delete that throws is disclosed rather than reported as a
+  clean discard.
 - UI: `RideStorageNotice` + the pure `deriveStorageNotice` surface the state on the Training dashboard
   (warnings while riding, a `Ride not saved` callout with Retry Save / Discard Ride when a finished ride is
   not on disk, which replaces the bottom control bar). A failed Finish no longer navigates, from the screen
   or from the wrist: `useWatchRideRemote` routes an unsaved ride to the ride screen instead of a summary.
 - Docs: `AGENTS.md` gains a **Ride persistence outcome** domain rule; `DESIGN.md` documents the notice.
 
-**Branch / PR.** `fix/a02-persistence-failure-recovery`, https://github.com/mike927/omni-bike-rn/pull/110 (commit `fbc7117`)
+**Branch / PR.** `fix/a02-persistence-failure-recovery`, https://github.com/mike927/omni-bike-rn/pull/110
+(commit `fbc7117`, plus the fix-round commits `53bb39a` and `84da1ce`)
 
 **Executed commands.**
 
@@ -106,6 +114,13 @@ fire-and-forget side effect.
   sample-failure accounting (1), making the controller ignore the save outcome (4), letting the screen
   navigate on an unsaved finish (1), removing the teardown latch and restore guard (2). Every part of the
   fix is bound by at least one test.
+- Fix round 1, after the review returned CHANGES_REQUIRED: `npm run ci:gate` green, exit 0, 111 suites /
+  1069 tests. Eight further mutation checks, one per fix, all recorded in
+  `.superpowers/sdd/audit-2026-09-05/reports/A02-report.md` ("Fix round 1"): the store's five session-id
+  guards (4 failures), `beginSession` claiming `recording` (2), the discard failure swallowed in the hook (1)
+  and its alert removed from the screen (1), the persisted seed moved above the restore guard (1), the
+  at-risk honesty clause removed (1), the last-chance draft write removed (3), and both defences of the
+  unsaved window removed (1).
 
 **Bounded handling of failed sample writes.** A sample whose write fails is counted in
 `droppedSampleCount` and abandoned. It is never retried and never buffered, so a broken disk cannot grow
@@ -120,6 +135,7 @@ dropped second costs ride detail, not the ride.
 - A ride whose draft never reached storage is only written at Finish, so its per-second samples are lost
   and the app cannot recover it if the process dies mid-ride. Sample-level durability under a failed draft
   would need buffering, which this ticket deliberately rejects.
-- Home's `deriveRideHero` still treats `Finished` as transient, so during an unsaved window Home shows
-  `Start Ride`. Pressing it lands on the ride screen with the recovery callout, so nothing is lost, but a
-  dedicated Home state would be clearer. Left out of scope; noted as a follow-up.
+- Home's `deriveRideHero` still shows `Start Ride` during an unsaved window. Pressing it lands on the ride
+  screen with the recovery callout, so nothing is lost, but a dedicated Home state would be clearer. The
+  label is left as a follow-up; the comment that wrongly asserted `Finished` is always transient was
+  corrected in fix round 1, so nothing in the tree claims the invariant this change removed.
