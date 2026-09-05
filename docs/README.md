@@ -2,6 +2,10 @@
 
 Repository-owned reference documents that agents and humans can consult when implementation details need a trusted source.
 
+## Audits and Remediation
+
+- [2026-09-05 codebase audit tracker](./audits/2026-09-05/README.md) — individual issues with status, ownership, dependencies, evidence and acceptance criteria
+
 ## Vendor References
 
 - [ZIPRO Rave manual](./vendor/zipro/rave/README.md)
