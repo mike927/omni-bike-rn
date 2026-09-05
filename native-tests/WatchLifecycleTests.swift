@@ -16,6 +16,7 @@ struct WatchLifecycleTests {
 
     static func main() {
         pauseThenResumeBeforeThePausedCallback()
+        resumeThenPauseBeforeTheRunningCallback()
         resumeIsNotIssuedWhileTheTransitionIsStillInFlight()
         stopWhileAuthorizationIsPendingCancelsTheStart()
         stopWithNoSessionStillCancelsAPendingStart()
@@ -23,8 +24,12 @@ struct WatchLifecycleTests {
         duplicateStartLetsTheLaterOneWin()
         aGenuinelyLaterStartAfterStopIsHonoured()
         aStaleQueuedPauseNeverOverridesANewerResume()
+        aDuplicateDeliveryOfTheSameCommandIsNotNewer()
         aStaleStartStillCreatesTheSessionButKeepsTheNewerIntent()
+        aStaleStartDeliveredAfterAStopOpensNoSession()
+        aStaleStopDoesNotRetireTheCurrentRidesPendingStart()
         stopSupersedesAnInFlightPause()
+        endingIsNeverDeferredByTheInterlock()
         anUnstampedCommandAppliesWithoutMovingTheOrderingMark()
         withoutASessionThereIsNothingToReconcile()
         aRideCancelledDuringStartUpIsEndedNotLeaked()
@@ -56,6 +61,27 @@ struct WatchLifecycleTests {
         _ = model.record(.resume, sentAtMs: 300)
         expect(model.action(for: .paused, transitionInFlight: false), .resume,
                "resume issued mid-transition is applied when the paused callback lands")
+    }
+
+    /// Ticket sequence 1, the other way round. Resume starts a HealthKit transition; Pause
+    /// arrives before the running callback. The symmetry is by construction, but the ticket
+    /// asks for both directions, so both are asserted.
+    private static func resumeThenPauseBeforeTheRunningCallback() {
+        var model = WatchLifecycleModel()
+        _ = model.record(.start, sentAtMs: 100)
+        _ = model.record(.pause, sentAtMs: 200)
+        expect(model.action(for: .paused, transitionInFlight: false), .none, "the settled pause needs no action")
+
+        _ = model.record(.resume, sentAtMs: 300)
+        expect(model.action(for: .paused, transitionInFlight: false), .resume, "resume intent resumes a paused session")
+        // The resume is now in flight: `session.state` still reads paused, and re-issuing it
+        // is the double transition that fails the whole session.
+        expect(model.action(for: .paused, transitionInFlight: true), .none,
+               "no second transition while the resume is in flight")
+
+        _ = model.record(.pause, sentAtMs: 400)
+        expect(model.action(for: .running, transitionInFlight: false), .pause,
+               "pause issued mid-resume is applied when the running callback lands")
     }
 
     /// The duplicate-transition interlock is what keeps a redundant pause() from tearing
@@ -92,6 +118,7 @@ struct WatchLifecycleTests {
         let generation = model.record(.start, sentAtMs: 100).startGeneration ?? -1
         let stop = model.record(.stop, sentAtMs: 200)
         expect(stop.intentApplied, true, "stop applies even with no session")
+        expect(stop.startGeneration == nil, true, "a stop never asks for a start sequence of its own")
         expect(model.mayStart(generation: generation), false, "the pending start is invalidated")
     }
 
@@ -142,6 +169,27 @@ struct WatchLifecycleTests {
         expect(model.action(for: .running, transitionInFlight: false), .none, "the ride keeps running")
     }
 
+    /// The same command can reach the Watch twice, carrying the same stamp: a live
+    /// `sendMessage` plus a queued `transferUserInfo` retry, or a coalesced applicationContext.
+    /// Ordering is strict, so a repeat delivery is never "newer" and must change nothing:
+    /// for a stop in particular, it must not retire a start generation a second time.
+    private static func aDuplicateDeliveryOfTheSameCommandIsNotNewer() {
+        var model = WatchLifecycleModel()
+        _ = model.record(.start, sentAtMs: 100)
+        expect(model.record(.pause, sentAtMs: 200).intentApplied, true, "the first delivery applies")
+        expect(model.record(.pause, sentAtMs: 200).intentApplied, false,
+               "a repeat delivery carrying the same stamp is not newer")
+
+        var stopping = WatchLifecycleModel()
+        let generation = stopping.record(.start, sentAtMs: 100).startGeneration ?? -1
+        _ = stopping.record(.stop, sentAtMs: 200)
+        let generationAfterTheStop = stopping.startGeneration
+        expect(stopping.record(.stop, sentAtMs: 200).intentApplied, false, "a repeat stop is not newer either")
+        expect(stopping.startGeneration, generationAfterTheStop,
+               "a repeat stop does not retire a start generation twice")
+        expect(stopping.mayStart(generation: generation), false, "the cancelled start stays retired")
+    }
+
     /// A start is both an intent and the only trigger that creates a session, so an
     /// overtaken start still opens the session and then reconciles to the newer intent
     /// rather than leaving the Watch out of the ride entirely.
@@ -156,14 +204,65 @@ struct WatchLifecycleTests {
                "the session reconciles to the newer intent once it settles")
     }
 
+    /// A09's own defect class, on the start side: a `start` queued while the Watch was
+    /// unreachable, delivered after the stop that ended that ride. It is older than the stop,
+    /// so the desired state stays idle, and it must hand back no generation at all, because a
+    /// generation is what sends `WorkoutManager` off to authorize and open an HKWorkoutSession
+    /// for a ride the user has already finished.
+    private static func aStaleStartDeliveredAfterAStopOpensNoSession() {
+        var model = WatchLifecycleModel()
+        _ = model.record(.start, sentAtMs: 100)
+        _ = model.record(.stop, sentAtMs: 300)
+        let queuedStart = model.record(.start, sentAtMs: 200)
+        expect(queuedStart.intentApplied, false, "a start older than the stop does not move the desired state")
+        expect(queuedStart.startGeneration == nil, true,
+               "a start older than the stop that ended the ride opens no session")
+        expect(model.desired, .idle, "the ride stays ended")
+    }
+
+    /// The mirror image, on the stop side, and the guard hypothesis H01's narrowing rests on:
+    /// ride N-1's stop was queued with the wrist down and lands during ride N, whose start is
+    /// still waiting on the Health prompt. It is older than ride N's start, so it must not
+    /// retire that pending start; doing so would leave the Watch out of ride N entirely, with
+    /// no phone-side retry.
+    private static func aStaleStopDoesNotRetireTheCurrentRidesPendingStart() {
+        var model = WatchLifecycleModel()
+        _ = model.record(.start, sentAtMs: 100)
+        guard let generation = model.record(.start, sentAtMs: 300).startGeneration else {
+            fail("the current ride's start must hand back a generation to authorize under")
+            return
+        }
+        let staleStop = model.record(.stop, sentAtMs: 200)
+        expect(staleStop.intentApplied, false, "a stop older than the newest applied command is ignored")
+        expect(model.desired, .running, "the current ride keeps running")
+        expect(model.mayStart(generation: generation), true,
+               "the previous ride's queued stop does not retire the current ride's pending start")
+    }
+
     private static func stopSupersedesAnInFlightPause() {
         var model = WatchLifecycleModel()
         _ = model.record(.start, sentAtMs: 100)
         _ = model.record(.pause, sentAtMs: 200)
         _ = model.record(.stop, sentAtMs: 300)
-        expect(model.action(for: .running, transitionInFlight: true), .none, "the interlock still holds")
         expect(model.action(for: .paused, transitionInFlight: false), .end,
                "the ride ends as soon as the pause settles")
+    }
+
+    /// The interlock exists to stop a redundant pause() from failing the whole session. It
+    /// must not gate the end: `end()` is valid from every state the session can be in here,
+    /// and a pause or resume whose callback never lands would otherwise leave a live
+    /// HKWorkoutSession on the wrist that no command from either device could stop.
+    private static func endingIsNeverDeferredByTheInterlock() {
+        var model = WatchLifecycleModel()
+        _ = model.record(.start, sentAtMs: 100)
+        _ = model.record(.pause, sentAtMs: 200)
+        _ = model.record(.stop, sentAtMs: 300)
+        expect(model.action(for: .running, transitionInFlight: true), .end,
+               "a stop ends a running session even while a pause is still settling")
+        expect(model.action(for: .paused, transitionInFlight: true), .end,
+               "a stop ends a paused session even while a resume is still settling")
+        expect(model.action(for: .starting, transitionInFlight: true), .end,
+               "a stop ends a session still starting even while a transition is in flight")
     }
 
     /// The HealthKit-initiated wake (`WKApplicationDelegate.handle`) carries no payload of
@@ -196,6 +295,12 @@ struct WatchLifecycleTests {
         _ = model.record(.pause, sentAtMs: 100)
         expect(model.action(for: .none, transitionInFlight: false), .none, "no session, no action")
         expect(model.action(for: .ended, transitionInFlight: false), .none, "an ended session is not revived")
+        // The other half: now that ending is exempt from the interlock, a session already
+        // ended (by HealthKit, or by the end this stop's predecessor issued) must not be
+        // handed another end().
+        _ = model.record(.stop, sentAtMs: 200)
+        expect(model.action(for: .ended, transitionInFlight: false), .none, "an ended session is not ended again")
+        expect(model.action(for: .none, transitionInFlight: false), .none, "a stop with no session has nothing to end")
     }
 
     // MARK: - Tiny assertion helpers

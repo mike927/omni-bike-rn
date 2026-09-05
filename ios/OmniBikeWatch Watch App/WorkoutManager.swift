@@ -118,16 +118,23 @@ final class WorkoutManager: NSObject, ObservableObject {
     private let healthStore = HKHealthStore()
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
-    // True between issuing a pause()/resume()/end() and the matching didChangeTo settling.
+    // True between issuing a pause()/resume() and the matching didChangeTo settling.
     // `session.state` lags HealthKit's real transition, so under rapid pause/resume two
     // commands can both pass the `state == .running/.paused` guard and fire pause() twice,
     // and a redundant pause() makes HKWorkoutSession emit didFailWithError ("Unable to
     // perform 'pause' from current state 'Paused'"), which tears the whole session down.
-    // This flag is the interlock: at most one in-flight transition at a time. The intent
+    // This flag is the interlock: at most one in-flight pause/resume at a time. The intent
     // behind a command it turns away is never lost, because `lifecycle` keeps it and the
     // settling callback reconciles against it. All access is on the main actor
     // (handleCommand + didChangeTo both hop there), so it needs no lock.
+    //
+    // `end()` is deliberately NOT gated by it: a transition that never settles would leave
+    // a live HKWorkoutSession that no command could stop. `endIssued` is the separate,
+    // one-way latch that keeps the end itself from being issued twice (a pause settling
+    // after the end was issued reconciles again, and HealthKit reports the intermediate
+    // `.stopped` state before `.ended`). Cleared only by teardown, with the session.
     private var transitionInFlight = false
+    private var endIssued = false
     // The newest lifecycle state the iPhone has asked for, plus the start generation and
     // the command ordering that make "newest intent wins" hold across asynchronous
     // HealthKit transitions and out-of-order WatchConnectivity delivery. Main-actor only,
@@ -180,7 +187,10 @@ final class WorkoutManager: NSObject, ObservableObject {
                 let orphanBuilder = session.associatedWorkoutBuilder()
                 orphanBuilder.delegate = self
                 self.builder = orphanBuilder
-                self.transitionInFlight = true
+                // Latch the end rather than arming the pause/resume interlock: if this
+                // orphan's `.ended` callback never lands, the interlock would otherwise stay
+                // shut for the whole app launch.
+                self.endIssued = true
                 session.end()
             }
         }
@@ -355,7 +365,11 @@ final class WorkoutManager: NSObject, ObservableObject {
     // collection, so HR is no longer measured or streamed until resume.
     private func reconcile() {
         guard let session else { return }
-        switch lifecycle.action(for: workoutState(of: session), transitionInFlight: transitionInFlight) {
+        // An end already issued defers a pause or a resume for the same reason an unsettled
+        // pause does: the session is on its way out and must not be handed another
+        // transition. It never defers the end itself, which `endIssued` de-duplicates below.
+        let deferTransitions = transitionInFlight || endIssued
+        switch lifecycle.action(for: workoutState(of: session), transitionInFlight: deferTransitions) {
         case .none:
             return
         case .pause:
@@ -367,8 +381,11 @@ final class WorkoutManager: NSObject, ObservableObject {
             transitionInFlight = true
             session.resume()
         case .end:
+            // Never deferred by the interlock, so it can also be reached again while the
+            // end itself is settling; `endIssued` is what keeps it to one call.
+            guard !endIssued else { return }
             wcLog("[WC-Watch] reconcile: ending to match the desired state")
-            transitionInFlight = true
+            endIssued = true
             session.end()
         }
     }
@@ -407,6 +424,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         // cumulative value is never piggy-backed onto the first HR payload.
         latestActiveKcal = nil
         transitionInFlight = false
+        endIssued = false
         stopElapsedTimer(reset: true)
         lastHrAt = nil
     }
@@ -607,6 +625,15 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
         // HealthKit delivers this off the main actor; hop on before publishSessionState
         // (pendingSessionStatePayload) and teardownSession (session/builder/…) run.
         DispatchQueue.main.async {
+            // Only the session we currently own may move our state. A callback from a
+            // session we have already torn down (the `beginCollection` failure path ends it
+            // and tears down immediately, and orphan recovery can be superseded by a new
+            // ride) must not release the interlock, publish a state, or tear down the
+            // session that replaced it.
+            guard workoutSession === self.session else {
+                wcLog("[WC-Watch] didChangeTo \(toState.rawValue) from a session we no longer own, ignoring")
+                return
+            }
             // The transition HealthKit was performing has settled: release the interlock
             // so the next correction can be issued.
             self.transitionInFlight = false

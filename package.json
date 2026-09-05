@@ -17,7 +17,7 @@
     "typecheck": "tsc --noEmit",
     "test": "jest --passWithNoTests",
     "test:changed": "jest --changedSince=main",
-    "test:watch-lifecycle": "swiftc -swift-version 5 -o /tmp/omni-watch-lifecycle-tests 'ios/OmniBikeWatch Watch App/WatchLifecycle.swift' native-tests/WatchLifecycleTests.swift && /tmp/omni-watch-lifecycle-tests",
+    "test:watch-lifecycle": "d=$(mktemp -d /tmp/omni-watch-lifecycle.XXXXXX) && swiftc -swift-version 5 -default-isolation MainActor -o \"$d/tests\" 'ios/OmniBikeWatch Watch App/WatchLifecycle.swift' native-tests/WatchLifecycleTests.swift && \"$d/tests\"; status=$?; rm -rf \"$d\"; exit $status",
     "ci:gate": "npm run lint && npm run typecheck && npm test -- --ci --runInBand",
     "build:smoke": "expo export -p ios -p android",
     "eas:build:android": "npx eas-cli build --platform android --profile preview",
@@ -28,7 +28,8 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.{ts,tsx,js,jsx,mjs}": "eslint --fix --max-warnings 0"
+    "*.{ts,tsx,js,jsx,mjs}": "eslint --fix --max-warnings 0",
+    "ios/OmniBikeWatch Watch App/*.swift": "bash -c 'npm run test:watch-lifecycle'"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

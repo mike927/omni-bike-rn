@@ -130,21 +130,25 @@ struct WatchLifecycleModel {
     }
 
     /// Whether a start sequence issued under `generation` may still open a session.
+    ///
+    /// The generation alone is the whole test: every applied stop bumps it, and a stop that
+    /// is not the newest command moves neither the generation nor the desired state, so a
+    /// current generation can never coexist with an `idle` intent.
     func mayStart(generation: Int) -> Bool {
-        return generation == startGeneration && desired != .idle
+        return generation == startGeneration
     }
 
     /// The single correction that brings the session in line with the desired state.
     ///
-    /// Returns `.none` while a transition is in flight: the duplicate-transition interlock
-    /// is what keeps a redundant `pause()` from making HealthKit fail the whole session, so
-    /// it stays. The intent is not lost by waiting, because the settling callback asks
-    /// again. Never returns an action that would create a session: only a `start` does that,
-    /// so a stray pause or resume can never spin one up.
+    /// A pause or a resume waits while a transition is in flight: the duplicate-transition
+    /// interlock is what keeps a redundant `pause()` from making HealthKit fail the whole
+    /// session, so it stays, and the intent is not lost by waiting because the settling
+    /// callback asks again. `.end` is deliberately exempt. Ending is valid from every state
+    /// the session can be in here, and a pause or resume that never settles would otherwise
+    /// wedge the interlock shut and strand a live HKWorkoutSession that no command from
+    /// either device could stop. Never returns an action that would create a session: only a
+    /// `start` does that, so a stray pause or resume can never spin one up.
     func action(for state: WatchWorkoutState, transitionInFlight: Bool) -> WatchLifecycleAction {
-        guard !transitionInFlight else {
-            return .none
-        }
         switch state {
         case .none, .ended:
             return .none
@@ -157,7 +161,7 @@ struct WatchLifecycleModel {
             case .idle:
                 return .end
             case .paused:
-                return .pause
+                return transitionInFlight ? .none : .pause
             case .running:
                 return .none
             }
@@ -166,7 +170,7 @@ struct WatchLifecycleModel {
             case .idle:
                 return .end
             case .running:
-                return .resume
+                return transitionInFlight ? .none : .resume
             case .paused:
                 return .none
             }
