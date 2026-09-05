@@ -383,6 +383,41 @@ describe('training session engine ownership', () => {
     await root.unmount();
   });
 
+  // Audit A06: manual pause is the higher authority. The Watch remote pauses
+  // through the same `pauseSession` command a screen uses, so it must follow
+  // the same precedence: a bike Started event must not override it.
+  it('should keep a ride Paused after an on-wrist Pause even when the bike reports Started', async () => {
+    const root = await mountRootLifecycle();
+    const home = await mountSessionConsumer();
+
+    await act(() => {
+      home.session.current.start();
+    });
+
+    await tapOnWrist('pause');
+    expect(useTrainingSessionStore.getState().phase).toBe(TrainingPhase.Paused);
+    expect(isSessionEngineRunning()).toBe(false);
+
+    await act(() => {
+      useDeviceConnectionStore.getState().updateBikeMetrics({
+        speed: 25,
+        cadence: 80,
+        power: 150,
+        status: BikeStatus.Started,
+      });
+    });
+
+    expect(useTrainingSessionStore.getState().phase).toBe(TrainingPhase.Paused);
+    expect(isSessionEngineRunning()).toBe(false);
+
+    await tapOnWrist('resume');
+    expect(useTrainingSessionStore.getState().phase).toBe(TrainingPhase.Active);
+    expect(isSessionEngineRunning()).toBe(true);
+
+    await home.unmount();
+    await root.unmount();
+  });
+
   it('should end the ride and open its summary when End is tapped on the wrist after Back', async () => {
     jest.spyOn(trainingSessionPersistenceModule, 'getActiveSessionId').mockReturnValue('session-42');
 
