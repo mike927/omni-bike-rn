@@ -8,7 +8,7 @@
 | --- | --- |
 | Status | Blocked |
 | Owner | automated remediation agent |
-| Branch / PR | `docs/a11-native-verification-handoff` / PR_URL_PLACEHOLDER |
+| Branch / PR | `docs/a11-native-verification-handoff` / https://github.com/mike927/omni-bike-rn/pull/119 |
 | Last updated | 2026-09-05 |
 | Type | Verification gap |
 | Category | testing |
@@ -93,7 +93,7 @@ carries the device only residual every remediated ticket left behind:
 A12 is deliberately out of scope and is named in the pass as an accepted, tracked behaviour so the
 tester does not report it: TCX still shows a paused ride as continuous.
 
-**Branch / PR.** `docs/a11-native-verification-handoff`, PR_URL_PLACEHOLDER.
+**Branch / PR.** `docs/a11-native-verification-handoff`, https://github.com/mike927/omni-bike-rn/pull/119.
 
 **Executed commands and outcomes.**
 
