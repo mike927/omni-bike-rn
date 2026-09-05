@@ -11,6 +11,7 @@ import {
   syncSessionFromBikeStatus,
 } from '../sessionController';
 import { handleUnexpectedBikeDisconnect } from './useDeviceConnection';
+import { useWatchRideRemote } from './useWatchRideRemote';
 
 const BIKE_SIGNAL_STALE_TIMEOUT_MS = 5000;
 
@@ -25,7 +26,9 @@ const BIKE_SIGNAL_STALE_TIMEOUT_MS = 5000;
  * Responsibilities, all of them global:
  *  - keep exactly one recording clock in sync with the session phase;
  *  - mirror bike-reported status onto the session;
- *  - freeze a running ride when the bike disconnects or goes silent.
+ *  - freeze a running ride when the bike disconnects or goes silent;
+ *  - accept Pause / Resume / End from the Watch, which is a remote for the ride
+ *    and not for a screen.
  */
 export function useTrainingSessionLifecycle(): void {
   const phase = useTrainingSessionStore((s) => s.phase);
@@ -33,6 +36,11 @@ export function useTrainingSessionLifecycle(): void {
   const bikeAdapter = useDeviceConnectionStore((s) => s.bikeAdapter);
   const lastBikeSignalAtMs = useDeviceConnectionStore((s) => s.lastBikeSignalAtMs);
   const latestBikeStatus = useDeviceConnectionStore((s) => s.latestBikeMetrics?.status);
+
+  // ── The wrist remote ──────────────────────────────────
+  // Owned here, not by the Training dashboard: a ride (and the Watch workout
+  // driving it) outlives that screen, so on-wrist controls must too.
+  useWatchRideRemote();
 
   // ── The one recording clock ───────────────────────────
   useEffect(() => {

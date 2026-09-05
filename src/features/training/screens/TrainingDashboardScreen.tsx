@@ -6,12 +6,11 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { useDeviceConnection } from '../hooks/useDeviceConnection';
 import { useTrainingSession } from '../hooks/useTrainingSession';
-import { useWatchRemoteControl } from '../hooks/useWatchRemoteControl';
 import { usePowerTrend } from '../hooks/usePowerTrend';
 import { useAutoReconnect } from '../../gear/hooks/useAutoReconnect';
 import { bleDeviceStatus } from '../../../types/deviceStatus';
 import { useSavedGear } from '../../gear/hooks/useSavedGear';
-import { buildTrainingSummaryRoute, POST_FINISH_TRAINING_SUMMARY_SOURCE } from '../navigation/trainingSummaryRoute';
+import { POST_FINISH_HOME_ROUTE, resolvePostFinishRoute } from '../navigation/trainingSummaryRoute';
 import { resolveHrSourceSummary } from '../../../services/hr/hrStatus';
 import { resolveHrReading } from '../../../services/hr/hrSource';
 import { useEffectiveHrSource } from '../../../services/hr/useEffectiveHrSource';
@@ -27,7 +26,7 @@ import { deriveTrainingView } from './trainingViewModel';
 import { noir } from '../../../ui/theme';
 import { logWc } from '../../../services/watch/wcLog';
 
-const HOME_ROUTE = '/';
+const HOME_ROUTE = POST_FINISH_HOME_ROUTE;
 const BIKE_SETUP_ROUTE = '/gear-setup?target=bike';
 
 export function TrainingDashboardScreen() {
@@ -111,25 +110,12 @@ export function TrainingDashboardScreen() {
 
     try {
       const sessionId = await session.finishAndDisconnect();
-      if (sessionId) {
-        router.replace(buildTrainingSummaryRoute(sessionId, POST_FINISH_TRAINING_SUMMARY_SOURCE, HOME_ROUTE));
-      } else {
-        router.replace(HOME_ROUTE);
-      }
+      router.replace(resolvePostFinishRoute(sessionId));
     } catch (err: unknown) {
       console.error('[TrainingDashboardScreen] Finish failed:', err);
       setIsFinishing(false);
     }
   };
-
-  // Apple Watch acts as a remote: Pause / Resume / End tapped on the wrist run the
-  // same actions as the on-screen controls, so the engine, bike, and Watch session
-  // stay in lockstep. Mounted here because controls only exist during a ride.
-  useWatchRemoteControl({
-    onPause: session.pause,
-    onResume: session.resume,
-    onFinish: handleFinish,
-  });
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>

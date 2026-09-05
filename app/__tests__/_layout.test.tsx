@@ -90,6 +90,10 @@ jest.mock('../../src/features/training/hooks/useKeepAwakeDuringTraining', () => 
   useKeepAwakeDuringTraining: jest.fn(),
 }));
 
+jest.mock('../../src/features/training/hooks/useTrainingSessionLifecycle', () => ({
+  useTrainingSessionLifecycle: jest.fn(),
+}));
+
 jest.mock('../../src/features/training/hooks/useTrainingSessionPersistence', () => ({
   useTrainingSessionPersistence: jest.fn(),
 }));

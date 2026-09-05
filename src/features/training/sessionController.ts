@@ -54,7 +54,14 @@ export function stopSessionEngine(): void {
   engine?.stop();
 }
 
-/** Whether the single recording clock is currently ticking. */
+/**
+ * Whether the single recording clock is currently ticking.
+ *
+ * Observation seam for the module singleton, not dead code: it is the only way
+ * to assert that Pause, Finish and Reset actually stop the timer rather than
+ * merely leaving the store to discard its ticks (see
+ * `__tests__/trainingSessionOwnership.test.ts`). Keep it.
+ */
 export function isSessionEngineRunning(): boolean {
   return engine?.isRunning() ?? false;
 }

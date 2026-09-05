@@ -25,6 +25,28 @@ jest.mock('../../features/integrations/hooks/useAppleHealthPermissionsRefresh', 
 jest.mock('../../features/training/hooks/useKeepAwakeDuringTraining', () => ({
   useKeepAwakeDuringTraining: jest.fn(),
 }));
+
+// The ride is owned by exactly one lifecycle instance, mounted here at boot. The
+// stub counts mounts rather than calls, so a re-render cannot be mistaken for a
+// second owner, and a second mount (or an unmount mid-boot) fails the test.
+const mockLifecycleMount = jest.fn();
+const mockLifecycleUnmount = jest.fn();
+
+jest.mock('../../features/training/hooks/useTrainingSessionLifecycle', () => {
+  const react = jest.requireActual('react') as {
+    useEffect: (effect: () => void | (() => void), deps: unknown[]) => void;
+  };
+  return {
+    useTrainingSessionLifecycle: () => {
+      react.useEffect(() => {
+        mockLifecycleMount();
+        return () => {
+          mockLifecycleUnmount();
+        };
+      }, []);
+    },
+  };
+});
 jest.mock('../../features/training/hooks/useTrainingSessionPersistence', () => ({
   useTrainingSessionPersistence: jest.fn(),
 }));
@@ -84,6 +106,29 @@ describe('useAppInitialization', () => {
     const { result } = await renderHook(() => useAppInitialization());
     await waitFor(() => expect(registerExportProviders).toHaveBeenCalled());
     expect(result.current.phase).toBe('loading');
+  });
+
+  it('mounts the root-owned training session lifecycle exactly once', async () => {
+    mockInit.mockResolvedValue(undefined);
+    const { result } = await renderHook(() => useAppInitialization());
+    await waitFor(() => expect(result.current.phase).toBe('ready'));
+
+    expect(mockLifecycleMount).toHaveBeenCalledTimes(1);
+    expect(mockLifecycleUnmount).not.toHaveBeenCalled();
+  });
+
+  it('keeps the single lifecycle owner mounted across a database-init retry', async () => {
+    mockInit.mockRejectedValueOnce(new Error('db boom')).mockResolvedValueOnce(undefined);
+    const { result } = await renderHook(() => useAppInitialization());
+    await waitFor(() => expect(result.current.phase).toBe('error'));
+
+    const errorState = result.current;
+    if (errorState.phase !== 'error') throw new Error('expected error phase');
+    await act(() => errorState.retry());
+    await waitFor(() => expect(result.current.phase).toBe('ready'));
+
+    expect(mockLifecycleMount).toHaveBeenCalledTimes(1);
+    expect(mockLifecycleUnmount).not.toHaveBeenCalled();
   });
 
   it('reports error and retry re-runs database init when init fails', async () => {

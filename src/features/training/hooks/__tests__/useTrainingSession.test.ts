@@ -16,6 +16,15 @@ const mockSetControlState = jest.fn();
 const mockDisconnect = jest.fn().mockResolvedValue(undefined);
 const mockHrDisconnect = jest.fn().mockResolvedValue(undefined);
 
+// The root lifecycle also owns the wrist remote, so this suite loads the native
+// bridge and the router. Neither is exercised here; ownership has its own suite.
+jest.mock('watch-connectivity', () => ({
+  isWatchConnectivityAvailable: false,
+  WatchConnectivity: { addListener: jest.fn(() => ({ remove: jest.fn() })) },
+}));
+
+jest.mock('expo-router', () => ({ router: { replace: jest.fn(), push: jest.fn(), back: jest.fn() } }));
+
 jest.mock('../../../../services/metronome/MetronomeEngine', () => ({
   MetronomeEngine: jest.fn().mockImplementation(() => ({
     start: mockEngineStart,
@@ -383,9 +392,11 @@ describe('useTrainingSession', () => {
       expect(result.current.phase).toBe(TrainingPhase.Idle);
     });
 
-    // Teardown stops the clock up front, then the phase reaching Idle reconciles
-    // it again. Stopping is idempotent, so the count is not the interesting part.
-    expect(mockEngineStop).toHaveBeenCalled();
+    // Exactly two: the deliberate early stop inside `resetSessionAndConnections`
+    // (so an abandoned ride stops accumulating while the bike disconnects), then
+    // the phase reaching Idle reconciling the engine. Stopping is idempotent, but
+    // the count is pinned: dropping the early stop is a silent behaviour change.
+    expect(mockEngineStop).toHaveBeenCalledTimes(2);
     expect(mockSetControlState).toHaveBeenCalledWith(BikeStatus.Reset);
     expect(disconnectAllSpy).toHaveBeenCalledWith({ updateReconnectState: true, suppressAutoReconnect: true });
     expect(mockDisconnect).toHaveBeenCalledTimes(1);

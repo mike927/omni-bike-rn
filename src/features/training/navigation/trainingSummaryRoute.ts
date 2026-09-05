@@ -13,6 +13,20 @@ export function buildTrainingSummaryRoute(sessionId: string, source: TrainingSum
   return `${SUMMARY_ROUTE_PATH}?sessionId=${encodedSessionId}&source=${source}${encodedReturnTo}`;
 }
 
+/** Where the app lands when a ride ends without a saved session to show. */
+export const POST_FINISH_HOME_ROUTE = '/';
+
+/**
+ * Route to replace the current screen with once a ride is finished: its summary,
+ * or Home when nothing was persisted. Shared so the on-screen Finish button and
+ * the root-owned Watch remote land in the same place.
+ */
+export function resolvePostFinishRoute(sessionId: string | null): string {
+  return sessionId
+    ? buildTrainingSummaryRoute(sessionId, POST_FINISH_TRAINING_SUMMARY_SOURCE, POST_FINISH_HOME_ROUTE)
+    : POST_FINISH_HOME_ROUTE;
+}
+
 export function resolveTrainingSummarySource(source: string | string[] | undefined): TrainingSummarySource {
   if (source === POST_FINISH_TRAINING_SUMMARY_SOURCE) {
     return POST_FINISH_TRAINING_SUMMARY_SOURCE;

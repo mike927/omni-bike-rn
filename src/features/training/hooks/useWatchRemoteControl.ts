@@ -26,8 +26,9 @@ export interface WatchRemoteControlHandlers {
  * iPhone remains the single source of truth; phase guards live in the handlers, so a
  * stray request is a safe no-op.
  *
- * Mount this only while a ride is in progress (the Training dashboard) — that is the
- * only time Watch controls exist.
+ * Mount this only from the root-owned session lifecycle (`useWatchRideRemote`),
+ * never from a screen: the wrist controls belong to the ride, which outlives
+ * every screen, and a second listener would double every request.
  */
 export function useWatchRemoteControl(handlers: WatchRemoteControlHandlers): void {
   // Shadow the handlers in a ref so the listener subscribes exactly once. Re-subscribing
