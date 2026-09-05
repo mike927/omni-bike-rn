@@ -8,7 +8,7 @@
 | --- | --- |
 | Status | Done |
 | Owner | automated remediation agent |
-| Branch / PR | `fix/a02-persistence-failure-recovery` |
+| Branch / PR | `fix/a02-persistence-failure-recovery` / [PR #110](https://github.com/mike927/omni-bike-rn/pull/110) |
 | Last updated | 2026-09-05 |
 | Type | Bug |
 | Category | correctness |
@@ -93,7 +93,7 @@ fire-and-forget side effect.
   or from the wrist: `useWatchRideRemote` routes an unsaved ride to the ride screen instead of a summary.
 - Docs: `AGENTS.md` gains a **Ride persistence outcome** domain rule; `DESIGN.md` documents the notice.
 
-**Branch / PR.** `fix/a02-persistence-failure-recovery`, PR (link added below on creation)
+**Branch / PR.** `fix/a02-persistence-failure-recovery`, https://github.com/mike927/omni-bike-rn/pull/110 (commit `fbc7117`)
 
 **Executed commands.**
 
