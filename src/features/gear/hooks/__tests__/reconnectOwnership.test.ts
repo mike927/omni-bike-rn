@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from '@testing-library/react-native';
+import { act, renderHook } from '@testing-library/react-native';
 import { AppState, type AppStateStatus } from 'react-native';
 
 import { useAutoReconnect } from '../useAutoReconnect';
@@ -27,18 +27,10 @@ const mockDisconnectBike = jest.fn();
 const mockDisconnectHr = jest.fn();
 
 jest.mock('../../../../services/gear/gearStorage');
+// Only the module-scope connect operations. Nothing rendered here instantiates
+// the `useDeviceConnection` hook: the owner and the consumer both reach the
+// transport through these four functions.
 jest.mock('../../../training/hooks/useDeviceConnection', () => ({
-  useDeviceConnection: () => ({
-    connectBike: (...args: unknown[]) => mockConnectBike(...args),
-    connectHr: (...args: unknown[]) => mockConnectHr(...args),
-    disconnectBike: () => mockDisconnectBike(),
-    disconnectHr: () => mockDisconnectHr(),
-    disconnectAll: jest.fn(),
-    bikeConnected: false,
-    hrConnected: false,
-    latestBikeMetrics: null,
-    latestBluetoothHr: null,
-  }),
   connectBikeDevice: (...args: unknown[]) => mockConnectBike(...args),
   connectHrDevice: (...args: unknown[]) => mockConnectHr(...args),
   disconnectBikeDevice: () => mockDisconnectBike(),
@@ -350,23 +342,87 @@ describe('auto-reconnect ownership', () => {
     expect(useSavedGearStore.getState().bikeAutoReconnectSuppressed).toBe(false);
   });
 
-  it('reports the same reconnect state to every mounted screen', async () => {
-    useSavedGearStore.setState({ savedBike: bike, hydrated: true, bikeReconnectState: 'failed' });
+  // Every screen reads the owner's cycle, not its own: the states below are the
+  // ones the controller writes as the cycle runs, so this fails if the policy
+  // stops publishing them or the consumer stops reading them live.
+  it('shows every mounted screen the same states as the owner cycle runs', async () => {
+    useSavedGearStore.setState({ savedBike: bike, hydrated: true });
 
     await mountReconnectOwner();
     const home = await mountReconnectConsumer();
     const training = await mountReconnectConsumer();
 
-    expect(home.reconnect.current.bikeReconnectState).toBe('failed');
-    expect(training.reconnect.current.bikeReconnectState).toBe('failed');
+    // Probe 1 failed transiently: both screens read one continuous "Connecting…".
+    await settleProbe();
+    expect(home.reconnect.current.bikeReconnectState).toBe('connecting');
+    expect(training.reconnect.current.bikeReconnectState).toBe('connecting');
+
+    // Spend the rest of the budget: both screens land on the terminal state.
+    await act(async () => {
+      jest.advanceTimersByTime(3000);
+    });
+    await settleProbe();
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+    });
+    await settleProbe();
+
+    expect(home.reconnect.current.bikeReconnectState).toBe('disconnected');
+    expect(training.reconnect.current.bikeReconnectState).toBe('disconnected');
+  });
+
+  // The owner reconciles one role per effect. A shared effect would clear and
+  // re-arm the other role's pending wait every time this one moved, which is a
+  // probe silently slipping later, so both directions are pinned.
+  it("does not delay the strap's next probe when a bike change reconciles", async () => {
+    useSavedGearStore.setState({ savedHrSource: hr, hydrated: true });
+
+    await mountReconnectOwner();
+    await mountReconnectConsumer();
+
+    // Probe 1 failed, so the strap is waiting out its 3 s.
+    await settleProbe();
+    expect(mockConnectHr).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      jest.advanceTimersByTime(2000);
+    });
+
+    // A bike-only store change, 2 s into the strap's wait.
+    await act(() => {
+      useDeviceConnectionStore.setState({ bikeAdapter: {} as never });
+    });
+
+    // The strap's probe 2 still lands 3 s after its probe 1, not 3 s after the
+    // bike moved.
+    await act(async () => {
+      jest.advanceTimersByTime(1000);
+    });
+    await settleProbe();
+    expect(mockConnectHr).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not delay the bike's next probe when a strap change reconciles", async () => {
+    useSavedGearStore.setState({ savedBike: bike, hydrated: true });
+
+    await mountReconnectOwner();
+    await mountReconnectConsumer();
+
+    await settleProbe();
+    expect(mockConnectBike).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      jest.advanceTimersByTime(2000);
+    });
 
     await act(() => {
-      useSavedGearStore.getState().setBikeReconnectState('connecting');
+      useDeviceConnectionStore.setState({ hrAdapter: {} as never });
     });
 
-    await waitFor(() => {
-      expect(home.reconnect.current.bikeReconnectState).toBe('connecting');
+    await act(async () => {
+      jest.advanceTimersByTime(1000);
     });
-    expect(training.reconnect.current.bikeReconnectState).toBe('connecting');
+    await settleProbe();
+    expect(mockConnectBike).toHaveBeenCalledTimes(2);
   });
 });

@@ -66,7 +66,8 @@ const hrRuntime = createRuntime();
  *
  * The only policy input that is not in a store, so it is remembered here for the
  * one path that reconciles without the owner asking: a transient probe failure
- * scheduling its successor.
+ * scheduling its successor. Reset by {@link releaseReconnectSchedules}, so it
+ * never outlives the owner that reported it.
  */
 let appIsActive = true;
 
@@ -156,15 +157,22 @@ function isCurrentSavedHr(deviceId: string): boolean {
 /**
  * Run one pass of the bike policy against a single store snapshot.
  *
- * One snapshot per pass is deliberate: the four steps have to agree on one view
- * of the world, the way the four effects this replaced all agreed on one render.
- * A step whose store write invalidates the snapshot re-enters through the
- * owner's next reconciliation, not mid-pass.
+ * Reading the stores once at the top mirrors the four effects this replaced, all
+ * of which read one render's values. That is a faithfulness choice rather than a
+ * pinned invariant: every field a step writes is a dependency of the owner's
+ * effects, so a step whose write invalidates the snapshot re-enters on the
+ * owner's next reconciliation, and re-reading per step would only reach the same
+ * place sooner. A per-step re-read mutation-tested as observably equivalent, so
+ * "one snapshot per pass" is not a property any test defends.
  */
 function reconcileBikeReconnect(appActive: boolean): void {
   appIsActive = appActive;
 
   const snapshot = readBikeSnapshot();
+  // The declaration order of the four effects this replaced. The steps share no
+  // store reads (the snapshot is fixed), only the runtime record, and a
+  // schedule-first order mutation-tested as observably equivalent: read this as
+  // the original shape, not as a tested constraint.
   autoConnectBike(snapshot);
   adoptLiveBikeAdapter(snapshot);
   markBikeConnectionLost(snapshot);
@@ -491,6 +499,10 @@ export function syncHrReconnect(appActive: boolean): void {
  */
 export function releaseReconnectSchedules(): void {
   policyOwned = false;
+  // Foreground state belongs to the owner that reported it, so it goes back to
+  // its default here rather than outliving that owner: nothing may read a stale
+  // "the app was in the foreground" from a torn-down tree.
+  appIsActive = true;
   for (const runtime of [bikeRuntime, hrRuntime]) {
     clearRetryTimeout(runtime);
     runtime.attempting = false;

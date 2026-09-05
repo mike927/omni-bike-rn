@@ -183,6 +183,79 @@ describe('auto-reconnect on mount', () => {
 
     expect(mockConnectBike).not.toHaveBeenCalled();
   });
+
+  // The test above runs on real timers and returns before the scheduler's 0 ms
+  // probe could fire, so it never observes the scheduler's suppression guard.
+  // This one advances the clock through the whole cycle, which is what makes
+  // "suppression stops the probes" an assertion rather than a coincidence.
+  it('dials no probe at all while bike auto-reconnect is suppressed', async () => {
+    jest.useFakeTimers();
+    useSavedGearStore.setState({
+      savedBike: bike,
+      hydrated: true,
+      bikeReconnectState: 'disconnected',
+      bikeAutoReconnectSuppressed: true,
+    });
+
+    await renderAutoReconnect();
+
+    // Probe 1 would be immediate.
+    await act(async () => {
+      jest.advanceTimersByTime(0);
+      await Promise.resolve();
+    });
+    expect(mockConnectBike).not.toHaveBeenCalled();
+
+    // And probes 2 and 3 would land inside this window.
+    await act(async () => {
+      jest.advanceTimersByTime(60000);
+      await Promise.resolve();
+    });
+    expect(mockConnectBike).not.toHaveBeenCalled();
+  });
+
+  // Suppression has to hold on the other entry point too: a cycle sitting at
+  // `idle` (nothing has been tried yet) is dialled by the auto-connect step, not
+  // by the scheduler.
+  it('does not auto-connect an idle bike cycle while suppression is in force', async () => {
+    jest.useFakeTimers();
+    useSavedGearStore.setState({
+      savedBike: bike,
+      hydrated: true,
+      bikeReconnectState: 'idle',
+      bikeAutoReconnectSuppressed: true,
+    });
+
+    await renderAutoReconnect();
+
+    await act(async () => {
+      jest.advanceTimersByTime(60000);
+      await Promise.resolve();
+    });
+
+    expect(mockConnectBike).not.toHaveBeenCalled();
+    expect(useSavedGearStore.getState().bikeReconnectState).toBe('idle');
+  });
+
+  it('does not auto-connect an idle HR cycle while suppression is in force', async () => {
+    jest.useFakeTimers();
+    useSavedGearStore.setState({
+      savedHrSource: hr,
+      hydrated: true,
+      hrReconnectState: 'idle',
+      hrAutoReconnectSuppressed: true,
+    });
+
+    await renderAutoReconnect();
+
+    await act(async () => {
+      jest.advanceTimersByTime(60000);
+      await Promise.resolve();
+    });
+
+    expect(mockConnectHr).not.toHaveBeenCalled();
+    expect(useSavedGearStore.getState().hrReconnectState).toBe('idle');
+  });
 });
 
 describe('failed state', () => {
@@ -619,6 +692,89 @@ describe('retry', () => {
     });
 
     expect(mockConnectBike).toHaveBeenCalledTimes(3);
+  });
+
+  // The test above drives the reset through the adopt step, because a real
+  // connect publishes its adapter and adoption resets the budget too. This one
+  // isolates the probe's own reset: the connect resolves without an adapter
+  // appearing, so adoption never runs and only the success path can hand the
+  // next cycle a full budget.
+  it('resets the probe budget from the probe that succeeded, not only through adoption', async () => {
+    jest.useFakeTimers();
+    mockConnectBike
+      .mockRejectedValueOnce(new Error('Operation timed out'))
+      .mockRejectedValueOnce(new Error('Operation timed out'))
+      .mockResolvedValueOnce(undefined)
+      .mockImplementation(() => new Promise<void>(() => {}));
+    useSavedGearStore.setState({ savedBike: bike, hydrated: true });
+
+    const { result } = await renderAutoReconnect();
+
+    // Probes 1 and 2 fail, so two of the three probes are spent.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(3000);
+    });
+    expect(mockConnectBike).toHaveBeenCalledTimes(2);
+
+    // Probe 3 succeeds. With no adapter published, the connection reads as lost
+    // again on the next pass and a fresh cycle starts.
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+      await Promise.resolve();
+    });
+    expect(mockConnectBike).toHaveBeenCalledTimes(3);
+    expect(result.current.bikeReconnectState).toBe('disconnected');
+
+    // A full budget means probe 1 of that cycle is immediate. Without the reset
+    // it would be probe 3's 5 s wait instead.
+    await act(async () => {
+      jest.advanceTimersByTime(1);
+    });
+    expect(mockConnectBike).toHaveBeenCalledTimes(4);
+  });
+
+  it('restores the full probe budget when Retry is pressed after the budget is spent', async () => {
+    jest.useFakeTimers();
+    mockConnectBike.mockRejectedValue(new Error('Operation timed out'));
+    useSavedGearStore.setState({ savedBike: bike, hydrated: true });
+
+    const { result } = await renderAutoReconnect();
+
+    // Spend all three probes.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(3000);
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(60000);
+    });
+    expect(mockConnectBike).toHaveBeenCalledTimes(3);
+    expect(result.current.bikeReconnectState).toBe('disconnected');
+
+    // Retry dials at once...
+    await act(async () => {
+      result.current.retryBike();
+      await Promise.resolve();
+    });
+    expect(mockConnectBike).toHaveBeenCalledTimes(4);
+
+    // ...and the cycle it starts still has probes 2 and 3 to spend.
+    await act(async () => {
+      jest.advanceTimersByTime(3000);
+    });
+    expect(mockConnectBike).toHaveBeenCalledTimes(5);
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+    });
+    expect(mockConnectBike).toHaveBeenCalledTimes(6);
   });
 
   it('does not auto-retry while the app is backgrounded and resumes when active again', async () => {

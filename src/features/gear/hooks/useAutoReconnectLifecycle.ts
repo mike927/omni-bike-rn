@@ -23,7 +23,10 @@ import { useSavedGearStore } from '../../../store/savedGearStore';
  *    keep probing.
  *
  * One effect per role, so a bike change never re-arms the strap's pending wait
- * and vice versa.
+ * and vice versa: reconciling a role clears and re-arms that role's wait, so a
+ * shared effect would slip the other role's next probe every time this one moved.
+ * Pinned in both directions by `reconnectOwnership.test.ts` ("does not delay the
+ * strap's next probe when a bike change reconciles", and its mirror).
  */
 export function useAutoReconnectLifecycle(): void {
   const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
