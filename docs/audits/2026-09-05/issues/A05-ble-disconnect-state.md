@@ -59,7 +59,7 @@ Observe native disconnection at the connection owner. Clear only the matching ad
 
 - [x] Emit native disconnect after connecting a strap; assert readiness changes and exactly one reconnect cycle begins.
 - [x] Emit a delayed disconnect from a replaced adapter and ensure the new adapter survives.
-- [ ] Verify deliberate disconnect cleans subscriptions and respects suppression; confirm out-of-range recovery on hardware. Subscription cleanup and suppression are covered in Jest; the hardware half, out-of-range recovery, is outstanding (the iOS Simulator cannot do BLE), so this box stays unticked.
+- [ ] Verify deliberate disconnect cleans subscriptions and respects suppression; confirm out-of-range recovery on hardware. Subscription cleanup and suppression are Jest-covered, including the case the first review round found open: a drop arriving *during* a deliberate teardown, both across roles inside `disconnectAllDeviceConnections` and across the session teardown's Stop/Reset window. What remains is genuinely device-only, not merely unwritten: that ble-plx really raises `onDeviceDisconnected` for a power-off or out-of-range peripheral rather than only for a locally issued `cancelDeviceConnection`; that `Subscription.remove()` really deregisters natively (every Jest proof fires the listener by hand against a test double); that a returned strap re-dials inside the `[0, 3000, 5000]` ms probe budget; that ending a ride normally produces no spurious reconnect on real hardware; and that a bike power-off mid-ride freezes the ride exactly once now that the observer fires immediately instead of after the 5 s telemetry watchdog. The iOS Simulator cannot do BLE, so this box stays unticked until that run is recorded.
 - [x] Run relevant existing checks following `AGENTS.md`; record exact commands, results and verification limits below.
 - [x] Update status, owner, last-updated date and completion evidence; coordinate the aggregate roadmap state as described in the index.
 
@@ -67,6 +67,7 @@ Observe native disconnection at the connection owner. Clear only the matching ad
 
 - 2026-09-05 — Imported from the audit of `965cbec`. No remediation performed; status is Not started.
 - 2026-09-05: Claimed on `fix/a05-ble-disconnect-state`. Added a native BLE disconnection observer at the connection owner (`useDeviceConnection`), identity-guarded per adapter and disposed before every deliberate disconnect. Jest acceptance covered; status stays In progress pending on-device out-of-range verification.
+- 2026-09-05: Review round 1. Closed the cross-role disposal gap the review found: observer disposal was per role, so a drop arriving during a deliberate teardown lifted the suppression that teardown had just applied. Both roles are now disarmed up front, in `disconnectAllDeviceConnections` and again at the top of the session teardown's suppressed window. Test-quality follow-ups from the same review also landed. Status stays In progress: the residual is device-only.
 
 ## Completion / disposition record
 
@@ -106,6 +107,24 @@ the raw stored `primaryHrSource`, and Watch candidacy is untouched.
   - adapter identity guard removed: `ignores a late native disconnect from a replaced HR adapter` fails.
   - observer left alive through a deliberate disconnect: `disposes the native disconnect observers on a deliberate disconnect and keeps suppression` fails.
   - `clearHrTransport` swapped for `clearHrConnection` on the unexpected path, and `keepActiveHrSource` dropped from the reconnect probe: `keeps the per-session HR lock when the strap drops off the air mid-ride` fails in both cases.
+
+**Review round 1.** The independent review returned CHANGES_REQUIRED: observers were released only inside their own
+role's teardown, so a native drop arriving *during* a deliberate teardown was still handled as an unexpected one and
+lifted the suppression that teardown had just applied. A probe reproduced it end to end after a ride-end
+`disconnectAll({ suppressAutoReconnect: true })`: `hrConnect` dialled twice, `hrAdapter` non-null,
+`hrAutoReconnectSuppressed` false, `hrReconnectState` `connected`. The same class of window sat one layer up, where the
+session teardown holds `disconnectPauseSuppressed` through the pending FTMS Stop and the fire-and-forget Reset.
+
+Both are closed by disarming every role up front rather than per role: `releaseDeviceDisconnectObservers()` runs first
+in `disconnectAllDeviceConnections`, and again as the first act inside `runResetSessionAndConnections`'s suppressed
+window. Releasing by existence keeps it idempotent, so the per-role disposal that still guards a single
+`disconnectBike()` / `disconnectHr()` is unchanged. Post-fix the same probe reports `hrConnect` dialled once,
+`hrAdapter` null, `hrAutoReconnectSuppressed` true, `hrReconnectState` `disconnected`. The round also removed an
+unnecessary `onDeviceDisconnected` line from `src/__mocks__/react-native-ble-plx.ts`, gave the test fixtures a real
+`remove()` and per-device routing, and added cover for the bike identity guard, for observer release inside both
+unexpected handlers, and for the unexpected HR handler's own `adapter.disconnect()`. `AGENTS.md` gained the transport
+observer rule and its Session-ownership bullet was amended to match. `npm run ci:gate` after the round: lint clean at
+`--max-warnings 0`, `tsc --noEmit` clean, **112 suites / 1086 tests passed**.
 
 **Physical-device results.** None yet. The iOS Simulator cannot do BLE (`AGENTS.md`, Runtime), so out-of-range
 recovery has to be confirmed on hardware: connect a saved strap and the bike, power the strap off (or walk it out of

@@ -13,10 +13,18 @@ jest.mock('../../../../services/ble/bleClient', () => ({
 
 const mockOnDeviceDisconnected = jest.mocked(bleManager.onDeviceDisconnected);
 
-/** One registered native disconnection observer, so tests can fire and inspect it. */
+/**
+ * One registered native disconnection observer, so tests can fire and inspect it.
+ *
+ * `remove()` really deregisters here, the way a ble-plx `Subscription` does. A
+ * no-op stub would let every test fire listeners the app has already released,
+ * which turns "the observer was disposed in time" into an untestable claim.
+ */
 interface RegisteredDisconnectObserver {
   readonly deviceId: string;
-  readonly emit: () => void;
+  removed: boolean;
+  /** Hand the event to the listener, whatever the subscription's state. */
+  readonly invoke: () => void;
   readonly remove: jest.Mock;
 }
 
@@ -27,16 +35,42 @@ function observersFor(deviceId: string): RegisteredDisconnectObserver[] {
   return disconnectObservers.filter((observer) => observer.deviceId === deviceId);
 }
 
-/**
- * Invoke the native disconnection listener registered for `deviceId`, the way
- * react-native-ble-plx does when a peripheral drops off the air.
- */
-function emitNativeDisconnect(deviceId: string): void {
+function latestObserverFor(deviceId: string): RegisteredDisconnectObserver {
   const observer = observersFor(deviceId).at(-1);
   if (!observer) {
     throw new Error(`No native disconnect observer registered for ${deviceId}`);
   }
-  observer.emit();
+  return observer;
+}
+
+/**
+ * Emit a native disconnection for `deviceId`, the way react-native-ble-plx does
+ * when a peripheral drops off the air.
+ *
+ * A removed subscription no longer receives events, so this is inert once the
+ * app has released the observer. That is the point: it is how a test can tell
+ * whether the app disarmed itself in time.
+ */
+function emitNativeDisconnect(deviceId: string): void {
+  const observer = latestObserverFor(deviceId);
+  if (observer.removed) {
+    return;
+  }
+  observer.invoke();
+}
+
+/**
+ * Deliver an event that was already in flight when the subscription was removed.
+ *
+ * That race is the only reason the adapter identity guard exists, so it is the
+ * only way a test may reach a listener the app has deregistered.
+ */
+function emitLateNativeDisconnect(deviceId: string): void {
+  const observer = latestObserverFor(deviceId);
+  if (!observer.removed) {
+    throw new Error(`The native disconnect observer for ${deviceId} is still live; use emitNativeDisconnect`);
+  }
+  observer.invoke();
 }
 
 const mockBikeConnect = jest.fn();
@@ -68,9 +102,16 @@ describe('useDeviceConnection', () => {
     jest.clearAllMocks();
     disconnectObservers.length = 0;
     mockOnDeviceDisconnected.mockImplementation((deviceId, listener) => {
-      const remove = jest.fn();
-      disconnectObservers.push({ deviceId, emit: () => listener(null, null), remove });
-      return { remove };
+      const observer: RegisteredDisconnectObserver = {
+        deviceId,
+        removed: false,
+        invoke: () => listener(null, null),
+        remove: jest.fn(() => {
+          observer.removed = true;
+        }),
+      };
+      disconnectObservers.push(observer);
+      return { remove: observer.remove };
     });
     useDeviceConnectionStore.getState().clearAll();
     useSavedGearStore.setState({
@@ -457,9 +498,13 @@ describe('useDeviceConnection', () => {
       useDeviceConnectionStore.getState().updateBluetoothHr(142);
     });
 
-    expect(hrSourceIdleReadiness({ source: 'bluetooth', watchAvailability: 'unavailable', hrConnected: true })).toBe(
-      'ready',
-    );
+    expect(
+      hrSourceIdleReadiness({
+        source: 'bluetooth',
+        watchAvailability: 'unavailable',
+        hrConnected: useDeviceConnectionStore.getState().hrAdapter !== null,
+      }),
+    ).toBe('ready');
 
     await act(() => {
       emitNativeDisconnect('hr-1');
@@ -471,6 +516,11 @@ describe('useDeviceConnection', () => {
     expect(useDeviceConnectionStore.getState().latestBluetoothHr).toBeNull();
     expect(useDeviceConnectionStore.getState().lastBluetoothHrSampleAtMs).toBeNull();
     expect(hrSubscription.remove).toHaveBeenCalledTimes(1);
+    // The observer goes with the connection it was watching: leaving it armed
+    // leaks a native subscription for a device the app no longer holds.
+    expect(observersFor('hr-1').at(-1)?.remove).toHaveBeenCalledTimes(1);
+    // And the dropped strap's connection is actually handed back to the stack.
+    expect(mockHrDisconnect).toHaveBeenCalledTimes(1);
     expect(
       hrSourceIdleReadiness({
         source: 'bluetooth',
@@ -558,11 +608,39 @@ describe('useDeviceConnection', () => {
     const replacementAdapter = useDeviceConnectionStore.getState().hrAdapter;
 
     await act(() => {
-      emitNativeDisconnect('hr-1');
+      emitLateNativeDisconnect('hr-1');
     });
 
     expect(useDeviceConnectionStore.getState().hrAdapter).toBe(replacementAdapter);
     expect(useSavedGearStore.getState().hrReconnectState).toBe('connected');
+  });
+
+  it('ignores a late native disconnect from a replaced bike adapter', async () => {
+    mockBikeConnect.mockResolvedValue(undefined);
+    mockBikeDisconnect.mockResolvedValue(undefined);
+    mockBikeSubscribe.mockReturnValue({ remove: jest.fn() });
+    useSavedGearStore.setState({
+      savedBike: { id: 'bike-2', name: 'Zipro Rave', type: 'bike' },
+      bikeReconnectState: 'connected',
+    });
+
+    const { result } = await renderHook(() => useDeviceConnection());
+
+    await act(async () => {
+      await result.current.connectBike('bike-1');
+    });
+    await act(async () => {
+      await result.current.connectBike('bike-2');
+    });
+
+    const replacementAdapter = useDeviceConnectionStore.getState().bikeAdapter;
+
+    await act(() => {
+      emitLateNativeDisconnect('bike-1');
+    });
+
+    expect(useDeviceConnectionStore.getState().bikeAdapter).toBe(replacementAdapter);
+    expect(useSavedGearStore.getState().bikeReconnectState).toBe('connected');
   });
 
   it('releases the bike connection when the bike drops off the air outside an active ride', async () => {
@@ -589,6 +667,8 @@ describe('useDeviceConnection', () => {
       expect(useDeviceConnectionStore.getState().bikeAdapter).toBeNull();
     });
     expect(bikeSubscription.remove).toHaveBeenCalledTimes(1);
+    // Same as the HR side: the observer is released with the connection.
+    expect(observersFor('bike-1').at(-1)?.remove).toHaveBeenCalledTimes(1);
     expect(useDeviceConnectionStore.getState().latestBikeMetrics).toBeNull();
     expect(useSavedGearStore.getState().bikeReconnectState).toBe('disconnected');
     expect(useSavedGearStore.getState().bikeAutoReconnectSuppressed).toBe(false);
@@ -622,12 +702,109 @@ describe('useDeviceConnection', () => {
     // A disconnection event that raced the deliberate teardown must not lift the
     // suppression the teardown just applied.
     await act(() => {
-      emitNativeDisconnect('hr-1');
-      emitNativeDisconnect('bike-1');
+      emitLateNativeDisconnect('hr-1');
+      emitLateNativeDisconnect('bike-1');
     });
 
     expect(useSavedGearStore.getState().bikeAutoReconnectSuppressed).toBe(true);
     expect(useSavedGearStore.getState().hrAutoReconnectSuppressed).toBe(true);
+  });
+
+  it('does not report its own cancellation as a drop when a single role is disconnected', async () => {
+    mockBikeConnect.mockResolvedValue(undefined);
+    mockBikeSubscribe.mockReturnValue({ remove: jest.fn() });
+    mockHrConnect.mockResolvedValue(undefined);
+    mockHrSubscribe.mockReturnValue({ remove: jest.fn() });
+    // `cancelDeviceConnection` raises the very same native event the observer
+    // watches, which is the whole reason a deliberate teardown disposes it first.
+    mockBikeDisconnect.mockImplementation(async () => {
+      emitNativeDisconnect('bike-1');
+    });
+    mockHrDisconnect.mockImplementation(async () => {
+      emitNativeDisconnect('hr-1');
+    });
+    useSavedGearStore.setState({
+      savedBike: { id: 'bike-1', name: 'Zipro Rave', type: 'bike' },
+      savedHrSource: { id: 'hr-1', name: 'Garmin HRM', type: 'hr' },
+    });
+
+    const { result } = await renderHook(() => useDeviceConnection());
+
+    await act(async () => {
+      await result.current.connectBike('bike-1');
+      await result.current.connectHr('hr-1');
+    });
+
+    // Connecting clears suppression, so the state under test is set afterwards:
+    // a caller that already decided not to reconnect must keep that decision.
+    await act(() => {
+      useSavedGearStore.setState({
+        bikeReconnectState: 'connected',
+        hrReconnectState: 'connected',
+        bikeAutoReconnectSuppressed: true,
+        hrAutoReconnectSuppressed: true,
+      });
+    });
+
+    await act(async () => {
+      await result.current.disconnectBike();
+      await result.current.disconnectHr();
+    });
+
+    expect(useSavedGearStore.getState().bikeAutoReconnectSuppressed).toBe(true);
+    expect(useSavedGearStore.getState().hrAutoReconnectSuppressed).toBe(true);
+    // A bare disconnect leaves the reconnect state to its caller; only a real
+    // unexpected drop rewrites it.
+    expect(useSavedGearStore.getState().bikeReconnectState).toBe('connected');
+    expect(useSavedGearStore.getState().hrReconnectState).toBe('connected');
+  });
+
+  it('disarms both native disconnect observers before either role is torn down', async () => {
+    let releaseBikeDisconnect!: () => void;
+    const bikeDisconnectGate = new Promise<void>((resolve) => {
+      releaseBikeDisconnect = resolve;
+    });
+    mockBikeConnect.mockResolvedValue(undefined);
+    mockBikeDisconnect.mockReturnValue(bikeDisconnectGate);
+    mockBikeSubscribe.mockReturnValue({ remove: jest.fn() });
+    mockHrConnect.mockResolvedValue(undefined);
+    mockHrDisconnect.mockResolvedValue(undefined);
+    mockHrSubscribe.mockReturnValue({ remove: jest.fn() });
+    useSavedGearStore.setState({
+      savedBike: { id: 'bike-1', name: 'Zipro Rave', type: 'bike' },
+      savedHrSource: { id: 'hr-1', name: 'Garmin HRM', type: 'hr' },
+      bikeReconnectState: 'connected',
+      hrReconnectState: 'connected',
+    });
+
+    const { result } = await renderHook(() => useDeviceConnection());
+
+    await act(async () => {
+      await result.current.connectBike('bike-1');
+      await result.current.connectHr('hr-1');
+    });
+
+    let teardown!: Promise<void>;
+    await act(() => {
+      teardown = result.current.disconnectAll({ suppressAutoReconnect: true });
+    });
+
+    // The bike half is still draining its command queue, which takes seconds on
+    // real hardware. The HR observer must already be gone: releasing it only
+    // inside the HR half would leave the strap armed for that whole window, and
+    // a drop there would lift the suppression the teardown just applied.
+    expect(observersFor('hr-1').at(-1)?.removed).toBe(true);
+
+    await act(async () => {
+      emitNativeDisconnect('hr-1');
+      releaseBikeDisconnect();
+      await teardown;
+    });
+
+    expect(useDeviceConnectionStore.getState().hrAdapter).toBeNull();
+    expect(useSavedGearStore.getState().hrAutoReconnectSuppressed).toBe(true);
+    expect(useSavedGearStore.getState().hrReconnectState).toBe('disconnected');
+    expect(useSavedGearStore.getState().bikeAutoReconnectSuppressed).toBe(true);
   });
 
   it('registers a fresh native disconnect observer for each reconnect', async () => {

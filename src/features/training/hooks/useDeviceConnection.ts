@@ -48,6 +48,25 @@ function releaseHrDisconnectObserver(): void {
 }
 
 /**
+ * Disarm every role's native disconnection observer.
+ *
+ * A deliberate teardown is not an instant: it drains the bike's command queue
+ * and awaits each cancellation, which is seconds of wall clock. Releasing only
+ * the role currently being torn down leaves the other one armed for that whole
+ * window, so a genuine drop inside it is handled as an unexpected one and lifts
+ * the suppression the teardown has just applied, leaving a reconnected strap
+ * alive after the ride ended. Every deliberate teardown therefore disarms both
+ * roles up front, before it touches either one.
+ *
+ * Releasing by existence keeps this idempotent, so an outer teardown and the
+ * per-role ones it delegates to can both call it.
+ */
+export function releaseDeviceDisconnectObservers(): void {
+  releaseBikeDisconnectObserver();
+  releaseHrDisconnectObserver();
+}
+
+/**
  * Watch `deviceId` for native disconnection on behalf of `adapter`.
  *
  * The listener is identity-guarded against `adapter`, not against `deviceId`:
@@ -237,6 +256,10 @@ async function disconnectHrConnectionInternal(options?: DisconnectHrConnectionOp
 }
 
 export async function disconnectAllDeviceConnections(options?: DisconnectDeviceConnectionsOptions): Promise<void> {
+  // Both roles first: the bike teardown alone can take seconds, and a strap that
+  // drops inside that window is part of this teardown, not a drop that should
+  // reopen the reconnect cycle the teardown is closing.
+  releaseDeviceDisconnectObservers();
   await disconnectBikeConnectionInternal(options);
   await disconnectHrConnectionInternal(options);
 }
@@ -282,39 +305,38 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
     await disconnectHrConnectionInternal();
   }, []);
 
-  const connectBike = useCallback(
-    async (deviceId: string, options?: BleConnectionOptions) => {
-      // A second connect while one is in flight would construct a competing
-      // adapter: the loser leaks its BLE connection and clobbers bikeMetricsSub.
-      if (useDeviceConnectionStore.getState().bikeConnectionInProgress) {
-        throw new ConnectInProgressError('bike');
+  const connectBike = useCallback(async (deviceId: string, options?: BleConnectionOptions) => {
+    // A second connect while one is in flight would construct a competing
+    // adapter: the loser leaks its BLE connection and clobbers bikeMetricsSub.
+    if (useDeviceConnectionStore.getState().bikeConnectionInProgress) {
+      throw new ConnectInProgressError('bike');
+    }
+    useDeviceConnectionStore.getState().setBikeConnectionInProgress(true);
+    try {
+      // The module-scope teardown, like connectHr's: nothing about the pre-connect
+      // cleanup depends on the hook, so neither callback takes a dependency.
+      await disconnectBikeConnectionInternal();
+
+      const adapter = new ZiproRaveAdapter(deviceId);
+
+      await adapter.connect(options);
+
+      useDeviceConnectionStore.getState().setBikeAdapter(adapter);
+      useSavedGearStore.getState().setBikeAutoReconnectSuppressed(false);
+      observeBikeDisconnect(deviceId, adapter);
+
+      bikeMetricsSub = adapter.subscribeToMetrics((metrics: BikeMetrics) => {
+        useDeviceConnectionStore.getState().updateBikeMetrics(metrics);
+      });
+    } catch (err: unknown) {
+      if (!isExpectedBleDisconnectError(err) && !isExpectedBleConnectTimeoutError(err)) {
+        console.error('[useDeviceConnection] Bike connection error:', err);
       }
-      useDeviceConnectionStore.getState().setBikeConnectionInProgress(true);
-      try {
-        await disconnectBike();
-
-        const adapter = new ZiproRaveAdapter(deviceId);
-
-        await adapter.connect(options);
-
-        useDeviceConnectionStore.getState().setBikeAdapter(adapter);
-        useSavedGearStore.getState().setBikeAutoReconnectSuppressed(false);
-        observeBikeDisconnect(deviceId, adapter);
-
-        bikeMetricsSub = adapter.subscribeToMetrics((metrics: BikeMetrics) => {
-          useDeviceConnectionStore.getState().updateBikeMetrics(metrics);
-        });
-      } catch (err: unknown) {
-        if (!isExpectedBleDisconnectError(err) && !isExpectedBleConnectTimeoutError(err)) {
-          console.error('[useDeviceConnection] Bike connection error:', err);
-        }
-        throw err;
-      } finally {
-        useDeviceConnectionStore.getState().setBikeConnectionInProgress(false);
-      }
-    },
-    [disconnectBike],
-  );
+      throw err;
+    } finally {
+      useDeviceConnectionStore.getState().setBikeConnectionInProgress(false);
+    }
+  }, []);
 
   const connectHr = useCallback(async (deviceId: string, options?: BleConnectionOptions) => {
     // Same re-entrancy hazard as connectBike, for hrSub.
