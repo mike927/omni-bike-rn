@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { initializeDatabase } from '../services/db/migrations';
+import { markAbandonedProviderUploadsInterrupted } from '../services/db/providerUploadRepository';
 import { registerExportProviders } from '../services/export/registerExportProviders';
 import { useSavedGearStore } from '../store/savedGearStore';
 import { useAppPreferencesStore } from '../store/appPreferencesStore';
@@ -83,6 +84,23 @@ export function useAppInitialization(): AppInitState {
       isMounted = false;
     };
   }, [databaseInitAttempt]);
+
+  // An upload is only ever live inside the process that started it, so anything the
+  // database still calls `uploading` at boot was abandoned when a previous launch
+  // died. Reclassify it once here so the app stops showing a dead attempt as
+  // in-flight; the provider is not contacted, because whether it accepted the ride
+  // is exactly what nobody knows yet.
+  useEffect(() => {
+    if (!isDatabaseReady) {
+      return;
+    }
+
+    try {
+      markAbandonedProviderUploadsInterrupted();
+    } catch (error: unknown) {
+      console.error('[useAppInitialization] Failed to reconcile abandoned provider uploads:', error);
+    }
+  }, [isDatabaseReady]);
 
   if (isDatabaseError) {
     return {
