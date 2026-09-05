@@ -41,6 +41,20 @@ export interface PersistedTrainingSample {
   recordedAtMs: number;
   elapsedSeconds: number;
   metrics: MetricSnapshot;
+  /**
+   * Cumulative workout-relative distance in metres at this second, exactly as
+   * the session accumulator normalized it.
+   *
+   * `metrics.distance` next to it is the trainer's own counter, which starts
+   * wherever the machine was left and restarts at zero on a power cycle, so it
+   * is not a distance anyone rode. Exports must read this field instead.
+   *
+   * Absent (undefined) only on rows written before the column existed. That
+   * absence is deliberately distinct from a recorded `0`, which is the true
+   * value of the first second of every ride: absence means "no normalized
+   * history was kept", and only then may a consumer reconstruct one.
+   */
+  sessionDistanceMeters?: number;
 }
 
 export interface PersistedProviderUpload {

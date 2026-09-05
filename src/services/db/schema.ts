@@ -64,6 +64,9 @@ export const trainingSessionSamplesTable = sqliteTable(
     heartRateBpm: integer('heart_rate_bpm'),
     resistanceLevel: integer('resistance_level'),
     distanceMeters: real('distance_meters'),
+    // Workout-relative cumulative distance. Nullable: rows written before this
+    // column existed kept only the raw `distance_meters` counter.
+    sessionDistanceMeters: real('session_distance_meters'),
   },
   (table) => [
     index('training_session_samples_session_recorded_at_idx').on(table.sessionId, table.recordedAtMs),

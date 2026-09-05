@@ -1,3 +1,4 @@
+import { resolveWorkoutDistanceSeries } from '../workoutDistanceSeries';
 import type { PersistedTrainingSession, PersistedTrainingSample } from '../../../types/sessionPersistence';
 
 function msToIso(ms: number): string {
@@ -15,20 +16,6 @@ function escapeXml(value: string): string {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&apos;');
-}
-
-function resolveDistanceMeters(
-  sample: PersistedTrainingSample,
-  totalDistanceMeters: number,
-  totalElapsedSeconds: number,
-): number {
-  if (sample.metrics.distance !== null) {
-    return sample.metrics.distance;
-  }
-  if (totalElapsedSeconds <= 0) {
-    return 0;
-  }
-  return (sample.elapsedSeconds / totalElapsedSeconds) * totalDistanceMeters;
 }
 
 function buildTrackpoint(sample: PersistedTrainingSample, distanceMeters: number): string {
@@ -63,11 +50,10 @@ function buildTrackpoint(sample: PersistedTrainingSample, distanceMeters: number
  */
 export function serializeSessionToTcx(session: PersistedTrainingSession, samples: PersistedTrainingSample[]): string {
   const startTime = escapeXml(msToIso(session.startedAtMs));
-  const trackpoints = samples
-    .map((sample) =>
-      buildTrackpoint(sample, resolveDistanceMeters(sample, session.totalDistanceMeters, session.elapsedSeconds)),
-    )
-    .join('');
+  // Workout-relative, never the trainer's own odometer: the lap total below is
+  // normalized, and a track measured on a different origin would contradict it.
+  const distanceSeries = resolveWorkoutDistanceSeries(session, samples);
+  const trackpoints = samples.map((sample, index) => buildTrackpoint(sample, distanceSeries[index] ?? 0)).join('');
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <TrainingCenterDatabase

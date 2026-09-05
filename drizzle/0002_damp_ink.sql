@@ -1,0 +1,1 @@
+ALTER TABLE `training_session_samples` ADD `session_distance_meters` real;
