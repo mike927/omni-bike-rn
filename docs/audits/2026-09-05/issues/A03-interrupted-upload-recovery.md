@@ -76,6 +76,14 @@ Distinguish live operations from abandoned persisted attempts. Add provider-awar
   per launch, and the interruption copy is asserted against the real function. Status stays
   In progress: the device-only criteria are unchanged.
 
+- 2026-09-05: scoped re-review returned ALL_ADDRESSED with no new breakage, and also corrected round
+  1's finding 6: the boot-sweep once-guard is provable in Jest after all, via a retry that fails after
+  an earlier retry already succeeded. Fix round 2 on the same branch: the StrictMode sweep test that
+  proved nothing was replaced with a test driving that exact retry cycle, and a failed resend's stored
+  error is now appended to the interrupted-row caption (it used to show once in a transient alert and
+  then vanish). Neither item was an open finding; both sit in code the last round added. Status stays
+  In progress: the device-only criteria are unchanged.
+
 ## Completion / disposition record
 
 **Change summary.** The upload state machine now distinguishes a live operation from an abandoned
@@ -144,6 +152,29 @@ Commands: `npm run ci:gate` exit 0 (lint clean, `tsc --noEmit` clean, 112 suites
 a fresh mutation pass over the eight changed behaviours (6 caught, 1 shown unreachable by a throw
 probe, 1 recorded as not observable in Jest: the boot sweep once-guard, because nothing can flip
 `isDatabaseReady` back to true within one launch).
+
+**Review fix round 2 (2026-09-05).** A scoped re-review of the round 1 diff verdicted ALL_ADDRESSED
+with no new breakage, and corrected the round 1 record above: `retry` is part of the returned
+`AppInitState` and is not single-use, so a retry that fails after an earlier retry already succeeded
+does flip `isDatabaseReady` `true -> false -> true` within one launch, re-entering the sweep effect a
+second time. That made the round 1 StrictMode test's "not observable" premise wrong, and the two
+fixes below, applied on the same branch, target code the round 1 diff added:
+
+- The StrictMode sweep test passed with the once-guard removed, so it proved nothing about the guard.
+  Replaced with a test that drives the actual seam: reject, retry, resolve, retry, reject, retry,
+  resolve. With the guard: 1 sweep. With the guard removed: 2 sweeps, and the new test fails.
+- A failed resend's error text was being stored on the `interrupted` row (round 1's fix), but the
+  screen's caption checked `interrupted` before `failed` and never read it back, so the reason showed
+  once in the transient `Upload Failed` alert and then never again. `uploadNotice` now appends the
+  stored reason inside the `interrupted` branch, keeping the interruption framing ("the retry failed",
+  a fact about our own attempt, never about what the provider holds): the row still reads
+  `Check <Provider>`, never `Retry <Provider>`.
+
+Commands: `npm run ci:gate` exit 0 (lint clean, `tsc --noEmit` clean, 112 suites / 1103 tests), plus
+both mutations run directly against the source and reverted: the guard removal drops the sweep-count
+assertion from 1 to 2 (new test fails), and reverting the appended-reason line makes the new screen
+test fail to find the caption. Full detail, exact commands and output in
+`.superpowers/sdd/audit-2026-09-05/reports/A03-report.md` ("A03 fix round 2").
 
 **Pull request.** https://github.com/mike927/omni-bike-rn/pull/113
 
