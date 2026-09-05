@@ -323,7 +323,12 @@ stores rather than only the final instantaneous reading.
   already has the ride. An `Upload Again` that fails keeps the `Check <Provider>` state, so the
   warning is never traded for a plain `Retry`. `Already There` that arrives too late (the attempt
   moved on) reports `Upload Not Updated`, and an `Upload Again` on a ride already settled as
-  uploaded reports `Already Uploaded` rather than claiming a fresh upload.
+  uploaded reports `Already Uploaded` rather than claiming a fresh upload. If that `Upload Again`
+  fails, its error text is stored on the row and appended to the caption on the next visit
+  (`... was interrupted. The retry failed: <reason>. Check <Provider> before uploading this ride
+  again.`), so the reason is not lost after the transient `Upload Failed` alert closes; the
+  interruption framing stays in place because only the retry's own failure is a known fact, not
+  the provider's outcome.
 - Averages/peaks/trend/gear are a pure, unit-tested view-model (`deriveSummaryView`). The
   final-snapshot fallback applies **only when no samples were persisted**; with samples present the
   screen trusts them (so a ride with no HR source reads `--`, not a stale final reading).

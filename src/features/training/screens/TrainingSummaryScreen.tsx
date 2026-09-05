@@ -55,7 +55,12 @@ function uploadButtonLabel(providerName: string, upload: PersistedProviderUpload
 
 function uploadNotice(upload: PersistedProviderUpload | null, providerLabel: string): string | null {
   if (upload?.uploadState === 'interrupted') {
-    return `${providerLabel} upload was interrupted. Check ${providerLabel} before uploading this ride again.`;
+    // The interruption framing has to survive here even when a retry has failed and left its
+    // reason on this same row: the remote outcome is still unknown, only the retry's own
+    // failure is a known fact. Naming that reason still beats a caption that just repeats
+    // "interrupted" with no clue why the retry did not get through.
+    const retryFailure = upload.errorMessage ? ` The retry failed: ${upload.errorMessage}.` : '';
+    return `${providerLabel} upload was interrupted.${retryFailure} Check ${providerLabel} before uploading this ride again.`;
   }
   if (upload?.uploadState !== 'failed') return null;
   return upload.errorMessage

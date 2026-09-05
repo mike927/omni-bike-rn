@@ -412,6 +412,35 @@ describe('TrainingSummaryScreen', () => {
     expect(getByText('Strava upload was interrupted. Check Strava before uploading this ride again.')).toBeTruthy();
   });
 
+  it('surfaces a failed retry on an interrupted upload without claiming to know the remote outcome', async () => {
+    mockGetProviderUpload.mockImplementation((_sessionId: string, providerId: string) =>
+      providerId === 'strava' ? { ...INTERRUPTED_STRAVA_UPLOAD, errorMessage: 'Network request failed' } : null,
+    );
+    mockUploadSessionToProvider.mockResolvedValue({
+      providerId: 'strava',
+      success: false,
+      errorMessage: INTERRUPTION_NOTICE,
+      needsInterruptionDecision: true,
+    });
+
+    const { getByText } = await render(
+      <TrainingSummaryScreen
+        sessionId="session-1"
+        source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE}
+        returnTo="/history"
+      />,
+    );
+
+    // Still "Check Strava", still framed as interrupted (never a plain "Retry"): the reason
+    // the retry failed is a known fact about our own attempt, not about what Strava holds.
+    expect(getByText('Check Strava')).toBeTruthy();
+    expect(
+      getByText(
+        'Strava upload was interrupted. The retry failed: Network request failed. Check Strava before uploading this ride again.',
+      ),
+    ).toBeTruthy();
+  });
+
   it('asks the user to settle an interrupted upload instead of resending it', async () => {
     arrangeInterruptedStravaUpload();
     const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());

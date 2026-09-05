@@ -1,4 +1,3 @@
-import { StrictMode } from 'react';
 import { renderHook, waitFor, act } from '@testing-library/react-native';
 
 import { useAppInitialization } from '../useAppInitialization';
@@ -117,15 +116,37 @@ describe('useAppInitialization', () => {
     expect(mockMarkAbandonedUploads).toHaveBeenCalledTimes(1);
   });
 
-  it('sweeps abandoned uploads once per launch even when boot effects are re-run', async () => {
-    mockInit.mockResolvedValue(undefined);
+  it('sweeps abandoned uploads once per launch even across a database-init retry cycle', async () => {
+    // StrictMode's double-invoke does not exercise the guard: both passes take the early
+    // return before `isDatabaseReady` is ever true, so it cannot prove the guard does
+    // anything. The guard's only reachable trigger is `isDatabaseReady` flipping
+    // false -> true a second time within one launch, which happens when a retry fails
+    // after an earlier retry already succeeded. `retry` is part of the returned
+    // `AppInitState` and is not single-use, so this is reachable through the hook's
+    // public API: reject, retry, resolve, retry, reject, retry, resolve.
+    mockInit
+      .mockRejectedValueOnce(new Error('boot db boom'))
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('retry db boom'))
+      .mockResolvedValueOnce(undefined);
 
-    // StrictMode re-runs effects on the same component instance, which is the cheapest
-    // stand-in for any second run of the boot effect. A second sweep would reclassify a
-    // live upload as interrupted, so the sweep has to be once per launch.
-    const { result } = await renderHook(() => useAppInitialization(), { wrapper: StrictMode });
+    const { result } = await renderHook(() => useAppInitialization());
+    await waitFor(() => expect(result.current.phase).toBe('error'));
+    const errorState = result.current;
+    if (errorState.phase !== 'error') throw new Error('expected error phase');
+    const retry = errorState.retry;
+
+    await act(() => retry());
+    await waitFor(() => expect(result.current.phase).toBe('ready'));
+    expect(mockMarkAbandonedUploads).toHaveBeenCalledTimes(1);
+
+    await act(() => retry());
+    await waitFor(() => expect(result.current.phase).toBe('error'));
+
+    await act(() => retry());
     await waitFor(() => expect(result.current.phase).toBe('ready'));
 
+    // The second success must not re-run the sweep: it already ran once this launch.
     expect(mockMarkAbandonedUploads).toHaveBeenCalledTimes(1);
   });
 
