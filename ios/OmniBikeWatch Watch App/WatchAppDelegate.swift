@@ -15,6 +15,6 @@ final class WatchAppDelegate: NSObject, WKApplicationDelegate {
     // configuration here.
     func handle(_ workoutConfiguration: HKWorkoutConfiguration) {
         wcLog("[WC-Watch] WKApplicationDelegate.handle(_:) fired — iPhone triggered startWatchApp")
-        WorkoutManager.shared.requestAuthorization(starting: workoutConfiguration)
+        WorkoutManager.shared.requestStart(configuration: workoutConfiguration)
     }
 }
