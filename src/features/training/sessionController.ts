@@ -4,7 +4,12 @@ import { useDeviceConnectionStore } from '../../store/deviceConnectionStore';
 import { BikeStatus } from '../../services/ble/BikeAdapter';
 import { TrainingPhase, type TrainingSessionRestoreInput } from '../../types/training';
 import { disconnectAllDeviceConnections } from './hooks/useDeviceConnection';
-import { getActiveSessionId } from './hooks/useTrainingSessionPersistence';
+import {
+  awaitSessionSave,
+  discardUnsavedSessionRecord,
+  getActiveSessionId,
+  retrySessionSave,
+} from './hooks/useTrainingSessionPersistence';
 
 const FINISH_STOP_COMMAND_TIMEOUT_MS = 2000;
 
@@ -29,6 +34,9 @@ let engine: MetronomeEngine | null = null;
 
 /** In-flight FTMS Stop issued by finish, awaited before we disconnect. */
 let pendingFinishStop: Promise<void> | null = null;
+
+/** In-flight teardown, so overlapping callers join it instead of starting a second one. */
+let pendingTeardown: Promise<void> | null = null;
 
 /** True while an intentional teardown is disconnecting the bike on purpose. */
 let disconnectPauseSuppressed = false;
@@ -137,10 +145,25 @@ export function resumeSession(): void {
  * Like a manual pause, the restored ride waits for the user to deliberately
  * resume it: the user chose to bring this ride back, so a bike Started event
  * arriving before that choice must not resume it on its own.
+ *
+ * Self-guards like every sibling command: a ride already in memory (including a
+ * finished one still waiting to be saved) outranks a restore, and overwriting it
+ * would discard ride data the user can never get back.
+ *
+ * Returns whether the restore happened, so the caller can hold back everything
+ * that belongs to the restored ride, its persisted identity above all, until the
+ * guard has passed. A refused restore must leave no trace of the ride it refused.
  */
-export function restoreSession(input: TrainingSessionRestoreInput): void {
+export function restoreSession(input: TrainingSessionRestoreInput): boolean {
+  if (useTrainingSessionStore.getState().phase !== TrainingPhase.Idle) {
+    console.warn('[sessionController] Cannot restore session: a ride is already in memory');
+    return false;
+  }
+
   useTrainingSessionStore.getState().restore(input);
   manualPauseActive = true;
+
+  return true;
 }
 
 export function finishSession(): void {
@@ -152,19 +175,87 @@ export function finishSession(): void {
   finishInternal();
 }
 
-export async function finishSessionAndDisconnect(): Promise<string | null> {
+/**
+ * How a Finish ended.
+ *
+ * `completed` means the ride is on disk (or there was nothing to store) and the
+ * session has been torn down; `sessionId` is what the summary route needs, and
+ * is null when no ride was recorded. `unsaved` means the ride is over but its
+ * write failed: it stays in memory, connected, and the caller must surface it
+ * rather than navigate on as if it had been saved.
+ */
+export type FinishSessionOutcome =
+  | { readonly status: 'completed'; readonly sessionId: string | null }
+  | { readonly status: 'unsaved'; readonly message: string };
+
+export async function finishSessionAndDisconnect(): Promise<FinishSessionOutcome> {
   const phase = useTrainingSessionStore.getState().phase;
   if (phase !== TrainingPhase.Active && phase !== TrainingPhase.Paused) {
-    return null;
+    return { status: 'completed', sessionId: null };
   }
 
   finishInternal();
 
-  const sessionId = getActiveSessionId();
+  return completeFinish();
+}
 
+/**
+ * Write a finished ride again after its save failed, keeping its identity.
+ *
+ * The ride is still the one in memory, so a retry updates its row instead of
+ * creating a second one; on success the teardown that the failed Finish skipped
+ * runs here.
+ */
+export async function retryFinishSave(): Promise<FinishSessionOutcome> {
+  if (useTrainingSessionStore.getState().phase !== TrainingPhase.Finished) {
+    return { status: 'completed', sessionId: null };
+  }
+
+  const save = await retrySessionSave();
+  if (!save.saved) {
+    return { status: 'unsaved', message: save.message ?? 'Storage write failed' };
+  }
+
+  const sessionId = getActiveSessionId();
   await resetSessionAndConnections();
 
-  return sessionId;
+  return { status: 'completed', sessionId };
+}
+
+/**
+ * How a Discard ended.
+ *
+ * `discarded` means the ride is gone from memory and from the device. `failed`
+ * means it is gone from memory, because that is what the user asked for and it
+ * always succeeds, but its row survived the delete and will be offered again at
+ * the next boot as an interrupted ride. The caller has to say so.
+ */
+export type DiscardSessionOutcome =
+  { readonly status: 'discarded' } | { readonly status: 'failed'; readonly message: string };
+
+/**
+ * Abandon a finished ride whose save failed, because the user said so.
+ *
+ * The only way out of the unsaved state other than a successful retry: nothing
+ * else may drop a ride the user has not been shown.
+ */
+export async function discardUnsavedSession(): Promise<DiscardSessionOutcome> {
+  if (useTrainingSessionStore.getState().phase !== TrainingPhase.Finished) {
+    return { status: 'discarded' };
+  }
+
+  const discard = await discardUnsavedSessionRecord();
+
+  // The teardown runs either way: the user asked to be rid of this ride, and
+  // trapping them on the ride screen because the disk is broken would leave them
+  // with no way out at all. What changes is what we then tell them.
+  await resetSessionAndConnections();
+
+  if (!discard.discarded) {
+    return { status: 'failed', message: discard.message ?? 'Storage delete failed' };
+  }
+
+  return { status: 'discarded' };
 }
 
 export async function resetSession(): Promise<void> {
@@ -213,6 +304,24 @@ export function syncSessionFromBikeStatus(status: BikeStatus): void {
 
 // ── Internals ────────────────────────────────────────────
 
+/**
+ * Settle the durable write of the ride that just finished, then tear down.
+ *
+ * The save is part of the lifecycle, not a side effect of it: teardown resets
+ * the store, so it must not run until the ride is known to be on disk.
+ */
+async function completeFinish(): Promise<FinishSessionOutcome> {
+  const save = await awaitSessionSave();
+  if (!save.saved) {
+    return { status: 'unsaved', message: save.message ?? 'Storage write failed' };
+  }
+
+  const sessionId = getActiveSessionId();
+  await resetSessionAndConnections();
+
+  return { status: 'completed', sessionId };
+}
+
 function finishInternal(): void {
   const bikeAdapter = useDeviceConnectionStore.getState().bikeAdapter;
   if (bikeAdapter) {
@@ -248,7 +357,24 @@ async function awaitPendingFinishStop(): Promise<void> {
   }
 }
 
+/**
+ * Tear the ride down once, however many callers ask at the same time.
+ *
+ * A ride can be ended from a screen, from the wrist, and from the retry and
+ * discard paths of a failed save. Without the latch two overlapping teardowns
+ * would each disconnect the bike, and the first to finish would clear
+ * `disconnectPauseSuppressed` while the second was still disconnecting, so the
+ * deliberate drop would be reported as an unexpected one.
+ */
 async function resetSessionAndConnections(): Promise<void> {
+  pendingTeardown ??= runResetSessionAndConnections().finally(() => {
+    pendingTeardown = null;
+  });
+
+  return pendingTeardown;
+}
+
+async function runResetSessionAndConnections(): Promise<void> {
   disconnectPauseSuppressed = true;
 
   try {

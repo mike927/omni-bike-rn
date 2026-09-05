@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 
 import { useTrainingSession } from '../useTrainingSession';
+import type { FinishSessionOutcome } from '../../sessionController';
 import { useTrainingSessionLifecycle } from '../useTrainingSessionLifecycle';
 import * as deviceConnectionModule from '../useDeviceConnection';
 import * as trainingSessionPersistenceModule from '../useTrainingSessionPersistence';
@@ -524,12 +525,14 @@ describe('useTrainingSession', () => {
       result.current.start();
     });
 
-    let sessionId: string | null = null;
+    let outcome: FinishSessionOutcome | undefined;
     await act(async () => {
-      sessionId = await result.current.finishAndDisconnect();
+      outcome = await result.current.finishAndDisconnect();
     });
 
-    expect(sessionId).toBe('session-22');
+    // The ride reached storage, so Finish reports a completed teardown with the
+    // id the summary route needs (audit A02).
+    expect(outcome).toEqual({ status: 'completed', sessionId: 'session-22' });
     expect(result.current.phase).toBe(TrainingPhase.Idle);
     expect(disconnectAllSpy).toHaveBeenCalledWith({ updateReconnectState: true, suppressAutoReconnect: true });
     expect(mockDisconnect).toHaveBeenCalledTimes(1);
@@ -566,15 +569,15 @@ describe('useTrainingSession', () => {
     expect(mockEngineStop).not.toHaveBeenCalled();
   });
 
-  it('should return null from finishAndDisconnect when idle', async () => {
+  it('should report nothing to show from finishAndDisconnect when idle', async () => {
     const { result } = await renderTrainingSession();
 
-    let sessionId: string | null = 'not-null';
+    let outcome: FinishSessionOutcome | undefined;
     await act(async () => {
-      sessionId = await result.current.finishAndDisconnect();
+      outcome = await result.current.finishAndDisconnect();
     });
 
-    expect(sessionId).toBeNull();
+    expect(outcome).toEqual({ status: 'completed', sessionId: null });
     expect(result.current.phase).toBe(TrainingPhase.Idle);
   });
 

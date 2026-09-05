@@ -39,10 +39,19 @@ export function deriveRideHero(input: RideHeroInput): RideHeroModel {
     };
   }
 
-  // TrainingPhase.Finished is transient — `finishAndDisconnect()` navigates away
-  // and resets the phase to Idle, and `session.start()` self-guards on `phase !== Idle`.
-  // We intentionally let it fall through to the Start/Setup logic below rather than
-  // adding a flash of a dedicated Finished state.
+  // TrainingPhase.Finished falls through to the Start/Setup logic below, so Home
+  // shows the ordinary Start hero for it. That is right in the common case, where
+  // Finished is transient: a successful `finishAndDisconnect()` tears the ride
+  // down and resets the phase to Idle before Home is looked at again.
+  //
+  // It is NOT always transient. When the ride's durable write fails (audit A02)
+  // the phase stays Finished for as long as the unsaved ride sits in memory, and
+  // Home then offers an enabled "Start Ride" over a ride that is not on disk.
+  // Nothing is lost by that: the hero only routes to /training, where the recovery
+  // notice offers Retry Save or Discard Ride, and `startSession()` self-guards on
+  // `phase !== Idle` so the tap cannot overwrite the unsaved ride. A dedicated Home
+  // state for that window is a known follow-up; read `useSessionPersistenceStore`
+  // (status `unsaved`) if you add one.
 
   if (!hasSavedBike) {
     return {

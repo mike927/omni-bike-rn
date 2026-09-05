@@ -1,5 +1,5 @@
 import { TrainingPhase } from '../../../../types/training';
-import { deriveTrainingView, type TrainingViewInput } from '../trainingViewModel';
+import { deriveStorageNotice, deriveTrainingView, type TrainingViewInput } from '../trainingViewModel';
 
 const base: TrainingViewInput = {
   phase: TrainingPhase.Idle,
@@ -93,5 +93,53 @@ describe('deriveTrainingView — metric formatting', () => {
       ['CADENCE', '92', 'rpm'],
       ['CAL', '318', 'kcal'],
     ]);
+  });
+});
+
+/**
+ * Audit A02: the screen has to say where the ride is stored, and the finished
+ * unsaved case is the only one that offers the user a choice.
+ */
+describe('deriveStorageNotice', () => {
+  it('says nothing while a ride is recording normally', () => {
+    expect(deriveStorageNotice({ phase: TrainingPhase.Active, status: 'recording', droppedSampleCount: 0 }).kind).toBe(
+      'none',
+    );
+  });
+
+  it('warns while a running ride has nothing durable behind it', () => {
+    const notice = deriveStorageNotice({ phase: TrainingPhase.Active, status: 'atRisk', droppedSampleCount: 0 });
+
+    expect(notice.kind).toBe('atRisk');
+    expect(notice.title).toBe('Not saving to this device');
+    // The warning has to name the actual loss: nothing durable exists yet, so
+    // closing the app before the finish write takes the ride with it.
+    expect(notice.body).toContain('Closing the app before then loses it');
+  });
+
+  it('says nothing while a ride is starting and its draft write has not landed', () => {
+    expect(deriveStorageNotice({ phase: TrainingPhase.Active, status: 'pending', droppedSampleCount: 0 }).kind).toBe(
+      'none',
+    );
+  });
+
+  it('reports dropped seconds without claiming the ride itself is lost', () => {
+    const notice = deriveStorageNotice({ phase: TrainingPhase.Paused, status: 'recording', droppedSampleCount: 1 });
+
+    expect(notice.kind).toBe('droppedSamples');
+    expect(notice.body).toContain('1 second');
+  });
+
+  it('reports a finished ride that is not on disk, whatever the phase warnings say', () => {
+    const notice = deriveStorageNotice({ phase: TrainingPhase.Finished, status: 'unsaved', droppedSampleCount: 3 });
+
+    expect(notice.kind).toBe('unsaved');
+    expect(notice.title).toBe('Ride not saved');
+  });
+
+  it('says nothing once a finished ride is saved', () => {
+    expect(deriveStorageNotice({ phase: TrainingPhase.Finished, status: 'saved', droppedSampleCount: 2 }).kind).toBe(
+      'none',
+    );
   });
 });

@@ -1,12 +1,16 @@
 import { useTrainingSessionStore } from '../../../store/trainingSessionStore';
 import type { MetricSnapshot, TrainingPhase } from '../../../types/training';
 import {
+  discardUnsavedSession,
   finishSession,
   finishSessionAndDisconnect,
   pauseSession,
   resetSession,
   resumeSession,
+  retryFinishSave,
   startSession,
+  type DiscardSessionOutcome,
+  type FinishSessionOutcome,
 } from '../sessionController';
 
 interface UseTrainingSessionReturn {
@@ -22,7 +26,11 @@ interface UseTrainingSessionReturn {
   pause: () => void;
   resume: () => void;
   finish: () => void;
-  finishAndDisconnect: () => Promise<string | null>;
+  finishAndDisconnect: () => Promise<FinishSessionOutcome>;
+  /** Write a finished ride again after its save failed, under the same identity. */
+  retrySave: () => Promise<FinishSessionOutcome>;
+  /** Abandon a finished ride whose save failed, on the user's explicit request. */
+  discardUnsaved: () => Promise<DiscardSessionOutcome>;
   reset: () => Promise<void>;
 }
 
@@ -52,6 +60,8 @@ export function useTrainingSession(): UseTrainingSessionReturn {
     resume: resumeSession,
     finish: finishSession,
     finishAndDisconnect: finishSessionAndDisconnect,
+    retrySave: retryFinishSave,
+    discardUnsaved: discardUnsavedSession,
     reset: resetSession,
   };
 }

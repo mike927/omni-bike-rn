@@ -6,6 +6,7 @@ import * as trainingSessionPersistenceModule from '../useTrainingSessionPersiste
 import { isSessionEngineRunning } from '../../sessionController';
 import { buildTrainingSummaryRoute, POST_FINISH_TRAINING_SUMMARY_SOURCE } from '../../navigation/trainingSummaryRoute';
 import { useDeviceConnectionStore } from '../../../../store/deviceConnectionStore';
+import { useSessionPersistenceStore } from '../../../../store/sessionPersistenceStore';
 import { useSavedGearStore } from '../../../../store/savedGearStore';
 import { useTrainingSessionStore } from '../../../../store/trainingSessionStore';
 import { BikeStatus } from '../../../../services/ble/BikeAdapter';
@@ -109,6 +110,7 @@ describe('training session engine ownership', () => {
     mockSetControlState.mockResolvedValue(undefined);
     useDeviceConnectionStore.getState().clearAll();
     useTrainingSessionStore.getState().reset();
+    useSessionPersistenceStore.getState().clear();
     useSavedGearStore.setState({
       savedBike: { id: 'bike-uuid', name: 'Zipro Rave', type: 'bike' },
       savedHrSource: null,
@@ -438,6 +440,37 @@ describe('training session engine ownership', () => {
     expect(routerMock().replace).toHaveBeenCalledWith(
       buildTrainingSummaryRoute('session-42', POST_FINISH_TRAINING_SUMMARY_SOURCE, '/'),
     );
+
+    await home.unmount();
+    await root.unmount();
+  });
+
+  // Audit A02: the wrist can end a ride the user is not looking at, so a failed
+  // save has to reach them on the screen that owns the recovery choice.
+  it('should send the user to the ride screen when an on-wrist End cannot be saved', async () => {
+    const root = await mountRootLifecycle();
+    const home = await mountSessionConsumer();
+
+    await act(() => {
+      home.session.current.start();
+    });
+    await advanceOneSecond();
+
+    // The ride's write failed: this is what the persistence subscriber reports.
+    await act(() => {
+      useSessionPersistenceStore.setState({
+        status: 'unsaved',
+        sessionId: 'session-51',
+        lastErrorMessage: 'disk full',
+      });
+    });
+
+    await tapOnWrist('end');
+
+    // Kept, not torn down, and never routed to a summary that does not exist.
+    expect(useTrainingSessionStore.getState().phase).toBe(TrainingPhase.Finished);
+    expect(useDeviceConnectionStore.getState().bikeAdapter).not.toBeNull();
+    expect(routerMock().replace).toHaveBeenCalledWith('/training');
 
     await home.unmount();
     await root.unmount();
