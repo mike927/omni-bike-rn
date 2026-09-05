@@ -30,12 +30,17 @@ type CalorieState = Pick<
   | 'lastCalorieSourceMode'
 >;
 
-/** Distance state of a ride that has not recorded a single second yet. */
-export const INITIAL_NORMALIZED_DISTANCE: NormalizedDistanceState = {
+/**
+ * Distance state of a ride that has not recorded a single second yet.
+ *
+ * Frozen: every replay seeds from this one object, so a caller that mutated it
+ * in place would move the starting line for every ride exported afterwards.
+ */
+export const INITIAL_NORMALIZED_DISTANCE: Readonly<NormalizedDistanceState> = Object.freeze({
   totalDistance: 0,
   initialDistance: null,
   lastBikeDistance: null,
-};
+});
 
 /**
  * One step of distance normalization: prefer raw hardware output over derived

@@ -38,6 +38,23 @@ describe('trainingSessionRepository', () => {
     return database;
   };
 
+  /**
+   * The values an INSERT bound, keyed by the column they were bound to, so an
+   * assertion does not have to count positions that shift when a column is
+   * appended.
+   */
+  const boundColumns = (call: unknown[] | undefined): Record<string, unknown> => {
+    const [sql, ...values] = call ?? [];
+    const statement = String(sql);
+    const columns = statement
+      .slice(statement.indexOf('(') + 1, statement.indexOf(')'))
+      .split(',')
+      .map((column) => column.trim())
+      .filter(Boolean);
+
+    return Object.fromEntries(columns.map((column, index) => [column, values[index]]));
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -114,11 +131,10 @@ describe('trainingSessionRepository', () => {
       },
     });
 
-    const insertCall = database.runSync.mock.calls[0];
-    expect(insertCall?.[0]).toContain('session_distance_meters');
+    const inserted = boundColumns(database.runSync.mock.calls[0]);
     // The bike's own odometer read 510 m; the ride was 10 m long.
-    expect(insertCall?.at(-2)).toBe(510);
-    expect(insertCall?.at(-1)).toBe(10);
+    expect(inserted.distance_meters).toBe(510);
+    expect(inserted.session_distance_meters).toBe(10);
   });
 
   it('updates session status for pause and resume transitions', () => {

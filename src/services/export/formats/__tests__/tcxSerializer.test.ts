@@ -41,6 +41,11 @@ function counterSamples(counters: number[]): PersistedTrainingSample[] {
   );
 }
 
+/** The Lap's own DistanceMeters, which precedes the Track and its trackpoints. */
+function lapDistance(xml: string): string | null {
+  return /<Lap\b[\S\s]*?<DistanceMeters>([^<]+)<\/DistanceMeters>/.exec(xml)?.[1] ?? null;
+}
+
 function trackpointDistances(xml: string): string[] {
   return [...xml.matchAll(/<Trackpoint>[\S\s]*?<DistanceMeters>([^<]+)<\/DistanceMeters>/g)].map(
     (match) => match[1] ?? '',
@@ -195,7 +200,9 @@ describe('serializeSessionToTcx', () => {
       const xml = serializeSessionToTcx(session, samples);
 
       expect(trackpointDistances(xml)).toEqual(['0.0', '10.0', '30.0']);
-      expect(xml).toContain('<DistanceMeters>30.0</DistanceMeters>');
+      // The Lap element specifically: the last trackpoint also reads 30.0, so a
+      // plain `toContain` could not tell the track from the total it sits under.
+      expect(lapDistance(xml)).toBe('30.0');
     });
 
     it('reconstructs distance from speed when a legacy row has no counter', () => {
