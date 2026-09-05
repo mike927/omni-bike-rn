@@ -43,6 +43,7 @@ const makeTickInput = (
   bikeTotalEnergyKcal: null,
   watchActiveKcal: null,
   hasLiveExternalHr: false,
+  hasBikePower: false,
   keytelInputs: null,
   ...overrides,
 });
@@ -60,19 +61,51 @@ describe('advanceSession', () => {
     expect(s.totalDistance).toBeCloseTo(20, 5);
   });
 
-  it('accumulates totalCalories from power adjusted for metabolic efficiency when external HR is live', () => {
+  it('accumulates totalCalories from power adjusted for metabolic efficiency', () => {
     // 4186 W for 1 s = 4186 J mechanical = 1 kcal mechanical
     // Divided by 0.25 gross efficiency = 4 kcal metabolic
-    const s = advanceSession(makeState(), makeTickInput({ power: 4186 }, { hasLiveExternalHr: true }));
+    const s = advanceSession(makeState(), makeTickInput({ power: 4186 }, { hasBikePower: true }));
     expect(s.totalCalories).toBeCloseTo(4, 5);
   });
 
-  it('holds totalCalories when external HR is absent and bike calories are unavailable', () => {
+  it('accumulates power-based calories when no HR source and no bike-reported energy are available', () => {
+    // The power tier must not require a live HR source: HR is optional, a
+    // connected bike reporting power is not. hasLiveExternalHr stays false
+    // (default) to prove the power tier fires on hasBikePower alone.
+    const s = advanceSession(makeState(), makeTickInput({ power: 4186 }, { hasBikePower: true }));
+    expect(s.lastCalorieSourceMode).toBe('app');
+    expect(s.totalCalories).toBeCloseTo(4, 5);
+  });
+
+  it('reproduces the audited fallback: 60 ticks at 200 W with no HR and no bike energy accumulate power-based calories, not zero', () => {
+    let s = makeState();
+    for (let i = 0; i < 60; i += 1) {
+      s = advanceSession(s, makeTickInput({ power: 200 }, { hasBikePower: true }));
+    }
+    // 200 W / 4186 J-per-kcal / 0.25 efficiency ≈ 0.19111 kcal/s * 60 s ≈ 11.4669 kcal
+    expect(s.lastCalorieSourceMode).toBe('app');
+    expect(s.totalCalories).toBeCloseTo(11.4669, 3);
+  });
+
+  it('holds totalCalories at none when neither power nor bike-reported energy is available', () => {
     const s = advanceSession(makeState(), makeTickInput({ power: 4186 }));
+    expect(s.lastCalorieSourceMode).toBe('none');
     expect(s.totalCalories).toBe(0);
   });
 
-  it('follows normalized bike calories when external HR is absent', () => {
+  it('distinguishes a connected bike reporting a genuine zero watts from no bike at all', () => {
+    // Absent power: no bike connected this tick (hasBikePower defaults false).
+    const absent = advanceSession(makeState(), makeTickInput({ power: 0 }));
+    expect(absent.lastCalorieSourceMode).toBe('none');
+
+    // Valid zero: a bike is connected and genuinely reporting 0 W (coasting).
+    // The power tier must still be selected, even though the calorie delta is 0.
+    const validZero = advanceSession(makeState(), makeTickInput({ power: 0 }, { hasBikePower: true }));
+    expect(validZero.lastCalorieSourceMode).toBe('app');
+    expect(validZero.totalCalories).toBe(0);
+  });
+
+  it('follows normalized bike calories when power is unavailable', () => {
     let s = makeState();
     s = advanceSession(s, makeTickInput({}, { bikeTotalEnergyKcal: 100 }));
     expect(s.totalCalories).toBe(0);
@@ -81,9 +114,20 @@ describe('advanceSession', () => {
     expect(s.totalCalories).toBe(3);
   });
 
+  it('prefers power-based calories over bike-reported energy when both are present simultaneously', () => {
+    let s = makeState();
+    s = advanceSession(s, makeTickInput({ power: 4186 }, { hasBikePower: true, bikeTotalEnergyKcal: 100 }));
+    expect(s.lastCalorieSourceMode).toBe('app');
+    expect(s.totalCalories).toBeCloseTo(4, 5);
+
+    s = advanceSession(s, makeTickInput({ power: 4186 }, { hasBikePower: true, bikeTotalEnergyKcal: 103 }));
+    expect(s.lastCalorieSourceMode).toBe('app');
+    expect(s.totalCalories).toBeCloseTo(8, 5);
+  });
+
   it('switches from app-calculated calories to bike calories without a jump', () => {
     let s = makeState();
-    s = advanceSession(s, makeTickInput({ power: 4186 }, { hasLiveExternalHr: true }));
+    s = advanceSession(s, makeTickInput({ power: 4186 }, { hasBikePower: true }));
     expect(s.totalCalories).toBeCloseTo(4, 5);
 
     s = advanceSession(s, makeTickInput({}, { bikeTotalEnergyKcal: 120 }));
@@ -99,7 +143,7 @@ describe('advanceSession', () => {
     s = advanceSession(s, makeTickInput({}, { bikeTotalEnergyKcal: 82 }));
     expect(s.totalCalories).toBeCloseTo(2, 5);
 
-    s = advanceSession(s, makeTickInput({ power: 4186 }, { hasLiveExternalHr: true }));
+    s = advanceSession(s, makeTickInput({ power: 4186 }, { hasBikePower: true }));
     expect(s.totalCalories).toBeCloseTo(6, 5);
     expect(s.bikeCaloriesOffset).toBeNull();
   });
@@ -144,8 +188,8 @@ describe('advanceSession', () => {
 
   it('switches from app-calculated calories to Watch calories without a jump', () => {
     let s = makeState();
-    s = advanceSession(s, makeTickInput({ power: 4186 }, { hasLiveExternalHr: true }));
-    s = advanceSession(s, makeTickInput({ power: 4186 }, { hasLiveExternalHr: true }));
+    s = advanceSession(s, makeTickInput({ power: 4186 }, { hasBikePower: true }));
+    s = advanceSession(s, makeTickInput({ power: 4186 }, { hasBikePower: true }));
     expect(s.totalCalories).toBeCloseTo(8, 5);
 
     s = advanceSession(s, makeTickInput({}, { watchActiveKcal: 100 }));
@@ -176,7 +220,7 @@ describe('advanceSession', () => {
     s = advanceSession(s, makeTickInput({}, { watchActiveKcal: 15 }));
     expect(s.totalCalories).toBeCloseTo(5, 5);
 
-    s = advanceSession(s, makeTickInput({ power: 4186 }, { hasLiveExternalHr: true }));
+    s = advanceSession(s, makeTickInput({ power: 4186 }, { hasBikePower: true }));
     expect(s.totalCalories).toBeCloseTo(9, 5);
     expect(s.lastCalorieSourceMode).toBe('app');
     expect(s.watchCaloriesOffset).toBeNull();
@@ -196,25 +240,22 @@ describe('advanceSession', () => {
   });
 
   it('prefers Watch calories over the app-power formula when both are present', () => {
-    const s = advanceSession(
-      makeState(),
-      makeTickInput({ power: 4186 }, { hasLiveExternalHr: true, watchActiveKcal: 10 }),
-    );
+    const s = advanceSession(makeState(), makeTickInput({ power: 4186 }, { hasBikePower: true, watchActiveKcal: 10 }));
     expect(s.lastCalorieSourceMode).toBe('watch');
   });
 
   it('uses the app-power formula while Watch active kcal has not yet arrived, then rebases seamlessly when it does', () => {
     let s = makeState();
-    s = advanceSession(s, makeTickInput({ power: 4186 }, { hasLiveExternalHr: true, watchActiveKcal: null }));
-    s = advanceSession(s, makeTickInput({ power: 4186 }, { hasLiveExternalHr: true, watchActiveKcal: null }));
+    s = advanceSession(s, makeTickInput({ power: 4186 }, { hasBikePower: true, watchActiveKcal: null }));
+    s = advanceSession(s, makeTickInput({ power: 4186 }, { hasBikePower: true, watchActiveKcal: null }));
     expect(s.totalCalories).toBeCloseTo(8, 5);
     expect(s.lastCalorieSourceMode).toBe('app');
 
-    s = advanceSession(s, makeTickInput({ power: 4186 }, { hasLiveExternalHr: true, watchActiveKcal: 500 }));
+    s = advanceSession(s, makeTickInput({ power: 4186 }, { hasBikePower: true, watchActiveKcal: 500 }));
     expect(s.totalCalories).toBeCloseTo(8, 5);
     expect(s.lastCalorieSourceMode).toBe('watch');
 
-    s = advanceSession(s, makeTickInput({ power: 4186 }, { hasLiveExternalHr: true, watchActiveKcal: 501 }));
+    s = advanceSession(s, makeTickInput({ power: 4186 }, { hasBikePower: true, watchActiveKcal: 501 }));
     expect(s.totalCalories).toBeCloseTo(9, 5);
   });
 
@@ -265,7 +306,10 @@ describe('advanceSession', () => {
     it('falls through to the power-based formula when keytelInputs is null', () => {
       const s = advanceSession(
         makeState(),
-        makeTickInput({ power: 4186, heartRate: 150 }, { hasLiveExternalHr: true, keytelInputs: null }),
+        makeTickInput(
+          { power: 4186, heartRate: 150 },
+          { hasLiveExternalHr: true, hasBikePower: true, keytelInputs: null },
+        ),
       );
       expect(s.lastCalorieSourceMode).toBe('app');
       expect(s.totalCalories).toBeCloseTo(4, 5);
@@ -274,7 +318,10 @@ describe('advanceSession', () => {
     it('falls through to the power-based formula when heart rate is missing on this tick', () => {
       const s = advanceSession(
         makeState(),
-        makeTickInput({ power: 4186, heartRate: null }, { hasLiveExternalHr: true, keytelInputs: KEYTEL }),
+        makeTickInput(
+          { power: 4186, heartRate: null },
+          { hasLiveExternalHr: true, hasBikePower: true, keytelInputs: KEYTEL },
+        ),
       );
       expect(s.lastCalorieSourceMode).toBe('app');
       expect(s.totalCalories).toBeCloseTo(4, 5);

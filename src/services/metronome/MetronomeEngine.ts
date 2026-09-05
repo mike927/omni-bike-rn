@@ -92,8 +92,9 @@ export class MetronomeEngine {
    * field defaults only.
    *
    *  - **HR**: taken from the resolved {@link HrReading}.
-   *  - **Calories**: the store decides between watch-, app-, and bike-sourced
-   *    calories using the metadata returned here.
+   *  - **Calories**: the store decides between watch-, Keytel-, power-, and
+   *    bike-sourced calories using the metadata returned here. The power tier
+   *    is gated on `hasBikePower` (bike connected), not on HR liveness.
    *  - **All other fields**: taken directly from bike metrics.
    */
   private mergeMetrics(
@@ -108,6 +109,11 @@ export class MetronomeEngine {
     const resistance = bikeMetrics?.resistance ?? null;
     const distance = bikeMetrics?.distance ?? null;
     const bikeTotalEnergyKcal = bikeMetrics?.totalEnergyKcal ?? null;
+    // Bike power is a required field on BikeMetrics, so its presence tracks
+    // whether a bike is connected and reporting at all: this is what
+    // distinguishes a genuine zero-watt reading from the "no bike" default
+    // applied to `power` above.
+    const hasBikePower = bikeMetrics !== null;
 
     const heartRate = hrReading.bpm;
     // External HR is live when the resolved source (Apple Watch or a Bluetooth
@@ -126,6 +132,7 @@ export class MetronomeEngine {
       bikeTotalEnergyKcal,
       watchActiveKcal,
       hasLiveExternalHr,
+      hasBikePower,
       keytelInputs,
     };
   }

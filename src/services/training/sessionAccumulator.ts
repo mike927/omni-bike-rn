@@ -54,10 +54,14 @@ function advanceDistance(state: SessionAccumulator, metrics: TrainingTickInput['
  * when `hasLiveExternalHr` is true (the Watch usually provides HR too). Keytel
  * slots between Watch and the generic power formula on the no-Watch +
  * external-HR path; it needs `keytelInputs` and a live HR value, otherwise the
- * chain falls through to the power-based formula.
+ * chain falls through to the power-based formula. The power-based formula is
+ * gated on `hasBikePower` (a bike is connected and reporting), not on HR
+ * liveness: HR is optional, so a ride with valid power and no HR source must
+ * still accumulate power-based calories rather than falling through to the
+ * lower-priority bike-reported tier (or to nothing at all).
  */
 function advanceCalories(state: SessionAccumulator, input: TrainingTickInput): CalorieState {
-  const { metrics, bikeTotalEnergyKcal, watchActiveKcal, hasLiveExternalHr, keytelInputs } = input;
+  const { metrics, bikeTotalEnergyKcal, watchActiveKcal, hasLiveExternalHr, hasBikePower, keytelInputs } = input;
   const {
     totalCalories,
     bikeCaloriesOffset,
@@ -101,8 +105,9 @@ function advanceCalories(state: SessionAccumulator, input: TrainingTickInput): C
     };
   }
 
-  if (hasLiveExternalHr) {
+  if (hasBikePower) {
     // Metabolic calorie delta: mechanical work adjusted for gross efficiency.
+    // Reachable with or without a live HR source: HR is optional, power is not.
     const calorieDelta = metrics.power / JOULES_PER_KCAL / GROSS_MECHANICAL_EFFICIENCY;
     return {
       totalCalories: totalCalories + calorieDelta,
