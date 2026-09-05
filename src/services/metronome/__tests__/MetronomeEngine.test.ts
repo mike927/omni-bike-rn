@@ -7,10 +7,23 @@ import { useHrSourceStore } from '../../../store/hrSourceStore';
 import { TrainingPhase } from '../../../types/training';
 import { EMPTY_USER_PROFILE } from '../../../types/userProfile';
 import { HR_NO_SIGNAL_TIMEOUT_MS } from '../../hr/hrSource';
-import type { BikeMetrics } from '../../ble/BikeAdapter';
+import { BIKE_SIGNAL_STALE_TIMEOUT_MS, type BikeMetrics } from '../../ble/BikeAdapter';
 
 describe('MetronomeEngine', () => {
   let engine: MetronomeEngine;
+
+  /**
+   * Advance the clock while a connected bike keeps notifying once per second.
+   * Bike telemetry has a freshness bound (see BIKE_SIGNAL_STALE_TIMEOUT_MS), so
+   * a test that waits several seconds and still means "the bike is streaming"
+   * has to actually deliver packets rather than jumping the clock.
+   */
+  const advanceWithLiveBike = (ms: number, metrics: BikeMetrics): void => {
+    for (let elapsed = 0; elapsed < ms; elapsed += 1000) {
+      useDeviceConnectionStore.getState().updateBikeMetrics(metrics);
+      jest.advanceTimersByTime(Math.min(1000, ms - elapsed));
+    }
+  };
 
   beforeEach(() => {
     jest.useFakeTimers();
@@ -137,28 +150,105 @@ describe('MetronomeEngine', () => {
       expect(state.currentMetrics.heartRate).toBeNull();
     });
 
-    it('should use bike-reported calories when no live external HR is present', () => {
+    it('prefers power-based calories over bike-reported energy even when no live external HR is present', () => {
+      // Regression for A04: the power tier must not require a live HR source.
+      // A connected bike reporting power outranks its own reported
+      // totalEnergyKcal (documented priority: power-based > bike-reported), so
+      // that tier stays selected even though totalEnergyKcal is also present.
+      // 4186 W is physically absurd; it is used throughout this file only
+      // because 4186 J = 1 kcal, which makes the per-tick kcal arithmetic exact
+      // (1 kcal mechanical / 0.25 gross efficiency = 4 kcal metabolic).
       useTrainingSessionStore.getState().start();
       useDeviceConnectionStore.getState().updateBikeMetrics({
         speed: 25,
         cadence: 80,
-        power: 150,
+        power: 4186,
         totalEnergyKcal: 200,
       });
 
       engine.start();
       jest.advanceTimersByTime(1000);
-      expect(useTrainingSessionStore.getState().totalCalories).toBe(0);
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('app');
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(4, 5);
 
       useDeviceConnectionStore.getState().updateBikeMetrics({
         speed: 25,
         cadence: 80,
-        power: 150,
+        power: 4186,
         totalEnergyKcal: 203,
       });
 
       jest.advanceTimersByTime(1000);
-      expect(useTrainingSessionStore.getState().totalCalories).toBe(3);
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('app');
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(8, 5);
+    });
+
+    it('uses the bike-reported tier for an FTMS bike that reports energy but no instantaneous power', () => {
+      // FTMS bit 6 (Instantaneous Power) is optional and independent of bit 8
+      // (Total Energy); `bleDeviceValidator` accepts a bike that never sets it.
+      // Such a bike has NO power reading, so the power tier must not fire at a
+      // fabricated 0 W and swallow the machine's own energy stream.
+      useTrainingSessionStore.getState().start();
+      useDeviceConnectionStore.getState().updateBikeMetrics({ speed: 25, cadence: 80, totalEnergyKcal: 500 });
+
+      engine.start();
+      jest.advanceTimersByTime(1000);
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('bike');
+
+      useDeviceConnectionStore.getState().updateBikeMetrics({ speed: 25, cadence: 80, totalEnergyKcal: 510 });
+      jest.advanceTimersByTime(1000);
+
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('bike');
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(10, 5);
+    });
+
+    it('does not select the power tier when no bike is connected', () => {
+      // Negative direction of hasBikePower: with no bike there is no power
+      // reading, so the power tier must stay closed and nothing may accumulate.
+      useTrainingSessionStore.getState().start();
+
+      engine.start();
+      jest.advanceTimersByTime(3000);
+
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('none');
+      expect(useTrainingSessionStore.getState().totalCalories).toBe(0);
+    });
+
+    it('stops integrating power once the bike telemetry goes stale', () => {
+      // A silent BLE dropout (no disconnect event) leaves latestBikeMetrics in
+      // the store indefinitely. Without a freshness bound the power tier would
+      // keep integrating the last known wattage for the rest of the ride.
+      useTrainingSessionStore.getState().start();
+      // 4186 W for 1 s = 1 kcal mechanical, / 0.25 gross efficiency = 4 kcal
+      // metabolic. Physically absurd; chosen only to make the arithmetic exact.
+      useDeviceConnectionStore.getState().updateBikeMetrics({ speed: 25, cadence: 80, power: 4186 });
+
+      engine.start();
+      jest.advanceTimersByTime(1000);
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('app');
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(4, 5);
+
+      // No further bike packets. Once past the staleness bound the power tier
+      // must release and the total must stop growing.
+      jest.advanceTimersByTime(BIKE_SIGNAL_STALE_TIMEOUT_MS + 5000);
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('none');
+      const frozenTotal = useTrainingSessionStore.getState().totalCalories;
+
+      jest.advanceTimersByTime(5000);
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(frozenTotal, 5);
+    });
+
+    it('keeps the power tier selected while the bike keeps reporting', () => {
+      useTrainingSessionStore.getState().start();
+
+      engine.start();
+      for (let i = 0; i < 20; i += 1) {
+        useDeviceConnectionStore.getState().updateBikeMetrics({ speed: 25, cadence: 80, power: 4186 });
+        jest.advanceTimersByTime(1000);
+      }
+
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('app');
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(80, 5);
     });
   });
 
@@ -231,11 +321,13 @@ describe('MetronomeEngine', () => {
       expect(state.lastCalorieSourceMode).toBe('app');
     });
 
-    it('hasLiveExternalHr is false when no HR source is available', () => {
+    it('still accumulates power-based calories when no HR source is available at all (A04 regression)', () => {
       useTrainingSessionStore.getState().start();
 
-      // No watch, no saved strap, no primary → effective source is null, so there
-      // is no live external HR and the engine falls through to bike-reported kcal.
+      // No watch, no saved strap, no primary → effective source is null, so
+      // there is no live external HR. The power tier must not require HR: a
+      // connected bike reporting valid power still accumulates calories, and
+      // takes priority over the bike's own totalEnergyKcal.
       const bikeMetrics: BikeMetrics = {
         speed: 25,
         cadence: 80,
@@ -245,14 +337,15 @@ describe('MetronomeEngine', () => {
       useDeviceConnectionStore.getState().updateBikeMetrics(bikeMetrics);
 
       engine.start();
-      // First tick establishes baseline kcal offset (500 kcal → 0 accumulated)
       jest.advanceTimersByTime(1000);
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('app');
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(4, 5);
 
       useDeviceConnectionStore.getState().updateBikeMetrics({ ...bikeMetrics, totalEnergyKcal: 503 });
       jest.advanceTimersByTime(1000);
 
-      // hasLiveExternalHr = false → bike total energy kcal is used
-      expect(useTrainingSessionStore.getState().totalCalories).toBe(3);
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('app');
+      expect(useTrainingSessionStore.getState().totalCalories).toBeCloseTo(8, 5);
     });
 
     it('returns null HR when no source is available (no watch, no strap)', () => {
@@ -344,11 +437,18 @@ describe('MetronomeEngine', () => {
       jest.advanceTimersByTime(1000);
       expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('watch');
 
-      // No new Watch samples arrive. After the no-signal timeout (HR_NO_SIGNAL_TIMEOUT_MS)
-      // passes, the engine drops the stale Watch kcal — since watch is locked and stale,
-      // hasLiveExternalHr is also false, so we fall through to bike-reported kcal.
-      jest.advanceTimersByTime(HR_NO_SIGNAL_TIMEOUT_MS + 1000);
-      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('bike');
+      // No new Watch samples arrive, but the bike keeps streaming. After the
+      // no-signal timeout (HR_NO_SIGNAL_TIMEOUT_MS) passes, the engine drops the
+      // stale Watch kcal. The bike is still connected and reporting valid power,
+      // so the tier falls through to the power-based formula (which does not
+      // need HR), not to the bike's own totalEnergyKcal.
+      advanceWithLiveBike(HR_NO_SIGNAL_TIMEOUT_MS + 1000, {
+        speed: 25,
+        cadence: 80,
+        power: 4186,
+        totalEnergyKcal: 100,
+      });
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('app');
     });
 
     it('should resume the Watch branch when a fresh sample arrives after a staleness drop', () => {
@@ -363,8 +463,13 @@ describe('MetronomeEngine', () => {
 
       engine.start();
       jest.advanceTimersByTime(1000);
-      jest.advanceTimersByTime(HR_NO_SIGNAL_TIMEOUT_MS + 1000);
-      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('bike');
+      advanceWithLiveBike(HR_NO_SIGNAL_TIMEOUT_MS + 1000, {
+        speed: 25,
+        cadence: 80,
+        power: 4186,
+        totalEnergyKcal: 100,
+      });
+      expect(useTrainingSessionStore.getState().lastCalorieSourceMode).toBe('app');
 
       // Fresh Watch sample refreshes the timestamp — next tick re-enters the Watch branch.
       useDeviceConnectionStore.getState().updateAppleWatchHr(152);

@@ -52,6 +52,18 @@ export interface TrainingTickInput {
   /** Whether an external HR source is actively reporting on this tick. */
   hasLiveExternalHr: boolean;
   /**
+   * Whether `metrics.power` is a real power reading this tick.
+   *
+   * `MetricSnapshot.power` is a non-nullable number, so absence and a valid
+   * 0 W reading from a coasting rider both look like `0` there. This flag is
+   * what tells them apart. False means no reading at all: no bike connected,
+   * a bike that does not report FTMS Instantaneous Power (a supported device
+   * class, whose own reported energy is then the right calorie source), or a
+   * bike that has stopped notifying. Gates the power-based calorie tier
+   * independently of HR availability.
+   */
+  hasBikePower: boolean;
+  /**
    * Profile-derived inputs for the Keytel HR-based calorie formula. Non-null
    * when the user's sex, date of birth, and weight are all set. The training
    * store uses this to switch the no-Watch + external-HR path from the generic

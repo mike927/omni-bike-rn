@@ -211,6 +211,55 @@ describe('ZiproRaveAdapter', () => {
       );
     });
 
+    it('leaves power absent for an FTMS bike that reports energy but not instantaneous power', async () => {
+      // FTMS makes Instantaneous Power (flag bit 6) optional and independent of
+      // Total Energy (bit 8), and `bleDeviceValidator` accepts a bike that never
+      // sets the power bit. Such a machine is a supported device, and its
+      // absent power must NOT reach the engine as a fabricated 0 W: 0 W is a
+      // valid reading (coasting), absence is not.
+      const mockDevice = createMockDevice();
+      (bleManager.connectToDevice as jest.Mock).mockResolvedValue(mockDevice);
+
+      await adapter.connect();
+
+      const callback = jest.fn();
+      adapter.subscribeToMetrics(callback);
+
+      const dataCallback = mockDevice.monitorCharacteristicForService.mock.calls[0][2];
+
+      // Flags 0x0104 -> bit 0 clear (speed present), bit 2 (cadence), bit 8 (energy).
+      // No bit 6, so the packet carries no Instantaneous Power field at all.
+      const mockBytes = new Uint8Array([0x04, 0x01, 0x0e, 0x06, 0xaa, 0x00, 0x2a, 0x00, 0x58, 0x02, 0x0a]);
+      dataCallback(null, { value: encodeBase64Bytes(mockBytes) });
+
+      const emitted = callback.mock.calls[0][0];
+      expect(emitted.power).toBeUndefined();
+      expect(emitted).toEqual({
+        speed: 15.5,
+        cadence: 85,
+        totalEnergyKcal: 42,
+        energyPerHourKcal: 600,
+        energyPerMinuteKcal: 10,
+      });
+    });
+
+    it('leaves power absent on a Machine Status event that arrives before any Indoor Bike Data', async () => {
+      const mockDevice = createMockDevice();
+      (bleManager.connectToDevice as jest.Mock).mockResolvedValue(mockDevice);
+
+      await adapter.connect();
+
+      const callback = jest.fn();
+      adapter.subscribeToMetrics(callback);
+
+      const statusCallback = mockDevice.monitorCharacteristicForService.mock.calls[1][2];
+      statusCallback(null, { value: encodeBase64Bytes(new Uint8Array([0x02])) });
+
+      const emitted = callback.mock.calls[0][0];
+      expect(emitted.status).toBe(BikeStatus.Stopped);
+      expect(emitted.power).toBeUndefined();
+    });
+
     it('should ignore expected monitor cancellation errors during teardown', async () => {
       const mockDevice = createMockDevice();
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});

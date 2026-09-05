@@ -39,6 +39,7 @@ describe('trainingSessionStore', () => {
     bikeTotalEnergyKcal: null,
     watchActiveKcal: null,
     hasLiveExternalHr: false,
+    hasBikePower: false,
     keytelInputs: null,
     ...overrides,
   });
