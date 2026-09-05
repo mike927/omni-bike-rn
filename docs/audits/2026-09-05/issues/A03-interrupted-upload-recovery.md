@@ -83,6 +83,7 @@ Distinguish live operations from abandoned persisted attempts. Add provider-awar
   error is now appended to the interrupted-row caption (it used to show once in a transient alert and
   then vanish). Neither item was an open finding; both sit in code the last round added. Status stays
   In progress: the device-only criteria are unchanged.
+- 2026-09-05: cross-link. The device-only checks this ticket leaves outstanding are folded into the consolidated device pass at [`docs/audits/2026-09-05/device-verification.md`](../device-verification.md), produced under [A11](A11-native-upgrade-verification.md) and run once against build `c19673e` for all of A01 to A10. Nothing here changes until that run is recorded.
 
 ## Completion / disposition record
 

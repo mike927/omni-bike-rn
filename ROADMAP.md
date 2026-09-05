@@ -13,9 +13,9 @@ Active development roadmap. Update states as work progresses.
 
 ## Codebase Audit Remediation — September 2026
 
-- [~] Resolve or explicitly disposition the [2026-09-05 audit issues](docs/audits/2026-09-05/README.md) (A01–A11). Per-issue status and ownership live in each ticket; use `[~]` here when remediation starts and `[x]` only when every issue has a documented outcome.
+- [~] Resolve or explicitly disposition the [2026-09-05 audit issues](docs/audits/2026-09-05/README.md) (A01 to A12). Per-issue status and ownership live in each ticket; use `[~]` here when remediation starts and `[x]` only when every issue has a documented outcome. Still `[~]`: A01, A02, A04, A06 and A07 are Done, but A03, A05, A08, A09 and A10 hold unticked device-only acceptance boxes, A11 is Blocked on the same hardware, and A12 (filed during this run) is Not started.
 
-A11 tracks the remaining physical verification already listed in Tech Stack Upgrade; it is the same acceptance work, not a second device campaign.
+A11 tracks the remaining physical verification already listed in Tech Stack Upgrade; it is the same acceptance work, not a second device campaign. One run of the [consolidated device pass](docs/audits/2026-09-05/device-verification.md) settles A11 and the residual of A01 to A10 together; A12 needs its own remediation before this item can go `[x]`.
 
 ## HR Source Status Clarity
 

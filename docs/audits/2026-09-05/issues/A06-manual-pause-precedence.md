@@ -66,6 +66,7 @@ Track pause ownership/reason in shared lifecycle state. Permit automatic resume 
 - 2026-09-05 — Imported from the audit of `965cbec`. No remediation performed; status is Not started.
 - 2026-09-05: Claimed by automated remediation agent on branch `fix/a06-manual-pause-precedence`. A01 already merged (`7081c13`); the seam is `syncSessionFromBikeStatus` in `src/features/training/sessionController.ts`, which now holds single-owner session lifecycle logic.
 - 2026-09-05: Wrote failing tests first (TDD): `src/features/training/__tests__/sessionController.test.ts` (new) and one added case in `src/features/training/hooks/__tests__/trainingSessionOwnership.test.ts`. Confirmed both failed against the unfixed code, then implemented the fix, confirmed green, and confirmed by mutation (see below). PR opened: https://github.com/mike927/omni-bike-rn/pull/109.
+- 2026-09-05: cross-link. The device-only checks this ticket leaves outstanding are folded into the consolidated device pass at [`docs/audits/2026-09-05/device-verification.md`](../device-verification.md), produced under [A11](A11-native-upgrade-verification.md) and run once against build `c19673e` for all of A01 to A10. Nothing here changes until that run is recorded.
 
 ## Completion / disposition record
 

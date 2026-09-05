@@ -60,7 +60,7 @@ The user confirmed the HR label device test. Logs pulled after that confirmation
 | Phone receives Watch HR | Pass | `07:29:53.032 mirrored workoutSession didReceiveDataFromRemoteWorkoutSession hr=88` (four samples received through 07:30:07) |
 | Watch session ends | Pass | `07:30:11.406 didReceiveApplicationContext sessionState=ended` |
 
-Physical-device BLE, Apple Health save, pause/resume and extended background checks remain pending; this short log does not establish those behaviors. See [device verification handoff](./tech-stack-device-check.md). Native builds and unit tests cannot prove these transports work.
+Physical-device BLE, Apple Health save, pause/resume and extended background checks remain pending; this short log does not establish those behaviors. See [device verification handoff](./tech-stack-device-check.md). Native builds and unit tests cannot prove these transports work. Those pending checks are now specified, together with the device-only residual of the 2026-09-05 audit remediation, in the [consolidated device verification pass](./audits/2026-09-05/device-verification.md), which supersedes the older handoff above for this round.
 
 ## Known upstream diagnostics
 
