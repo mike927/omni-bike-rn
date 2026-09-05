@@ -106,6 +106,10 @@ jest.mock('../../src/features/gear/hooks/useWatchHr', () => ({
   useWatchHr: jest.fn(),
 }));
 
+jest.mock('../../src/features/gear/hooks/useAutoReconnectLifecycle', () => ({
+  useAutoReconnectLifecycle: jest.fn(),
+}));
+
 jest.mock('expo-drizzle-studio-plugin', () => ({
   useDrizzleStudio: jest.fn(),
 }));
