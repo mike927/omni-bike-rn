@@ -1,3 +1,4 @@
+import { StrictMode } from 'react';
 import { renderHook, waitFor, act } from '@testing-library/react-native';
 
 import { useAppInitialization } from '../useAppInitialization';
@@ -111,6 +112,18 @@ describe('useAppInitialization', () => {
     mockMarkAbandonedUploads.mockReturnValue(1);
 
     const { result } = await renderHook(() => useAppInitialization());
+    await waitFor(() => expect(result.current.phase).toBe('ready'));
+
+    expect(mockMarkAbandonedUploads).toHaveBeenCalledTimes(1);
+  });
+
+  it('sweeps abandoned uploads once per launch even when boot effects are re-run', async () => {
+    mockInit.mockResolvedValue(undefined);
+
+    // StrictMode re-runs effects on the same component instance, which is the cheapest
+    // stand-in for any second run of the boot effect. A second sweep would reclassify a
+    // live upload as interrupted, so the sweep has to be once per launch.
+    const { result } = await renderHook(() => useAppInitialization(), { wrapper: StrictMode });
     await waitFor(() => expect(result.current.phase).toBe('ready'));
 
     expect(mockMarkAbandonedUploads).toHaveBeenCalledTimes(1);

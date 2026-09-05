@@ -487,6 +487,165 @@ describe('TrainingSummaryScreen', () => {
     alertSpy.mockRestore();
   });
 
+  const INTERRUPTED_APPLE_HEALTH_UPLOAD = {
+    id: 'upload-2',
+    sessionId: 'session-1',
+    providerId: 'apple_health',
+    uploadState: 'interrupted' as const,
+    externalId: null,
+    errorMessage: null,
+    createdAtMs: 100,
+    updatedAtMs: 200,
+  };
+
+  const APPLE_HEALTH_INTERRUPTION_NOTICE =
+    'The last upload to Apple Health was interrupted before it finished, so the app cannot tell whether Apple Health already has this ride.';
+
+  function arrangeInterruptedAppleHealthUpload(): void {
+    mockGetProviderUpload.mockImplementation((_sessionId: string, providerId: string) =>
+      providerId === 'apple_health' ? INTERRUPTED_APPLE_HEALTH_UPLOAD : null,
+    );
+    mockUploadSessionToProvider.mockResolvedValue({
+      providerId: 'apple_health',
+      success: false,
+      errorMessage: APPLE_HEALTH_INTERRUPTION_NOTICE,
+      needsInterruptionDecision: true,
+    });
+  }
+
+  it('shows an unresolved state when the last Apple Health upload was interrupted', async () => {
+    arrangeInterruptedAppleHealthUpload();
+
+    const { getByText } = await render(
+      <TrainingSummaryScreen
+        sessionId="session-1"
+        source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE}
+        returnTo="/history"
+      />,
+    );
+
+    expect(getByText('Check Apple Health')).toBeTruthy();
+    expect(
+      getByText('Apple Health upload was interrupted. Check Apple Health before uploading this ride again.'),
+    ).toBeTruthy();
+  });
+
+  it('asks the user to settle an interrupted Apple Health upload instead of resending it', async () => {
+    arrangeInterruptedAppleHealthUpload();
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+
+    const { getByText } = await render(
+      <TrainingSummaryScreen
+        sessionId="session-1"
+        source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE}
+        returnTo="/history"
+      />,
+    );
+
+    await fireEvent.press(getByText('Check Apple Health'));
+
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalledWith(
+        'Upload Interrupted',
+        expect.stringContaining(APPLE_HEALTH_INTERRUPTION_NOTICE),
+        expect.any(Array),
+      );
+    });
+    expect(mockResendInterruptedUpload).not.toHaveBeenCalled();
+    expect(mockAcknowledgeInterruptedUpload).not.toHaveBeenCalled();
+
+    alertSpy.mockRestore();
+  });
+
+  it('resends an interrupted Apple Health upload only when the user accepts the duplicate risk', async () => {
+    arrangeInterruptedAppleHealthUpload();
+    mockResendInterruptedUpload.mockResolvedValue({
+      providerId: 'apple_health',
+      success: true,
+      externalId: 'workout-uuid',
+    });
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((title, _, buttons) => {
+      if (title === 'Upload Interrupted') buttons?.[2]?.onPress?.();
+    });
+
+    const { getByText } = await render(
+      <TrainingSummaryScreen
+        sessionId="session-1"
+        source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE}
+        returnTo="/history"
+      />,
+    );
+
+    await fireEvent.press(getByText('Check Apple Health'));
+
+    await waitFor(() => {
+      expect(mockResendInterruptedUpload).toHaveBeenCalledWith('session-1', 'apple_health');
+    });
+    expect(mockAcknowledgeInterruptedUpload).not.toHaveBeenCalled();
+
+    alertSpy.mockRestore();
+  });
+
+  it('tells the user when an already-there answer arrives too late to be recorded', async () => {
+    arrangeInterruptedStravaUpload();
+    mockAcknowledgeInterruptedUpload.mockReturnValue({
+      providerId: 'strava',
+      success: false,
+      errorMessage: 'This upload is no longer waiting on a decision.',
+    });
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((title, _, buttons) => {
+      if (title === 'Upload Interrupted') buttons?.[1]?.onPress?.();
+    });
+
+    const { getByText } = await render(
+      <TrainingSummaryScreen
+        sessionId="session-1"
+        source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE}
+        returnTo="/history"
+      />,
+    );
+
+    await fireEvent.press(getByText('Check Strava'));
+
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalledWith('Upload Not Updated', 'This upload is no longer waiting on a decision.');
+    });
+
+    alertSpy.mockRestore();
+  });
+
+  it('does not claim a fresh upload when the interrupted row was already settled', async () => {
+    arrangeInterruptedStravaUpload();
+    mockResendInterruptedUpload.mockResolvedValue({
+      providerId: 'strava',
+      success: true,
+      externalId: 'ext-9',
+      alreadyUploaded: true,
+    });
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation((title, _, buttons) => {
+      if (title === 'Upload Interrupted') buttons?.[2]?.onPress?.();
+    });
+
+    const { getByText } = await render(
+      <TrainingSummaryScreen
+        sessionId="session-1"
+        source={SAVED_SESSION_TRAINING_SUMMARY_SOURCE}
+        returnTo="/history"
+      />,
+    );
+
+    await fireEvent.press(getByText('Check Strava'));
+
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalledWith(
+        'Already Uploaded',
+        'This workout was already marked as uploaded to Strava, so nothing was sent again.',
+      );
+    });
+
+    alertSpy.mockRestore();
+  });
+
   it('hides the header back control right after finishing a ride', async () => {
     const { queryByLabelText } = await render(
       <TrainingSummaryScreen sessionId="session-1" source={POST_FINISH_TRAINING_SUMMARY_SOURCE} returnTo="/" />,

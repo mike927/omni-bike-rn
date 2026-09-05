@@ -68,6 +68,14 @@ Distinguish live operations from abandoned persisted attempts. Add provider-awar
 - 2026-09-05 — Imported from the audit of `965cbec`. No remediation performed; status is Not started.
 - 2026-09-05: claimed by the automated remediation agent on `fix/a03-interrupted-upload-recovery` (branched off `0d0270b`, post A01/A02/A06). Reproduced the finding as a failing test first, then made `uploading` mean "live in this process", added the `interrupted` state, a boot-time sweep of abandoned rows, and a user-settled resolution (resend or acknowledge) that never guesses whether the provider already has the ride. Status stays In progress: the restart and no-duplicate criteria need a physical relaunch and a real provider round trip.
 
+- 2026-09-05: independent review returned APPROVED with SPEC MET plus two Important findings and
+  several minors. Fix round 1 on the same branch: a resend that fails now stays `interrupted` instead
+  of collapsing to `failed` (so the next send still warns), the Apple Health interruption branch is
+  covered by tests, `describeUpload` lost its unreachable `interrupted` branch, the acknowledge
+  idempotency fallback and both prompt corner cases are tested and surfaced, the boot sweep runs once
+  per launch, and the interruption copy is asserted against the real function. Status stays
+  In progress: the device-only criteria are unchanged.
+
 ## Completion / disposition record
 
 **Change summary.** The upload state machine now distinguishes a live operation from an abandoned
@@ -112,6 +120,30 @@ provider-agnostic `GearReconcileOutcome` path is unchanged.
   registry fails 1; removing the boot sweep fails 1; auto-resending an interrupted row fails 4;
   never releasing the live key fails 3; dropping the screen's decision branch fails 3; widening the
   repository's `uploading` guard fails 1.
+
+**Review fix round 1 (2026-09-05).** Applied on the same branch after the independent review:
+
+- A resend the user asked for that fails now returns to `interrupted`, not `failed`
+  (`runClaimedUpload` takes the failure state from its caller). A failed resend says nothing about
+  whether the earlier attempt reached the provider, and a `failed` row is claimable by a plain retry
+  that would warn nobody, which was the one remaining way to duplicate an activity silently.
+- The Apple Health interruption branch on the summary screen is now covered by tests (state, prompt,
+  resend), so it is no longer an untested hand-copy of the Strava branch.
+- `describeUpload` lost its unreachable `interrupted` branch, and its already-uploaded result now
+  says nothing was sent (`alreadyUploaded`), which the screen reports as `Already Uploaded` instead
+  of announcing an upload that never ran.
+- The acknowledge idempotency fallback is tested, and a losing `Already There` now reports
+  `Upload Not Updated` instead of doing nothing visible.
+- The boot sweep carries the same once-per-launch guard as `useInterruptedSessionRecovery`.
+- The `markProviderUploadInterrupted` comment no longer claims a surviving remote id: the column is
+  reserved, and an `uploading` row's `external_id` is always null today.
+- The interruption notice is asserted verbatim against the real orchestrator function, not only via
+  a screen-level mock.
+
+Commands: `npm run ci:gate` exit 0 (lint clean, `tsc --noEmit` clean, 112 suites / 1102 tests), plus
+a fresh mutation pass over the eight changed behaviours (6 caught, 1 shown unreachable by a throw
+probe, 1 recorded as not observable in Jest: the boot sweep once-guard, because nothing can flip
+`isDatabaseReady` back to true within one launch).
 
 **Pull request.** https://github.com/mike927/omni-bike-rn/pull/113
 

@@ -320,7 +320,10 @@ stores rather than only the final instantaneous reading.
   uploading this ride again.` Tapping it opens the `Upload Interrupted` prompt with `Not Now`,
   `Already There` (records the ride as uploaded locally) and `Upload Again` (resends, accepting a
   possible duplicate). The app never chooses for the user: it cannot know whether the provider
-  already has the ride.
+  already has the ride. An `Upload Again` that fails keeps the `Check <Provider>` state, so the
+  warning is never traded for a plain `Retry`. `Already There` that arrives too late (the attempt
+  moved on) reports `Upload Not Updated`, and an `Upload Again` on a ride already settled as
+  uploaded reports `Already Uploaded` rather than claiming a fresh upload.
 - Averages/peaks/trend/gear are a pure, unit-tested view-model (`deriveSummaryView`). The
   final-snapshot fallback applies **only when no samples were persisted**; with samples present the
   screen trusts them (so a ride with no HR source reads `--`, not a stale final reading).

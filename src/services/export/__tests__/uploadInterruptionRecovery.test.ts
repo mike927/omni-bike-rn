@@ -191,7 +191,11 @@ describe('interrupted upload recovery', () => {
 
     expect(result.success).toBe(false);
     expect(result.needsInterruptionDecision).toBe(true);
-    expect(result.errorMessage).toContain('interrupted');
+    // The exact sentence the summary screen puts in front of the user. Asserted here,
+    // against the real function, so the copy cannot drift behind a screen-level mock.
+    expect(result.errorMessage).toBe(
+      'The last upload to Strava was interrupted before it finished, so the app cannot tell whether Strava already has this ride.',
+    );
     expect(persistedState()).toBe('interrupted');
     expect(exportSession).not.toHaveBeenCalled();
   });
@@ -264,7 +268,12 @@ describe('interrupted upload recovery', () => {
 
     const result = await resendInterruptedUpload(SESSION_ID, PROVIDER_ID);
 
-    expect(result).toEqual({ providerId: PROVIDER_ID, success: true, externalId: 'ext-9' });
+    expect(result).toEqual({
+      providerId: PROVIDER_ID,
+      success: true,
+      externalId: 'ext-9',
+      alreadyUploaded: true,
+    });
     expect(exportSession).not.toHaveBeenCalled();
   });
 
@@ -294,5 +303,76 @@ describe('interrupted upload recovery', () => {
     expect(retry.success).toBe(true);
     expect(retry.needsInterruptionDecision).toBeUndefined();
     expect(exportSession).toHaveBeenCalledTimes(2);
+  });
+  it('keeps a resend that fails waiting on a decision instead of demoting it to an ordinary failure', async () => {
+    const exportSession = jest.fn().mockResolvedValue({ success: false, errorMessage: 'Rate limited' });
+    useProvider(createProvider({ exportSession }));
+    seedRow('interrupted');
+
+    const resent = await resendInterruptedUpload(SESSION_ID, PROVIDER_ID);
+
+    expect(resent.success).toBe(false);
+    expect(resent.errorMessage).toBe('Rate limited');
+    // A resend failing says nothing about whether the *earlier* attempt reached the
+    // provider, so the uncertainty has to survive it.
+    expect(persistedState()).toBe('interrupted');
+
+    // And the ordinary retry path must still refuse to send it without a decision.
+    const next = await uploadSessionToProvider(SESSION_ID, PROVIDER_ID);
+
+    expect(next.needsInterruptionDecision).toBe(true);
+    expect(exportSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a resend that throws waiting on a decision', async () => {
+    const exportSession = jest.fn().mockRejectedValue(new Error('Network timeout'));
+    useProvider(createProvider({ exportSession }));
+    seedRow('interrupted');
+
+    const resent = await resendInterruptedUpload(SESSION_ID, PROVIDER_ID);
+
+    expect(resent.success).toBe(false);
+    expect(resent.errorMessage).toBe('Network timeout');
+    expect(persistedState()).toBe('interrupted');
+
+    const next = await uploadSessionToProvider(SESSION_ID, PROVIDER_ID);
+
+    expect(next.needsInterruptionDecision).toBe(true);
+    expect(exportSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports an ordinary failure as failed, so a plain retry is still offered', async () => {
+    const exportSession = jest.fn().mockResolvedValue({ success: false, errorMessage: 'Rate limited' });
+    useProvider(createProvider({ exportSession }));
+    seedRow('ready');
+
+    await uploadSessionToProvider(SESSION_ID, PROVIDER_ID);
+
+    expect(persistedState()).toBe('failed');
+  });
+
+  it('treats a repeated "already there" answer as settled rather than an error', () => {
+    seedRow('interrupted');
+
+    const first = acknowledgeInterruptedUpload(SESSION_ID, PROVIDER_ID);
+    const second = acknowledgeInterruptedUpload(SESSION_ID, PROVIDER_ID);
+
+    expect(first.success).toBe(true);
+    expect(second.success).toBe(true);
+    expect(second.errorMessage).toBeUndefined();
+    expect(persistedState()).toBe('uploaded');
+  });
+
+  it('reports that nothing is waiting on a decision when the attempt has moved on', () => {
+    seedRow('uploading');
+
+    const result = acknowledgeInterruptedUpload(SESSION_ID, PROVIDER_ID);
+
+    expect(result).toEqual({
+      providerId: PROVIDER_ID,
+      success: false,
+      errorMessage: 'This upload is no longer waiting on a decision.',
+    });
+    expect(persistedState()).toBe('uploading');
   });
 });

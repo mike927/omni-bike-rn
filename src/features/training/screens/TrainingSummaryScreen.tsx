@@ -139,8 +139,13 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: Readonly<
       {
         text: 'Already There',
         onPress: () => {
-          acknowledgeInterruptedUpload(sessionId, providerId);
+          const result = acknowledgeInterruptedUpload(sessionId, providerId);
           refresh();
+          // The answer can arrive after the attempt moved on (a resend already in
+          // flight, say). Saying so beats a button that silently does nothing.
+          if (!result.success) {
+            Alert.alert('Upload Not Updated', result.errorMessage ?? 'This answer could not be recorded.');
+          }
         },
       },
       {
@@ -149,12 +154,25 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: Readonly<
           void (async () => {
             const result = await resendInterruptedUpload(sessionId, providerId);
             refresh();
-            Alert.alert(
-              result.success ? 'Upload Complete' : 'Upload Failed',
-              result.success
-                ? `This workout was uploaded to ${providerLabel}.`
-                : (result.errorMessage ?? `This workout could not be uploaded to ${providerLabel}.`),
-            );
+
+            if (!result.success) {
+              Alert.alert(
+                'Upload Failed',
+                result.errorMessage ?? `This workout could not be uploaded to ${providerLabel}.`,
+              );
+              return;
+            }
+
+            // Settled while the prompt was open (stacked prompts), so nothing was sent.
+            if (result.alreadyUploaded) {
+              Alert.alert(
+                'Already Uploaded',
+                `This workout was already marked as uploaded to ${providerLabel}, so nothing was sent again.`,
+              );
+              return;
+            }
+
+            Alert.alert('Upload Complete', `This workout was uploaded to ${providerLabel}.`);
           })();
         },
       },

@@ -11,7 +11,11 @@ import {
 } from '../db/providerUploadRepository';
 import { getProviderGearLink, markProviderGearLinkStale } from '../providerGear/providerGearLinkStorage';
 import type { ExportProvider, GearReconcileOutcome } from './ExportProvider';
-import type { PersistedProviderUpload, PersistedTrainingSession } from '../../types/sessionPersistence';
+import type {
+  PersistedProviderUpload,
+  PersistedTrainingSession,
+  SessionUploadState,
+} from '../../types/sessionPersistence';
 
 export interface UploadSessionResult {
   providerId: string;
@@ -26,6 +30,11 @@ export interface UploadSessionResult {
    * {@link acknowledgeInterruptedUpload}. Never resolved by guessing here.
    */
   needsInterruptionDecision?: boolean;
+  /**
+   * The row was already settled as uploaded before this call, so nothing was sent
+   * to the provider. Callers use it to avoid reporting an upload that never ran.
+   */
+  alreadyUploaded?: boolean;
 }
 
 const UPLOAD_IN_PROGRESS_MESSAGE = 'Upload already in progress.';
@@ -57,21 +66,22 @@ function interruptionDecision(providerId: string, providerName: string): UploadS
   };
 }
 
-function describeUpload(
-  providerId: string,
-  providerName: string,
-  upload: PersistedProviderUpload | null,
-): UploadSessionResult {
+function alreadyUploadedResult(providerId: string, upload: PersistedProviderUpload): UploadSessionResult {
+  return { providerId, success: true, externalId: upload.externalId ?? undefined, alreadyUploaded: true };
+}
+
+/**
+ * Reports what happened to a call whose claim was refused, from the row as it
+ * stands now. An `interrupted` row never reaches here: both callers check that
+ * state and hand the decision to the user before attempting a claim.
+ */
+function describeUpload(providerId: string, upload: PersistedProviderUpload | null): UploadSessionResult {
   if (upload?.uploadState === 'uploaded') {
-    return { providerId, success: true, externalId: upload.externalId ?? undefined };
+    return alreadyUploadedResult(providerId, upload);
   }
 
   if (upload?.uploadState === 'uploading') {
     return { providerId, success: false, errorMessage: UPLOAD_IN_PROGRESS_MESSAGE };
-  }
-
-  if (upload?.uploadState === 'interrupted') {
-    return interruptionDecision(providerId, providerName);
   }
 
   return { providerId, success: false, errorMessage: UPLOAD_NOT_STARTED_MESSAGE };
@@ -144,6 +154,15 @@ async function applyGearReconciliation(
 }
 
 /**
+ * Where a claimed upload lands when it does not succeed. An ordinary attempt goes
+ * to `failed`, which a plain retry may claim. A resend of an interrupted attempt
+ * goes back to `interrupted`: this attempt failing says nothing about whether the
+ * *earlier* one reached the provider, so the uncertainty has to survive it and the
+ * next send has to pass through the same explicit decision.
+ */
+type UploadFailureState = Extract<SessionUploadState, 'failed' | 'interrupted'>;
+
+/**
  * Runs a claimed upload. The row is already `uploading`; registering the key here
  * is what lets a later call tell this live operation apart from an abandoned row,
  * and the `finally` is what stops a crashed attempt from looking live forever.
@@ -152,6 +171,7 @@ async function runClaimedUpload(
   sessionId: string,
   providerId: string,
   { provider, session }: UploadContext,
+  failureState: UploadFailureState,
 ): Promise<UploadSessionResult> {
   const key = liveUploadKey(sessionId, providerId);
   liveUploads.add(key);
@@ -189,7 +209,7 @@ async function runClaimedUpload(
     updateProviderUploadState({
       sessionId,
       providerId,
-      uploadState: 'failed',
+      uploadState: failureState,
       externalId: null,
       errorMessage: result.errorMessage ?? null,
     });
@@ -201,7 +221,7 @@ async function runClaimedUpload(
     updateProviderUploadState({
       sessionId,
       providerId,
-      uploadState: 'failed',
+      uploadState: failureState,
       externalId: null,
       errorMessage: message,
     });
@@ -222,7 +242,7 @@ export async function uploadSessionToProvider(sessionId: string, providerId: str
   let upload = getOrCreateProviderUpload({ sessionId, providerId });
 
   if (upload.uploadState === 'uploaded') {
-    return { providerId, success: true, externalId: upload.externalId ?? undefined };
+    return alreadyUploadedResult(providerId, upload);
   }
 
   if (upload.uploadState === 'uploading' && !liveUploads.has(liveUploadKey(sessionId, providerId))) {
@@ -242,15 +262,17 @@ export async function uploadSessionToProvider(sessionId: string, providerId: str
 
   const claimedUpload = claimProviderUpload({ sessionId, providerId });
   if (!claimedUpload) {
-    return describeUpload(providerId, providerName, getProviderUpload(sessionId, providerId));
+    return describeUpload(providerId, getProviderUpload(sessionId, providerId));
   }
 
-  return runClaimedUpload(sessionId, providerId, context);
+  return runClaimedUpload(sessionId, providerId, context, 'failed');
 }
 
 /**
  * Sends an interrupted attempt again, after the user has checked the provider and
  * accepted that a duplicate is possible. Never called on the app's own initiative.
+ * A resend that fails lands back in `interrupted` rather than `failed`, so the next
+ * send still has to be asked for: nothing here settles what the provider holds.
  */
 export async function resendInterruptedUpload(sessionId: string, providerId: string): Promise<UploadSessionResult> {
   const contextResult = resolveUploadContext(sessionId, providerId);
@@ -261,10 +283,10 @@ export async function resendInterruptedUpload(sessionId: string, providerId: str
   const { context } = contextResult;
   const claimedUpload = claimInterruptedProviderUpload({ sessionId, providerId });
   if (!claimedUpload) {
-    return describeUpload(providerId, context.provider.name, getProviderUpload(sessionId, providerId));
+    return describeUpload(providerId, getProviderUpload(sessionId, providerId));
   }
 
-  return runClaimedUpload(sessionId, providerId, context);
+  return runClaimedUpload(sessionId, providerId, context, 'interrupted');
 }
 
 /**

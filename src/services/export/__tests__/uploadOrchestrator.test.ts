@@ -234,6 +234,9 @@ describe('uploadOrchestrator', () => {
       providerId: 'strava',
       success: true,
       externalId: 'ext-99',
+      // Reported so the caller can say the ride was already there rather than
+      // announcing an upload that never ran.
+      alreadyUploaded: true,
     });
     expect(mockClaimProviderUpload).not.toHaveBeenCalled();
     expect(mockUpdateProviderUploadState).not.toHaveBeenCalled();

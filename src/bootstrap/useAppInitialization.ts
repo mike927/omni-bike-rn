@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { initializeDatabase } from '../services/db/migrations';
 import { markAbandonedProviderUploadsInterrupted } from '../services/db/providerUploadRepository';
@@ -39,6 +39,7 @@ export function useAppInitialization(): AppInitState {
   const hydrateUserProfile = useUserProfileStore((s) => s.hydrate);
   const userProfileHydrated = useUserProfileStore((s) => s.hydrated);
 
+  const hasSweptAbandonedUploadsRef = useRef(false);
   const [isDatabaseReady, setIsDatabaseReady] = useState(false);
   const [isDatabaseError, setIsDatabaseError] = useState(false);
   const [databaseInitAttempt, setDatabaseInitAttempt] = useState(0);
@@ -89,11 +90,15 @@ export function useAppInitialization(): AppInitState {
   // database still calls `uploading` at boot was abandoned when a previous launch
   // died. Reclassify it once here so the app stops showing a dead attempt as
   // in-flight; the provider is not contacted, because whether it accepted the ride
-  // is exactly what nobody knows yet.
+  // is exactly what nobody knows yet. Once per launch, like the sibling
+  // `useInterruptedSessionRecovery`: a second pass could reclassify an upload that
+  // has since gone live.
   useEffect(() => {
-    if (!isDatabaseReady) {
+    if (!isDatabaseReady || hasSweptAbandonedUploadsRef.current) {
       return;
     }
+
+    hasSweptAbandonedUploadsRef.current = true;
 
     try {
       markAbandonedProviderUploadsInterrupted();

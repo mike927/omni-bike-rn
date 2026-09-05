@@ -204,9 +204,13 @@ export function claimInterruptedProviderUpload(input: CreateProviderUploadInput)
 }
 
 /**
- * Reclassifies a single abandoned `uploading` row as `interrupted`. The recorded
- * remote id survives, because it is the only handle on what the provider may
- * already have.
+ * Reclassifies a single abandoned `uploading` row as `interrupted`. Nothing is
+ * cleared: the transition only restates what the row already is. Today that
+ * preserves nothing in practice, because the claim clears `external_id` and only
+ * the terminal write sets it, so an `uploading` row's remote id is always null.
+ * The column stays reserved for a remote handle a future safe check could persist
+ * mid-upload; until something writes it, an interrupted attempt has no handle on
+ * what the provider may already hold, which is why only the user can settle it.
  */
 export function markProviderUploadInterrupted(input: CreateProviderUploadInput): PersistedProviderUpload | null {
   return transitionProviderUpload(input, ['uploading'], 'interrupted', false);
@@ -214,7 +218,9 @@ export function markProviderUploadInterrupted(input: CreateProviderUploadInput):
 
 /**
  * Records the user's answer that the provider already has this ride, so the app
- * stops offering to send it again.
+ * stops offering to send it again. The outcome columns are cleared: the user's
+ * answer replaces whatever the interrupted attempt left behind, including the
+ * error text of a resend that failed.
  */
 export function markInterruptedProviderUploadAcknowledged(
   input: CreateProviderUploadInput,
