@@ -72,6 +72,7 @@ Persist normalized cumulative session distance per sample and export it. Keep no
   ahead" against a measured 6x overshoot) and no test exercised a restore. Fixed by capping replayed values at
   the stored ride total, adding the restore and counter-gap tests, and correcting the wording here and in the
   module. Five minor review findings fixed alongside.
+- 2026-09-05: cross-link. The device-only checks this ticket leaves outstanding are folded into the consolidated device pass at [`docs/audits/2026-09-05/device-verification.md`](../device-verification.md), produced under [A11](A11-native-upgrade-verification.md) and run once against build `c19673e` for all of A01 to A10. Nothing here changes until that run is recorded.
 
 ## Completion / disposition record
 

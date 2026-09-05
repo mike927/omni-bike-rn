@@ -5,6 +5,7 @@ Repository-owned reference documents that agents and humans can consult when imp
 ## Audits and Remediation
 
 - [2026-09-05 codebase audit tracker](./audits/2026-09-05/README.md) — individual issues with status, ownership, dependencies, evidence and acceptance criteria
+- [2026-09-05 consolidated device verification pass](./audits/2026-09-05/device-verification.md): the single on-device run that settles A11 and the device-only residual of A01 to A10, with preconditions, steps, pass criteria and the accepted limitations that must not be reported as failures
 
 ## Vendor References
 

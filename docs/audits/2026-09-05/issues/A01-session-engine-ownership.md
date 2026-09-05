@@ -68,6 +68,7 @@ Give the session lifecycle one root-owned engine and bike-status observer. Expos
 - 2026-09-05 — Imported from the audit of `965cbec`. No remediation performed; status is Not started.
 - 2026-09-05: claimed by the automated remediation agent on `fix/a01-session-engine-ownership`. Reproduced both audit sequences in Jest against the real `MetronomeEngine`, then moved the engine and the bike observers to a root-owned lifecycle hook. Status set to Done; PR open, not merged.
 - 2026-09-05: review round 1 returned CHANGES_REQUIRED (spec MET, no correctness blocker). Fix round 1 made the Paused/Finished timer assertions bind, restored the exact `stop()` call count, moved the Watch remote into the root-owned lifecycle, asserted the single boot-time mount, and corrected the RED evidence recorded below. Status stays Done; PR still open, not merged.
+- 2026-09-05: cross-link. The device-only checks this ticket leaves outstanding are folded into the consolidated device pass at [`docs/audits/2026-09-05/device-verification.md`](../device-verification.md), produced under [A11](A11-native-upgrade-verification.md) and run once against build `c19673e` for all of A01 to A10. Nothing here changes until that run is recorded.
 
 ## Completion / disposition record
 

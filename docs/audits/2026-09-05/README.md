@@ -11,6 +11,7 @@ Reviewed `AGENTS.md`, `DESIGN.md`, `ROADMAP.md`, supporting platform documents, 
 - [Verification evidence and audit limitations](verification.md)
 - [Unvalidated hypotheses](hypotheses.md) — kept separate from confirmed findings
 - [Repository roadmap](../../../ROADMAP.md)
+- [Consolidated device verification pass](device-verification.md): the single on-device run that settles A11 and the device-only residual of A01 to A10, produced with the repository `manual-test-handoff` skill and pinned to build `c19673e`
 
 ## Issues
 
@@ -42,7 +43,7 @@ Evidence classification and category are recorded in each ticket. “Confirmed�
 3. If another agent owns it, coordinate first. A01/A02/A06 share lifecycle code; A07/A08 share persistence concerns. Do not silently overwrite another worker's claim.
 4. Reproduce the issue or establish the concrete maintenance benefit. Preserve documented domain rules and intentional platform decisions. The proposed correction is a starting point; choose the smallest sound design against current code.
 5. Update acceptance checkboxes and the work log as work progresses. Use `npm run test:changed` for the development loop, targeted existing tests where useful, and required pre-ship checks from `AGENTS.md`. Distinguish changed-test success from the full CI gate.
-6. Record exact checks and outcomes. Device-dependent acceptance follows the repo's **manual-test-handoff** skill; a unit test or native build is not a physical pass.
+6. Record exact checks and outcomes. Device-dependent acceptance follows the repo's **manual-test-handoff** skill; a unit test or native build is not a physical pass. This run's device-dependent acceptance is consolidated in [device-verification.md](device-verification.md): extend that pass rather than writing a separate one, so a device cycle covers every open ticket at the same revision.
 7. Set **Done** only after acceptance criteria are satisfied and completion evidence is recorded. If required device evidence is pending, retain **In progress** or **Blocked** and explain what is missing. Link commit/PR and follow-up issues. For a disproved bug, use **Not reproducible** with evidence rather than pretending it was fixed.
 8. Keep this tracker durable: do not delete completed tickets. The roadmap contains an aggregate audit item: use `[~]` while remediation is active and `[x]` only once all tickets are Done or have an explicit documented disposition. Hypotheses remain in Future Considerations until validated and accepted as work.
 
