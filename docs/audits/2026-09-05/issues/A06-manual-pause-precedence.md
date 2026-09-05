@@ -64,8 +64,8 @@ Track pause ownership/reason in shared lifecycle state. Permit automatic resume 
 ## Work log
 
 - 2026-09-05 — Imported from the audit of `965cbec`. No remediation performed; status is Not started.
-- 2026-09-05 — Claimed by automated remediation agent on branch `fix/a06-manual-pause-precedence`. A01 already merged (`7081c13`); the seam is `syncSessionFromBikeStatus` in `src/features/training/sessionController.ts`, which now holds single-owner session lifecycle logic.
-- 2026-09-05 — Wrote failing tests first (TDD): `src/features/training/__tests__/sessionController.test.ts` (new) and one added case in `src/features/training/hooks/__tests__/trainingSessionOwnership.test.ts`. Confirmed both failed against the unfixed code, then implemented the fix, confirmed green, and confirmed by mutation (see below). PR opened: https://github.com/mike927/omni-bike-rn/pull/109.
+- 2026-09-05: Claimed by automated remediation agent on branch `fix/a06-manual-pause-precedence`. A01 already merged (`7081c13`); the seam is `syncSessionFromBikeStatus` in `src/features/training/sessionController.ts`, which now holds single-owner session lifecycle logic.
+- 2026-09-05: Wrote failing tests first (TDD): `src/features/training/__tests__/sessionController.test.ts` (new) and one added case in `src/features/training/hooks/__tests__/trainingSessionOwnership.test.ts`. Confirmed both failed against the unfixed code, then implemented the fix, confirmed green, and confirmed by mutation (see below). PR opened: https://github.com/mike927/omni-bike-rn/pull/109.
 
 ## Completion / disposition record
 
@@ -74,10 +74,10 @@ Track pause ownership/reason in shared lifecycle state. Permit automatic resume 
 **PR.** https://github.com/mike927/omni-bike-rn/pull/109 (branch `fix/a06-manual-pause-precedence`).
 
 **Commands run and outcomes.**
-- `npx jest src/features/training` — 14 suites / 134 tests passed.
-- `npm run test:changed` (`jest --changedSince=main`) — 7 suites / 92 tests passed.
-- `npm run ci:gate` (lint + typecheck + full `jest --ci --runInBand`) — clean lint, clean typecheck, 109 suites / 1034 tests passed.
-- Mutation check (manual, not an automated mutation-testing tool): reverted each of the three behavioral edits one at a time — the `!manualPauseActive` guard in `syncSessionFromBikeStatus`, the `manualPauseActive = false` line in `resumeSession()`, and the `manualPauseActive = true` line in `restoreSession()` — and reran the new tests after each revert. Each reversion reproduced a test failure (the manual-pause, restore, explicit-resume-clears-reason, and Watch-remote tests each caught a distinct mutation), then the fix was restored and the full suite reconfirmed green. This is the "delete the fix, watch the test fail" check the coordinator required; it was not a formal mutation-testing tool run.
+- `npx jest src/features/training`: 14 suites / 134 tests passed.
+- `npm run test:changed` (`jest --changedSince=main`): 7 suites / 92 tests passed.
+- `npm run ci:gate` (lint + typecheck + full `jest --ci --runInBand`): clean lint, clean typecheck, 109 suites / 1034 tests passed.
+- Mutation check (manual, not an automated mutation-testing tool): reverted each of the three behavioral edits one at a time (the `!manualPauseActive` guard in `syncSessionFromBikeStatus`, the `manualPauseActive = false` line in `resumeSession()`, and the `manualPauseActive = true` line in `restoreSession()`) and reran the new tests after each revert. Each reversion reproduced a test failure (the manual-pause, restore, explicit-resume-clears-reason, and Watch-remote tests each caught a distinct mutation), then the fix was restored and the full suite reconfirmed green. This is the "delete the fix, watch the test fail" check the coordinator required; it was not a formal mutation-testing tool run.
 
 **Regression evidence.** New coverage: `src/features/training/__tests__/sessionController.test.ts` (manual pause survives bike Started; an eligible bike-driven pause still auto-resumes; explicit Resume clears the manual reason so a later bike-driven pause can auto-resume again; a restored interrupted session requires explicit Resume before a bike Started event can resume it) and one added case in `src/features/training/hooks/__tests__/trainingSessionOwnership.test.ts` (an on-wrist Pause survives a bike Started event, then resumes on an on-wrist Resume) covering the Watch remote through the real lifecycle hook and the mocked WatchConnectivity bridge.
 
