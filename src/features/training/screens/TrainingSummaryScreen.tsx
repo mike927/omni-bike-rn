@@ -12,7 +12,11 @@ import {
 import { deleteSession, getSamplesBySessionId, getSessionById } from '../../../services/db/trainingSessionRepository';
 import { getProviderUpload } from '../../../services/db/providerUploadRepository';
 import { APPLE_HEALTH_PROVIDER_ID, STRAVA_PROVIDER_ID } from '../../../services/export/providerIds';
-import { uploadSessionToProvider } from '../../../services/export/uploadOrchestrator';
+import {
+  acknowledgeInterruptedUpload,
+  resendInterruptedUpload,
+  uploadSessionToProvider,
+} from '../../../services/export/uploadOrchestrator';
 import { useAppleHealthConnectionStore } from '../../../store/appleHealthConnectionStore';
 import { useStravaConnectionStore } from '../../../store/stravaConnectionStore';
 import type {
@@ -41,12 +45,23 @@ interface TrainingSummaryScreenProps {
 
 function uploadButtonLabel(providerName: string, upload: PersistedProviderUpload | null, isUploading: boolean): string {
   if (isUploading || upload?.uploadState === 'uploading') return 'Uploading…';
+  // An interrupted attempt is not a failure: the ride may already be there, so the
+  // button invites a check rather than promising another send.
+  if (upload?.uploadState === 'interrupted') return `Check ${providerName}`;
   if (upload?.uploadState === 'failed') return `Retry ${providerName}`;
   if (upload?.uploadState === 'uploaded') return `${providerName} ✓`;
   return providerName;
 }
 
-function failedMessage(upload: PersistedProviderUpload | null, providerLabel: string): string | null {
+function uploadNotice(upload: PersistedProviderUpload | null, providerLabel: string): string | null {
+  if (upload?.uploadState === 'interrupted') {
+    // The interruption framing has to survive here even when a retry has failed and left its
+    // reason on this same row: the remote outcome is still unknown, only the retry's own
+    // failure is a known fact. Naming that reason still beats a caption that just repeats
+    // "interrupted" with no clue why the retry did not get through.
+    const retryFailure = upload.errorMessage ? ` The retry failed: ${upload.errorMessage}.` : '';
+    return `${providerLabel} upload was interrupted.${retryFailure} Check ${providerLabel} before uploading this ride again.`;
+  }
   if (upload?.uploadState !== 'failed') return null;
   return upload.errorMessage
     ? `${providerLabel} upload failed: ${upload.errorMessage}`
@@ -114,6 +129,61 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: Readonly<
     router.replace(exitRoute);
   };
 
+  // The app cannot tell whether the provider already accepted a ride whose upload
+  // was interrupted, and neither resending nor giving up is safe to decide on the
+  // user's behalf. So the choice is theirs, with the provider named but never its
+  // error text: the orchestrator hands over a provider-agnostic notice.
+  const promptInterruptionDecision = (
+    providerId: string,
+    providerLabel: string,
+    notice: string,
+    refresh: () => void,
+  ) => {
+    Alert.alert('Upload Interrupted', `${notice} Open ${providerLabel} to check before uploading again.`, [
+      { text: 'Not Now', style: 'cancel' },
+      {
+        text: 'Already There',
+        onPress: () => {
+          const result = acknowledgeInterruptedUpload(sessionId, providerId);
+          refresh();
+          // The answer can arrive after the attempt moved on (a resend already in
+          // flight, say). Saying so beats a button that silently does nothing.
+          if (!result.success) {
+            Alert.alert('Upload Not Updated', result.errorMessage ?? 'This answer could not be recorded.');
+          }
+        },
+      },
+      {
+        text: 'Upload Again',
+        onPress: () => {
+          void (async () => {
+            const result = await resendInterruptedUpload(sessionId, providerId);
+            refresh();
+
+            if (!result.success) {
+              Alert.alert(
+                'Upload Failed',
+                result.errorMessage ?? `This workout could not be uploaded to ${providerLabel}.`,
+              );
+              return;
+            }
+
+            // Settled while the prompt was open (stacked prompts), so nothing was sent.
+            if (result.alreadyUploaded) {
+              Alert.alert(
+                'Already Uploaded',
+                `This workout was already marked as uploaded to ${providerLabel}, so nothing was sent again.`,
+              );
+              return;
+            }
+
+            Alert.alert('Upload Complete', `This workout was uploaded to ${providerLabel}.`);
+          })();
+        },
+      },
+    ]);
+  };
+
   const handleUploadToStrava = async () => {
     if (!useStravaConnectionStore.getState().connected) {
       Alert.alert('Strava Not Connected', 'Connect your Strava account in Settings to upload workouts.', [
@@ -127,7 +197,18 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: Readonly<
 
     try {
       const result = await uploadSessionToProvider(sessionId, STRAVA_PROVIDER_ID);
-      setProviderUpload(getProviderUpload(sessionId, STRAVA_PROVIDER_ID));
+      const refreshStravaUpload = () => setProviderUpload(getProviderUpload(sessionId, STRAVA_PROVIDER_ID));
+      refreshStravaUpload();
+
+      if (result.needsInterruptionDecision) {
+        promptInterruptionDecision(
+          STRAVA_PROVIDER_ID,
+          STRAVA_PROVIDER_LABEL,
+          result.errorMessage ?? `The last ${STRAVA_PROVIDER_LABEL} upload was interrupted.`,
+          refreshStravaUpload,
+        );
+        return;
+      }
 
       if (!result.success) {
         Alert.alert(
@@ -167,7 +248,19 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: Readonly<
 
     try {
       const result = await uploadSessionToProvider(sessionId, APPLE_HEALTH_PROVIDER_ID);
-      setAppleHealthUpload(getProviderUpload(sessionId, APPLE_HEALTH_PROVIDER_ID));
+      const refreshAppleHealthUpload = () =>
+        setAppleHealthUpload(getProviderUpload(sessionId, APPLE_HEALTH_PROVIDER_ID));
+      refreshAppleHealthUpload();
+
+      if (result.needsInterruptionDecision) {
+        promptInterruptionDecision(
+          APPLE_HEALTH_PROVIDER_ID,
+          APPLE_HEALTH_PROVIDER_LABEL,
+          result.errorMessage ?? `The last ${APPLE_HEALTH_PROVIDER_LABEL} upload was interrupted.`,
+          refreshAppleHealthUpload,
+        );
+        return;
+      }
 
       if (!result.success) {
         Alert.alert(
@@ -247,8 +340,8 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: Readonly<
   }
 
   const vm = deriveSummaryView({ session, samples });
-  const stravaFailed = failedMessage(providerUpload, STRAVA_PROVIDER_LABEL);
-  const appleFailed = failedMessage(appleHealthUpload, APPLE_HEALTH_PROVIDER_LABEL);
+  const stravaNotice = uploadNotice(providerUpload, STRAVA_PROVIDER_LABEL);
+  const appleNotice = uploadNotice(appleHealthUpload, APPLE_HEALTH_PROVIDER_LABEL);
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
@@ -310,8 +403,8 @@ export function TrainingSummaryScreen({ sessionId, source, returnTo }: Readonly<
             </View>
           ) : null}
         </View>
-        {stravaFailed ? <Text style={styles.failedCaption}>{stravaFailed}</Text> : null}
-        {appleHealthSupported && appleFailed ? <Text style={styles.failedCaption}>{appleFailed}</Text> : null}
+        {stravaNotice ? <Text style={styles.failedCaption}>{stravaNotice}</Text> : null}
+        {appleHealthSupported && appleNotice ? <Text style={styles.failedCaption}>{appleNotice}</Text> : null}
         {vm.gearLabel ? <Text style={styles.gearCaption}>Recorded on {vm.gearLabel}</Text> : null}
       </ScrollView>
 

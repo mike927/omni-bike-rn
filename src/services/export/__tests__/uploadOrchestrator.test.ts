@@ -5,6 +5,7 @@ import {
   claimProviderUpload,
   getOrCreateProviderUpload,
   getProviderUpload,
+  markProviderUploadInterrupted,
   updateProviderUploadState,
 } from '../../db/providerUploadRepository';
 import { getProviderGearLink, markProviderGearLinkStale } from '../../providerGear/providerGearLinkStorage';
@@ -22,9 +23,12 @@ jest.mock('../../db/trainingSessionRepository', () => ({
 }));
 
 jest.mock('../../db/providerUploadRepository', () => ({
+  claimInterruptedProviderUpload: jest.fn(),
   claimProviderUpload: jest.fn(),
   getOrCreateProviderUpload: jest.fn(),
   getProviderUpload: jest.fn(),
+  markInterruptedProviderUploadAcknowledged: jest.fn(),
+  markProviderUploadInterrupted: jest.fn(),
   updateProviderUploadState: jest.fn(),
 }));
 
@@ -41,6 +45,9 @@ const mockGetOrCreateProviderUpload = getOrCreateProviderUpload as jest.MockedFu
   typeof getOrCreateProviderUpload
 >;
 const mockGetProviderUpload = getProviderUpload as jest.MockedFunction<typeof getProviderUpload>;
+const mockMarkProviderUploadInterrupted = markProviderUploadInterrupted as jest.MockedFunction<
+  typeof markProviderUploadInterrupted
+>;
 const mockUpdateProviderUploadState = updateProviderUploadState as jest.MockedFunction<
   typeof updateProviderUploadState
 >;
@@ -192,18 +199,22 @@ describe('uploadOrchestrator', () => {
     expect(result.errorMessage).toContain('not finished');
   });
 
-  it('prevents double upload when already uploading', async () => {
-    mockGetExportProvider.mockReturnValue(createMockProvider());
+  it('reclassifies an uploading row this process does not own as interrupted', async () => {
+    const provider = createMockProvider();
+    mockGetExportProvider.mockReturnValue(provider);
     mockGetSessionById.mockReturnValue(FINISHED_SESSION);
     mockGetOrCreateProviderUpload.mockReturnValue({
       ...READY_UPLOAD,
       uploadState: 'uploading',
     });
+    mockMarkProviderUploadInterrupted.mockReturnValue({ ...READY_UPLOAD, uploadState: 'interrupted' });
 
     const result = await uploadSessionToProvider('session-1', 'strava');
 
     expect(result.success).toBe(false);
-    expect(result.errorMessage).toContain('already in progress');
+    expect(result.needsInterruptionDecision).toBe(true);
+    expect(mockMarkProviderUploadInterrupted).toHaveBeenCalledWith({ sessionId: 'session-1', providerId: 'strava' });
+    expect(provider.exportSession).not.toHaveBeenCalled();
     expect(mockClaimProviderUpload).not.toHaveBeenCalled();
     expect(mockUpdateProviderUploadState).not.toHaveBeenCalled();
   });
@@ -223,6 +234,9 @@ describe('uploadOrchestrator', () => {
       providerId: 'strava',
       success: true,
       externalId: 'ext-99',
+      // Reported so the caller can say the ride was already there rather than
+      // announcing an upload that never ran.
+      alreadyUploaded: true,
     });
     expect(mockClaimProviderUpload).not.toHaveBeenCalled();
     expect(mockUpdateProviderUploadState).not.toHaveBeenCalled();

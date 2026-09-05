@@ -2,6 +2,7 @@ import { renderHook, waitFor, act } from '@testing-library/react-native';
 
 import { useAppInitialization } from '../useAppInitialization';
 import { initializeDatabase } from '../../services/db/migrations';
+import { markAbandonedProviderUploadsInterrupted } from '../../services/db/providerUploadRepository';
 import { registerExportProviders } from '../../services/export/registerExportProviders';
 import { useSavedGearStore } from '../../store/savedGearStore';
 import { useAppPreferencesStore } from '../../store/appPreferencesStore';
@@ -11,6 +12,9 @@ import { useAppleHealthConnectionStore } from '../../store/appleHealthConnection
 import { useUserProfileStore } from '../../store/userProfileStore';
 
 jest.mock('../../services/db/migrations', () => ({ initializeDatabase: jest.fn() }));
+jest.mock('../../services/db/providerUploadRepository', () => ({
+  markAbandonedProviderUploadsInterrupted: jest.fn().mockReturnValue(0),
+}));
 jest.mock('../../services/export/registerExportProviders', () => ({ registerExportProviders: jest.fn() }));
 jest.mock('../../store/savedGearStore', () => ({ useSavedGearStore: jest.fn() }));
 jest.mock('../../store/appPreferencesStore', () => ({ useAppPreferencesStore: jest.fn() }));
@@ -55,6 +59,7 @@ jest.mock('../../features/training/hooks/useInterruptedSessionRecovery', () => (
 }));
 
 const mockInit = initializeDatabase as jest.Mock;
+const mockMarkAbandonedUploads = markAbandonedProviderUploadsInterrupted as jest.Mock;
 
 function mockStore(store: unknown, state: Record<string, unknown>) {
   (store as jest.Mock).mockImplementation((selector: (s: Record<string, unknown>) => unknown) => selector(state));
@@ -75,6 +80,7 @@ function setAllHydrated(onboardingCompleted = false) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockMarkAbandonedUploads.mockReturnValue(0);
   setAllHydrated();
 });
 
@@ -98,6 +104,70 @@ describe('useAppInitialization', () => {
     const { result } = await renderHook(() => useAppInitialization());
     await waitFor(() => expect(result.current.phase).toBe('ready'));
     expect(result.current).toEqual({ phase: 'ready', onboardingCompleted: true });
+  });
+
+  it('reclassifies uploads abandoned by a previous launch once the database is ready', async () => {
+    mockInit.mockResolvedValue(undefined);
+    mockMarkAbandonedUploads.mockReturnValue(1);
+
+    const { result } = await renderHook(() => useAppInitialization());
+    await waitFor(() => expect(result.current.phase).toBe('ready'));
+
+    expect(mockMarkAbandonedUploads).toHaveBeenCalledTimes(1);
+  });
+
+  it('sweeps abandoned uploads once per launch even across a database-init retry cycle', async () => {
+    // StrictMode's double-invoke does not exercise the guard: both passes take the early
+    // return before `isDatabaseReady` is ever true, so it cannot prove the guard does
+    // anything. The guard's only reachable trigger is `isDatabaseReady` flipping
+    // false -> true a second time within one launch, which happens when a retry fails
+    // after an earlier retry already succeeded. `retry` is part of the returned
+    // `AppInitState` and is not single-use, so this is reachable through the hook's
+    // public API: reject, retry, resolve, retry, reject, retry, resolve.
+    mockInit
+      .mockRejectedValueOnce(new Error('boot db boom'))
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('retry db boom'))
+      .mockResolvedValueOnce(undefined);
+
+    const { result } = await renderHook(() => useAppInitialization());
+    await waitFor(() => expect(result.current.phase).toBe('error'));
+    const errorState = result.current;
+    if (errorState.phase !== 'error') throw new Error('expected error phase');
+    const retry = errorState.retry;
+
+    await act(() => retry());
+    await waitFor(() => expect(result.current.phase).toBe('ready'));
+    expect(mockMarkAbandonedUploads).toHaveBeenCalledTimes(1);
+
+    await act(() => retry());
+    await waitFor(() => expect(result.current.phase).toBe('error'));
+
+    await act(() => retry());
+    await waitFor(() => expect(result.current.phase).toBe('ready'));
+
+    // The second success must not re-run the sweep: it already ran once this launch.
+    expect(mockMarkAbandonedUploads).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not sweep abandoned uploads while the database is still initializing', async () => {
+    mockInit.mockRejectedValue(new Error('db boom'));
+
+    const { result } = await renderHook(() => useAppInitialization());
+    await waitFor(() => expect(result.current.phase).toBe('error'));
+
+    expect(mockMarkAbandonedUploads).not.toHaveBeenCalled();
+  });
+
+  it('still boots when the abandoned-upload sweep throws', async () => {
+    mockInit.mockResolvedValue(undefined);
+    mockMarkAbandonedUploads.mockImplementation(() => {
+      throw new Error('sweep boom');
+    });
+
+    const { result } = await renderHook(() => useAppInitialization());
+
+    await waitFor(() => expect(result.current.phase).toBe('ready'));
   });
 
   it('stays loading while a store is not yet hydrated', async () => {

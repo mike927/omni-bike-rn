@@ -1,10 +1,14 @@
 import {
+  claimInterruptedProviderUpload,
   claimProviderUpload,
   createProviderUpload,
   deleteProviderUploadsBySessionId,
   getProviderUpload,
   getOrCreateProviderUpload,
   getProviderUploadsBySessionId,
+  markAbandonedProviderUploadsInterrupted,
+  markInterruptedProviderUploadAcknowledged,
+  markProviderUploadInterrupted,
   updateProviderUploadState,
 } from '../providerUploadRepository';
 import { getSQLiteDatabase } from '../database';
@@ -250,6 +254,124 @@ describe('providerUploadRepository', () => {
       'session-1',
       'strava',
     );
+
+    nowSpy.mockRestore();
+  });
+
+  it('reclassifies a single abandoned upload without losing its remote id', () => {
+    const database = buildDatabase();
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(7000);
+    database.getFirstSync.mockReturnValue({
+      id: 'upload-existing',
+      sessionId: 'session-1',
+      providerId: 'strava',
+      uploadState: 'interrupted',
+      externalId: 'ext-7',
+      errorMessage: null,
+      createdAtMs: 1000,
+      updatedAtMs: 7000,
+    });
+
+    const result = markProviderUploadInterrupted({ sessionId: 'session-1', providerId: 'strava' });
+
+    expect(database.runSync).toHaveBeenCalledWith(
+      expect.stringContaining('WHERE session_id = ? AND provider_id = ? AND upload_state IN (?)'),
+      'interrupted',
+      7000,
+      'session-1',
+      'strava',
+      'uploading',
+    );
+    expect(result?.uploadState).toBe('interrupted');
+    expect(result?.externalId).toBe('ext-7');
+
+    nowSpy.mockRestore();
+  });
+
+  it('leaves a row alone when it is no longer uploading', () => {
+    const database = buildDatabase();
+    database.runSync.mockReturnValue({ changes: 0, lastInsertRowId: 0 });
+
+    expect(markProviderUploadInterrupted({ sessionId: 'session-1', providerId: 'strava' })).toBeNull();
+    expect(database.getFirstSync).not.toHaveBeenCalled();
+  });
+
+  it('claims an interrupted upload only from the interrupted state', () => {
+    const database = buildDatabase();
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(7500);
+    database.getFirstSync.mockReturnValue({
+      id: 'upload-existing',
+      sessionId: 'session-1',
+      providerId: 'strava',
+      uploadState: 'uploading',
+      externalId: null,
+      errorMessage: null,
+      createdAtMs: 1000,
+      updatedAtMs: 7500,
+    });
+
+    const result = claimInterruptedProviderUpload({ sessionId: 'session-1', providerId: 'strava' });
+
+    expect(database.runSync).toHaveBeenCalledWith(
+      expect.stringContaining('WHERE session_id = ? AND provider_id = ? AND upload_state IN (?)'),
+      'uploading',
+      null,
+      null,
+      7500,
+      'session-1',
+      'strava',
+      'interrupted',
+    );
+    expect(result?.uploadState).toBe('uploading');
+
+    nowSpy.mockRestore();
+  });
+
+  it('acknowledges an interrupted upload as already uploaded', () => {
+    const database = buildDatabase();
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(8000);
+    database.getFirstSync.mockReturnValue({
+      id: 'upload-existing',
+      sessionId: 'session-1',
+      providerId: 'strava',
+      uploadState: 'uploaded',
+      externalId: null,
+      errorMessage: null,
+      createdAtMs: 1000,
+      updatedAtMs: 8000,
+    });
+
+    const result = markInterruptedProviderUploadAcknowledged({ sessionId: 'session-1', providerId: 'strava' });
+
+    expect(database.runSync).toHaveBeenCalledWith(
+      expect.stringContaining('WHERE session_id = ? AND provider_id = ? AND upload_state IN (?)'),
+      'uploaded',
+      null,
+      null,
+      8000,
+      'session-1',
+      'strava',
+      'interrupted',
+    );
+    expect(result?.uploadState).toBe('uploaded');
+
+    nowSpy.mockRestore();
+  });
+
+  it('sweeps every upload left uploading by a previous launch', () => {
+    const database = buildDatabase();
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(9000);
+    database.runSync.mockReturnValue({ changes: 3, lastInsertRowId: 0 });
+
+    const recovered = markAbandonedProviderUploadsInterrupted();
+
+    expect(database.runSync).toHaveBeenCalledWith(
+      expect.stringContaining('WHERE upload_state = ?'),
+      'interrupted',
+      9000,
+      'uploading',
+    );
+    expect(recovered).toBe(3);
 
     nowSpy.mockRestore();
   });

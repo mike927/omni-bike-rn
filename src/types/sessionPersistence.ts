@@ -2,7 +2,13 @@ import type { MetricSnapshot } from './training';
 
 export type PersistedSessionStatus = 'active' | 'paused' | 'finished';
 
-export type SessionUploadState = 'ready' | 'uploading' | 'uploaded' | 'failed';
+/**
+ * `uploading` is only ever true of an operation that is live in the current
+ * process. A row left `uploading` by a process that was killed is abandoned, and
+ * the app cannot tell whether the provider accepted the ride: that row becomes
+ * `interrupted` and waits for a decision instead of silently retrying or failing.
+ */
+export type SessionUploadState = 'ready' | 'uploading' | 'interrupted' | 'uploaded' | 'failed';
 
 export interface PersistedDeviceSnapshot {
   id: string;

@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { initializeDatabase } from '../services/db/migrations';
+import { markAbandonedProviderUploadsInterrupted } from '../services/db/providerUploadRepository';
 import { registerExportProviders } from '../services/export/registerExportProviders';
 import { useSavedGearStore } from '../store/savedGearStore';
 import { useAppPreferencesStore } from '../store/appPreferencesStore';
@@ -38,6 +39,7 @@ export function useAppInitialization(): AppInitState {
   const hydrateUserProfile = useUserProfileStore((s) => s.hydrate);
   const userProfileHydrated = useUserProfileStore((s) => s.hydrated);
 
+  const hasSweptAbandonedUploadsRef = useRef(false);
   const [isDatabaseReady, setIsDatabaseReady] = useState(false);
   const [isDatabaseError, setIsDatabaseError] = useState(false);
   const [databaseInitAttempt, setDatabaseInitAttempt] = useState(0);
@@ -83,6 +85,27 @@ export function useAppInitialization(): AppInitState {
       isMounted = false;
     };
   }, [databaseInitAttempt]);
+
+  // An upload is only ever live inside the process that started it, so anything the
+  // database still calls `uploading` at boot was abandoned when a previous launch
+  // died. Reclassify it once here so the app stops showing a dead attempt as
+  // in-flight; the provider is not contacted, because whether it accepted the ride
+  // is exactly what nobody knows yet. Once per launch, like the sibling
+  // `useInterruptedSessionRecovery`: a second pass could reclassify an upload that
+  // has since gone live.
+  useEffect(() => {
+    if (!isDatabaseReady || hasSweptAbandonedUploadsRef.current) {
+      return;
+    }
+
+    hasSweptAbandonedUploadsRef.current = true;
+
+    try {
+      markAbandonedProviderUploadsInterrupted();
+    } catch (error: unknown) {
+      console.error('[useAppInitialization] Failed to reconcile abandoned provider uploads:', error);
+    }
+  }, [isDatabaseReady]);
 
   if (isDatabaseError) {
     return {
