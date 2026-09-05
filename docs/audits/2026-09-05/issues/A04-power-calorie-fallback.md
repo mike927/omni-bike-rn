@@ -8,7 +8,7 @@
 | --- | --- |
 | Status | Done |
 | Owner | automated remediation agent |
-| Branch / PR | fix/a04-power-calorie-fallback |
+| Branch / PR | fix/a04-power-calorie-fallback / https://github.com/mike927/omni-bike-rn/pull/111 |
 | Last updated | 2026-09-05 |
 | Type | Bug |
 | Category | correctness |
@@ -67,6 +67,8 @@ Gate power on valid power availability, not HR liveness. Preserve absent power s
 - 2026-09-05: Fixed. Added `hasBikePower` to `TrainingTickInput` (a bike is connected and reporting, independent of HR); `MetronomeEngine` now sets it from `latestBikeMetrics !== null` instead of overloading `hasLiveExternalHr`; `advanceCalories` in `sessionAccumulator.ts` gates the power-based tier on `hasBikePower`. Updated `sessionAccumulator.test.ts`, `MetronomeEngine.test.ts`, `trainingSessionStore.test.ts`, and the two session-persistence test files for the new required field; replaced the bug-encoding "holds totalCalories ... zero" test and the "bike-reported calories when no live external HR" integration tests with corrected expectations (power now correctly outranks bike-reported energy even with no HR, matching the documented priority). Verified by mutation: reverting the `if (hasBikePower)` gate to `if (hasLiveExternalHr)` fails exactly the tests that reproduce this ticket (the 60-tick/200 W reducer reproduction plus 5 related tests), 14 failures total, then restored the fix and reran green.
 
 ## Completion / disposition record
+
+**PR:** https://github.com/mike927/omni-bike-rn/pull/111 (branch `fix/a04-power-calorie-fallback`, open, not merged).
 
 **Change summary.** The power-based calorie tier in `advanceCalories` (`src/services/training/sessionAccumulator.ts`) was gated on `hasLiveExternalHr`, so a ride with valid power but no HR source fell through to the bike-reported tier (or to none, if the bike didn't also report `totalEnergyKcal`), even though the documented priority (`AGENTS.md`, "Calorie source priority") ranks power-based above bike-reported and does not require HR for it. Fix: added a new `hasBikePower: boolean` field to `TrainingTickInput` (`src/types/training.ts`), distinct from `MetricSnapshot.power` (kept non-nullable and untouched, since it is shared with DB persistence, TCX export and UI code outside this ticket's scope). `MetronomeEngine.mergeMetrics` sets it to `bikeMetrics !== null`, which is the only way to tell a connected bike reporting a genuine zero watts apart from the "no bike" default of `power = 0`. `advanceCalories` now gates the power tier on `hasBikePower` instead of `hasLiveExternalHr`; the Keytel tier's HR gate is untouched. The documented priority order in `AGENTS.md` did not need changing: this fix corrects *when* the power tier is reachable, not the tier order itself.
 
