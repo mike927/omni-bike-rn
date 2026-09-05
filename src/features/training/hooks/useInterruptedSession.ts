@@ -2,8 +2,7 @@ import { useCallback } from 'react';
 
 import { discardDraftSession, getLastSampleSequence } from '../../../services/db/trainingSessionRepository';
 import { useInterruptedSessionStore } from '../../../store/interruptedSessionStore';
-import { useTrainingSessionStore } from '../../../store/trainingSessionStore';
-import { TrainingPhase, type TrainingSessionRestoreInput } from '../../../types/training';
+import type { TrainingSessionRestoreInput } from '../../../types/training';
 import type { PersistedTrainingSession } from '../../../types/sessionPersistence';
 import { restoreSession } from '../sessionController';
 import { seedFromPersistedSession } from './useTrainingSessionPersistence';
@@ -26,17 +25,13 @@ export function useInterruptedSession(): UseInterruptedSessionReturn {
       return false;
     }
 
-    if (useTrainingSessionStore.getState().phase !== TrainingPhase.Idle) {
-      console.error('[useInterruptedSession] Cannot restore while another in-memory session is active.');
-      return false;
-    }
-
     const lastSampleSequence = getLastSampleSequence(interruptedSession.id);
 
-    // Restore first, seed after. The controller's own Idle guard is the last word
-    // on whether this ride may come back, so handing the persistence hook the
-    // restored ride's identity before that guard has passed would leave the app
-    // writing into the interrupted row while a different ride is in memory.
+    // Restore first, seed after, and let `restoreSession` be the only gate. It
+    // already refuses anything but an Idle phase, so a second copy of that check
+    // here would only hide the ordering that matters: handing the persistence
+    // hook the interrupted ride's identity before the guard has passed points
+    // every later write at that row while a different ride is in memory.
     if (!restoreSession(toRestoreInput(interruptedSession))) {
       return false;
     }
