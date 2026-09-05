@@ -11,6 +11,12 @@ Versions, verification evidence and remaining upstream diagnostics: [tech stack]
 
 Active development roadmap. Update states as work progresses.
 
+## Codebase Audit Remediation — September 2026
+
+- [ ] Resolve or explicitly disposition the [2026-09-05 audit issues](docs/audits/2026-09-05/README.md) (A01–A11). Per-issue status and ownership live in each ticket; use `[~]` here when remediation starts and `[x]` only when every issue has a documented outcome.
+
+A11 tracks the remaining physical verification already listed in Tech Stack Upgrade; it is the same acceptance work, not a second device campaign.
+
 ## HR Source Status Clarity
 
 - [x] Separate readiness from HR source selection on Home and Settings; replace Watch idle copy with `Waiting for ride · Start on iPhone`.
@@ -201,6 +207,8 @@ Android is not actively supported today — the product is iOS-first (watchOS co
 ---
 
 ## Future Considerations
+
+- Validate the [audit hypotheses H01/H02](docs/audits/2026-09-05/hypotheses.md): cross-ride delayed Watch commands and reconnect distance fallback. These are unconfirmed; promote evidence-backed defects to individual audit issues before scheduling remediation.
 
 - Move Strava OAuth token exchange and refresh behind a backend or other secure server-side flow so the client app no longer ships the Strava client secret.
 - Align the Strava OAuth callback route with the configurable callback host. The expo-router handler added in PR [#56](https://github.com/mike927/omni-bike-rn/pull/56) is hardcoded at `app/localhost/oauth/callback.tsx`, but `STRAVA_REDIRECT_URI` uses the configurable `stravaCallbackDomain` from `app.config.ts` (env: `STRAVA_CALLBACK_DOMAIN`). In any environment that overrides the domain, expo-router will fall back to `+not-found`. Fix: either hardcode `localhost` everywhere (remove the env override) or switch to a dynamic segment (`app/[callbackDomain]/oauth/callback.tsx`). No immediate action needed — `localhost` is the only domain in use.
