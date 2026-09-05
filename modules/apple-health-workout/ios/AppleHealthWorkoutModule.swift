@@ -150,6 +150,7 @@ public class AppleHealthWorkoutModule: Module {
       let rawPowerSamples = options["cyclingPowerSamples"] as? [[String: Any]] ?? []
       let rawCadenceSamples = options["cyclingCadenceSamples"] as? [[String: Any]] ?? []
       let rawSpeedSamples = options["cyclingSpeedSamples"] as? [[String: Any]] ?? []
+      let rawWorkoutEvents = options["workoutEvents"] as? [[String: Any]] ?? []
 
       let configuration = HKWorkoutConfiguration()
       configuration.activityType = .cycling
@@ -254,6 +255,16 @@ public class AppleHealthWorkoutModule: Module {
           rangeEnd: endDate
         ))
 
+        // Pause / resume events are what make HealthKit report the ride's active
+        // duration instead of its wall-clock span: HKWorkoutBuilder excludes the
+        // interval between a pause and the next resume from the workout's
+        // elapsed time. They must be added before endCollection.
+        let workoutEvents = self.buildWorkoutEvents(
+          from: rawWorkoutEvents,
+          rangeStart: startDate,
+          rangeEnd: endDate
+        )
+
         let finalize: () -> Void = {
           builder.endCollection(withEnd: endDate) { success, error in
             if let error {
@@ -278,8 +289,38 @@ public class AppleHealthWorkoutModule: Module {
           }
         }
 
+        let addEventsThenFinalize: () -> Void = {
+          guard !workoutEvents.isEmpty else {
+            finalize()
+            return
+          }
+
+          // Deliberately log and carry on rather than fail the save. Losing the
+          // events costs the ride the duration correction this change adds,
+          // which is the wrong duration every paused ride already exported
+          // before it. Rejecting here would instead cost the user the whole
+          // ride, samples and all, on a path that used to succeed, and nothing
+          // the app can retry would make HealthKit accept an array it just
+          // refused. A workout with a wrong duration beats no workout. This is
+          // how addMetadata above treats enrichment too. Samples stay fail
+          // loud: they are the ride, not a correction to it.
+          builder.addWorkoutEvents(workoutEvents) { success, error in
+            if let error {
+              NSLog(
+                "[AppleHealthWorkoutModule] addWorkoutEvents failed, saving the ride without its pause events: %@",
+                error.localizedDescription
+              )
+            } else if !success {
+              NSLog(
+                "[AppleHealthWorkoutModule] addWorkoutEvents reported failure without error, saving the ride without its pause events"
+              )
+            }
+            finalize()
+          }
+        }
+
         if samplesToAdd.isEmpty {
-          finalize()
+          addEventsThenFinalize()
           return
         }
 
@@ -292,9 +333,42 @@ public class AppleHealthWorkoutModule: Module {
             promise.reject("ERR_ADD_SAMPLES_FAILED", "HealthKit reported add samples failure without error")
             return
           }
-          finalize()
+          addEventsThenFinalize()
         }
       }
+    }
+  }
+
+  private func buildWorkoutEvents(
+    from rawEvents: [[String: Any]],
+    rangeStart: Date,
+    rangeEnd: Date
+  ) -> [HKWorkoutEvent] {
+    return rawEvents.compactMap { rawEvent in
+      guard
+        let rawType = rawEvent["type"] as? String,
+        let timestampMs = (rawEvent["timestampMs"] as? NSNumber)?.doubleValue,
+        timestampMs.isFinite
+      else { return nil }
+
+      let eventType: HKWorkoutEventType
+      switch rawType {
+      case "pause": eventType = .pause
+      case "resume": eventType = .resume
+      default: return nil
+      }
+
+      let date = Date(timeIntervalSince1970: timestampMs / 1000)
+      // HealthKit rejects an event outside the workout's own interval, which
+      // would fail the whole save. The JS side already clamps; this is the
+      // same guard the sample builder applies, for the same reason.
+      guard date >= rangeStart && date <= rangeEnd else { return nil }
+
+      return HKWorkoutEvent(
+        type: eventType,
+        dateInterval: DateInterval(start: date, duration: 0),
+        metadata: nil
+      )
     }
   }
 

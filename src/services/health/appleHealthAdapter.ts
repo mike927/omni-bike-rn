@@ -12,6 +12,7 @@ import {
   getAppleHealthDiagnosticsRelativePath,
 } from '../diagnostics/appleHealthDiagnostics';
 import { basalKcalForWindow } from '../calories/mifflinStJeor';
+import { impliedActiveSeconds, toWorkoutEvents } from './workoutPauseEvents';
 import type { PersistedTrainingSample, PersistedTrainingSession } from '../../types/sessionPersistence';
 import { toMifflinInputs, type BiologicalSex, type UserProfileField } from '../../types/userProfile';
 import { useUserProfileStore } from '../../store/userProfileStore';
@@ -368,6 +369,10 @@ export async function saveWorkout(
   const cyclingPowerSamples = mapCyclingSamples(samples, (m) => m.power);
   const cyclingCadenceSamples = mapCyclingSamples(samples, (m) => m.cadence);
   const cyclingSpeedSamples = mapCyclingSamples(samples, (m) => m.speed * KMH_TO_MPS);
+  // The workout keeps its real start and end; the pause events are what tell
+  // HealthKit which parts of that window were not effort. See
+  // `toWorkoutEvents` for why an old ride without a pause history stays whole.
+  const workoutEvents = toWorkoutEvents(session.pauseEvents, session.startedAtMs, endDateMs);
   const queriedBasalKcal = await queryBasalEnergyKcal(session.startedAtMs, endDateMs);
   const basalEnergyKcal = resolveBasalKcal({
     queriedBasalKcal,
@@ -385,6 +390,7 @@ export async function saveWorkout(
       cyclingPowerSamples,
       cyclingCadenceSamples,
       cyclingSpeedSamples,
+      workoutEvents,
     });
     appendAppleHealthDiagnostic('saveWorkout-success', {
       workoutId,
@@ -397,6 +403,11 @@ export async function saveWorkout(
       powerSampleCount: cyclingPowerSamples.length,
       cadenceSampleCount: cyclingCadenceSamples.length,
       speedSampleCount: cyclingSpeedSamples.length,
+      workoutEvents,
+      // What HealthKit should report as the workout's duration, next to what the
+      // app recorded, so a device check can compare the two without arithmetic.
+      impliedActiveSeconds: impliedActiveSeconds(workoutEvents, session.startedAtMs, endDateMs),
+      recordedElapsedSeconds: session.elapsedSeconds,
     });
     return { workoutId };
   } catch (error: unknown) {
@@ -411,6 +422,7 @@ export async function saveWorkout(
       powerSampleCount: cyclingPowerSamples.length,
       cadenceSampleCount: cyclingCadenceSamples.length,
       speedSampleCount: cyclingSpeedSamples.length,
+      workoutEvents,
     });
     throw normalizeHealthKitError(error, 'Failed to save Apple Health workout.');
   }

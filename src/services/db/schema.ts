@@ -41,6 +41,10 @@ export const trainingSessionsTable = sqliteTable(
     savedHrId: text('saved_hr_id'),
     savedHrName: text('saved_hr_name'),
     uploadState: text('upload_state').$type<SessionUploadState | null>(),
+    // JSON array of `SessionPauseEvent`. Nullable on purpose: NULL is a ride
+    // recorded before the app kept a pause history, which is not the same fact
+    // as a ride that had no pauses (`'[]'`).
+    pauseEvents: text('pause_events'),
     createdAtMs: integer('created_at_ms').notNull(),
     updatedAtMs: integer('updated_at_ms').notNull(),
   },

@@ -10,6 +10,22 @@ export type PersistedSessionStatus = 'active' | 'paused' | 'finished';
  */
 export type SessionUploadState = 'ready' | 'uploading' | 'interrupted' | 'uploaded' | 'failed';
 
+/**
+ * A moment the ride stopped or restarted accumulating effort.
+ *
+ * Why the ride paused does not matter here: the user pressed Pause, the bike
+ * reported Paused/Stopped, or the connection dropped. All of them stop the 1 Hz
+ * clock, so all of them are the same fact for anything that has to reconstruct
+ * how long the effort actually lasted.
+ */
+export type SessionPauseEventKind = 'pause' | 'resume';
+
+export interface SessionPauseEvent {
+  readonly kind: SessionPauseEventKind;
+  /** Unix epoch milliseconds at which the transition happened. */
+  readonly atMs: number;
+}
+
 export interface PersistedDeviceSnapshot {
   id: string;
   name: string;
@@ -30,6 +46,18 @@ export interface PersistedTrainingSession extends PersistedTrainingSummary {
   savedBikeSnapshot: PersistedDeviceSnapshot | null;
   savedHrSnapshot: PersistedDeviceSnapshot | null;
   uploadState: SessionUploadState | null;
+  /**
+   * Ordered, strictly alternating pause/resume history of the ride, starting
+   * with a pause. `[]` is a ride that ran without a single pause; a trailing
+   * `pause` is a ride that was finished while paused.
+   *
+   * `null` (or absent, for a session assembled in memory rather than read from
+   * a row) means the history is unknown: the ride was recorded before the app
+   * kept one. Consumers must treat unknown as "cannot say", not as "no pauses",
+   * and export such a ride as a single continuous effort rather than inventing
+   * intervals whose placement nothing supports.
+   */
+  pauseEvents?: readonly SessionPauseEvent[] | null;
   createdAtMs: number;
   updatedAtMs: number;
 }

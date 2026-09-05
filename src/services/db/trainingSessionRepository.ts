@@ -6,6 +6,8 @@ import type {
   PersistedDeviceSnapshot,
   PersistedTrainingSession,
   PersistedTrainingSample,
+  SessionPauseEvent,
+  SessionPauseEventKind,
   SessionUploadState,
   PersistedSessionStatus,
   UpdateSessionStatusInput,
@@ -13,6 +15,7 @@ import type {
 import type { MetricSnapshot } from '../../types/training';
 
 const COMPLETED_UPLOAD_STATE: SessionUploadState = 'ready';
+const EMPTY_PAUSE_EVENTS = '[]';
 export const STALE_SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 interface PersistedTrainingSessionRow {
@@ -34,6 +37,7 @@ interface PersistedTrainingSessionRow {
   savedHrId: string | null;
   savedHrName: string | null;
   uploadState: SessionUploadState | null;
+  pauseEvents: string | null;
   createdAtMs: number;
   updatedAtMs: number;
 }
@@ -78,6 +82,61 @@ function mapSampleRow(row: PersistedTrainingSampleRow): PersistedTrainingSample 
   };
 }
 
+function isPauseEvent(entry: unknown): entry is SessionPauseEvent {
+  if (typeof entry !== 'object' || entry === null) {
+    return false;
+  }
+  const candidate = entry as { kind?: unknown; atMs?: unknown };
+  return (
+    (candidate.kind === 'pause' || candidate.kind === 'resume') &&
+    typeof candidate.atMs === 'number' &&
+    Number.isFinite(candidate.atMs)
+  );
+}
+
+/**
+ * Read a stored pause history back, or report it as unknown.
+ *
+ * Anything that is not a well-formed array of events reads as `null` rather
+ * than throwing: a ride recorded before the column existed, and a row whose
+ * JSON was corrupted, are both "cannot say how this ride was paused", and
+ * neither is worth failing a history screen or a launch-time recovery over.
+ *
+ * One unreadable entry makes the whole array unknown, rather than narrowing it
+ * to the entries that did parse. A history with an entry missing is not a
+ * shorter history, it is a different ride: drop a `resume` and what is left
+ * reads as "paused and never resumed", which exports real effort as a break,
+ * so a partly readable row would claim more certainty than a totally unreadable
+ * one. Rejecting it also keeps `appendPauseEvent` from serialising the narrowed
+ * list back over the column and deleting the unreadable entries for good.
+ */
+function parsePauseEvents(raw: string | null | undefined): SessionPauseEvent[] | null {
+  if (typeof raw !== 'string') {
+    return null;
+  }
+
+  let decoded: unknown;
+  try {
+    decoded = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+
+  if (!Array.isArray(decoded)) {
+    return null;
+  }
+
+  const events: SessionPauseEvent[] = [];
+  for (const entry of decoded) {
+    if (!isPauseEvent(entry)) {
+      return null;
+    }
+    events.push(entry);
+  }
+
+  return events;
+}
+
 function toDeviceSnapshot(id: string | null, name: string | null): PersistedDeviceSnapshot | null {
   if (!id || !name) {
     return null;
@@ -106,6 +165,7 @@ function mapSessionRow(row: PersistedTrainingSessionRow): PersistedTrainingSessi
     savedBikeSnapshot: toDeviceSnapshot(row.savedBikeId, row.savedBikeName),
     savedHrSnapshot: toDeviceSnapshot(row.savedHrId, row.savedHrName),
     uploadState: row.uploadState,
+    pauseEvents: parsePauseEvents(row.pauseEvents),
     createdAtMs: row.createdAtMs,
     updatedAtMs: row.updatedAtMs,
   };
@@ -133,9 +193,10 @@ export function createDraftSession(input: CreateDraftSessionInput): void {
       saved_hr_id,
       saved_hr_name,
       upload_state,
+      pause_events,
       created_at_ms,
       updated_at_ms
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     input.sessionId,
     'active',
     input.startedAtMs,
@@ -154,6 +215,9 @@ export function createDraftSession(input: CreateDraftSessionInput): void {
     input.savedHrSnapshot?.id ?? null,
     input.savedHrSnapshot?.name ?? null,
     null,
+    // A ride starts with a known-empty pause history: every later pause and
+    // resume is appended to it, so the export never has to guess.
+    EMPTY_PAUSE_EVENTS,
     input.startedAtMs,
     input.startedAtMs,
   );
@@ -219,14 +283,81 @@ export function appendSample(input: AppendSampleInput): void {
   });
 }
 
+interface SessionPauseEventsRow {
+  pauseEvents: string | null;
+}
+
+type SQLiteDatabase = ReturnType<typeof getSQLiteDatabase>;
+
+function readPauseEvents(database: SQLiteDatabase, sessionId: string): SessionPauseEvent[] | null {
+  const row = database.getFirstSync<SessionPauseEventsRow>(
+    'SELECT pause_events AS pauseEvents FROM training_sessions WHERE id = ?',
+    sessionId,
+  );
+
+  return row ? parsePauseEvents(row.pauseEvents) : null;
+}
+
+/**
+ * Append one pause or resume to a ride's history.
+ *
+ * Refuses two things so the stored history is always readable as a list of
+ * intervals: it never starts a history that is unknown (a ride recorded before
+ * the app kept one, where a lone event would imply an active duration nothing
+ * supports), and it never writes the same kind twice in a row, so the history
+ * stays strictly alternating however many times a caller reports the same
+ * transition.
+ */
+function appendPauseEvent(
+  database: SQLiteDatabase,
+  sessionId: string,
+  current: readonly SessionPauseEvent[] | null,
+  kind: SessionPauseEventKind,
+  atMs: number,
+): void {
+  if (current === null) {
+    return;
+  }
+
+  const last = current[current.length - 1];
+  if (last === undefined ? kind !== 'pause' : last.kind === kind) {
+    return;
+  }
+
+  database.runSync(
+    'UPDATE training_sessions SET pause_events = ? WHERE id = ?',
+    JSON.stringify([...current, { kind, atMs }]),
+    sessionId,
+  );
+}
+
+/**
+ * Move a ride between recording and paused, and record the moment it happened.
+ *
+ * The two are one write: a status change to `paused` IS the start of a paused
+ * interval and a change to `active` IS its end, so splitting them would let a
+ * ride's status and its history disagree about the effort it contains.
+ */
 export function updateSessionStatus(input: UpdateSessionStatusInput): void {
   const database = getSQLiteDatabase();
-  database.runSync(
-    'UPDATE training_sessions SET status = ?, updated_at_ms = ? WHERE id = ?',
-    input.status,
-    input.updatedAtMs,
-    input.sessionId,
-  );
+  database.withTransactionSync(() => {
+    const pauseEvents = readPauseEvents(database, input.sessionId);
+
+    database.runSync(
+      'UPDATE training_sessions SET status = ?, updated_at_ms = ? WHERE id = ?',
+      input.status,
+      input.updatedAtMs,
+      input.sessionId,
+    );
+
+    appendPauseEvent(
+      database,
+      input.sessionId,
+      pauseEvents,
+      input.status === 'paused' ? 'pause' : 'resume',
+      input.updatedAtMs,
+    );
+  });
 }
 
 export function finalizeSession(input: FinalizeSessionInput): void {
@@ -296,6 +427,7 @@ const SESSION_SELECT_COLUMNS = `
   saved_hr_id AS savedHrId,
   saved_hr_name AS savedHrName,
   upload_state AS uploadState,
+  pause_events AS pauseEvents,
   created_at_ms AS createdAtMs,
   updated_at_ms AS updatedAtMs
 `;
@@ -367,12 +499,19 @@ export function normalizeRecoveredSessionToPaused(sessionId: string): PersistedT
   }
 
   const database = getSQLiteDatabase();
-  database.runSync(
-    'UPDATE training_sessions SET status = ? WHERE id = ? AND status = ?',
-    'paused',
-    sessionId,
-    'active',
-  );
+  database.withTransactionSync(() => {
+    database.runSync(
+      'UPDATE training_sessions SET status = ? WHERE id = ? AND status = ?',
+      'paused',
+      sessionId,
+      'active',
+    );
+
+    // The app died while the ride was still recording, so no pause was ever
+    // reported. The last durable second is when the effort actually stopped:
+    // everything from there to the user's resume is time off the bike.
+    appendPauseEvent(database, sessionId, session.pauseEvents ?? null, 'pause', session.updatedAtMs);
+  });
 
   return getSessionById(sessionId);
 }

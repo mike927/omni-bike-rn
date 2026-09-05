@@ -331,6 +331,64 @@ describe('saveWorkout', () => {
     expect(payload).toMatchObject({ basalEnergyKcal: 0 });
   });
 });
+describe('saveWorkout pause history', () => {
+  const PAUSE_AT_MS = SESSION.startedAtMs + 600_000;
+  const RESUME_AT_MS = SESSION.startedAtMs + 1_800_000;
+  const PAUSED_SESSION: PersistedTrainingSession = {
+    ...SESSION,
+    // Ten active minutes, twenty paused, ten more active: 30 minutes of wall
+    // clock for 20 minutes of effort.
+    endedAtMs: SESSION.startedAtMs + 2_400_000,
+    elapsedSeconds: 1200,
+    pauseEvents: [
+      { kind: 'pause', atMs: PAUSE_AT_MS },
+      { kind: 'resume', atMs: RESUME_AT_MS },
+    ],
+  };
+
+  beforeEach(() => {
+    mockSaveCyclingWorkout.mockResolvedValue('workout-uuid-paused');
+  });
+
+  it('forwards the ride pause and resume events so HealthKit can exclude the paused interval', async () => {
+    await saveWorkout(PAUSED_SESSION, []);
+
+    const payload = mockSaveCyclingWorkout.mock.calls[0][0];
+    expect(payload.workoutEvents).toEqual([
+      { type: 'pause', timestampMs: PAUSE_AT_MS },
+      { type: 'resume', timestampMs: RESUME_AT_MS },
+    ]);
+  });
+
+  it('keeps the trailing pause of a ride that was finished while paused', async () => {
+    await saveWorkout(
+      {
+        ...PAUSED_SESSION,
+        endedAtMs: RESUME_AT_MS,
+        elapsedSeconds: 600,
+        pauseEvents: [{ kind: 'pause', atMs: PAUSE_AT_MS }],
+      },
+      [],
+    );
+
+    const payload = mockSaveCyclingWorkout.mock.calls[0][0];
+    expect(payload.workoutEvents).toEqual([{ type: 'pause', timestampMs: PAUSE_AT_MS }]);
+  });
+
+  it('sends no events for a ride recorded without a pause', async () => {
+    await saveWorkout({ ...SESSION, pauseEvents: [] }, []);
+
+    const payload = mockSaveCyclingWorkout.mock.calls[0][0];
+    expect(payload.workoutEvents).toEqual([]);
+  });
+
+  it('sends no events for a ride whose pause history predates event capture', async () => {
+    await saveWorkout({ ...SESSION, pauseEvents: null }, []);
+
+    const payload = mockSaveCyclingWorkout.mock.calls[0][0];
+    expect(payload.workoutEvents).toEqual([]);
+  });
+});
 
 describe('profile reads', () => {
   it('getBiologicalSex returns "male" / "female" and null otherwise', async () => {
