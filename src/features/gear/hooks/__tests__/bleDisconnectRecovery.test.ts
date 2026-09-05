@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { AppState, type AppStateStatus } from 'react-native';
 
 import { useAutoReconnect } from '../useAutoReconnect';
+import { useAutoReconnectLifecycle } from '../useAutoReconnectLifecycle';
 import { disconnectAllDeviceConnections } from '../../../training/hooks/useDeviceConnection';
 import { bleManager } from '../../../../services/ble/bleClient';
 import { useDeviceConnectionStore } from '../../../../store/deviceConnectionStore';
@@ -83,6 +84,14 @@ function emitAppStateChange(next: AppStateStatus): void {
   }
 }
 
+/** The root-owned reconnect lifecycle plus a screen reading it, as the app mounts them. */
+function renderAutoReconnect() {
+  return renderHook(() => {
+    useAutoReconnectLifecycle();
+    return useAutoReconnect();
+  });
+}
+
 beforeEach(() => {
   jest.restoreAllMocks();
   jest.clearAllMocks();
@@ -138,7 +147,7 @@ beforeEach(() => {
 
 describe('BLE disconnection recovery', () => {
   it('runs exactly one reconnect cycle after the strap drops off the air', async () => {
-    await renderHook(() => useAutoReconnect());
+    await renderAutoReconnect();
 
     await waitFor(() => {
       expect(useSavedGearStore.getState().hrReconnectState).toBe('connected');
@@ -165,7 +174,7 @@ describe('BLE disconnection recovery', () => {
   });
 
   it('lets an explicit Retry dial again after the strap dropped off the air', async () => {
-    const { result } = await renderHook(() => useAutoReconnect());
+    const { result } = await renderAutoReconnect();
 
     await waitFor(() => {
       expect(useSavedGearStore.getState().hrReconnectState).toBe('connected');
@@ -203,7 +212,7 @@ describe('BLE disconnection recovery', () => {
   it('reconnects only the role that dropped when both devices are connected', async () => {
     useSavedGearStore.setState({ savedBike: { id: BIKE_DEVICE_ID, name: 'Zipro Rave', type: 'bike' } });
 
-    await renderHook(() => useAutoReconnect());
+    await renderAutoReconnect();
 
     await waitFor(() => {
       expect(useSavedGearStore.getState().bikeReconnectState).toBe('connected');
@@ -237,7 +246,7 @@ describe('BLE disconnection recovery', () => {
   it('does not resurrect the strap when it drops while the ride-end teardown is still running', async () => {
     useSavedGearStore.setState({ savedBike: { id: BIKE_DEVICE_ID, name: 'Zipro Rave', type: 'bike' } });
 
-    await renderHook(() => useAutoReconnect());
+    await renderAutoReconnect();
 
     await waitFor(() => {
       expect(useSavedGearStore.getState().bikeReconnectState).toBe('connected');

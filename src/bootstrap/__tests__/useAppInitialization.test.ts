@@ -51,6 +51,26 @@ jest.mock('../../features/training/hooks/useTrainingSessionLifecycle', () => {
     },
   };
 });
+// Reconnect policy is global for the same reason the ride is, and gets the same
+// mount-counting stub: two owners would mean two probe budgets for one bike.
+const mockReconnectLifecycleMount = jest.fn();
+const mockReconnectLifecycleUnmount = jest.fn();
+
+jest.mock('../../features/gear/hooks/useAutoReconnectLifecycle', () => {
+  const react = jest.requireActual('react') as {
+    useEffect: (effect: () => void | (() => void), deps: unknown[]) => void;
+  };
+  return {
+    useAutoReconnectLifecycle: () => {
+      react.useEffect(() => {
+        mockReconnectLifecycleMount();
+        return () => {
+          mockReconnectLifecycleUnmount();
+        };
+      }, []);
+    },
+  };
+});
 jest.mock('../../features/training/hooks/useTrainingSessionPersistence', () => ({
   useTrainingSessionPersistence: jest.fn(),
 }));
@@ -187,6 +207,15 @@ describe('useAppInitialization', () => {
     expect(mockLifecycleUnmount).not.toHaveBeenCalled();
   });
 
+  it('mounts the root-owned reconnect lifecycle exactly once', async () => {
+    mockInit.mockResolvedValue(undefined);
+    const { result } = await renderHook(() => useAppInitialization());
+    await waitFor(() => expect(result.current.phase).toBe('ready'));
+
+    expect(mockReconnectLifecycleMount).toHaveBeenCalledTimes(1);
+    expect(mockReconnectLifecycleUnmount).not.toHaveBeenCalled();
+  });
+
   it('keeps the single lifecycle owner mounted across a database-init retry', async () => {
     mockInit.mockRejectedValueOnce(new Error('db boom')).mockResolvedValueOnce(undefined);
     const { result } = await renderHook(() => useAppInitialization());
@@ -199,6 +228,8 @@ describe('useAppInitialization', () => {
 
     expect(mockLifecycleMount).toHaveBeenCalledTimes(1);
     expect(mockLifecycleUnmount).not.toHaveBeenCalled();
+    expect(mockReconnectLifecycleMount).toHaveBeenCalledTimes(1);
+    expect(mockReconnectLifecycleUnmount).not.toHaveBeenCalled();
   });
 
   it('reports error and retry re-runs database init when init fails', async () => {

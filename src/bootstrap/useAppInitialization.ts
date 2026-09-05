@@ -10,6 +10,7 @@ import { useStravaConnectionStore } from '../store/stravaConnectionStore';
 import { useAppleHealthConnectionStore } from '../store/appleHealthConnectionStore';
 import { useUserProfileStore } from '../store/userProfileStore';
 import { useAppleHealthPermissionsRefresh } from '../features/integrations/hooks/useAppleHealthPermissionsRefresh';
+import { useAutoReconnectLifecycle } from '../features/gear/hooks/useAutoReconnectLifecycle';
 import { useWatchHr } from '../features/gear/hooks/useWatchHr';
 import { useInterruptedSessionRecovery } from '../features/training/hooks/useInterruptedSessionRecovery';
 import { useKeepAwakeDuringTraining } from '../features/training/hooks/useKeepAwakeDuringTraining';
@@ -45,6 +46,7 @@ export function useAppInitialization(): AppInitState {
   const [databaseInitAttempt, setDatabaseInitAttempt] = useState(0);
 
   useWatchHr();
+  useAutoReconnectLifecycle();
   useAppleHealthPermissionsRefresh();
   useKeepAwakeDuringTraining();
   useTrainingSessionLifecycle();

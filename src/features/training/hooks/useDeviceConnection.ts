@@ -271,6 +271,89 @@ export async function disconnectAllDeviceConnections(options?: DisconnectDeviceC
   }
 }
 
+/**
+ * Dial the bike and take ownership of the connection it produces.
+ *
+ * Module scope rather than a hook callback: connecting is global work that only
+ * touches the stores, and both the screens (through {@link useDeviceConnection})
+ * and the app-boot reconnect owner (`reconnectController`) have to start it. One
+ * implementation of "connect the bike", not one per caller.
+ */
+export async function connectBikeDevice(deviceId: string, options?: BleConnectionOptions): Promise<void> {
+  // A second connect while one is in flight would construct a competing
+  // adapter: the loser leaks its BLE connection and clobbers bikeMetricsSub.
+  if (useDeviceConnectionStore.getState().bikeConnectionInProgress) {
+    throw new ConnectInProgressError('bike');
+  }
+  useDeviceConnectionStore.getState().setBikeConnectionInProgress(true);
+  try {
+    await disconnectBikeConnectionInternal();
+
+    const adapter = new ZiproRaveAdapter(deviceId);
+
+    await adapter.connect(options);
+
+    useDeviceConnectionStore.getState().setBikeAdapter(adapter);
+    useSavedGearStore.getState().setBikeAutoReconnectSuppressed(false);
+    observeBikeDisconnect(deviceId, adapter);
+
+    bikeMetricsSub = adapter.subscribeToMetrics((metrics: BikeMetrics) => {
+      useDeviceConnectionStore.getState().updateBikeMetrics(metrics);
+    });
+  } catch (err: unknown) {
+    if (!isExpectedBleDisconnectError(err) && !isExpectedBleConnectTimeoutError(err)) {
+      console.error('[useDeviceConnection] Bike connection error:', err);
+    }
+    throw err;
+  } finally {
+    useDeviceConnectionStore.getState().setBikeConnectionInProgress(false);
+  }
+}
+
+/** HR counterpart of {@link connectBikeDevice}, with the same re-entrancy guard. */
+export async function connectHrDevice(deviceId: string, options?: BleConnectionOptions): Promise<void> {
+  if (useDeviceConnectionStore.getState().hrConnectionInProgress) {
+    throw new ConnectInProgressError('hr');
+  }
+  useDeviceConnectionStore.getState().setHrConnectionInProgress(true);
+  try {
+    // Transport-only: a reconnect probe must not drop the ride's locked HR
+    // source on its way to restoring it.
+    await disconnectHrConnectionInternal({ keepActiveHrSource: true });
+
+    const adapter = new StandardHrAdapter(deviceId);
+    await adapter.connect(options);
+
+    useDeviceConnectionStore.getState().setHrAdapter(adapter);
+    useSavedGearStore.getState().setHrAutoReconnectSuppressed(false);
+    observeHrDisconnect(deviceId, adapter);
+
+    hrSub = adapter.subscribeToHeartRate((hr: number) => {
+      useDeviceConnectionStore.getState().updateBluetoothHr(hr);
+    });
+  } catch (err: unknown) {
+    if (!isExpectedBleDisconnectError(err) && !isExpectedBleConnectTimeoutError(err)) {
+      console.error('[useDeviceConnection] HR connection error:', err);
+    }
+    throw err;
+  } finally {
+    useDeviceConnectionStore.getState().setHrConnectionInProgress(false);
+  }
+}
+
+/**
+ * Deliberate single-role bike teardown, disarming only the bike's transport
+ * observer so a strap drop inside it stays a real drop.
+ */
+export async function disconnectBikeDevice(): Promise<void> {
+  await disconnectBikeConnectionInternal();
+}
+
+/** HR counterpart of {@link disconnectBikeDevice}. */
+export async function disconnectHrDevice(): Promise<void> {
+  await disconnectHrConnectionInternal();
+}
+
 interface UseDeviceConnectionReturn {
   // ── Read-only state ────────────────────────────────────
   bikeConnected: boolean;
@@ -304,76 +387,23 @@ export function useDeviceConnection(): UseDeviceConnectionReturn {
   const lastAppleWatchSampleAtMs = useDeviceConnectionStore((s) => s.lastAppleWatchSampleAtMs);
   const watchAvailability = useDeviceConnectionStore((s) => s.watchAvailability);
 
+  // All four delegate to the module-scope operations: nothing about connecting
+  // or disconnecting depends on the hook, so a screen gets the same behaviour as
+  // the app-boot reconnect owner rather than a second implementation of it.
   const disconnectBike = useCallback(async () => {
-    await disconnectBikeConnectionInternal();
+    await disconnectBikeDevice();
   }, []);
 
   const disconnectHr = useCallback(async () => {
-    await disconnectHrConnectionInternal();
+    await disconnectHrDevice();
   }, []);
 
   const connectBike = useCallback(async (deviceId: string, options?: BleConnectionOptions) => {
-    // A second connect while one is in flight would construct a competing
-    // adapter: the loser leaks its BLE connection and clobbers bikeMetricsSub.
-    if (useDeviceConnectionStore.getState().bikeConnectionInProgress) {
-      throw new ConnectInProgressError('bike');
-    }
-    useDeviceConnectionStore.getState().setBikeConnectionInProgress(true);
-    try {
-      // The module-scope teardown, like connectHr's: nothing about the pre-connect
-      // cleanup depends on the hook, so neither callback takes a dependency.
-      await disconnectBikeConnectionInternal();
-
-      const adapter = new ZiproRaveAdapter(deviceId);
-
-      await adapter.connect(options);
-
-      useDeviceConnectionStore.getState().setBikeAdapter(adapter);
-      useSavedGearStore.getState().setBikeAutoReconnectSuppressed(false);
-      observeBikeDisconnect(deviceId, adapter);
-
-      bikeMetricsSub = adapter.subscribeToMetrics((metrics: BikeMetrics) => {
-        useDeviceConnectionStore.getState().updateBikeMetrics(metrics);
-      });
-    } catch (err: unknown) {
-      if (!isExpectedBleDisconnectError(err) && !isExpectedBleConnectTimeoutError(err)) {
-        console.error('[useDeviceConnection] Bike connection error:', err);
-      }
-      throw err;
-    } finally {
-      useDeviceConnectionStore.getState().setBikeConnectionInProgress(false);
-    }
+    await connectBikeDevice(deviceId, options);
   }, []);
 
   const connectHr = useCallback(async (deviceId: string, options?: BleConnectionOptions) => {
-    // Same re-entrancy hazard as connectBike, for hrSub.
-    if (useDeviceConnectionStore.getState().hrConnectionInProgress) {
-      throw new ConnectInProgressError('hr');
-    }
-    useDeviceConnectionStore.getState().setHrConnectionInProgress(true);
-    try {
-      // Transport-only: a reconnect probe must not drop the ride's locked HR
-      // source on its way to restoring it.
-      await disconnectHrConnectionInternal({ keepActiveHrSource: true });
-
-      const adapter = new StandardHrAdapter(deviceId);
-      await adapter.connect(options);
-
-      useDeviceConnectionStore.getState().setHrAdapter(adapter);
-      useSavedGearStore.getState().setHrAutoReconnectSuppressed(false);
-      observeHrDisconnect(deviceId, adapter);
-
-      hrSub = adapter.subscribeToHeartRate((hr: number) => {
-        useDeviceConnectionStore.getState().updateBluetoothHr(hr);
-      });
-    } catch (err: unknown) {
-      if (!isExpectedBleDisconnectError(err) && !isExpectedBleConnectTimeoutError(err)) {
-        console.error('[useDeviceConnection] HR connection error:', err);
-      }
-      throw err;
-    } finally {
-      useDeviceConnectionStore.getState().setHrConnectionInProgress(false);
-    }
+    await connectHrDevice(deviceId, options);
   }, []);
 
   const disconnectAll = useCallback(async (options?: DisconnectDeviceConnectionsOptions) => {
