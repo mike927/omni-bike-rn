@@ -8,7 +8,7 @@
 | --- | --- |
 | Status | In progress |
 | Owner | automated remediation agent |
-| Branch / PR | `fix/a05-ble-disconnect-state` / PR_URL_PLACEHOLDER |
+| Branch / PR | `fix/a05-ble-disconnect-state` / https://github.com/mike927/omni-bike-rn/pull/112 |
 | Last updated | 2026-09-05 |
 | Type | Bug |
 | Category | correctness |
@@ -95,7 +95,7 @@ loses power or leaves range is reported by the transport instead of being inferr
 The effective HR source continues to resolve only through `hrSource.ts` / `useEffectiveHrSource.ts`; no code reads
 the raw stored `primaryHrSource`, and Watch candidacy is untouched.
 
-**Commit / PR.** Branch `fix/a05-ble-disconnect-state`, PR PR_URL_PLACEHOLDER.
+**Commit / PR.** Branch `fix/a05-ble-disconnect-state`, PR https://github.com/mike927/omni-bike-rn/pull/112.
 
 **Executed commands.**
 
