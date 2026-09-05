@@ -295,14 +295,25 @@ public class AppleHealthWorkoutModule: Module {
             return
           }
 
+          // Deliberately log and carry on rather than fail the save. Losing the
+          // events costs the ride the duration correction this change adds,
+          // which is the wrong duration every paused ride already exported
+          // before it. Rejecting here would instead cost the user the whole
+          // ride, samples and all, on a path that used to succeed, and nothing
+          // the app can retry would make HealthKit accept an array it just
+          // refused. A workout with a wrong duration beats no workout. This is
+          // how addMetadata above treats enrichment too. Samples stay fail
+          // loud: they are the ride, not a correction to it.
           builder.addWorkoutEvents(workoutEvents) { success, error in
             if let error {
-              promise.reject("ERR_ADD_EVENTS_FAILED", error.localizedDescription)
-              return
-            }
-            guard success else {
-              promise.reject("ERR_ADD_EVENTS_FAILED", "HealthKit reported add events failure without error")
-              return
+              NSLog(
+                "[AppleHealthWorkoutModule] addWorkoutEvents failed, saving the ride without its pause events: %@",
+                error.localizedDescription
+              )
+            } else if !success {
+              NSLog(
+                "[AppleHealthWorkoutModule] addWorkoutEvents reported failure without error, saving the ride without its pause events"
+              )
             }
             finalize()
           }

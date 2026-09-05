@@ -30,9 +30,19 @@ describe('toWorkoutEvents', () => {
     expect(toWorkoutEvents([], START_MS, END_MS)).toEqual([]);
   });
 
-  it('returns nothing when the pause history is unknown', () => {
-    expect(toWorkoutEvents(null, START_MS, END_MS)).toEqual([]);
+  it('exports a ride with an unknown pause history as one continuous effort', () => {
+    // `null` and `[]` are, and must stay, indistinguishable here: a ride whose
+    // history is unknown has to export exactly like a ride that was never
+    // paused. So what this binds is not the difference between them, it is that
+    // the nullable input is tolerated at all and carries through to a full
+    // window of effort. The NULL-versus-empty rule is load-bearing in the
+    // repository, where it decides whether a history may be appended to, and it
+    // is bound there rather than here.
+    const fromUnknown = toWorkoutEvents(null, START_MS, END_MS);
+
+    expect(fromUnknown).toEqual([]);
     expect(toWorkoutEvents(undefined, START_MS, END_MS)).toEqual([]);
+    expect(impliedActiveSeconds(fromUnknown, START_MS, END_MS)).toBe(1800);
   });
 
   it('drops events outside the workout window', () => {

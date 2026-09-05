@@ -82,6 +82,18 @@ function mapSampleRow(row: PersistedTrainingSampleRow): PersistedTrainingSample 
   };
 }
 
+function isPauseEvent(entry: unknown): entry is SessionPauseEvent {
+  if (typeof entry !== 'object' || entry === null) {
+    return false;
+  }
+  const candidate = entry as { kind?: unknown; atMs?: unknown };
+  return (
+    (candidate.kind === 'pause' || candidate.kind === 'resume') &&
+    typeof candidate.atMs === 'number' &&
+    Number.isFinite(candidate.atMs)
+  );
+}
+
 /**
  * Read a stored pause history back, or report it as unknown.
  *
@@ -89,6 +101,14 @@ function mapSampleRow(row: PersistedTrainingSampleRow): PersistedTrainingSample 
  * than throwing: a ride recorded before the column existed, and a row whose
  * JSON was corrupted, are both "cannot say how this ride was paused", and
  * neither is worth failing a history screen or a launch-time recovery over.
+ *
+ * One unreadable entry makes the whole array unknown, rather than narrowing it
+ * to the entries that did parse. A history with an entry missing is not a
+ * shorter history, it is a different ride: drop a `resume` and what is left
+ * reads as "paused and never resumed", which exports real effort as a break,
+ * so a partly readable row would claim more certainty than a totally unreadable
+ * one. Rejecting it also keeps `appendPauseEvent` from serialising the narrowed
+ * list back over the column and deleting the unreadable entries for good.
  */
 function parsePauseEvents(raw: string | null | undefined): SessionPauseEvent[] | null {
   if (typeof raw !== 'string') {
@@ -106,17 +126,15 @@ function parsePauseEvents(raw: string | null | undefined): SessionPauseEvent[] |
     return null;
   }
 
-  return decoded.filter((entry): entry is SessionPauseEvent => {
-    if (typeof entry !== 'object' || entry === null) {
-      return false;
+  const events: SessionPauseEvent[] = [];
+  for (const entry of decoded) {
+    if (!isPauseEvent(entry)) {
+      return null;
     }
-    const candidate = entry as { kind?: unknown; atMs?: unknown };
-    return (
-      (candidate.kind === 'pause' || candidate.kind === 'resume') &&
-      typeof candidate.atMs === 'number' &&
-      Number.isFinite(candidate.atMs)
-    );
-  });
+    events.push(entry);
+  }
+
+  return events;
 }
 
 function toDeviceSnapshot(id: string | null, name: string | null): PersistedDeviceSnapshot | null {

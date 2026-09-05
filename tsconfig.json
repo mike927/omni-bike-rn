@@ -5,10 +5,6 @@
     "noUncheckedIndexedAccess": true,
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["jest", "node"],
-    "paths": {
-      "apple-health-workout": ["./modules/apple-health-workout/src/index.ts"],
-      "watch-connectivity": ["./modules/watch-connectivity/src/index.ts"]
-    }
+    "types": ["jest", "node"]
   }
 }

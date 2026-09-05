@@ -633,6 +633,61 @@ describe('trainingSessionRepository', () => {
       ...overrides,
     });
 
+    const draftInput = {
+      sessionId: 'session-1',
+      startedAtMs: 100,
+      elapsedSeconds: 0,
+      totalDistanceMeters: 0,
+      totalCaloriesKcal: 0,
+      currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: null },
+      savedBikeSnapshot: null,
+      savedHrSnapshot: null,
+    };
+
+    /**
+     * A stand-in for the one column the pause history lives in, so a test can
+     * drive the real writer and the real reader against each other.
+     *
+     * Every other test here hands `getFirstSync` a canned string, which proves
+     * what a statement says but never that what `appendPauseEvent` serialises is
+     * what `parsePauseEvents` can read back. Statements are routed by the
+     * columns they name rather than by their exact text, so a reformat of the
+     * SQL does not break the fake.
+     */
+    const buildRoundTripDatabase = () => {
+      let storedPauseEvents: string | null = null;
+
+      const insertedPauseEvents = (sql: string, args: readonly unknown[]): string | null => {
+        const columnList = sql.slice(sql.indexOf('(') + 1, sql.indexOf(')'));
+        const columns = columnList.split(',').map((column) => column.trim());
+        return (args[columns.indexOf('pause_events')] as string | null | undefined) ?? null;
+      };
+
+      const database = {
+        getAllSync: jest.fn(),
+        getFirstSync: jest.fn((sql: string) =>
+          sql.includes('startedAtMs')
+            ? openSessionRow({ pauseEvents: storedPauseEvents })
+            : { pauseEvents: storedPauseEvents },
+        ),
+        runSync: jest.fn((sql: string, ...args: unknown[]) => {
+          if (sql.includes('INSERT INTO training_sessions')) {
+            storedPauseEvents = insertedPauseEvents(sql, args);
+            return;
+          }
+          if (/SET\s+pause_events\s*=\s*\?/.test(sql)) {
+            storedPauseEvents = (args[0] as string | null | undefined) ?? null;
+          }
+        }),
+        withTransactionSync: jest.fn((task: () => void) => {
+          task();
+        }),
+      };
+
+      mockGetSQLiteDatabase.mockReturnValue(database as never);
+      return database;
+    };
+
     it('starts a new ride with an empty pause history', () => {
       const database = buildDatabase();
 
@@ -743,6 +798,63 @@ describe('trainingSessionRepository', () => {
       database.getFirstSync.mockReturnValue(openSessionRow({ pauseEvents: 'not-json' }));
 
       expect(getSessionById('session-1')?.pauseEvents).toBeNull();
+    });
+
+    it('reports a partly unreadable pause history as unknown, not as the entries that survived', () => {
+      const database = buildDatabase();
+      database.getFirstSync.mockReturnValue(
+        openSessionRow({
+          pauseEvents: JSON.stringify([
+            { kind: 'pause', atMs: 300 },
+            { kind: 'resume' },
+            { kind: 'pause', atMs: 1500 },
+          ]),
+        }),
+      );
+
+      // Keeping the readable entries would report a ride that paused at 300 and
+      // again at 1500 without ever resuming, which exports twenty minutes of
+      // real effort as a break. Partial corruption has to be as unknown as total
+      // corruption is, or a half-readable row claims more than an empty one.
+      expect(getSessionById('session-1')?.pauseEvents).toBeNull();
+    });
+
+    it('never rewrites a partly unreadable pause history over the row', () => {
+      const database = buildDatabase();
+      database.getFirstSync.mockReturnValue({
+        pauseEvents: JSON.stringify([{ kind: 'pause', atMs: 300 }, { atMs: 600 }]),
+      });
+
+      updateSessionStatus({ sessionId: 'session-1', status: 'active', updatedAtMs: 900 });
+
+      expect(database.runSync).not.toHaveBeenCalledWith(
+        expect.stringContaining('pause_events = ?'),
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it('reads back the empty history a new ride starts with', () => {
+      buildRoundTripDatabase();
+
+      createDraftSession(draftInput);
+
+      expect(getSessionById('session-1')?.pauseEvents).toEqual([]);
+    });
+
+    it('reads back the pause history it wrote across a ride', () => {
+      buildRoundTripDatabase();
+
+      createDraftSession(draftInput);
+      updateSessionStatus({ sessionId: 'session-1', status: 'paused', updatedAtMs: 700 });
+      updateSessionStatus({ sessionId: 'session-1', status: 'active', updatedAtMs: 1900 });
+      updateSessionStatus({ sessionId: 'session-1', status: 'paused', updatedAtMs: 2500 });
+
+      expect(getSessionById('session-1')?.pauseEvents).toEqual([
+        { kind: 'pause', atMs: 700 },
+        { kind: 'resume', atMs: 1900 },
+        { kind: 'pause', atMs: 2500 },
+      ]);
     });
   });
 });
