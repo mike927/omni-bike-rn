@@ -29,6 +29,9 @@ Each issue file's **Tracking** table is the authoritative source for its current
 | [A08](issues/A08-healthkit-paused-intervals.md) | Apple Health export loses paused intervals | Bug | Medium | P2 — Planned | Medium |
 | [A09](issues/A09-watch-desired-lifecycle.md) | Watch asynchronous transitions discard newer lifecycle intent | Bug | Medium | P2 — Planned | Medium |
 | [A10](issues/A10-reconnect-lifecycle-ownership.md) | Multiple screens independently own global reconnect policy | Improvement | Not applicable | P2 — Planned | Medium |
+| [A12](issues/A12-tcx-paused-intervals.md) | TCX export loses paused intervals | Bug | Medium | P2 - Planned | Small |
+
+A12 was not part of the original audit of `965cbec`: it was filed on 2026-09-05 during A08 remediation, after an independent review of A08 found that the pause history it added never reaches the TCX export. That is why this table names an issue the audit's own evidence sections (`verification.md`, `hypotheses.md`) do not mention.
 
 Evidence classification and category are recorded in each ticket. “Confirmed” can mean an executed controlled reproduction or a demonstrable static code path; it does not imply physical-device verification.
 
