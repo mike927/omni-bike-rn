@@ -21,6 +21,20 @@ export interface CyclingQuantitySampleInput {
   timestampMs: number;
 }
 
+/**
+ * A pause or resume of the effort, at a moment inside the workout's window.
+ *
+ * HealthKit's own mechanism for a workout that was not one continuous effort:
+ * `HKWorkoutBuilder` excludes the span between a `pause` and the next `resume`
+ * from the workout's duration. A `pause` with no `resume` after it is a workout
+ * that ended while paused.
+ */
+export interface WorkoutEventInput {
+  type: 'pause' | 'resume';
+  /** Unix epoch milliseconds. Events outside [startDate, endDate] are dropped. */
+  timestampMs: number;
+}
+
 export interface SaveCyclingWorkoutOptions {
   /** ISO-8601 start date */
   startDate: string;
@@ -40,6 +54,11 @@ export interface SaveCyclingWorkoutOptions {
   cyclingCadenceSamples: CyclingQuantitySampleInput[];
   /** Per-sample cycling speed trace in meters/second */
   cyclingSpeedSamples: CyclingQuantitySampleInput[];
+  /**
+   * Ordered pause/resume events for the workout. Pass `[]` for a continuous
+   * effort; the workout's duration then spans the whole window.
+   */
+  workoutEvents: WorkoutEventInput[];
 }
 
 declare class AppleHealthWorkoutNativeModule extends NativeModule {
@@ -65,7 +84,9 @@ declare class AppleHealthWorkoutNativeModule extends NativeModule {
   /**
    * Saves an indoor-cycling HKWorkout via `HKWorkoutBuilder` with
    * `HKMetadataKeyIndoorWorkout=true`, cumulative active-energy + distance
-   * samples, and per-metric sample traces (HR + power + cadence + speed).
+   * samples, per-metric sample traces (HR + power + cadence + speed), and the
+   * workout's pause/resume events, which is what makes HealthKit report the
+   * ride's active duration rather than its wall-clock span.
    * Returns the saved workout's UUID string.
    */
   saveCyclingWorkout(options: SaveCyclingWorkoutOptions): Promise<string>;

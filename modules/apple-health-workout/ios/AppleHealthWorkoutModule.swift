@@ -150,6 +150,7 @@ public class AppleHealthWorkoutModule: Module {
       let rawPowerSamples = options["cyclingPowerSamples"] as? [[String: Any]] ?? []
       let rawCadenceSamples = options["cyclingCadenceSamples"] as? [[String: Any]] ?? []
       let rawSpeedSamples = options["cyclingSpeedSamples"] as? [[String: Any]] ?? []
+      let rawWorkoutEvents = options["workoutEvents"] as? [[String: Any]] ?? []
 
       let configuration = HKWorkoutConfiguration()
       configuration.activityType = .cycling
@@ -254,6 +255,16 @@ public class AppleHealthWorkoutModule: Module {
           rangeEnd: endDate
         ))
 
+        // Pause / resume events are what make HealthKit report the ride's active
+        // duration instead of its wall-clock span: HKWorkoutBuilder excludes the
+        // interval between a pause and the next resume from the workout's
+        // elapsed time. They must be added before endCollection.
+        let workoutEvents = self.buildWorkoutEvents(
+          from: rawWorkoutEvents,
+          rangeStart: startDate,
+          rangeEnd: endDate
+        )
+
         let finalize: () -> Void = {
           builder.endCollection(withEnd: endDate) { success, error in
             if let error {
@@ -278,8 +289,27 @@ public class AppleHealthWorkoutModule: Module {
           }
         }
 
+        let addEventsThenFinalize: () -> Void = {
+          guard !workoutEvents.isEmpty else {
+            finalize()
+            return
+          }
+
+          builder.addWorkoutEvents(workoutEvents) { success, error in
+            if let error {
+              promise.reject("ERR_ADD_EVENTS_FAILED", error.localizedDescription)
+              return
+            }
+            guard success else {
+              promise.reject("ERR_ADD_EVENTS_FAILED", "HealthKit reported add events failure without error")
+              return
+            }
+            finalize()
+          }
+        }
+
         if samplesToAdd.isEmpty {
-          finalize()
+          addEventsThenFinalize()
           return
         }
 
@@ -292,9 +322,42 @@ public class AppleHealthWorkoutModule: Module {
             promise.reject("ERR_ADD_SAMPLES_FAILED", "HealthKit reported add samples failure without error")
             return
           }
-          finalize()
+          addEventsThenFinalize()
         }
       }
+    }
+  }
+
+  private func buildWorkoutEvents(
+    from rawEvents: [[String: Any]],
+    rangeStart: Date,
+    rangeEnd: Date
+  ) -> [HKWorkoutEvent] {
+    return rawEvents.compactMap { rawEvent in
+      guard
+        let rawType = rawEvent["type"] as? String,
+        let timestampMs = (rawEvent["timestampMs"] as? NSNumber)?.doubleValue,
+        timestampMs.isFinite
+      else { return nil }
+
+      let eventType: HKWorkoutEventType
+      switch rawType {
+      case "pause": eventType = .pause
+      case "resume": eventType = .resume
+      default: return nil
+      }
+
+      let date = Date(timeIntervalSince1970: timestampMs / 1000)
+      // HealthKit rejects an event outside the workout's own interval, which
+      // would fail the whole save. The JS side already clamps; this is the
+      // same guard the sample builder applies, for the same reason.
+      guard date >= rangeStart && date <= rangeEnd else { return nil }
+
+      return HKWorkoutEvent(
+        type: eventType,
+        dateInterval: DateInterval(start: date, duration: 0),
+        metadata: nil
+      )
     }
   }
 

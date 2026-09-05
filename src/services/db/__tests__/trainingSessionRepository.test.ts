@@ -243,6 +243,7 @@ describe('trainingSessionRepository', () => {
       savedBikeSnapshot: { id: 'bike-1', name: 'Bike' },
       savedHrSnapshot: { id: 'hr-1', name: 'HR' },
       uploadState: null,
+      pauseEvents: null,
       createdAtMs: 100,
       updatedAtMs: 350,
     });
@@ -606,5 +607,142 @@ describe('trainingSessionRepository', () => {
     );
 
     nowSpy.mockRestore();
+  });
+  describe('pause history', () => {
+    const openSessionRow = (overrides: Record<string, unknown> = {}) => ({
+      id: 'session-1',
+      status: 'active',
+      startedAtMs: 100,
+      endedAtMs: null,
+      elapsedSeconds: 40,
+      totalDistanceMeters: 800,
+      totalCaloriesKcal: 22,
+      currentSpeedKmh: 18,
+      currentCadenceRpm: 82,
+      currentPowerWatts: 180,
+      currentHeartRateBpm: 141,
+      currentResistanceLevel: 5,
+      currentDistanceMeters: 800,
+      savedBikeId: null,
+      savedBikeName: null,
+      savedHrId: null,
+      savedHrName: null,
+      uploadState: null,
+      createdAtMs: 100,
+      updatedAtMs: 400,
+      ...overrides,
+    });
+
+    it('starts a new ride with an empty pause history', () => {
+      const database = buildDatabase();
+
+      createDraftSession({
+        sessionId: 'session-1',
+        startedAtMs: 100,
+        elapsedSeconds: 0,
+        totalDistanceMeters: 0,
+        totalCaloriesKcal: 0,
+        currentMetrics: { speed: 0, cadence: 0, power: 0, heartRate: null, resistance: null, distance: null },
+        savedBikeSnapshot: null,
+        savedHrSnapshot: null,
+      });
+
+      expect(database.runSync.mock.calls[0]?.[0]).toContain('pause_events');
+      expect(database.runSync.mock.calls[0]).toContain('[]');
+    });
+
+    it('records a pause event with the status change', () => {
+      const database = buildDatabase();
+      database.getFirstSync.mockReturnValue({ pauseEvents: '[]' });
+
+      updateSessionStatus({ sessionId: 'session-1', status: 'paused', updatedAtMs: 300 });
+
+      expect(database.runSync).toHaveBeenCalledWith(
+        'UPDATE training_sessions SET pause_events = ? WHERE id = ?',
+        JSON.stringify([{ kind: 'pause', atMs: 300 }]),
+        'session-1',
+      );
+    });
+
+    it('records a resume event with the status change', () => {
+      const database = buildDatabase();
+      database.getFirstSync.mockReturnValue({ pauseEvents: JSON.stringify([{ kind: 'pause', atMs: 300 }]) });
+
+      updateSessionStatus({ sessionId: 'session-1', status: 'active', updatedAtMs: 900 });
+
+      expect(database.runSync).toHaveBeenCalledWith(
+        'UPDATE training_sessions SET pause_events = ? WHERE id = ?',
+        JSON.stringify([
+          { kind: 'pause', atMs: 300 },
+          { kind: 'resume', atMs: 900 },
+        ]),
+        'session-1',
+      );
+    });
+
+    it('never writes a partial history onto a ride recorded before pause capture', () => {
+      const database = buildDatabase();
+      database.getFirstSync.mockReturnValue({ pauseEvents: null });
+
+      updateSessionStatus({ sessionId: 'session-1', status: 'paused', updatedAtMs: 300 });
+
+      expect(database.runSync).not.toHaveBeenCalledWith(
+        expect.stringContaining('pause_events = ?'),
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it('keeps the history alternating when the same status is written twice', () => {
+      const database = buildDatabase();
+      database.getFirstSync.mockReturnValue({ pauseEvents: JSON.stringify([{ kind: 'pause', atMs: 300 }]) });
+
+      updateSessionStatus({ sessionId: 'session-1', status: 'paused', updatedAtMs: 500 });
+
+      expect(database.runSync).not.toHaveBeenCalledWith(
+        expect.stringContaining('pause_events = ?'),
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it('closes the recording interval of a recovered ride at its last durable second', () => {
+      const database = buildDatabase();
+      database.getFirstSync
+        .mockReturnValueOnce(openSessionRow({ pauseEvents: '[]' }))
+        .mockReturnValueOnce(openSessionRow({ status: 'paused', pauseEvents: '[]' }));
+
+      normalizeRecoveredSessionToPaused('session-1');
+
+      expect(database.runSync).toHaveBeenCalledWith(
+        'UPDATE training_sessions SET pause_events = ? WHERE id = ?',
+        JSON.stringify([{ kind: 'pause', atMs: 400 }]),
+        'session-1',
+      );
+    });
+
+    it('maps a stored pause history onto the session', () => {
+      const database = buildDatabase();
+      database.getFirstSync.mockReturnValue(
+        openSessionRow({
+          pauseEvents: JSON.stringify([
+            { kind: 'pause', atMs: 300 },
+            { kind: 'resume', atMs: 900 },
+          ]),
+        }),
+      );
+
+      expect(getSessionById('session-1')?.pauseEvents).toEqual([
+        { kind: 'pause', atMs: 300 },
+        { kind: 'resume', atMs: 900 },
+      ]);
+    });
+
+    it('reports an unreadable pause history as unknown instead of throwing', () => {
+      const database = buildDatabase();
+      database.getFirstSync.mockReturnValue(openSessionRow({ pauseEvents: 'not-json' }));
+
+      expect(getSessionById('session-1')?.pauseEvents).toBeNull();
+    });
   });
 });
