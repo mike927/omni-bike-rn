@@ -12,6 +12,7 @@ import { useAppleHealthPermissionsRefresh } from '../features/integrations/hooks
 import { useWatchHr } from '../features/gear/hooks/useWatchHr';
 import { useInterruptedSessionRecovery } from '../features/training/hooks/useInterruptedSessionRecovery';
 import { useKeepAwakeDuringTraining } from '../features/training/hooks/useKeepAwakeDuringTraining';
+import { useTrainingSessionLifecycle } from '../features/training/hooks/useTrainingSessionLifecycle';
 import { useTrainingSessionPersistence } from '../features/training/hooks/useTrainingSessionPersistence';
 
 /** Boot status the root layout renders against. */
@@ -44,6 +45,7 @@ export function useAppInitialization(): AppInitState {
   useWatchHr();
   useAppleHealthPermissionsRefresh();
   useKeepAwakeDuringTraining();
+  useTrainingSessionLifecycle();
   useTrainingSessionPersistence(isDatabaseReady);
   useInterruptedSessionRecovery(isDatabaseReady && onboardingCompleted);
 
