@@ -3,7 +3,7 @@ import { useTrainingSessionStore } from '../../store/trainingSessionStore';
 import { useDeviceConnectionStore } from '../../store/deviceConnectionStore';
 import { BikeStatus } from '../../services/ble/BikeAdapter';
 import { TrainingPhase, type TrainingSessionRestoreInput } from '../../types/training';
-import { disconnectAllDeviceConnections } from './hooks/useDeviceConnection';
+import { disconnectAllDeviceConnections, releaseDeviceDisconnectObservers } from './hooks/useDeviceConnection';
 import {
   awaitSessionSave,
   discardUnsavedSessionRecord,
@@ -378,6 +378,13 @@ async function runResetSessionAndConnections(): Promise<void> {
   disconnectPauseSuppressed = true;
 
   try {
+    // The suppressed window starts here, not at disconnectAllDeviceConnections:
+    // the pending finish Stop and the FTMS Reset below are each bounded by
+    // timeouts of seconds, and a device dropping inside them is part of this
+    // teardown. Disarm the transport observers for the whole window, so none of
+    // it can be handled as an unexpected drop that lifts the suppression.
+    releaseDeviceDisconnectObservers();
+
     // Teardown is the one place the owner stops the clock ahead of the phase:
     // a reset from Active keeps phase Active until the very end (so the ride
     // never flickers through Paused), and we must not keep accumulating into a

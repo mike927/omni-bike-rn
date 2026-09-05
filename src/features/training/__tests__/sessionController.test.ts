@@ -1,8 +1,10 @@
+import * as deviceConnectionModule from '../hooks/useDeviceConnection';
 import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
 import { useTrainingSessionStore } from '../../../store/trainingSessionStore';
 import { BikeStatus } from '../../../services/ble/BikeAdapter';
 import { TrainingPhase, type MetricSnapshot } from '../../../types/training';
 import {
+  finishSession,
   isDisconnectPauseSuppressed,
   pauseSession,
   resetSession,
@@ -144,6 +146,46 @@ describe('sessionController teardown and restore guards (A02)', () => {
     expect(disconnect).toHaveBeenCalledTimes(1);
     expect(isDisconnectPauseSuppressed()).toBe(false);
     expect(useTrainingSessionStore.getState().phase).toBe(TrainingPhase.Idle);
+  });
+
+  it('disarms the native disconnect observers before the teardown waits on the bike', async () => {
+    const releaseObservers = jest.spyOn(deviceConnectionModule, 'releaseDeviceDisconnectObservers');
+    let releaseStop!: () => void;
+    const setControlState = jest.fn().mockImplementation((status: BikeStatus) => {
+      if (status !== BikeStatus.Stopped) {
+        return Promise.resolve();
+      }
+      return new Promise<void>((resolve) => {
+        releaseStop = resolve;
+      });
+    });
+    const disconnect = jest.fn().mockResolvedValue(undefined);
+    useDeviceConnectionStore.getState().setBikeAdapter({
+      connect: jest.fn().mockResolvedValue(undefined),
+      disconnect,
+      subscribeToMetrics: jest.fn(),
+      setControlState,
+    });
+
+    startSession();
+    // Queue an FTMS Stop the bike will not answer yet, so the teardown parks in
+    // awaitPendingFinishStop for the whole FINISH_STOP_COMMAND_TIMEOUT_MS.
+    finishSession();
+
+    const teardown = resetSession();
+
+    // The suppressed window is already open and nothing has been disconnected
+    // yet. Both observers must be gone by now: a device dropping anywhere in
+    // this window belongs to the teardown, and handling it as an unexpected
+    // drop would lift the suppression the teardown just applied.
+    expect(isDisconnectPauseSuppressed()).toBe(true);
+    expect(disconnect).not.toHaveBeenCalled();
+    expect(releaseObservers).toHaveBeenCalledTimes(1);
+
+    releaseStop();
+    await teardown;
+
+    expect(isDisconnectPauseSuppressed()).toBe(false);
   });
 
   it('refuses to restore an interrupted session over a ride that is already in memory', () => {

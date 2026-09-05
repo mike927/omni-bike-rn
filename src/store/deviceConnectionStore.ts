@@ -56,6 +56,7 @@ export interface DeviceConnectionStore {
   setWatchAvailability: (availability: WatchAvailability) => void;
   setActiveHrSource: (source: HrSource | null) => void;
   clearBikeConnection: () => void;
+  clearHrTransport: () => void;
   clearHrConnection: () => void;
   clearAll: () => void;
 }
@@ -104,10 +105,22 @@ export const useDeviceConnectionStore = create<DeviceConnectionStore>((set) => (
       latestBikeMetrics: null,
       lastBikeSignalAtMs: null,
     }),
+  // Drop the BLE HR transport and its readings, leaving the per-session lock in
+  // place. This is the shape an *unexpected* strap drop takes: the ride's chosen
+  // HR source has not changed, the radio link under it is simply gone, so the
+  // dashboard must keep reporting the locked source (No signal) instead of
+  // falling back to idle readiness for a ride that is still running.
+  clearHrTransport: () =>
+    set({
+      hrAdapter: null,
+      latestBluetoothHr: null,
+      lastBluetoothHrSampleAtMs: null,
+    }),
   // Apple Watch HR is independent of the BLE HR lifecycle, so only the Bluetooth
-  // fields are cleared here. activeHrSource is also released: forgetting the BLE
-  // strap invalidates any lock that pointed at it; the source is re-resolved from
-  // the persisted primary on the next read (resolveEffectiveHrSource's ?? fallback).
+  // fields are cleared here. activeHrSource is also released: a deliberate
+  // disconnect (teardown, replacement, forgetting the strap) invalidates any lock
+  // that pointed at it; the source is re-resolved from the persisted primary on
+  // the next read (resolveEffectiveHrSource's ?? fallback).
   clearHrConnection: () =>
     set({
       hrAdapter: null,
