@@ -1,5 +1,5 @@
 import { kcalPerSecond } from '../calories/keytel';
-import type { SessionAccumulator, TrainingTickInput } from '../../types/training';
+import type { MetricSnapshot, SessionAccumulator, TrainingTickInput } from '../../types/training';
 
 /** Joules-to-kcal conversion factor (1 kcal ≈ 4 186 J). */
 const JOULES_PER_KCAL = 4186;
@@ -12,7 +12,14 @@ const JOULES_PER_KCAL = 4186;
  */
 const GROSS_MECHANICAL_EFFICIENCY = 0.25;
 
-type DistanceState = Pick<SessionAccumulator, 'totalDistance' | 'initialDistance' | 'lastBikeDistance'>;
+/**
+ * The distance slice of the accumulator: the workout-relative total plus the
+ * rebasing state that keeps it workout-relative.
+ */
+export type NormalizedDistanceState = Pick<
+  SessionAccumulator,
+  'totalDistance' | 'initialDistance' | 'lastBikeDistance'
+>;
 type CalorieState = Pick<
   SessionAccumulator,
   | 'totalCalories'
@@ -23,14 +30,45 @@ type CalorieState = Pick<
   | 'lastCalorieSourceMode'
 >;
 
-/** Distance: prefer raw hardware output over derived speed integration. */
-function advanceDistance(state: SessionAccumulator, metrics: TrainingTickInput['metrics']): DistanceState {
+/**
+ * Distance state of a ride that has not recorded a single second yet.
+ *
+ * Frozen: every replay seeds from this one object, so a caller that mutated it
+ * in place would move the starting line for every ride exported afterwards.
+ */
+export const INITIAL_NORMALIZED_DISTANCE: Readonly<NormalizedDistanceState> = Object.freeze({
+  totalDistance: 0,
+  initialDistance: null,
+  lastBikeDistance: null,
+});
+
+/**
+ * One step of distance normalization: prefer raw hardware output over derived
+ * speed integration, and keep the running total workout-relative rather than
+ * machine-relative.
+ *
+ * A trainer's own counter is whatever it happened to be showing when the ride
+ * started, and it drops back to zero on a power cycle mid-ride. Neither is a
+ * distance the rider covered, so the counter is rebased on the first reading and
+ * again on every reset, and only the rebased total ever leaves this module. The
+ * raw reading stays in `MetricSnapshot.distance`, so anything that exports a
+ * per-second distance must take it from here and not from that field.
+ *
+ * `elapsedDeltaSeconds` is the seconds this reading stands for: 1 for a live
+ * tick, and the gap between two persisted samples when the series is being
+ * replayed after the fact.
+ */
+export function normalizeDistanceStep(
+  state: NormalizedDistanceState,
+  reading: Pick<MetricSnapshot, 'distance' | 'speed'>,
+  elapsedDeltaSeconds: number,
+): NormalizedDistanceState {
   const { totalDistance, initialDistance, lastBikeDistance } = state;
 
-  if (metrics.distance === null) {
-    // Fallback: distance delta from speed (km/h → m/s = speed / 3.6 for 1 s).
+  if (reading.distance === null) {
+    // Fallback: distance delta from speed (km/h → m/s = speed / 3.6).
     return {
-      totalDistance: totalDistance + (metrics.speed / 3.6) * 1,
+      totalDistance: totalDistance + (reading.speed / 3.6) * elapsedDeltaSeconds,
       initialDistance,
       lastBikeDistance,
     };
@@ -38,14 +76,19 @@ function advanceDistance(state: SessionAccumulator, metrics: TrainingTickInput['
 
   // Rebase when the bike counter reset (e.g. power cycle) or on the first data point.
   const shouldRebaseDistance =
-    initialDistance === null || (lastBikeDistance !== null && metrics.distance < lastBikeDistance);
-  const nextInitialDistance = shouldRebaseDistance ? metrics.distance - totalDistance : initialDistance;
+    initialDistance === null || (lastBikeDistance !== null && reading.distance < lastBikeDistance);
+  const nextInitialDistance = shouldRebaseDistance ? reading.distance - totalDistance : initialDistance;
 
   return {
-    totalDistance: metrics.distance - (nextInitialDistance ?? metrics.distance),
+    totalDistance: reading.distance - (nextInitialDistance ?? reading.distance),
     initialDistance: nextInitialDistance,
-    lastBikeDistance: metrics.distance,
+    lastBikeDistance: reading.distance,
   };
+}
+
+/** Distance for one live 1 Hz tick. */
+function advanceDistance(state: SessionAccumulator, metrics: TrainingTickInput['metrics']): NormalizedDistanceState {
+  return normalizeDistanceStep(state, metrics, 1);
 }
 
 /**

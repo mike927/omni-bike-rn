@@ -50,6 +50,7 @@ interface PersistedTrainingSampleRow {
   heartRateBpm: number | null;
   resistanceLevel: number | null;
   distanceMeters: number | null;
+  sessionDistanceMeters: number | null;
 }
 
 interface LastSampleSequenceRow {
@@ -71,6 +72,9 @@ function mapSampleRow(row: PersistedTrainingSampleRow): PersistedTrainingSample 
       resistance: row.resistanceLevel,
       distance: row.distanceMeters,
     } satisfies MetricSnapshot,
+    // NULL means the row predates the column, which is not the same as a ride
+    // that had covered 0 m at this second. Keep the two apart.
+    ...(typeof row.sessionDistanceMeters === 'number' ? { sessionDistanceMeters: row.sessionDistanceMeters } : {}),
   };
 }
 
@@ -170,8 +174,9 @@ export function appendSample(input: AppendSampleInput): void {
         power_watts,
         heart_rate_bpm,
         resistance_level,
-        distance_meters
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        distance_meters,
+        session_distance_meters
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       input.sampleId,
       input.sessionId,
       input.sequence,
@@ -183,6 +188,7 @@ export function appendSample(input: AppendSampleInput): void {
       input.currentMetrics.heartRate,
       input.currentMetrics.resistance,
       input.currentMetrics.distance,
+      input.totalDistanceMeters,
     );
 
     database.runSync(
@@ -424,7 +430,8 @@ export function getSamplesBySessionId(sessionId: string): PersistedTrainingSampl
        power_watts AS powerWatts,
        heart_rate_bpm AS heartRateBpm,
        resistance_level AS resistanceLevel,
-       distance_meters AS distanceMeters
+       distance_meters AS distanceMeters,
+       session_distance_meters AS sessionDistanceMeters
      FROM training_session_samples
      WHERE session_id = ?
      ORDER BY sequence ASC`,

@@ -29,6 +29,29 @@ function makeSample(overrides: Partial<PersistedTrainingSample> = {}): Persisted
   };
 }
 
+function counterSamples(counters: number[]): PersistedTrainingSample[] {
+  return counters.map((distance, index) =>
+    makeSample({
+      id: `sample-${index + 1}`,
+      sequence: index + 1,
+      elapsedSeconds: index + 1,
+      recordedAtMs: 1_700_000_001_000 + index * 1000,
+      metrics: { ...makeSample().metrics, distance },
+    }),
+  );
+}
+
+/** The Lap's own DistanceMeters, which precedes the Track and its trackpoints. */
+function lapDistance(xml: string): string | null {
+  return /<Lap\b[\S\s]*?<DistanceMeters>([^<]+)<\/DistanceMeters>/.exec(xml)?.[1] ?? null;
+}
+
+function trackpointDistances(xml: string): string[] {
+  return [...xml.matchAll(/<Trackpoint>[\S\s]*?<DistanceMeters>([^<]+)<\/DistanceMeters>/g)].map(
+    (match) => match[1] ?? '',
+  );
+}
+
 describe('serializeSessionToTcx', () => {
   describe('XML structure', () => {
     it('produces a valid XML declaration and root element', () => {
@@ -124,22 +147,95 @@ describe('serializeSessionToTcx', () => {
   });
 
   describe('distance resolution', () => {
-    it('uses sample.metrics.distance directly when available', () => {
-      const sample = makeSample({ elapsedSeconds: 1800, metrics: { ...makeSample().metrics, distance: 9000 } });
-      const xml = serializeSessionToTcx(BASE_SESSION, [sample]);
-      expect(xml).toContain('<DistanceMeters>9000.0</DistanceMeters>');
+    it('exports workout-relative distance instead of the raw bike counter (audit A07)', () => {
+      // Bike powered on at 500 m, then power-cycled back to 10 m. The ride is
+      // 35 m long; the raw counters say 500, 520, 10, 25.
+      const session: PersistedTrainingSession = {
+        ...BASE_SESSION,
+        elapsedSeconds: 4,
+        totalDistanceMeters: 35,
+      };
+      const samples = counterSamples([500, 520, 10, 25]);
+
+      const xml = serializeSessionToTcx(session, samples);
+
+      expect(trackpointDistances(xml)).toEqual(['0.0', '20.0', '20.0', '35.0']);
+      expect(xml).not.toContain('<DistanceMeters>500.0</DistanceMeters>');
     });
 
-    it('interpolates distance from elapsed ratio when sample distance is null', () => {
-      // 1800s elapsed of 3600s total, total 18000m → expected 9000m
-      const sample = makeSample({ elapsedSeconds: 1800, metrics: { ...makeSample().metrics, distance: null } });
+    it('exports the recorded normalized total rather than the counter it came from', () => {
+      const session: PersistedTrainingSession = {
+        ...BASE_SESSION,
+        elapsedSeconds: 2,
+        totalDistanceMeters: 20,
+      };
+      const samples = [
+        makeSample({
+          elapsedSeconds: 1,
+          metrics: { ...makeSample().metrics, distance: 500 },
+          sessionDistanceMeters: 0,
+        }),
+        makeSample({
+          id: 'sample-2',
+          sequence: 2,
+          elapsedSeconds: 2,
+          metrics: { ...makeSample().metrics, distance: 520 },
+          sessionDistanceMeters: 20,
+        }),
+      ];
+
+      const xml = serializeSessionToTcx(session, samples);
+
+      expect(trackpointDistances(xml)).toEqual(['0.0', '20.0']);
+    });
+
+    it('keeps trackpoints non-decreasing and ending at the lap total for a plain ride', () => {
+      const session: PersistedTrainingSession = {
+        ...BASE_SESSION,
+        elapsedSeconds: 3,
+        totalDistanceMeters: 30,
+      };
+      const samples = counterSamples([1010, 1020, 1040]);
+
+      const xml = serializeSessionToTcx(session, samples);
+
+      expect(trackpointDistances(xml)).toEqual(['0.0', '10.0', '30.0']);
+      // The Lap element specifically: the last trackpoint also reads 30.0, so a
+      // plain `toContain` could not tell the track from the total it sits under.
+      expect(lapDistance(xml)).toBe('30.0');
+    });
+
+    it('reconstructs distance from speed when a legacy row has no counter', () => {
+      // 36 km/h for one second = 10 m, then a second identical second = 20 m.
+      const session: PersistedTrainingSession = { ...BASE_SESSION, elapsedSeconds: 2, totalDistanceMeters: 20 };
+      const samples = [
+        makeSample({ elapsedSeconds: 1, metrics: { ...makeSample().metrics, speed: 36, distance: null } }),
+        makeSample({
+          id: 'sample-2',
+          sequence: 2,
+          elapsedSeconds: 2,
+          metrics: { ...makeSample().metrics, speed: 36, distance: null },
+        }),
+      ];
+
+      const xml = serializeSessionToTcx(session, samples);
+
+      expect(trackpointDistances(xml)).toEqual(['10.0', '20.0']);
+    });
+
+    it('falls back to the elapsed ratio when a legacy ride reconstructs to nothing', () => {
+      // 1800s elapsed of 3600s total, total 18000m, so 9000m at the halfway sample.
+      const sample = makeSample({
+        elapsedSeconds: 1800,
+        metrics: { ...makeSample().metrics, speed: 0, distance: null },
+      });
       const xml = serializeSessionToTcx(BASE_SESSION, [sample]);
       expect(xml).toContain('<DistanceMeters>9000.0</DistanceMeters>');
     });
 
     it('returns 0 distance when totalElapsedSeconds is 0', () => {
       const session: PersistedTrainingSession = { ...BASE_SESSION, elapsedSeconds: 0 };
-      const sample = makeSample({ metrics: { ...makeSample().metrics, distance: null } });
+      const sample = makeSample({ metrics: { ...makeSample().metrics, speed: 0, distance: null } });
       const xml = serializeSessionToTcx(session, [sample]);
       expect(xml).toContain('<DistanceMeters>0.0</DistanceMeters>');
     });

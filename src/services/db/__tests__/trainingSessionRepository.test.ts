@@ -38,6 +38,23 @@ describe('trainingSessionRepository', () => {
     return database;
   };
 
+  /**
+   * The values an INSERT bound, keyed by the column they were bound to, so an
+   * assertion does not have to count positions that shift when a column is
+   * appended.
+   */
+  const boundColumns = (call: unknown[] | undefined): Record<string, unknown> => {
+    const [sql, ...values] = call ?? [];
+    const statement = String(sql);
+    const columns = statement
+      .slice(statement.indexOf('(') + 1, statement.indexOf(')'))
+      .split(',')
+      .map((column) => column.trim())
+      .filter(Boolean);
+
+    return Object.fromEntries(columns.map((column, index) => [column, values[index]]));
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -91,6 +108,33 @@ describe('trainingSessionRepository', () => {
     expect(database.runSync.mock.calls[0]?.[0]).toContain('INSERT INTO training_session_samples');
     expect(database.runSync.mock.calls[1]?.[0]).toContain('UPDATE training_sessions');
     expect(database.runSync.mock.calls[1]?.[0]).not.toContain('status = ?');
+  });
+
+  it('stores the normalized session distance on the sample, alongside the raw counter', () => {
+    const database = buildDatabase();
+
+    appendSample({
+      sessionId: 'session-1',
+      sampleId: 'sample-1',
+      sequence: 0,
+      recordedAtMs: 200,
+      elapsedSeconds: 1,
+      totalDistanceMeters: 10,
+      totalCaloriesKcal: 1.5,
+      currentMetrics: {
+        speed: 36,
+        cadence: 90,
+        power: 220,
+        heartRate: 150,
+        resistance: 8,
+        distance: 510,
+      },
+    });
+
+    const inserted = boundColumns(database.runSync.mock.calls[0]);
+    // The bike's own odometer read 510 m; the ride was 10 m long.
+    expect(inserted.distance_meters).toBe(510);
+    expect(inserted.session_distance_meters).toBe(10);
   });
 
   it('updates session status for pause and resume transitions', () => {
@@ -340,6 +384,7 @@ describe('trainingSessionRepository', () => {
         heartRateBpm: 140,
         resistanceLevel: 5,
         distanceMeters: 100,
+        sessionDistanceMeters: 40,
       },
     ]);
 
@@ -358,8 +403,36 @@ describe('trainingSessionRepository', () => {
           resistance: 5,
           distance: 100,
         },
+        sessionDistanceMeters: 40,
       },
     ]);
+    expect(database.getAllSync.mock.calls[0]?.[0]).toContain('session_distance_meters AS sessionDistanceMeters');
+  });
+
+  it('leaves the normalized distance absent on a legacy sample row rather than reading it as zero', () => {
+    const database = buildDatabase();
+    database.getAllSync.mockReturnValue([
+      {
+        id: 'sample-1',
+        sessionId: 'session-1',
+        sequence: 0,
+        recordedAtMs: 100,
+        elapsedSeconds: 1,
+        speedKmh: 20,
+        cadenceRpm: 80,
+        powerWatts: 200,
+        heartRateBpm: 140,
+        resistanceLevel: 5,
+        distanceMeters: 100,
+        sessionDistanceMeters: null,
+      },
+    ]);
+
+    const [sample] = getSamplesBySessionId('session-1');
+
+    expect(sample).toBeDefined();
+    expect(sample?.sessionDistanceMeters).toBeUndefined();
+    expect(Object.hasOwn(sample ?? {}, 'sessionDistanceMeters')).toBe(false);
   });
 
   it('returns -1 when a session has no persisted samples yet', () => {

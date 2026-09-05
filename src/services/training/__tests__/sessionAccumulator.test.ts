@@ -1,4 +1,4 @@
-import { advanceSession } from '../sessionAccumulator';
+import { advanceSession, INITIAL_NORMALIZED_DISTANCE, normalizeDistanceStep } from '../sessionAccumulator';
 import type { MetricSnapshot, SessionAccumulator, TrainingTickInput } from '../../../types/training';
 
 const INITIAL_METRICS: MetricSnapshot = {
@@ -46,6 +46,17 @@ const makeTickInput = (
   hasBikePower: false,
   keytelInputs: null,
   ...overrides,
+});
+
+describe('INITIAL_NORMALIZED_DISTANCE', () => {
+  it('cannot be mutated, because every replay seeds from this one object', () => {
+    expect(() => {
+      Object.assign(INITIAL_NORMALIZED_DISTANCE, { totalDistance: 999 });
+    }).toThrow(TypeError);
+
+    expect(INITIAL_NORMALIZED_DISTANCE).toEqual({ totalDistance: 0, initialDistance: null, lastBikeDistance: null });
+    expect(normalizeDistanceStep(INITIAL_NORMALIZED_DISTANCE, { distance: 500, speed: 0 }, 1).totalDistance).toBe(0);
+  });
 });
 
 describe('advanceSession', () => {
