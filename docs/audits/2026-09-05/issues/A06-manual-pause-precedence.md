@@ -6,9 +6,9 @@
 
 | Field | Value |
 | --- | --- |
-| Status | In progress |
+| Status | Done |
 | Owner | automated remediation agent |
-| Branch / PR | fix/a06-manual-pause-precedence |
+| Branch / PR | fix/a06-manual-pause-precedence · https://github.com/mike927/omni-bike-rn/pull/109 |
 | Last updated | 2026-09-05 |
 | Type | Bug |
 | Category | consistency |
@@ -55,22 +55,34 @@ Track pause ownership/reason in shared lifecycle state. Permit automatic resume 
 
 ## Acceptance criteria and verification
 
-- [ ] Manual pause followed by bike Started remains Paused.
-- [ ] An eligible bike-driven pause resumes correctly; explicit Resume clears the manual reason.
-- [ ] Cover interrupted-session restore and Watch remote pause through the same actions.
-- [ ] Run relevant existing checks following `AGENTS.md`; record exact commands, results and verification limits below.
-- [ ] Update status, owner, last-updated date and completion evidence; coordinate the aggregate roadmap state as described in the index.
+- [x] Manual pause followed by bike Started remains Paused.
+- [x] An eligible bike-driven pause resumes correctly; explicit Resume clears the manual reason.
+- [x] Cover interrupted-session restore and Watch remote pause through the same actions.
+- [x] Run relevant existing checks following `AGENTS.md`; record exact commands, results and verification limits below.
+- [x] Update status, owner, last-updated date and completion evidence; coordinate the aggregate roadmap state as described in the index.
 
 ## Work log
 
 - 2026-09-05 — Imported from the audit of `965cbec`. No remediation performed; status is Not started.
 - 2026-09-05 — Claimed by automated remediation agent on branch `fix/a06-manual-pause-precedence`. A01 already merged (`7081c13`); the seam is `syncSessionFromBikeStatus` in `src/features/training/sessionController.ts`, which now holds single-owner session lifecycle logic.
+- 2026-09-05 — Wrote failing tests first (TDD): `src/features/training/__tests__/sessionController.test.ts` (new) and one added case in `src/features/training/hooks/__tests__/trainingSessionOwnership.test.ts`. Confirmed both failed against the unfixed code, then implemented the fix, confirmed green, and confirmed by mutation (see below). PR opened: https://github.com/mike927/omni-bike-rn/pull/109.
 
 ## Completion / disposition record
 
-No implementation, PR or new verification recorded yet. Before closing, replace this paragraph with:
+**Change summary.** `syncSessionFromBikeStatus` resumed every Paused session on a bike `Started` event with no memory of why it paused, so a manual Pause (screen or Watch remote, both via `pauseSession`) was silently overridden the moment pedaling resumed. Fix: a module-scoped `manualPauseActive` flag in `src/features/training/sessionController.ts`, set by `pauseSession()`, cleared only by an explicit `resumeSession()`. `syncSessionFromBikeStatus` now auto-resumes from Paused only when the flag is clear, so a bike-driven pause (via `freezeActiveSession`, which never sets the flag) remains eligible for bike-driven auto-resume while a manual pause is not. Added `restoreSession()` as the sessionController-owned command for restoring an interrupted session; it marks the same manual-pause intent (the user chose to bring the ride back, so a bike Started event must not resume it before an explicit Resume). `useInterruptedSession.ts` now calls `restoreSession()` instead of writing to the store directly, keeping the restore path inside the single lifecycle owner. The flag is scoped to one ride: both places a ride starts fresh from Idle (`startSession`, and the Idle branch of `syncSessionFromBikeStatus`) clear it first, so a manual pause can never leak into the next ride. No changes to `advanceSession`, `VALID_TRANSITIONS`, or any screen-owned lifecycle effect; `resetSessionAndConnections` was left untouched (see limitation below).
 
-- Change summary and commit/PR (or evidence-backed reason for deferral/rejection).
-- Executed commands with outcomes and relevant regression evidence.
-- Physical-device results where required, including build revision and log references.
-- Remaining limitations or follow-up issue links.
+**PR.** https://github.com/mike927/omni-bike-rn/pull/109 (branch `fix/a06-manual-pause-precedence`).
+
+**Commands run and outcomes.**
+- `npx jest src/features/training` — 14 suites / 134 tests passed.
+- `npm run test:changed` (`jest --changedSince=main`) — 7 suites / 92 tests passed.
+- `npm run ci:gate` (lint + typecheck + full `jest --ci --runInBand`) — clean lint, clean typecheck, 109 suites / 1034 tests passed.
+- Mutation check (manual, not an automated mutation-testing tool): reverted each of the three behavioral edits one at a time — the `!manualPauseActive` guard in `syncSessionFromBikeStatus`, the `manualPauseActive = false` line in `resumeSession()`, and the `manualPauseActive = true` line in `restoreSession()` — and reran the new tests after each revert. Each reversion reproduced a test failure (the manual-pause, restore, explicit-resume-clears-reason, and Watch-remote tests each caught a distinct mutation), then the fix was restored and the full suite reconfirmed green. This is the "delete the fix, watch the test fail" check the coordinator required; it was not a formal mutation-testing tool run.
+
+**Regression evidence.** New coverage: `src/features/training/__tests__/sessionController.test.ts` (manual pause survives bike Started; an eligible bike-driven pause still auto-resumes; explicit Resume clears the manual reason so a later bike-driven pause can auto-resume again; a restored interrupted session requires explicit Resume before a bike Started event can resume it) and one added case in `src/features/training/hooks/__tests__/trainingSessionOwnership.test.ts` (an on-wrist Pause survives a bike Started event, then resumes on an on-wrist Resume) covering the Watch remote through the real lifecycle hook and the mocked WatchConnectivity bridge.
+
+**Physical-device verification.** Not performed; not required for this fix, which is pure JS/TS state-machine logic with no native surface. The Watch-remote path is covered here through the existing mocked-bridge integration test, consistent with how `trainingSessionOwnership.test.ts` already tests on-wrist Pause/Resume elsewhere in that suite.
+
+**Remaining limitations / follow-ups.**
+- `resetSessionAndConnections` (`src/features/training/sessionController.ts`) still has no re-entrancy latch for `disconnectPauseSuppressed`, as previously identified and deferred to A02. This fix deliberately does not touch that function (the new `manualPauseActive` flag is cleared only at the two "fresh ride from Idle" entry points, `startSession` and the Idle branch of `syncSessionFromBikeStatus`, not in teardown), so it neither fixes nor worsens that known issue.
+- No UI surfaces the pause reason to the user (e.g. "paused by you" vs "paused by bike"); the ticket only required correct precedence, not a UI affordance, so this was not added.
