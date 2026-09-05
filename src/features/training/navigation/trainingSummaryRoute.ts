@@ -17,6 +17,13 @@ export function buildTrainingSummaryRoute(sessionId: string, source: TrainingSum
 export const POST_FINISH_HOME_ROUTE = '/';
 
 /**
+ * Where a ride that ended but could not be saved has to be shown: the ride
+ * screen owns the retry-or-discard choice, so a Finish from the wrist lands
+ * there instead of on a summary that does not exist.
+ */
+export const RIDE_ROUTE = '/training';
+
+/**
  * Route to replace the current screen with once a ride is finished: its summary,
  * or Home when nothing was persisted. Shared so the on-screen Finish button and
  * the root-owned Watch remote land in the same place.

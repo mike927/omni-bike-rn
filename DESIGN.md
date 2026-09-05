@@ -283,6 +283,12 @@ control bar** (outside the scroll) hosting the phase-driven actions.
 - **Controls** (`RideControls`) — phase-driven `ActionButton`s (`scheme="noir"`): `Start Ride`
   (idle, disabled until the bike is connected) → `Pause` + `Finish` (active) → `Resume` + `Finish`
   (paused). When the bike drops while idle/paused, a `DisconnectedCallout` offers Set Up / Back Home.
+- **Storage notice** (`RideStorageNotice`): the ride's persistence state, directly under the timer
+  header, from the pure `deriveStorageNotice`. Two amber warnings while riding (`Not saving to this
+  device` when nothing durable exists, `Some ride detail was dropped` when seconds were lost) and one
+  `noir.danger`-tinted callout when a finished ride failed to save (`Ride not saved`, with
+  `Retry Save` + `Discard Ride`). While that callout is up it replaces the bottom control bar: those
+  two buttons are the only way out of the state.
 - **Power sparkline buffer** — a screen-local ring buffer (`usePowerTrend`, ~60 samples); a display
   concern only, never written to the session store/engine.
 - The phase → label/controls/callout mapping is a pure, unit-tested view-model

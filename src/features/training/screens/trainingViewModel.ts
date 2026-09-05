@@ -1,4 +1,5 @@
 import { TrainingPhase } from '../../../types/training';
+import type { SessionPersistenceStatus } from '../../../store/sessionPersistenceStore';
 import { formatDuration, formatMetricValue } from '../../../ui/formatters';
 
 /**
@@ -87,4 +88,62 @@ export function deriveTrainingView(input: TrainingViewInput): TrainingViewModel 
       { key: 'calories', label: 'CAL', value: String(Math.round(input.totalCalories)), unit: 'kcal' },
     ],
   };
+}
+
+/**
+ * What the screen must say about the ride's storage (audit A02).
+ *
+ * `unsaved` is the only one with actions: the ride is over, it is not on disk,
+ * and it stays in memory until the user retries the save or discards it. The
+ * other two are warnings about a ride still in progress, so the user is never
+ * told a ride is being recorded when it is not.
+ */
+export type StorageNoticeKind = 'none' | 'atRisk' | 'droppedSamples' | 'unsaved';
+
+export interface StorageNotice {
+  readonly kind: StorageNoticeKind;
+  readonly title: string;
+  readonly body: string;
+}
+
+export interface StorageNoticeInput {
+  readonly phase: TrainingPhase;
+  readonly status: SessionPersistenceStatus;
+  readonly droppedSampleCount: number;
+}
+
+const NO_NOTICE: StorageNotice = { kind: 'none', title: '', body: '' };
+
+export function deriveStorageNotice({ phase, status, droppedSampleCount }: StorageNoticeInput): StorageNotice {
+  if (status === 'unsaved') {
+    return {
+      kind: 'unsaved',
+      title: 'Ride not saved',
+      body: 'This ride is finished but could not be written to your device. Retry the save, or discard the ride.',
+    };
+  }
+
+  const isRiding = phase === TrainingPhase.Active || phase === TrainingPhase.Paused;
+  if (!isRiding) {
+    return NO_NOTICE;
+  }
+
+  if (status === 'atRisk') {
+    return {
+      kind: 'atRisk',
+      title: 'Not saving to this device',
+      body: 'Device storage is unavailable, so this ride is only in memory. It is saved when you finish, if storage recovers.',
+    };
+  }
+
+  if (droppedSampleCount > 0) {
+    const seconds = droppedSampleCount === 1 ? '1 second' : `${droppedSampleCount} seconds`;
+    return {
+      kind: 'droppedSamples',
+      title: 'Some ride detail was dropped',
+      body: `${seconds} of ride detail could not be written to storage. Your ride and its totals are still saved when you finish.`,
+    };
+  }
+
+  return NO_NOTICE;
 }

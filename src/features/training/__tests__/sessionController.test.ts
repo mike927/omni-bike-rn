@@ -3,7 +3,9 @@ import { useTrainingSessionStore } from '../../../store/trainingSessionStore';
 import { BikeStatus } from '../../../services/ble/BikeAdapter';
 import { TrainingPhase, type MetricSnapshot } from '../../../types/training';
 import {
+  isDisconnectPauseSuppressed,
   pauseSession,
+  resetSession,
   resumeSession,
   restoreSession,
   startSession,
@@ -94,5 +96,68 @@ describe('sessionController manual pause precedence (A06)', () => {
 
     resumeSession();
     expect(useTrainingSessionStore.getState().phase).toBe(TrainingPhase.Active);
+  });
+});
+
+/**
+ * Teardown and restore guards (audit A02).
+ *
+ * A ride can now be ended, retried and discarded from more than one place, so
+ * the teardown must behave like every other command in this file: one owner,
+ * one run, and a self-guard against being called from the wrong phase.
+ */
+describe('sessionController teardown and restore guards (A02)', () => {
+  beforeEach(() => {
+    useDeviceConnectionStore.getState().clearAll();
+    useTrainingSessionStore.getState().reset();
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('collapses overlapping teardowns into one instead of clearing disconnect suppression early', async () => {
+    let releaseDisconnect: (() => void) | undefined;
+    const disconnectGate = new Promise<void>((resolve) => {
+      releaseDisconnect = resolve;
+    });
+    const disconnect = jest.fn().mockReturnValue(disconnectGate);
+    useDeviceConnectionStore.getState().setBikeAdapter({
+      connect: jest.fn().mockResolvedValue(undefined),
+      disconnect,
+      subscribeToMetrics: jest.fn(),
+      setControlState: jest.fn().mockResolvedValue(undefined),
+    });
+
+    startSession();
+
+    const first = resetSession();
+    const second = resetSession();
+
+    // Still tearing down: a bike drop here is deliberate, not an unexpected one.
+    expect(isDisconnectPauseSuppressed()).toBe(true);
+
+    releaseDisconnect?.();
+    await Promise.all([first, second]);
+
+    expect(disconnect).toHaveBeenCalledTimes(1);
+    expect(isDisconnectPauseSuppressed()).toBe(false);
+    expect(useTrainingSessionStore.getState().phase).toBe(TrainingPhase.Idle);
+  });
+
+  it('refuses to restore an interrupted session over a ride that is already in memory', () => {
+    seedConnectedBike();
+    startSession();
+
+    restoreSession({
+      elapsedSeconds: 120,
+      totalDistance: 500,
+      totalCalories: 10,
+      currentMetrics: RESTORE_METRICS,
+    });
+
+    expect(useTrainingSessionStore.getState().phase).toBe(TrainingPhase.Active);
+    expect(useTrainingSessionStore.getState().elapsedSeconds).toBe(0);
   });
 });

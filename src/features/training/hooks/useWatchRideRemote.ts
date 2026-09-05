@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 
 import { useTrainingSessionStore } from '../../../store/trainingSessionStore';
 import { TrainingPhase } from '../../../types/training';
-import { resolvePostFinishRoute } from '../navigation/trainingSummaryRoute';
+import { resolvePostFinishRoute, RIDE_ROUTE } from '../navigation/trainingSummaryRoute';
 import { finishSessionAndDisconnect, pauseSession, resumeSession } from '../sessionController';
 import { useWatchRemoteControl } from './useWatchRemoteControl';
 
@@ -39,8 +39,16 @@ async function finishRideFromWatch(): Promise<void> {
   }
 
   try {
-    const sessionId = await finishSessionAndDisconnect();
-    router.replace(resolvePostFinishRoute(sessionId));
+    const outcome = await finishSessionAndDisconnect();
+    if (outcome.status === 'unsaved') {
+      // The ride is over but is not on disk. Never a summary: send the user to
+      // the ride screen, which offers the retry-or-discard choice.
+      console.error('[useWatchRideRemote] Ride finished from the Watch could not be saved:', outcome.message);
+      router.replace(RIDE_ROUTE);
+      return;
+    }
+
+    router.replace(resolvePostFinishRoute(outcome.sessionId));
   } catch (err: unknown) {
     console.error('[useWatchRideRemote] Finish from the Watch failed:', err);
   }
