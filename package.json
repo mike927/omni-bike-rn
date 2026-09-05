@@ -17,6 +17,7 @@
     "typecheck": "tsc --noEmit",
     "test": "jest --passWithNoTests",
     "test:changed": "jest --changedSince=main",
+    "test:watch-lifecycle": "swiftc -swift-version 5 -o /tmp/omni-watch-lifecycle-tests 'ios/OmniBikeWatch Watch App/WatchLifecycle.swift' native-tests/WatchLifecycleTests.swift && /tmp/omni-watch-lifecycle-tests",
     "ci:gate": "npm run lint && npm run typecheck && npm test -- --ci --runInBand",
     "build:smoke": "expo export -p ios -p android",
     "eas:build:android": "npx eas-cli build --platform android --profile preview",

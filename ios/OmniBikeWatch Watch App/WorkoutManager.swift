@@ -48,11 +48,11 @@ enum WatchSessionStatePayload {
     static let failed = "failed"
 }
 
-fileprivate enum WatchCommand {
-    static let start = "start"
-    static let stop = "stop"
-    static let pause = "pause"
-    static let resume = "resume"
+// Wire keys for the iPhone -> Watch command payload; matches `PayloadKey` in the iPhone
+// module. The command verbs themselves live in `WatchLifecycleCommand`.
+fileprivate enum WatchCommandPayload {
+    static let command = "cmd"
+    static let sentAtMs = "sentAtMs"
 }
 
 // A ride-control action the wearer requests FROM the wrist. The Watch does not act on
@@ -118,14 +118,21 @@ final class WorkoutManager: NSObject, ObservableObject {
     private let healthStore = HKHealthStore()
     private var session: HKWorkoutSession?
     private var builder: HKLiveWorkoutBuilder?
-    // True between issuing a pause()/resume() and the matching didChangeTo settling.
+    // True between issuing a pause()/resume()/end() and the matching didChangeTo settling.
     // `session.state` lags HealthKit's real transition, so under rapid pause/resume two
-    // commands can both pass the `state == .running/.paused` guard and fire pause() twice —
+    // commands can both pass the `state == .running/.paused` guard and fire pause() twice,
     // and a redundant pause() makes HKWorkoutSession emit didFailWithError ("Unable to
     // perform 'pause' from current state 'Paused'"), which tears the whole session down.
-    // This flag is the interlock: at most one in-flight transition at a time. All access is
-    // on the main actor (handleCommand + didChangeTo both hop there), so it needs no lock.
-    private var pauseResumeInFlight = false
+    // This flag is the interlock: at most one in-flight transition at a time. The intent
+    // behind a command it turns away is never lost, because `lifecycle` keeps it and the
+    // settling callback reconciles against it. All access is on the main actor
+    // (handleCommand + didChangeTo both hop there), so it needs no lock.
+    private var transitionInFlight = false
+    // The newest lifecycle state the iPhone has asked for, plus the start generation and
+    // the command ordering that make "newest intent wins" hold across asynchronous
+    // HealthKit transitions and out-of-order WatchConnectivity delivery. Main-actor only,
+    // like the rest of this type's mutable state.
+    private var lifecycle = WatchLifecycleModel()
     private var elapsedTimer: Timer?
     private var lastHrSendAt: TimeInterval = 0
     // nil until HealthKit produces its first activeEnergyBurned sample for the
@@ -173,6 +180,7 @@ final class WorkoutManager: NSObject, ObservableObject {
                 let orphanBuilder = session.associatedWorkoutBuilder()
                 orphanBuilder.delegate = self
                 self.builder = orphanBuilder
+                self.transitionInFlight = true
                 session.end()
             }
         }
@@ -180,7 +188,23 @@ final class WorkoutManager: NSObject, ObservableObject {
 
     // ── HealthKit authorization ────────────────────────────────────────────────
 
-    func requestAuthorization(starting configuration: HKWorkoutConfiguration? = nil) {
+    // Authorization with no ride attached. Called at launch so the Health prompt is out of
+    // the way before a ride starts.
+    func requestAuthorization() {
+        requestAuthorization(starting: nil, generation: nil)
+    }
+
+    // The single entry point for "the iPhone wants a Watch workout". Both the WC `start`
+    // command and the HealthKit-initiated wake (`WKApplicationDelegate.handle`) land here,
+    // so both are ordered by the same intent and cancelled by the same stop. The wake
+    // carries no payload of ours, hence no send stamp.
+    func requestStart(configuration: HKWorkoutConfiguration) {
+        DispatchQueue.main.async {
+            self.applyCommand(.start, sentAtMs: nil, configuration: configuration)
+        }
+    }
+
+    private func requestAuthorization(starting configuration: HKWorkoutConfiguration?, generation: Int?) {
         wcLog("[WC-Watch] requestAuthorization called starting=\(configuration != nil)")
         guard HKHealthStore.isHealthDataAvailable() else {
             wcLog("[WC-Watch] requestAuthorization: Health data not available")
@@ -200,7 +224,7 @@ final class WorkoutManager: NSObject, ObservableObject {
                 return
             }
             wcLog("[WC-Watch] Authorization granted")
-            if let configuration {
+            if let configuration, let generation {
                 wcLog("[WC-Watch] Authorization: proceeding to startWorkout")
                 // The authorization completion is delivered off the main actor; hop on
                 // before startWorkout mutates session/builder. Carry the config as its
@@ -209,10 +233,18 @@ final class WorkoutManager: NSObject, ObservableObject {
                 let activityType = configuration.activityType
                 let locationType = configuration.locationType
                 DispatchQueue.main.async {
+                    guard let self else { return }
+                    // The ride may have ended, or a later start may have superseded this
+                    // one, while the prompt was up. Only the start this completion belongs
+                    // to may open a session.
+                    guard self.lifecycle.mayStart(generation: generation) else {
+                        wcLog("[WC-Watch] Authorization: start generation \(generation) is no longer current (desired=\(self.lifecycle.desired)), not starting")
+                        return
+                    }
                     let config = HKWorkoutConfiguration()
                     config.activityType = activityType
                     config.locationType = locationType
-                    self?.startWorkout(configuration: config)
+                    self.startWorkout(configuration: config)
                 }
             }
         }
@@ -220,7 +252,7 @@ final class WorkoutManager: NSObject, ObservableObject {
 
     // ── Workout lifecycle ──────────────────────────────────────────────────────
 
-    func startWorkout(configuration: HKWorkoutConfiguration) {
+    private func startWorkout(configuration: HKWorkoutConfiguration) {
         wcLog("[WC-Watch] startWorkout called activityType=\(configuration.activityType.rawValue) locationType=\(configuration.locationType.rawValue)")
         if session != nil {
             wcLog("[WC-Watch] startWorkout: session already exists — no-op")
@@ -295,45 +327,68 @@ final class WorkoutManager: NSObject, ObservableObject {
         }
     }
 
-    func stopWorkout() {
-        wcLog("[WC-Watch] stopWorkout called")
-        guard let session else {
-            wcLog("[WC-Watch] stopWorkout: no active session")
-            return
+    // The iPhone owns the ride and forwards start/stop/pause/resume as commands; the Watch
+    // owns the HKWorkoutSession, so only it can act on them. Every command goes through
+    // here: it records the newest intent first, so a command that cannot act right now (a
+    // transition still settling, an authorization still pending, no session yet) still
+    // leaves behind the intent the next settled callback reconciles against.
+    private func applyCommand(_ command: WatchLifecycleCommand, sentAtMs: Double?,
+                              configuration: HKWorkoutConfiguration?) {
+        let decision = lifecycle.record(command, sentAtMs: sentAtMs)
+        wcLog("[WC-Watch] applyCommand \(command.rawValue) applied=\(decision.intentApplied) desired=\(lifecycle.desired)")
+        if let generation = decision.startGeneration, let configuration {
+            if session == nil {
+                wcLog("[WC-Watch] applyCommand: authorizing start under generation \(generation)")
+                requestAuthorization(starting: configuration, generation: generation)
+            } else {
+                wcLog("[WC-Watch] applyCommand: session already exists, reconciling instead of starting")
+            }
         }
-        session.end()
+        reconcile()
     }
 
-    // The iPhone owns the session lifecycle and forwards pause/resume as commands;
-    // the Watch owns the HKWorkoutSession, so only it can pause/resume it. Pausing
-    // stops the system workout timer and suspends HKLiveWorkoutBuilder collection —
-    // HR is no longer measured or streamed until resume.
-    func pauseWorkout() {
-        wcLog("[WC-Watch] pauseWorkout called")
-        guard !pauseResumeInFlight else {
-            wcLog("[WC-Watch] pauseWorkout: a pause/resume is already in flight — ignoring")
+    // Issues the one correction that brings the HKWorkoutSession in line with the iPhone's
+    // newest intent, and nothing else. Called after every recorded command and after every
+    // settled transition, which is what lets an intent that arrived mid-transition be
+    // applied the moment the transition completes instead of being swallowed by the
+    // interlock. Pausing stops the system workout timer and suspends HKLiveWorkoutBuilder
+    // collection, so HR is no longer measured or streamed until resume.
+    private func reconcile() {
+        guard let session else { return }
+        switch lifecycle.action(for: workoutState(of: session), transitionInFlight: transitionInFlight) {
+        case .none:
             return
+        case .pause:
+            wcLog("[WC-Watch] reconcile: pausing to match the desired state")
+            transitionInFlight = true
+            session.pause()
+        case .resume:
+            wcLog("[WC-Watch] reconcile: resuming to match the desired state")
+            transitionInFlight = true
+            session.resume()
+        case .end:
+            wcLog("[WC-Watch] reconcile: ending to match the desired state")
+            transitionInFlight = true
+            session.end()
         }
-        guard let session, session.state == .running else {
-            wcLog("[WC-Watch] pauseWorkout: no running session — ignoring")
-            return
-        }
-        pauseResumeInFlight = true
-        session.pause()
     }
 
-    func resumeWorkout() {
-        wcLog("[WC-Watch] resumeWorkout called")
-        guard !pauseResumeInFlight else {
-            wcLog("[WC-Watch] resumeWorkout: a pause/resume is already in flight — ignoring")
-            return
+    // `.notStarted` maps to `.none` rather than `.starting`: ending a session HealthKit has
+    // not started yet is invalid, and the case self-heals because the `.running` callback
+    // reconciles again.
+    private func workoutState(of session: HKWorkoutSession) -> WatchWorkoutState {
+        switch session.state {
+        case .running:
+            return .running
+        case .paused:
+            return .paused
+        case .ended:
+            return .ended
+        case .prepared, .stopped:
+            return .starting
+        default:
+            return .none
         }
-        guard let session, session.state == .paused else {
-            wcLog("[WC-Watch] resumeWorkout: no paused session — ignoring")
-            return
-        }
-        pauseResumeInFlight = true
-        session.resume()
     }
 
     // `discardWorkout` is the explicit "drop all collected data, do not persist"
@@ -351,7 +406,7 @@ final class WorkoutManager: NSObject, ObservableObject {
         // Clear before the next session's first delegate callback so a stale
         // cumulative value is never piggy-backed onto the first HR payload.
         latestActiveKcal = nil
-        pauseResumeInFlight = false
+        transitionInFlight = false
         stopElapsedTimer(reset: true)
         lastHrAt = nil
     }
@@ -552,9 +607,9 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
         // HealthKit delivers this off the main actor; hop on before publishSessionState
         // (pendingSessionStatePayload) and teardownSession (session/builder/…) run.
         DispatchQueue.main.async {
-            // The transition HealthKit was performing has settled — release the interlock
-            // so the next pause/resume can be issued.
-            self.pauseResumeInFlight = false
+            // The transition HealthKit was performing has settled: release the interlock
+            // so the next correction can be issued.
+            self.transitionInFlight = false
             if toState == .running {
                 self.transition(to: .inProgress)
                 self.publishSessionState(WatchSessionStatePayload.started)
@@ -568,6 +623,9 @@ extension WorkoutManager: HKWorkoutSessionDelegate {
                 self.publishSessionState(WatchSessionStatePayload.ended)
                 self.teardownSession()
             }
+            // Apply whatever intent arrived while the transition was in flight. This is what
+            // keeps a Resume issued mid-pause, or a Stop issued mid-pause, from being lost.
+            self.reconcile()
         }
     }
 
@@ -622,28 +680,27 @@ extension WorkoutManager: WCSessionDelegate {
     }
 
     private func handleCommand(in payload: [String: Any], source: String) {
-        guard let cmd = payload["cmd"] as? String else { return }
-        wcLog("[WC-Watch] handleCommand cmd=\(cmd) source=\(source)")
+        guard let raw = payload[WatchCommandPayload.command] as? String,
+              let command = WatchLifecycleCommand(rawValue: raw) else { return }
+        // The iPhone stamps every command with the wall clock at the moment the intent was
+        // formed. It reaches the Watch over two transports (sendMessage while reachable,
+        // transferUserInfo queued while not), so arrival order is not intent order.
+        let sentAtMs = (payload[WatchCommandPayload.sentAtMs] as? NSNumber)?.doubleValue
+        wcLog("[WC-Watch] handleCommand cmd=\(raw) sentAtMs=\(sentAtMs.map { String($0) } ?? "nil") source=\(source)")
         // WCSession delivers messages/user-info on a background queue; hop onto the
         // main actor before driving the session (start/stop/pause/resume touch
         // session + builder).
         DispatchQueue.main.async {
-            switch cmd {
-            case WatchCommand.start:
-                let configuration = HKWorkoutConfiguration()
-                configuration.activityType = .cycling
-                configuration.locationType = .indoor
-                self.requestAuthorization(starting: configuration)
-            case WatchCommand.stop:
-                self.stopWorkout()
-            case WatchCommand.pause:
-                self.pauseWorkout()
-            case WatchCommand.resume:
-                self.resumeWorkout()
-            default:
-                break
-            }
+            self.applyCommand(command, sentAtMs: sentAtMs,
+                              configuration: command == .start ? Self.cyclingConfiguration() : nil)
         }
+    }
+
+    private static func cyclingConfiguration() -> HKWorkoutConfiguration {
+        let configuration = HKWorkoutConfiguration()
+        configuration.activityType = .cycling
+        configuration.locationType = .indoor
+        return configuration
     }
 }
 
