@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDeviceConnection } from '../hooks/useDeviceConnection';
@@ -162,7 +162,18 @@ export function TrainingDashboardScreen() {
     setIsFinishing(true);
 
     try {
-      await session.discardUnsaved();
+      const outcome = await session.discardUnsaved();
+      if (outcome.status === 'failed') {
+        // The ride left memory, which is what was asked for, but its row is still
+        // on the device. Say so now rather than let it come back at the next
+        // start as an "interrupted ride" the user thought they had thrown away.
+        console.error('[TrainingDashboardScreen] Discarding the ride from storage failed:', outcome.message);
+        Alert.alert(
+          'Ride not fully discarded',
+          'The ride was dropped, but it could not be deleted from this device. You will be asked about it again the next time you open the app.',
+        );
+      }
+
       router.replace(HOME_ROUTE);
     } catch (err: unknown) {
       console.error('[TrainingDashboardScreen] Discarding the unsaved ride failed:', err);

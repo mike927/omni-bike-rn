@@ -32,8 +32,16 @@ export function useInterruptedSession(): UseInterruptedSessionReturn {
     }
 
     const lastSampleSequence = getLastSampleSequence(interruptedSession.id);
+
+    // Restore first, seed after. The controller's own Idle guard is the last word
+    // on whether this ride may come back, so handing the persistence hook the
+    // restored ride's identity before that guard has passed would leave the app
+    // writing into the interrupted row while a different ride is in memory.
+    if (!restoreSession(toRestoreInput(interruptedSession))) {
+      return false;
+    }
+
     seedFromPersistedSession(interruptedSession.id, lastSampleSequence);
-    restoreSession(toRestoreInput(interruptedSession));
     useInterruptedSessionStore.getState().clear();
 
     return true;

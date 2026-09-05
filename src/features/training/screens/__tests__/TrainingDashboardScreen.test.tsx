@@ -1,4 +1,5 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 
 import type { SavedDevice } from '../../../../types/gear';
 import { buildTrainingSummaryRoute, POST_FINISH_TRAINING_SUMMARY_SOURCE } from '../../navigation/trainingSummaryRoute';
@@ -26,7 +27,7 @@ const mockSession = {
   finish: jest.fn(),
   finishAndDisconnect: jest.fn().mockResolvedValue({ status: 'completed', sessionId: 'session-1' }),
   retrySave: jest.fn().mockResolvedValue({ status: 'completed', sessionId: 'session-1' }),
-  discardUnsaved: jest.fn().mockResolvedValue(undefined),
+  discardUnsaved: jest.fn().mockResolvedValue({ status: 'discarded' }),
   reset: jest.fn(),
 };
 
@@ -162,7 +163,7 @@ describe('TrainingDashboardScreen', () => {
       },
       finishAndDisconnect: jest.fn().mockResolvedValue({ status: 'completed', sessionId: 'session-1' }),
       retrySave: jest.fn().mockResolvedValue({ status: 'completed', sessionId: 'session-1' }),
-      discardUnsaved: jest.fn().mockResolvedValue(undefined),
+      discardUnsaved: jest.fn().mockResolvedValue({ status: 'discarded' }),
     });
     Object.assign(mockDeviceConnection, {
       bikeConnected: false,
@@ -376,6 +377,16 @@ describe('TrainingDashboardScreen', () => {
   // Audit A02: a ride that could not be written must never be navigated away
   // from as if it had been saved.
   describe('unsaved ride recovery', () => {
+    let alertSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      alertSpy.mockRestore();
+    });
+
     it('warns while a running ride is not reaching storage', async () => {
       Object.assign(mockSession, { phase: 'active', elapsedSeconds: 42 });
       Object.assign(mockDeviceConnection, { bikeConnected: true });
@@ -455,6 +466,26 @@ describe('TrainingDashboardScreen', () => {
 
       await waitFor(() => {
         expect(mockSession.discardUnsaved).toHaveBeenCalledTimes(1);
+      });
+      expect(mockReplace).toHaveBeenCalledWith('/');
+      expect(alertSpy).not.toHaveBeenCalled();
+    });
+
+    it('tells the user when the discard could not remove the ride from the device', async () => {
+      Object.assign(mockSession, {
+        phase: 'finished',
+        discardUnsaved: jest.fn().mockResolvedValue({ status: 'failed', message: 'disk full' }),
+      });
+      Object.assign(mockSessionPersistenceStoreState, { status: 'unsaved' });
+
+      const { getByText } = await render(<TrainingDashboardScreen />);
+
+      await fireEvent.press(getByText('Discard Ride'));
+
+      // The ride left memory, so the user is not trapped, but they are told the
+      // row survived instead of meeting it again as an "interrupted ride".
+      await waitFor(() => {
+        expect(alertSpy).toHaveBeenCalledWith('Ride not fully discarded', expect.stringContaining('next time'));
       });
       expect(mockReplace).toHaveBeenCalledWith('/');
     });

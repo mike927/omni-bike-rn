@@ -112,6 +112,15 @@ describe('deriveStorageNotice', () => {
 
     expect(notice.kind).toBe('atRisk');
     expect(notice.title).toBe('Not saving to this device');
+    // The warning has to name the actual loss: nothing durable exists yet, so
+    // closing the app before the finish write takes the ride with it.
+    expect(notice.body).toContain('Closing the app before then loses it');
+  });
+
+  it('says nothing while a ride is starting and its draft write has not landed', () => {
+    expect(deriveStorageNotice({ phase: TrainingPhase.Active, status: 'pending', droppedSampleCount: 0 }).kind).toBe(
+      'none',
+    );
   });
 
   it('reports dropped seconds without claiming the ride itself is lost', () => {

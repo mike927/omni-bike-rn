@@ -25,11 +25,22 @@ interface PersistedSessionSeed {
   lastSampleSequence: number;
 }
 
-/** Durable outcome of writing the ride that just ended. */
+/**
+ * Durable outcome of writing the ride that just ended.
+ *
+ * Deliberately does not carry the session id: the ride's identity has exactly
+ * one source, {@link getActiveSessionId}, and the callers read it from there.
+ */
 export interface SessionSaveOutcome {
   /** False only when the ride is finished and is NOT on disk. */
   readonly saved: boolean;
-  readonly sessionId: string | null;
+  readonly message: string | null;
+}
+
+/** Outcome of deleting a ride the user chose to abandon. */
+export interface SessionDiscardOutcome {
+  /** False when the ride's row is still on the device despite the request. */
+  readonly discarded: boolean;
   readonly message: string | null;
 }
 
@@ -100,14 +111,14 @@ async function flushSessionWrites(): Promise<void> {
   }
 }
 
-function readSaveOutcome(sessionId: string | null): SessionSaveOutcome {
+function readSaveOutcome(): SessionSaveOutcome {
   const { status, lastErrorMessage } = useSessionPersistenceStore.getState();
 
   if (status === 'unsaved') {
-    return { saved: false, sessionId, message: lastErrorMessage ?? 'Storage write failed' };
+    return { saved: false, message: lastErrorMessage ?? 'Storage write failed' };
   }
 
-  return { saved: true, sessionId, message: null };
+  return { saved: true, message: null };
 }
 
 /**
@@ -118,7 +129,7 @@ function readSaveOutcome(sessionId: string | null): SessionSaveOutcome {
  */
 export async function awaitSessionSave(): Promise<SessionSaveOutcome> {
   await flushSessionWrites();
-  return readSaveOutcome(moduleActiveSessionId);
+  return readSaveOutcome();
 }
 
 /**
@@ -133,7 +144,7 @@ export async function retrySessionSave(): Promise<SessionSaveOutcome> {
   const write = runFinishedSessionWrite;
 
   if (!sessionId || !write) {
-    return { saved: true, sessionId, message: null };
+    return { saved: true, message: null };
   }
 
   const endedAtMs = Date.now();
@@ -148,22 +159,43 @@ export async function retrySessionSave(): Promise<SessionSaveOutcome> {
   );
 
   await flushSessionWrites();
-  return readSaveOutcome(sessionId);
+  return readSaveOutcome();
 }
 
-/** Delete a ride the user has explicitly chosen to abandon. */
-export async function discardUnsavedSessionRecord(): Promise<void> {
+/**
+ * Delete a ride the user has explicitly chosen to abandon.
+ *
+ * Reports whether the row actually went away. A delete that throws leaves the
+ * ride on the device, where it resurfaces at the next boot as an interrupted
+ * ride, so the caller has to be able to say that instead of reporting a discard
+ * that did not happen.
+ */
+export async function discardUnsavedSessionRecord(): Promise<SessionDiscardOutcome> {
   const sessionId = moduleActiveSessionId;
   const discard = runSessionRecordDiscard;
 
-  if (sessionId && discard) {
-    enqueueWrite(() => {
+  if (!sessionId || !discard) {
+    useSessionPersistenceStore.getState().clear();
+    return { discarded: true, message: null };
+  }
+
+  const failure: { message: string | null } = { message: null };
+  enqueueWrite(
+    () => {
       discard(sessionId);
-    });
-    await flushSessionWrites();
+    },
+    (error) => {
+      failure.message = describeError(error);
+    },
+  );
+  await flushSessionWrites();
+
+  if (failure.message !== null) {
+    return { discarded: false, message: failure.message };
   }
 
   useSessionPersistenceStore.getState().clear();
+  return { discarded: true, message: null };
 }
 
 function toDeviceSnapshot(device: SavedDevice | null): PersistedDeviceSnapshot | null {
@@ -217,7 +249,10 @@ export function useTrainingSessionPersistence(isEnabled = true): void {
       nextSampleSequenceRef.current = lastSampleSequence + 1;
       startedAtMsRef.current = null;
       pendingPersistedSeed = null;
+      // A restored ride is read back from its own row, so unlike a fresh start
+      // this one really does have something durable behind it.
       useSessionPersistenceStore.getState().beginSession(sessionId);
+      useSessionPersistenceStore.getState().markRecording(sessionId);
     };
 
     const clearActiveSession = (sessionId: string | null = null) => {

@@ -132,7 +132,7 @@ export function deriveStorageNotice({ phase, status, droppedSampleCount }: Stora
     return {
       kind: 'atRisk',
       title: 'Not saving to this device',
-      body: 'Device storage is unavailable, so this ride is only in memory. It is saved when you finish, if storage recovers.',
+      body: 'Device storage is unavailable, so this ride is only in memory. It is saved when you finish, if storage recovers. Closing the app before then loses it.',
     };
   }
 

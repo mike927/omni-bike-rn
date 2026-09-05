@@ -149,15 +149,21 @@ export function resumeSession(): void {
  * Self-guards like every sibling command: a ride already in memory (including a
  * finished one still waiting to be saved) outranks a restore, and overwriting it
  * would discard ride data the user can never get back.
+ *
+ * Returns whether the restore happened, so the caller can hold back everything
+ * that belongs to the restored ride, its persisted identity above all, until the
+ * guard has passed. A refused restore must leave no trace of the ride it refused.
  */
-export function restoreSession(input: TrainingSessionRestoreInput): void {
+export function restoreSession(input: TrainingSessionRestoreInput): boolean {
   if (useTrainingSessionStore.getState().phase !== TrainingPhase.Idle) {
     console.warn('[sessionController] Cannot restore session: a ride is already in memory');
-    return;
+    return false;
   }
 
   useTrainingSessionStore.getState().restore(input);
   manualPauseActive = true;
+
+  return true;
 }
 
 export function finishSession(): void {
@@ -217,18 +223,39 @@ export async function retryFinishSave(): Promise<FinishSessionOutcome> {
 }
 
 /**
+ * How a Discard ended.
+ *
+ * `discarded` means the ride is gone from memory and from the device. `failed`
+ * means it is gone from memory, because that is what the user asked for and it
+ * always succeeds, but its row survived the delete and will be offered again at
+ * the next boot as an interrupted ride. The caller has to say so.
+ */
+export type DiscardSessionOutcome =
+  { readonly status: 'discarded' } | { readonly status: 'failed'; readonly message: string };
+
+/**
  * Abandon a finished ride whose save failed, because the user said so.
  *
  * The only way out of the unsaved state other than a successful retry: nothing
  * else may drop a ride the user has not been shown.
  */
-export async function discardUnsavedSession(): Promise<void> {
+export async function discardUnsavedSession(): Promise<DiscardSessionOutcome> {
   if (useTrainingSessionStore.getState().phase !== TrainingPhase.Finished) {
-    return;
+    return { status: 'discarded' };
   }
 
-  await discardUnsavedSessionRecord();
+  const discard = await discardUnsavedSessionRecord();
+
+  // The teardown runs either way: the user asked to be rid of this ride, and
+  // trapping them on the ride screen because the disk is broken would leave them
+  // with no way out at all. What changes is what we then tell them.
   await resetSessionAndConnections();
+
+  if (!discard.discarded) {
+    return { status: 'failed', message: discard.message ?? 'Storage delete failed' };
+  }
+
+  return { status: 'discarded' };
 }
 
 export async function resetSession(): Promise<void> {

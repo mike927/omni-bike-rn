@@ -9,6 +9,7 @@ import {
   resumeSession,
   retryFinishSave,
   startSession,
+  type DiscardSessionOutcome,
   type FinishSessionOutcome,
 } from '../sessionController';
 
@@ -29,7 +30,7 @@ interface UseTrainingSessionReturn {
   /** Write a finished ride again after its save failed, under the same identity. */
   retrySave: () => Promise<FinishSessionOutcome>;
   /** Abandon a finished ride whose save failed, on the user's explicit request. */
-  discardUnsaved: () => Promise<void>;
+  discardUnsaved: () => Promise<DiscardSessionOutcome>;
   reset: () => Promise<void>;
 }
 

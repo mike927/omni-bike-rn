@@ -11,12 +11,13 @@ import { create } from 'zustand';
  * failure is never silent.
  *
  *  - `idle`      nothing is being recorded.
+ *  - `pending`   the ride has started and its draft write has not landed yet.
  *  - `recording` the ride has a durable draft row.
  *  - `atRisk`    the ride is running but nothing durable exists for it yet.
  *  - `saved`     the finished ride is on disk.
  *  - `unsaved`   the ride is finished and its durable save failed.
  */
-export type SessionPersistenceStatus = 'idle' | 'recording' | 'atRisk' | 'saved' | 'unsaved';
+export type SessionPersistenceStatus = 'idle' | 'pending' | 'recording' | 'atRisk' | 'saved' | 'unsaved';
 
 export interface SessionPersistenceStore {
   status: SessionPersistenceStatus;
@@ -30,6 +31,7 @@ export interface SessionPersistenceStore {
   droppedSampleCount: number;
   lastErrorMessage: string | null;
 
+  /** Take ownership of a new ride. Nothing durable exists for it yet. */
   beginSession: (sessionId: string) => void;
   markRecording: (sessionId: string) => void;
   markAtRisk: (sessionId: string, message: string) => void;
@@ -49,7 +51,10 @@ const IDLE_STATE = {
 export const useSessionPersistenceStore = create<SessionPersistenceStore>((set, get) => ({
   ...IDLE_STATE,
 
-  beginSession: (sessionId) => set({ status: 'recording', sessionId, droppedSampleCount: 0, lastErrorMessage: null }),
+  // `pending`, not `recording`: the draft write is queued at this point and has
+  // not run, so claiming a durable row here would be a claim about disk that
+  // nothing has checked yet. `markRecording` promotes it once the row exists.
+  beginSession: (sessionId) => set({ status: 'pending', sessionId, droppedSampleCount: 0, lastErrorMessage: null }),
 
   // Every report below is ignored unless it belongs to the ride being tracked,
   // so a late write from an abandoned ride cannot flag the current one.
