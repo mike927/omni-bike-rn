@@ -8,7 +8,7 @@
 | --- | --- |
 | Status | In progress |
 | Owner | automated remediation agent |
-| Branch / PR | `fix/a03-interrupted-upload-recovery` / PR pending |
+| Branch / PR | `fix/a03-interrupted-upload-recovery` / https://github.com/mike927/omni-bike-rn/pull/113 |
 | Last updated | 2026-09-05 |
 | Type | Bug |
 | Category | correctness |
@@ -112,6 +112,8 @@ provider-agnostic `GearReconcileOutcome` path is unchanged.
   registry fails 1; removing the boot sweep fails 1; auto-resending an interrupted row fails 4;
   never releasing the live key fails 3; dropping the screen's decision branch fails 3; widening the
   repository's `uploading` guard fails 1.
+
+**Pull request.** https://github.com/mike927/omni-bike-rn/pull/113
 
 **Physical-device results.** None. See the limitations below.
 
