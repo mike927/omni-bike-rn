@@ -2,7 +2,7 @@ import { MetronomeEngine } from '../../services/metronome/MetronomeEngine';
 import { useTrainingSessionStore } from '../../store/trainingSessionStore';
 import { useDeviceConnectionStore } from '../../store/deviceConnectionStore';
 import { BikeStatus } from '../../services/ble/BikeAdapter';
-import { TrainingPhase } from '../../types/training';
+import { TrainingPhase, type TrainingSessionRestoreInput } from '../../types/training';
 import { disconnectAllDeviceConnections } from './hooks/useDeviceConnection';
 import { getActiveSessionId } from './hooks/useTrainingSessionPersistence';
 
@@ -32,6 +32,22 @@ let pendingFinishStop: Promise<void> | null = null;
 
 /** True while an intentional teardown is disconnecting the bike on purpose. */
 let disconnectPauseSuppressed = false;
+
+/**
+ * True while the current Paused phase carries manual intent: a Pause issued by
+ * the user (a screen or the Watch remote, both via {@link pauseSession}), or a
+ * restored interrupted session (via {@link restoreSession}) waiting for the
+ * user to deliberately resume it. Manual intent outranks bike telemetry, so
+ * `syncSessionFromBikeStatus` must not auto-resume while this is true; only an
+ * explicit {@link resumeSession} clears it. A bike-driven pause (reached via
+ * `freezeActiveSession`) never sets it, so it stays eligible for bike-driven
+ * resume.
+ *
+ * Scoped to one ride: both places a ride starts from Idle (`startSession` and
+ * the Idle branch of `syncSessionFromBikeStatus`) clear it first, so a manual
+ * pause from a previous ride can never carry over into the next one.
+ */
+let manualPauseActive = false;
 
 // ── Engine supervision (root lifecycle only) ─────────────
 
@@ -84,6 +100,7 @@ export function startSession(): void {
     return;
   }
 
+  manualPauseActive = false;
   useTrainingSessionStore.getState().start();
   void bikeAdapter.setControlState(BikeStatus.Started);
 }
@@ -94,6 +111,7 @@ export function pauseSession(): void {
   }
 
   useTrainingSessionStore.getState().pause();
+  manualPauseActive = true;
   void useDeviceConnectionStore.getState().bikeAdapter?.setControlState(BikeStatus.Paused);
 }
 
@@ -109,7 +127,20 @@ export function resumeSession(): void {
   }
 
   useTrainingSessionStore.getState().resume();
+  manualPauseActive = false;
   void bikeAdapter.setControlState(BikeStatus.Started);
+}
+
+/**
+ * Restore a persisted, interrupted session as Paused.
+ *
+ * Like a manual pause, the restored ride waits for the user to deliberately
+ * resume it: the user chose to bring this ride back, so a bike Started event
+ * arriving before that choice must not resume it on its own.
+ */
+export function restoreSession(input: TrainingSessionRestoreInput): void {
+  useTrainingSessionStore.getState().restore(input);
+  manualPauseActive = true;
 }
 
 export function finishSession(): void {
@@ -163,8 +194,11 @@ export function syncSessionFromBikeStatus(status: BikeStatus): void {
 
   if (status === BikeStatus.Started) {
     if (phase === TrainingPhase.Idle) {
+      manualPauseActive = false;
       useTrainingSessionStore.getState().start();
-    } else if (phase === TrainingPhase.Paused) {
+    } else if (phase === TrainingPhase.Paused && !manualPauseActive) {
+      // Manual intent outranks the bike: a user-initiated pause (or a restored
+      // interrupted session) only clears via an explicit resumeSession() call.
       useTrainingSessionStore.getState().resume();
     }
     return;

@@ -6,9 +6,9 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Not started |
-| Owner | Unassigned |
-| Branch / PR | None |
+| Status | In progress |
+| Owner | automated remediation agent |
+| Branch / PR | fix/a06-manual-pause-precedence |
 | Last updated | 2026-09-05 |
 | Type | Bug |
 | Category | consistency |
@@ -64,6 +64,7 @@ Track pause ownership/reason in shared lifecycle state. Permit automatic resume 
 ## Work log
 
 - 2026-09-05 — Imported from the audit of `965cbec`. No remediation performed; status is Not started.
+- 2026-09-05 — Claimed by automated remediation agent on branch `fix/a06-manual-pause-precedence`. A01 already merged (`7081c13`); the seam is `syncSessionFromBikeStatus` in `src/features/training/sessionController.ts`, which now holds single-owner session lifecycle logic.
 
 ## Completion / disposition record
 

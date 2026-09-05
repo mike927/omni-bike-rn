@@ -5,6 +5,7 @@ import { useInterruptedSessionStore } from '../../../store/interruptedSessionSto
 import { useTrainingSessionStore } from '../../../store/trainingSessionStore';
 import { TrainingPhase, type TrainingSessionRestoreInput } from '../../../types/training';
 import type { PersistedTrainingSession } from '../../../types/sessionPersistence';
+import { restoreSession } from '../sessionController';
 import { seedFromPersistedSession } from './useTrainingSessionPersistence';
 import type { UseInterruptedSessionReturn } from './InterruptedSessionTypes';
 
@@ -32,7 +33,7 @@ export function useInterruptedSession(): UseInterruptedSessionReturn {
 
     const lastSampleSequence = getLastSampleSequence(interruptedSession.id);
     seedFromPersistedSession(interruptedSession.id, lastSampleSequence);
-    useTrainingSessionStore.getState().restore(toRestoreInput(interruptedSession));
+    restoreSession(toRestoreInput(interruptedSession));
     useInterruptedSessionStore.getState().clear();
 
     return true;
