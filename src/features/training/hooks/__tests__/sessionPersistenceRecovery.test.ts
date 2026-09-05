@@ -517,6 +517,115 @@ describe('training session persistence failure recovery (A02)', () => {
     useInterruptedSessionStore.getState().clear();
   });
 
+  it('does no database read when a resume is refused', async () => {
+    mockFinalizeSession.mockImplementation(() => {
+      throw new Error('disk full');
+    });
+
+    await mountPersistence();
+
+    await act(() => {
+      startSession();
+    });
+    await waitFor(() => {
+      expect(mockCreateDraftSession).toHaveBeenCalledTimes(1);
+    });
+    await rideOneSecond();
+
+    await act(async () => {
+      await finishSessionAndDisconnect();
+    });
+
+    useInterruptedSessionStore.getState().setInterruptedSession({
+      id: 'session-interrupted',
+      status: 'paused',
+      startedAtMs: 1,
+      endedAtMs: null,
+      elapsedSeconds: 999,
+      totalDistanceMeters: 9000,
+      totalCaloriesKcal: 400,
+      currentMetrics: metrics,
+      savedBikeSnapshot: null,
+      savedHrSnapshot: null,
+      uploadState: null,
+      createdAtMs: 1,
+      updatedAtMs: 2,
+    });
+
+    const view = await renderHook(() => useInterruptedSession());
+
+    let resumed: boolean | undefined;
+    await act(() => {
+      resumed = view.result.current.resumeInterruptedSession();
+    });
+
+    // A refused resume must not touch storage at all: the guard has to come
+    // before any database work, not just before the write that matters.
+    expect(resumed).toBe(false);
+    expect(mockGetLastSampleSequence).not.toHaveBeenCalled();
+
+    useInterruptedSessionStore.getState().clear();
+  });
+
+  it('does not let a throwing sample-sequence read escape a refused resume', async () => {
+    mockFinalizeSession.mockImplementation(() => {
+      throw new Error('disk full');
+    });
+    mockGetLastSampleSequence.mockImplementation(() => {
+      throw new Error('disk full');
+    });
+
+    await mountPersistence();
+
+    await act(() => {
+      startSession();
+    });
+    await waitFor(() => {
+      expect(mockCreateDraftSession).toHaveBeenCalledTimes(1);
+    });
+    await rideOneSecond();
+
+    await act(async () => {
+      await finishSessionAndDisconnect();
+    });
+
+    useInterruptedSessionStore.getState().setInterruptedSession({
+      id: 'session-interrupted',
+      status: 'paused',
+      startedAtMs: 1,
+      endedAtMs: null,
+      elapsedSeconds: 999,
+      totalDistanceMeters: 9000,
+      totalCaloriesKcal: 400,
+      currentMetrics: metrics,
+      savedBikeSnapshot: null,
+      savedHrSnapshot: null,
+      uploadState: null,
+      createdAtMs: 1,
+      updatedAtMs: 2,
+    });
+
+    const view = await renderHook(() => useInterruptedSession());
+
+    // A resume that is refused must return `false` and never even reach the
+    // read that would throw: if it did, the throw would escape
+    // `resumeInterruptedSession()` into the caller's press handler uncaught.
+    let resumed: boolean | undefined;
+    let caught: unknown;
+    try {
+      await act(() => {
+        resumed = view.result.current.resumeInterruptedSession();
+      });
+    } catch (err: unknown) {
+      caught = err;
+    }
+
+    expect(caught).toBeUndefined();
+    expect(resumed).toBe(false);
+
+    useInterruptedSessionStore.getState().clear();
+  });
+
   it('says so when an explicit discard could not remove the ride from storage', async () => {
     mockFinalizeSession.mockImplementation(() => {
       throw new Error('disk full');

@@ -25,17 +25,18 @@ export function useInterruptedSession(): UseInterruptedSessionReturn {
       return false;
     }
 
-    const lastSampleSequence = getLastSampleSequence(interruptedSession.id);
-
     // Restore first, seed after, and let `restoreSession` be the only gate. It
     // already refuses anything but an Idle phase, so a second copy of that check
     // here would only hide the ordering that matters: handing the persistence
     // hook the interrupted ride's identity before the guard has passed points
-    // every later write at that row while a different ride is in memory.
+    // every later write at that row while a different ride is in memory. The
+    // sample-sequence read is database work too, so it stays behind the same
+    // gate: a refused resume must do no database work at all.
     if (!restoreSession(toRestoreInput(interruptedSession))) {
       return false;
     }
 
+    const lastSampleSequence = getLastSampleSequence(interruptedSession.id);
     seedFromPersistedSession(interruptedSession.id, lastSampleSequence);
     useInterruptedSessionStore.getState().clear();
 

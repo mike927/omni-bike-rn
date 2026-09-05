@@ -289,8 +289,8 @@ control bar** (outside the scroll) hosting the phase-driven actions.
   `noir.danger`-tinted callout when a finished ride failed to save (`Ride not saved`, with
   `Retry Save` + `Discard Ride`). While that callout is up it replaces the bottom control bar: those
   two buttons are the only way out of the state. A `Discard Ride` whose row delete fails still drops
-  the ride and returns Home, but raises an `Alert` saying the ride will be offered again at the next
-  start, so the leftover is never a surprise.
+  the ride and returns Home, but raises an `Alert` saying the ride will be offered again if the app
+  reopens within a day, or will otherwise show up in ride history, so the leftover is never a surprise.
 - **Power sparkline buffer** — a screen-local ring buffer (`usePowerTrend`, ~60 samples); a display
   concern only, never written to the session store/engine.
 - The phase → label/controls/callout mapping is a pure, unit-tested view-model

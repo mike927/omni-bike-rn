@@ -170,7 +170,7 @@ export function TrainingDashboardScreen() {
         console.error('[TrainingDashboardScreen] Discarding the ride from storage failed:', outcome.message);
         Alert.alert(
           'Ride not fully discarded',
-          'The ride was dropped, but it could not be deleted from this device. You will be asked about it again the next time you open the app.',
+          "The ride was dropped, but it could not be deleted from this device. You'll be asked about it again if you reopen the app within a day; after that, it will show up in your ride history instead.",
         );
       }
 

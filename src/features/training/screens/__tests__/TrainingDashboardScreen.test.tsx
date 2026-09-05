@@ -485,7 +485,7 @@ describe('TrainingDashboardScreen', () => {
       // The ride left memory, so the user is not trapped, but they are told the
       // row survived instead of meeting it again as an "interrupted ride".
       await waitFor(() => {
-        expect(alertSpy).toHaveBeenCalledWith('Ride not fully discarded', expect.stringContaining('next time'));
+        expect(alertSpy).toHaveBeenCalledWith('Ride not fully discarded', expect.stringContaining('ride history'));
       });
       expect(mockReplace).toHaveBeenCalledWith('/');
     });
