@@ -807,6 +807,78 @@ describe('useDeviceConnection', () => {
     expect(useSavedGearStore.getState().bikeAutoReconnectSuppressed).toBe(true);
   });
 
+  it('still tears down the HR role when the bike half throws partway through disconnectAll', async () => {
+    // A throw here is realistic (a `Subscription.remove()` failing), and lands
+    // between the up-front observer release and the bike role's own cleanup.
+    const bikeRemoveError = new Error('bike metrics subscription remove failed');
+    const bikeSubscription = {
+      remove: jest.fn((): void => {
+        throw bikeRemoveError;
+      }),
+    };
+    const hrSubscription = { remove: jest.fn() };
+
+    mockBikeConnect.mockResolvedValue(undefined);
+    mockBikeDisconnect.mockResolvedValue(undefined);
+    mockBikeSubscribe.mockReturnValue(bikeSubscription);
+    mockHrConnect.mockResolvedValue(undefined);
+    mockHrDisconnect.mockResolvedValue(undefined);
+    mockHrSubscribe.mockReturnValue(hrSubscription);
+    useSavedGearStore.setState({
+      savedBike: { id: 'bike-1', name: 'Zipro Rave', type: 'bike' },
+      savedHrSource: { id: 'hr-1', name: 'Garmin HRM', type: 'hr' },
+      bikeReconnectState: 'connected',
+      hrReconnectState: 'connected',
+    });
+
+    const { result } = await renderHook(() => useDeviceConnection());
+
+    await act(async () => {
+      await result.current.connectBike('bike-1');
+      await result.current.connectHr('hr-1');
+    });
+
+    let disconnectError: unknown;
+    await act(async () => {
+      try {
+        await result.current.disconnectAll({ suppressAutoReconnect: true });
+      } catch (err: unknown) {
+        disconnectError = err;
+      }
+    });
+
+    try {
+      // The bike half's own throw still surfaces to the caller...
+      expect(disconnectError).toBe(bikeRemoveError);
+      expect(mockBikeDisconnect).not.toHaveBeenCalled();
+      // ...but it must not skip the HR half: the strap is fully torn down and
+      // its reconnect state updated, rather than left live with an
+      // already-disarmed observer and no way left to notice a real drop.
+      expect(mockHrDisconnect).toHaveBeenCalledTimes(1);
+      expect(hrSubscription.remove).toHaveBeenCalledTimes(1);
+      expect(useDeviceConnectionStore.getState().hrAdapter).toBeNull();
+      expect(useSavedGearStore.getState().hrReconnectState).toBe('disconnected');
+      expect(useSavedGearStore.getState().hrAutoReconnectSuppressed).toBe(true);
+
+      // The bike role's own cleanup never ran (its throw pre-empted it), so its
+      // adapter is left behind. That residual is pre-existing and out of scope
+      // here; this test only guards against the bike half's failure taking the
+      // HR half down with it.
+      expect(useDeviceConnectionStore.getState().bikeAdapter).not.toBeNull();
+    } finally {
+      // The module-scope bike metrics subscription is left pointing at a
+      // `remove()` that still throws, since the failed call never reached the
+      // `bikeMetricsSub = null` reset. Left alone that would leak into whichever
+      // test runs next and calls connectBike/disconnectBike, regardless of
+      // whether the assertions above passed. Stop it throwing and drive a clean
+      // disconnect so nothing escapes this test.
+      bikeSubscription.remove.mockImplementation(() => {});
+      await act(async () => {
+        await result.current.disconnectBike();
+      });
+    }
+  });
+
   it('registers a fresh native disconnect observer for each reconnect', async () => {
     mockHrConnect.mockResolvedValue(undefined);
     mockHrDisconnect.mockResolvedValue(undefined);

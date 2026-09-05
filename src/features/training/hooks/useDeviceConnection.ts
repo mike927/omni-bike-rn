@@ -260,8 +260,15 @@ export async function disconnectAllDeviceConnections(options?: DisconnectDeviceC
   // drops inside that window is part of this teardown, not a drop that should
   // reopen the reconnect cycle the teardown is closing.
   releaseDeviceDisconnectObservers();
-  await disconnectBikeConnectionInternal(options);
-  await disconnectHrConnectionInternal(options);
+  // The HR half always runs, even if the bike half throws: both observers were
+  // just disarmed above, so a throw between them (e.g. a subscription's
+  // `remove()` failing) must not leave the HR role live in the store with no
+  // way left to observe a real drop on it.
+  try {
+    await disconnectBikeConnectionInternal(options);
+  } finally {
+    await disconnectHrConnectionInternal(options);
+  }
 }
 
 interface UseDeviceConnectionReturn {
