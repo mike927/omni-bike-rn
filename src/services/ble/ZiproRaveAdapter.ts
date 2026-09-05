@@ -26,7 +26,9 @@ export class ZiproRaveAdapter implements BikeAdapter {
   private metricsCallback: ((metrics: BikeMetrics) => void) | null = null;
   private dataSub: Subscription | null = null;
   private statusSub: Subscription | null = null;
-  private latestMetrics: BikeMetrics = { speed: 0, cadence: 0, power: 0 };
+  // `power` is deliberately absent, not 0: until an Indoor Bike Data packet
+  // carrying flag bit 6 arrives there is no power reading to report.
+  private latestMetrics: BikeMetrics = { speed: 0, cadence: 0 };
   private commandQueue: Promise<void> = Promise.resolve();
 
   /**
@@ -143,7 +145,7 @@ export class ZiproRaveAdapter implements BikeAdapter {
     // Uses module-level FTMS UUID constants
 
     this.clearMetricSubscriptions();
-    this.latestMetrics = { speed: 0, cadence: 0, power: 0 };
+    this.latestMetrics = { speed: 0, cadence: 0 };
 
     this.dataSub = this.device.monitorCharacteristicForService(
       FTMS_SERVICE_UUID,
@@ -171,7 +173,10 @@ export class ZiproRaveAdapter implements BikeAdapter {
               ...this.latestMetrics,
               speed: parsedMetrics.speed ?? 0,
               cadence: parsedMetrics.cadence ?? 0,
-              power: parsedMetrics.power ?? 0,
+              // No `?? 0` fallback: a packet without the Instantaneous Power
+              // field has no power reading, and fabricating 0 W here would make
+              // an energy-only bike look like a rider coasting at zero watts.
+              power: parsedMetrics.power,
               ...(parsedMetrics.distance !== undefined && {
                 distance: parsedMetrics.distance,
               }),

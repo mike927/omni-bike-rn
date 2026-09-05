@@ -61,17 +61,12 @@ describe('advanceSession', () => {
     expect(s.totalDistance).toBeCloseTo(20, 5);
   });
 
-  it('accumulates totalCalories from power adjusted for metabolic efficiency', () => {
-    // 4186 W for 1 s = 4186 J mechanical = 1 kcal mechanical
-    // Divided by 0.25 gross efficiency = 4 kcal metabolic
-    const s = advanceSession(makeState(), makeTickInput({ power: 4186 }, { hasBikePower: true }));
-    expect(s.totalCalories).toBeCloseTo(4, 5);
-  });
-
-  it('accumulates power-based calories when no HR source and no bike-reported energy are available', () => {
-    // The power tier must not require a live HR source: HR is optional, a
-    // connected bike reporting power is not. hasLiveExternalHr stays false
-    // (default) to prove the power tier fires on hasBikePower alone.
+  it('accumulates power-based calories with no HR source and no bike-reported energy', () => {
+    // 4186 W for 1 s = 4186 J mechanical = 1 kcal mechanical; divided by the
+    // 0.25 gross efficiency = 4 kcal metabolic. Physically absurd as a wattage,
+    // picked so the per-tick arithmetic lands on a whole number.
+    // hasLiveExternalHr stays false (the default) to prove the power tier fires
+    // on hasBikePower alone: HR is optional, a real power reading is not.
     const s = advanceSession(makeState(), makeTickInput({ power: 4186 }, { hasBikePower: true }));
     expect(s.lastCalorieSourceMode).toBe('app');
     expect(s.totalCalories).toBeCloseTo(4, 5);
@@ -93,14 +88,20 @@ describe('advanceSession', () => {
     expect(s.totalCalories).toBe(0);
   });
 
-  it('distinguishes a connected bike reporting a genuine zero watts from no bike at all', () => {
-    // Absent power: no bike connected this tick (hasBikePower defaults false).
-    const absent = advanceSession(makeState(), makeTickInput({ power: 0 }));
-    expect(absent.lastCalorieSourceMode).toBe('none');
+  it('reads power presence from hasBikePower, never from the power value itself', () => {
+    // The reducer half of the absent-versus-zero contract: identical metrics
+    // (0 W both times), opposite outcomes, decided only by the flag. That a
+    // real power-less bike actually arrives here with the flag false is proved
+    // one layer up, in MetronomeEngine.test.ts and ZiproRaveAdapter.test.ts.
+    const noReading = advanceSession(makeState(), makeTickInput({ power: 0 }, { bikeTotalEnergyKcal: 100 }));
+    expect(noReading.lastCalorieSourceMode).toBe('bike');
 
-    // Valid zero: a bike is connected and genuinely reporting 0 W (coasting).
-    // The power tier must still be selected, even though the calorie delta is 0.
-    const validZero = advanceSession(makeState(), makeTickInput({ power: 0 }, { hasBikePower: true }));
+    // Valid zero: a real reading of 0 W (coasting). The power tier is selected
+    // and outranks the bike's own energy, even though the delta is 0.
+    const validZero = advanceSession(
+      makeState(),
+      makeTickInput({ power: 0 }, { hasBikePower: true, bikeTotalEnergyKcal: 100 }),
+    );
     expect(validZero.lastCalorieSourceMode).toBe('app');
     expect(validZero.totalCalories).toBe(0);
   });

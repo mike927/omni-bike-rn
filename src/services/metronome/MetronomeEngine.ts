@@ -1,7 +1,7 @@
 import { useDeviceConnectionStore } from '../../store/deviceConnectionStore';
 import { useTrainingSessionStore } from '../../store/trainingSessionStore';
 import { useUserProfileStore } from '../../store/userProfileStore';
-import type { BikeMetrics } from '../ble/BikeAdapter';
+import { BIKE_SIGNAL_STALE_TIMEOUT_MS, type BikeMetrics } from '../ble/BikeAdapter';
 import { resolveHrReading, type HrReading } from '../hr/hrSource';
 import { getEffectiveHrSource } from '../hr/useEffectiveHrSource';
 import type { MetricSnapshot, TrainingTickInput } from '../../types/training';
@@ -51,6 +51,7 @@ export class MetronomeEngine {
   private tick(): void {
     const {
       latestBikeMetrics,
+      lastBikeSignalAtMs,
       latestBluetoothHr,
       lastBluetoothHrSampleAtMs,
       latestAppleWatchHr,
@@ -80,8 +81,39 @@ export class MetronomeEngine {
     // case the store falls through to the existing power-based formula.
     const keytelInputs = toKeytelInputs(useUserProfileStore.getState().profile);
 
-    const merged = this.mergeMetrics(latestBikeMetrics, reading, effectiveWatchKcal, keytelInputs);
+    const merged = this.mergeMetrics(
+      this.resolveBikePower(latestBikeMetrics, lastBikeSignalAtMs, nowMs),
+      latestBikeMetrics,
+      reading,
+      effectiveWatchKcal,
+      keytelInputs,
+    );
     useTrainingSessionStore.getState().tick(merged);
+  }
+
+  /**
+   * The usable instantaneous power for this tick, or null when there is none.
+   *
+   * Two distinct ways to have no reading, both of which must NOT be reported as
+   * 0 W (a valid reading from a coasting rider):
+   *  - the machine never reports Instantaneous Power (FTMS flag bit 6 clear),
+   *    so `BikeMetrics.power` is absent. Such a bike is supported, and its own
+   *    reported energy is the correct calorie source for it;
+   *  - the bike stopped notifying. A BLE stall does not always raise a
+   *    disconnect, so the last packet would otherwise be integrated forever.
+   */
+  private resolveBikePower(
+    bikeMetrics: BikeMetrics | null,
+    lastBikeSignalAtMs: number | null,
+    nowMs: number,
+  ): number | null {
+    if (bikeMetrics?.power === undefined) {
+      return null;
+    }
+    if (lastBikeSignalAtMs === null || nowMs - lastBikeSignalAtMs > BIKE_SIGNAL_STALE_TIMEOUT_MS) {
+      return null;
+    }
+    return bikeMetrics.power;
   }
 
   /**
@@ -94,10 +126,12 @@ export class MetronomeEngine {
    *  - **HR**: taken from the resolved {@link HrReading}.
    *  - **Calories**: the store decides between watch-, Keytel-, power-, and
    *    bike-sourced calories using the metadata returned here. The power tier
-   *    is gated on `hasBikePower` (bike connected), not on HR liveness.
+   *    is gated on `hasBikePower` (a live power reading exists this tick), not
+   *    on HR liveness.
    *  - **All other fields**: taken directly from bike metrics.
    */
   private mergeMetrics(
+    bikePower: number | null,
     bikeMetrics: BikeMetrics | null,
     hrReading: HrReading,
     watchActiveKcal: number | null,
@@ -105,15 +139,14 @@ export class MetronomeEngine {
   ): TrainingTickInput {
     const speed = bikeMetrics?.speed ?? 0;
     const cadence = bikeMetrics?.cadence ?? 0;
-    const power = bikeMetrics?.power ?? 0;
     const resistance = bikeMetrics?.resistance ?? null;
     const distance = bikeMetrics?.distance ?? null;
     const bikeTotalEnergyKcal = bikeMetrics?.totalEnergyKcal ?? null;
-    // Bike power is a required field on BikeMetrics, so its presence tracks
-    // whether a bike is connected and reporting at all: this is what
-    // distinguishes a genuine zero-watt reading from the "no bike" default
-    // applied to `power` above.
-    const hasBikePower = bikeMetrics !== null;
+    // `MetricSnapshot.power` is a plain number shared with DB persistence, TCX
+    // export and the dashboard, so "no reading" still renders as 0 there. The
+    // flag is what carries the absence to the calorie tiers.
+    const power = bikePower ?? 0;
+    const hasBikePower = bikePower !== null;
 
     const heartRate = hrReading.bpm;
     // External HR is live when the resolved source (Apple Watch or a Bluetooth

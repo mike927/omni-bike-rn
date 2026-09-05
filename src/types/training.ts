@@ -52,11 +52,15 @@ export interface TrainingTickInput {
   /** Whether an external HR source is actively reporting on this tick. */
   hasLiveExternalHr: boolean;
   /**
-   * Whether `metrics.power` is a live bike reading this tick, as opposed to
-   * the "no bike connected" default. `MetricSnapshot.power` is a non-nullable
-   * number, so a connected bike reporting a genuine zero watts is
-   * indistinguishable from no bike at all without this flag. Gates the
-   * power-based calorie tier independently of HR availability.
+   * Whether `metrics.power` is a real power reading this tick.
+   *
+   * `MetricSnapshot.power` is a non-nullable number, so absence and a valid
+   * 0 W reading from a coasting rider both look like `0` there. This flag is
+   * what tells them apart. False means no reading at all: no bike connected,
+   * a bike that does not report FTMS Instantaneous Power (a supported device
+   * class, whose own reported energy is then the right calorie source), or a
+   * bike that has stopped notifying. Gates the power-based calorie tier
+   * independently of HR availability.
    */
   hasBikePower: boolean;
   /**
