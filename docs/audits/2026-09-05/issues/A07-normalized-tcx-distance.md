@@ -94,16 +94,17 @@ trackpoints of 500, 520, 10, 25 m under a lap total of 35 m.
   property, never to `0`, so "no normalized history was kept" stays distinguishable from "the rider had covered
   0 m", the presence-preserving pattern A04 established for bike power.
 - `src/types/sessionPersistence.ts`: `PersistedTrainingSample.sessionDistanceMeters?: number`.
-- `src/services/export/workoutDistanceSeries.ts` (new): `resolveWorkoutDistanceSeries(session, samples)` returns
-  the cumulative workout-relative metres per sample. Recorded rows are used as-is; rows without the field are
-  reconstructed by replaying `normalizeDistanceStep` over the persisted readings. The result is clamped
+- `src/services/export/resolveWorkoutDistancePoints.ts` (new): `resolveWorkoutDistancePoints(session, samples)`
+  returns one `{ sample, distanceMeters }` pair per persisted sample, in sample order, `distanceMeters` being
+  the cumulative workout-relative metres at that sample. Recorded rows are used as-is; rows without the field
+  are reconstructed by replaying `normalizeDistanceStep` over the persisted readings. The result is clamped
   non-decreasing, because a TCX `DistanceMeters` is cumulative and a dip reads as a rewind.
 - `src/services/export/formats/tcxSerializer.ts`: trackpoints come from that series, so the track and the lap
   total are measured on the same origin. The serializer no longer reads `metrics.distance` at all.
 - `AGENTS.md`: a new bullet, "Distance is workout-relative", added beside the existing Session accumulation
   rule rather than editing it. It states that `normalizeDistanceStep` rebases the trainer's odometer, that
-  `MetricSnapshot.distance` stays the machine's raw counter, and that exports must never publish it as a
-  per-second distance.
+  `MetricSnapshot.distance` stays the machine's raw counter, that a reconstructed value is capped at the
+  session's stored total, and that exports must never publish `metrics.distance` as a per-second distance.
 
 ### Rides already in the database
 
@@ -130,7 +131,8 @@ was ever the sole signal.
 | `npm run db:generate` | Emitted `drizzle/0002_damp_ink.sql` (`ALTER TABLE training_session_samples ADD session_distance_meters real;`) |
 | `npm run db:check` | `Everything's fine` |
 | `npx jest src/services/export/formats/__tests__/tcxSerializer.test.ts` (before the fix) | 3 failed, 19 passed: the reproduction |
-| `npm run ci:gate` | Exit 0: lint clean, `tsc --noEmit` clean, 113 suites / 1127 tests passed |
+| `npm run ci:gate` (round 0) | Exit 0: lint clean, `tsc --noEmit` clean, 113 suites / 1127 tests passed |
+| `npm run ci:gate` (fix round 1) | Exit 0: lint clean at `--max-warnings 0`, `tsc --noEmit` clean, 113 suites / 1131 tests passed |
 
 ### Mutation evidence
 
@@ -141,7 +143,19 @@ Each new test was checked against the pre-fix code rather than only against the 
 - Monotonic clamp removed: `never decreases, because a TCX trackpoint distance is cumulative` fails.
 - Legacy reconstruction removed: the four legacy-row tests fail.
 
-PR: https://github.com/mike927/omni-bike-rn/pull/114 (commit `ba56f74`).
+Fix round 1 added its own mutation evidence, on top of the above:
+
+- Cap removed (`recorded ?? normalized.totalDistance`): the new all-legacy restore test fails, received
+  `[0, 10, 110, 120]` against an expected `[0, 10, 20, 20]`.
+- `Object.freeze` removed from `INITIAL_NORMALIZED_DISTANCE`: the new seed-immutability test fails.
+- Lap `DistanceMeters` forced to `0.0` while the last trackpoint still reads `30.0`: the Lap-vs-trackpoint test
+  fails, 2 failures total.
+- A `future_column` appended to the samples INSERT and its parameter list: the key-based assertion still
+  passes at 20/20, where the old positional `.at(-2)`/`.at(-1)` assertion would have silently drifted onto it.
+- `normalizeDistanceStep` made to rebase whenever `elapsedDeltaSeconds > 1`: the new counter-path gap test is
+  the only failure across all of `src/services`.
+
+PR: https://github.com/mike927/omni-bike-rn/pull/114 (commit `f4b1fa2`).
 
 ### Remaining limitations
 

@@ -1,4 +1,4 @@
-import { resolveWorkoutDistancePoints } from '../workoutDistanceSeries';
+import { resolveWorkoutDistancePoints } from '../resolveWorkoutDistancePoints';
 import type { PersistedTrainingSample, PersistedTrainingSession } from '../../../types/sessionPersistence';
 
 const BASE_SESSION: PersistedTrainingSession = {

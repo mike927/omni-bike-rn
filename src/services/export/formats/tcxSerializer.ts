@@ -1,4 +1,4 @@
-import { resolveWorkoutDistancePoints } from '../workoutDistanceSeries';
+import { resolveWorkoutDistancePoints } from '../resolveWorkoutDistancePoints';
 import type { PersistedTrainingSession, PersistedTrainingSample } from '../../../types/sessionPersistence';
 
 function msToIso(ms: number): string {

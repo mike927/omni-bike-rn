@@ -40,11 +40,13 @@ export interface WorkoutDistancePoint {
  *   20 m.
  *
  * The stored `session.totalDistanceMeters` is the one thing such a ride does
- * know for certain, so **replayed** values are capped at it. The track can
- * therefore flatten early across a restore gap, which is visible but honest,
- * instead of ending several times above the lap total it is printed under.
- * Recorded values are never capped: they are the accumulator's own output, and
- * capping them could only hide a disagreement worth seeing.
+ * know for certain, so **every replayed value** is capped at it, not only the
+ * restore case above: the gap-hold approximation can integrate past the
+ * stored total too, on a long enough held reading, and the cap clips that the
+ * same way. The track can therefore flatten early, which is visible but
+ * honest, instead of ending several times above the lap total it is printed
+ * under. Recorded values are never capped: they are the accumulator's own
+ * output, and capping them could only hide a disagreement worth seeing.
  *
  * The result is always non-decreasing: TCX `DistanceMeters` is a cumulative
  * value, and a dip would be read as a rewind rather than as a stall.
