@@ -80,11 +80,18 @@ jest.mock('../../hooks/useTrainingSession', () => ({
   useTrainingSession: () => mockSession,
 }));
 
-// The wrist-remote bridge subscribes to the native WatchConnectivity module; stub it so
-// the screen test doesn't pull the native bridge. Its behavior is unit-tested separately.
+// The wrist remote belongs to the root-owned session lifecycle, not to this screen
+// (AGENTS.md "Session ownership"): a ride, and the Watch workout driving it, outlive
+// the Training dashboard. Stubbed so the screen test can assert it stays unmounted
+// here instead of pulling the native bridge.
 jest.mock('../../hooks/useWatchRemoteControl', () => ({
   useWatchRemoteControl: jest.fn(),
 }));
+
+function getUseWatchRemoteControlMock() {
+  return (jest.requireMock('../../hooks/useWatchRemoteControl') as { useWatchRemoteControl: jest.Mock })
+    .useWatchRemoteControl;
+}
 
 jest.mock('../../hooks/useDeviceConnection', () => ({
   useDeviceConnection: () => mockDeviceConnection,
@@ -167,6 +174,16 @@ describe('TrainingDashboardScreen', () => {
 
   it('renders without crashing', async () => {
     await expect(render(<TrainingDashboardScreen />)).resolves.toBeDefined();
+  });
+
+  it('does not own the Watch remote: it stays with the root session lifecycle', async () => {
+    Object.assign(mockSession, { phase: 'active', elapsedSeconds: 42 });
+
+    await render(<TrainingDashboardScreen />);
+
+    // Fails the moment the wrist remote is mounted from a screen again, which
+    // would silently drop on-wrist Pause / Resume / End after Back.
+    expect(getUseWatchRemoteControlMock()).not.toHaveBeenCalled();
   });
 
   describe('Smart Bike status pill', () => {
