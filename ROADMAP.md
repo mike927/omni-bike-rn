@@ -5,6 +5,7 @@
 - [x] Upgrade Expo 54 → 55 → 56 → 57 and align React Native, React and native dependencies.
 - [x] Update compatible stable development tooling and CI; verify installation and quality gate.
 - [x] Update and build iOS while preserving the Apple Watch companion target.
+- [x] Add phone-only, Watch-only and combined Release update commands with bounded device retries; verify combined build and installation on both physical devices.
 - [ ] Verify BLE, HealthKit and WatchConnectivity on physical devices after the upgrade.
 
 Versions, verification evidence and remaining upstream diagnostics: [tech stack](docs/tech-stack.md).
