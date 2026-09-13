@@ -79,8 +79,8 @@ function isTransientDeviceTransportError(error) {
   const output = [error.message, error.stdout?.toString(), error.stderr?.toString()].filter(Boolean).join('\n');
 
   return [
-    /CoreDeviceError error (?:3002|4000)/,
-    /IXRemoteErrorDomain error 5/,
+    /CoreDeviceError error 4000\b/,
+    /IXRemoteErrorDomain error [56]\b/,
     /RemotePairingError error 1001/,
     /com\.apple\.remote\.installcoordination_proxy/,
     /Timed out waiting for CoreDeviceService/,

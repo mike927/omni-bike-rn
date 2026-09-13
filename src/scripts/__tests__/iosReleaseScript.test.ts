@@ -203,12 +203,26 @@ describe('iOS standalone release scripts', () => {
 
   test('does not retry a non-transport installation failure', () => {
     const result = runReleaseScript('watch', {
-      xcrunError: 'ERROR: The application is not signed correctly.',
+      xcrunError:
+        'ERROR: Failed to install the app on the device. (com.apple.dt.CoreDeviceError error 3002)\n' +
+        'Failed to verify code signature: A valid provisioning profile for this executable was not found. (MIInstallerErrorDomain error 13)',
       xcrunFailures: 1,
     });
 
     expect(result.status).not.toBe(0);
     expect(result.invocations.filter(({ command }) => command === 'xcrun')).toHaveLength(1);
+  });
+
+  test('retries the interrupted installer connection observed on the physical Watch', () => {
+    const result = runReleaseScript('watch', {
+      xcrunError:
+        'ERROR: Failed to install the app on the device. (com.apple.dt.CoreDeviceError error 3002)\n' +
+        'Connection with the remote side was unexpectedly closed (IXRemoteErrorDomain error 6)',
+      xcrunFailures: 1,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.invocations.filter(({ command }) => command === 'xcrun')).toHaveLength(2);
   });
 
   test('stops after three transient installation failures', () => {
