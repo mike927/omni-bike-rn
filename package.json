@@ -28,7 +28,9 @@
     "eas:env:push:preview": "npx eas-cli env:push preview --path .env",
     "eas:env:push:dev": "npx eas-cli env:push development --path .env",
     "postinstall": "node scripts/postinstall.mjs",
-    "prepare": "husky"
+    "prepare": "husky",
+    "metro:reload": "node scripts/metro.mjs reload",
+    "metro:menu": "node scripts/metro.mjs menu"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,mjs}": "eslint --fix --max-warnings 0",
