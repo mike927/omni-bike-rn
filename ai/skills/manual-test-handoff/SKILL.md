@@ -46,7 +46,7 @@ section only if it genuinely doesn't apply (say so).
    - `Action` / `Where` / `Confirm` = the concrete action, the surface, and the signal it's
      satisfied. In `Where`, **name in-app surfaces explicitly** — e.g. "mobile app →
      Settings tab", not bare "Settings" — so they aren't confused with the **iOS system
-     Settings** app. Reserve "iOS Settings" for the system app; use "iTerm/terminal" or "Xcode"
+     Settings** app. Reserve "iOS Settings" for the system app; use "terminal" or "Xcode"
      for the Mac. Fold any "if not, fix" into `Confirm` parenthetically.
 3. **Steps** — render as a **table**: columns `#` | `On` | `Action` | `What you should see`.
    `On` names where the action happens — **📱 mobile app**, **⌚ watch app**, or **🤚 physical**
@@ -120,14 +120,14 @@ xcrun devicectl device copy from --device 31EEC0B4-4AEC-5124-898A-BDD1E34DB07E \
   --source Documents/wc.log --destination /tmp/wc-watch.log
 ```
 
-**Read Metro JS traces** (`[WC-JS] …`): use the `iterm-mcp` `read_terminal_output` tool on the
-single Metro pane (per `AGENTS.md`/`CLAUDE.md`).
+**Read Metro JS traces** (`[WC-JS] …`): read the Metro process output (Claude Code: `read_terminal`
+on the Metro tab; see `AGENTS.md`/`CLAUDE.md`).
 
 **Build / refresh level** — derive from what changed and state it in Preconditions:
 
 | Changed | Needs | How |
 |---|---|---|
-| JS/TS only | **Metro reload** | Fast Refresh, or press `r` in the Metro pane — no native build |
+| JS/TS only | **Metro reload** | Fast Refresh, or `npm run metro:reload` — no native build |
 | iPhone native (`ios/omnibikern/**`, `modules/*/ios/**.swift`) | **mobile app rebuild** | `npm run ios -- "iPhone 16 PRO (Michal)"` or Xcode run (`omnibikern` scheme) |
 | Watch native (`ios/OmniBikeWatch Watch App/**`) | **Watch companion rebuild** | **matched pair from Xcode** (`omnibikern` scheme) — CLI can't push the watch app |
 
@@ -173,12 +173,12 @@ foreground) while the mobile app is backgrounded mid-ride; "No signal" only on r
 
 | Do? | Action | Where | Confirm |
 |---|---|---|---|
-| ❌ | Reload Metro (JS) | iTerm: press `r` | skip — no JS changed |
+| ❌ | Reload Metro (JS) | `npm run metro:reload` | skip — no JS changed |
 | ❌ | Rebuild mobile app | `npm run ios -- "iPhone 16 PRO (Michal)"` | skip — no iOS-native change |
 | ❌ | Rebuild Watch app (matched pair) | Xcode → `omnibikern` scheme | skip — no watch-native change |
 | ✅ | Set primary HR source → Apple Watch | mobile app → **Settings tab** | Apple Watch selected |
 | ✅ | Check the watch HR tile | mobile app → **Home tab** | reads **idle** (if "Unavailable" → reinstall matched pair from Xcode) |
-| ✅ | Make sure Metro is running | iTerm / terminal | `:8081` up |
+| ✅ | Make sure Metro is running | terminal | `:8081` up |
 
 **Steps:**
 

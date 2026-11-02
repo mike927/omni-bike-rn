@@ -42,6 +42,8 @@ Run scripts via `npm run <name>` — see `package.json` for the full list. The o
 
 **Tests (dev loop):** run `npm run test:changed` (`jest --changedSince=main` — branch-affected tests only); the full `npm test` is CI's job (`ci:gate`). A green run means "changed tests pass," not "all."
 
+**Metro:** one instance on `:8081`; check `lsof -i :8081` before acting and reuse a running one, never trust memory about its state. Start it with `npm start` as a long-running process the user can see and stop. Reload connected apps with `npm run metro:reload`, open their dev menu with `npm run metro:menu`. Restart = stop the process, then `npm start`; an orphan on `:8081` gets its PID killed.
+
 **Native lifecycle checks:** `npm run test:watch-lifecycle` compiles the Watch companion's pure lifecycle model together with the host checks in `native-tests/` and runs them on the Mac. Deliberately outside `ci:gate`, which runs on Linux with no Swift toolchain; `lint-staged` runs it pre-commit for staged `ios/OmniBikeWatch Watch App/*.swift`. Run it by hand after any other change that touches the lifecycle.
 
 ## Builds
