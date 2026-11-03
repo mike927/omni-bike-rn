@@ -208,6 +208,12 @@ Android is not actively supported today — the product is iOS-first (watchOS co
 
 ---
 
+## Development verification
+
+- [x] Check the Expo matrix and installed dependency tree before builds and in CI; reuse `.nvmrc` for Node selection.
+- [x] Record source-bound Release build/install receipts, invalidate stale native caches, and retain untested launch status.
+- [x] Report dependency advisories by identity and path, fail on unavailable audit data, and exclude nested worktrees from lint.
+
 ## Future Considerations
 
 - Remediate inherited dependency audit findings while preserving the supported Expo matrix. The 2026-11-03 online comparison reports 69 findings after the Expo patch versus 72 on `main`, with no new vulnerable package names or advisory IDs; both retain the critical `shell-quote` advisory. See [tech stack diagnostics](docs/tech-stack.md#known-upstream-diagnostics).

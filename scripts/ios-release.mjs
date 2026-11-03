@@ -1,5 +1,7 @@
+/* eslint sonarjs/no-os-command-from-path: off -- These developer commands intentionally use the active toolchain on PATH. */
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { captureSource } from './verification.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -154,22 +156,104 @@ function build(scheme, destination) {
   }
 }
 
-loadDotEnv();
-
-if (mode === 'phone' || mode === 'both') {
-  build('omnibikern', xcodeDestination);
+const receiptDirectory = path.join(projectRoot, 'logs', 'releases');
+mkdirSync(receiptDirectory, { recursive: true });
+const receiptPath = path.join(receiptDirectory, `${Date.now()}-${process.pid}.json`);
+const receipt = {
+  source: captureSource(projectRoot),
+  configuration: 'Release',
+  mode,
+  node: process.version,
+  derivedDataPath,
+  destinations: { phone: xcodeDestination, watch: watchXcodeDestination },
+  devices: { phone: iphoneInstallDevice, watch: watchInstallDevice },
+  steps: [],
+  launches: {},
+  result: 'started',
+  startedAt: new Date().toISOString(),
+};
+const saveReceipt = () => writeFileSync(receiptPath, JSON.stringify(receipt, null, 2) + '\n');
+function recordStep(stage, action) {
+  const step = { stage, status: 'running' };
+  receipt.steps.push(step);
+  saveReceipt();
+  try {
+    action();
+    step.status = 'passed';
+  } catch (error) {
+    step.status = 'failed';
+    throw error;
+  } finally {
+    saveReceipt();
+  }
 }
 
-if (mode === 'watch' || mode === 'both') {
-  build('OmniBikeWatch Watch App', watchXcodeDestination);
-}
-
-if (mode === 'phone' || mode === 'both') {
-  assertAppBundle('iPhone', iphoneAppPath);
-  install(iphoneInstallDevice, iphoneAppPath);
-}
-
-if (mode === 'watch' || mode === 'both') {
-  assertAppBundle('Watch', watchAppPath);
-  install(watchInstallDevice, watchAppPath);
+saveReceipt();
+try {
+  receipt.xcode = execFileSync('xcodebuild', ['-version'], {
+    encoding: 'utf8',
+  }).trim();
+  console.warn(
+    JSON.stringify({
+      node: receipt.node,
+      xcode: receipt.xcode,
+      mode,
+      derivedDataPath,
+      destinations: receipt.destinations,
+    }),
+  );
+  recordStep('dependencies', () => run(process.execPath, ['scripts/check-dependencies.mjs']));
+  recordStep('device-discovery', () => run('xcrun', ['devicectl', 'list', 'devices']));
+  loadDotEnv();
+  mkdirSync(derivedDataPath, { recursive: true });
+  const cacheStamp = path.join(derivedDataPath, '.omni-native-inputs');
+  const previous = existsSync(cacheStamp) ? readFileSync(cacheStamp, 'utf8') : null;
+  const nativeInputs = `${receipt.source.nativeDigest}\n${receipt.xcode}\n${process.version}`;
+  const schemes =
+    mode === 'both'
+      ? ['omnibikern', 'OmniBikeWatch Watch App']
+      : [mode === 'phone' ? 'omnibikern' : 'OmniBikeWatch Watch App'];
+  if (previous !== nativeInputs) {
+    recordStep('clean-native-cache', () => {
+      for (const scheme of schemes)
+        run('xcodebuild', [
+          '-workspace',
+          'ios/omnibikern.xcworkspace',
+          '-scheme',
+          scheme,
+          '-configuration',
+          'Release',
+          '-derivedDataPath',
+          derivedDataPath,
+          'clean',
+        ]);
+    });
+  }
+  for (const scheme of schemes)
+    recordStep(`build:${scheme}`, () =>
+      build(scheme, scheme === 'omnibikern' ? xcodeDestination : watchXcodeDestination),
+    );
+  if (captureSource(projectRoot).digest !== receipt.source.digest)
+    throw new Error('Source changed during build; rebuild before installing.');
+  writeFileSync(cacheStamp, nativeInputs);
+  for (const target of mode === 'both' ? ['phone', 'watch'] : [mode]) {
+    const appPath = target === 'phone' ? iphoneAppPath : watchAppPath;
+    recordStep(`install:${target}`, () => {
+      assertAppBundle(target, appPath);
+      install(target === 'phone' ? iphoneInstallDevice : watchInstallDevice, appPath);
+    });
+    receipt.launches[target] = 'not-tested';
+  }
+  receipt.result = 'installed';
+} catch (error) {
+  receipt.result = 'failed';
+  receipt.error = error.message;
+  process.exitCode = 1;
+  console.error(error.message);
+} finally {
+  receipt.finishedAt = new Date().toISOString();
+  saveReceipt();
+  console.warn(
+    `Release evidence: ${receiptPath}. Launch checks are recorded separately; installation does not prove startup.`,
+  );
 }

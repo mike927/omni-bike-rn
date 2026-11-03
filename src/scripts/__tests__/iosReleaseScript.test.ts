@@ -1,4 +1,13 @@
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -22,6 +31,11 @@ function runReleaseScript(
   derivedDataPath: string;
   invocations: Invocation[];
   stderr: string;
+  receipt: {
+    result: string;
+    source: { digest: string };
+    launches: Record<string, string>;
+  };
   status: number | null;
 } {
   const testRoot = mkdtempSync(path.join(tmpdir(), 'omni-ios-release-'));
@@ -29,6 +43,8 @@ function runReleaseScript(
   const derivedDataPath = path.join(testRoot, 'derived-data');
   const invocationLog = path.join(testRoot, 'invocations.jsonl');
   const xcodebuildAttemptLog = path.join(testRoot, 'xcodebuild-attempts.txt');
+  const receiptDirectory = path.join(projectRoot, 'logs', 'releases');
+  const beforeReceipts = existsSync(receiptDirectory) ? new Set(readdirSync(receiptDirectory)) : new Set<string>();
   const xcrunAttemptLog = path.join(testRoot, 'xcrun-attempts.txt');
   mkdirSync(fakeBin);
   const fakeTool = `#!/usr/bin/env node
@@ -36,6 +52,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const command = path.basename(process.argv[1]);
 const args = process.argv.slice(2);
+if (command === 'xcodebuild' && args[0] === '-version') { process.stdout.write('Xcode TEST'); process.exit(0); }
+if (command === 'xcodebuild' && args.includes('clean')) process.exit(0);
+if (command === 'xcrun' && args[1] === 'list') { process.stdout.write('TEST-IPHONE TEST-WATCH'); process.exit(0); }
 fs.appendFileSync(process.env.OMNI_RELEASE_TEST_LOG, JSON.stringify({ command, args }) + '\\n');
 if (command === 'xcodebuild') {
   const attemptLog = process.env.OMNI_RELEASE_TEST_XCODEBUILD_ATTEMPT_LOG;
@@ -100,7 +119,18 @@ if (command === 'xcrun') {
           .map((line) => JSON.parse(line) as Invocation)
       : [];
 
-    return { derivedDataPath, invocations, stderr: result.stderr, status: result.status };
+    const receiptName = existsSync(receiptDirectory)
+      ? readdirSync(receiptDirectory).find((name) => !beforeReceipts.has(name))
+      : undefined;
+    const receipt = receiptName ? JSON.parse(readFileSync(path.join(receiptDirectory, receiptName), 'utf8')) : null;
+    if (receiptName) rmSync(path.join(receiptDirectory, receiptName));
+    return {
+      derivedDataPath,
+      invocations,
+      stderr: result.stderr,
+      status: result.status,
+      receipt,
+    };
   } finally {
     rmSync(testRoot, { force: true, recursive: true });
   }
@@ -148,7 +178,12 @@ describe('iOS standalone release scripts', () => {
   test('phone mode builds for the iPhone and installs only the phone app', () => {
     const result = runReleaseScript('phone');
 
-    expect(result).toMatchObject({ status: 0, stderr: '' });
+    expect(result).toMatchObject({ status: 0 });
+    expect(result.receipt).toMatchObject({
+      result: 'installed',
+      source: { digest: expect.any(String) },
+    });
+    expect(Object.values(result.receipt.launches)).toEqual(expect.arrayContaining(['not-tested']));
     expect(result.invocations).toEqual([
       buildInvocation('omnibikern', 'platform=iOS,id=IPHONE-UDID', result.derivedDataPath),
       installInvocation('TEST-IPHONE', '/Release-iphoneos/omnibikern\\.app$'),
@@ -158,7 +193,12 @@ describe('iOS standalone release scripts', () => {
   test('watch mode builds for the physical Watch and installs only the Watch app', () => {
     const result = runReleaseScript('watch');
 
-    expect(result).toMatchObject({ status: 0, stderr: '' });
+    expect(result).toMatchObject({ status: 0 });
+    expect(result.receipt).toMatchObject({
+      result: 'installed',
+      source: { digest: expect.any(String) },
+    });
+    expect(Object.values(result.receipt.launches)).toEqual(expect.arrayContaining(['not-tested']));
     expect(result.invocations).toEqual([
       buildInvocation('OmniBikeWatch Watch App', 'platform=watchOS,id=WATCH-UDID', result.derivedDataPath),
       installInvocation('TEST-WATCH', '/Release-watchos/OmniBikeWatch Watch App\\.app$'),
@@ -168,7 +208,12 @@ describe('iOS standalone release scripts', () => {
   test('both mode prepares both profiles before installing the matched pair phone first', () => {
     const result = runReleaseScript('both');
 
-    expect(result).toMatchObject({ status: 0, stderr: '' });
+    expect(result).toMatchObject({ status: 0 });
+    expect(result.receipt).toMatchObject({
+      result: 'installed',
+      source: { digest: expect.any(String) },
+    });
+    expect(Object.values(result.receipt.launches)).toEqual(expect.arrayContaining(['not-tested']));
     expect(result.invocations).toEqual([
       buildInvocation('omnibikern', 'platform=iOS,id=IPHONE-UDID', result.derivedDataPath),
       buildInvocation('OmniBikeWatch Watch App', 'platform=watchOS,id=WATCH-UDID', result.derivedDataPath),

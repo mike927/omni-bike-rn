@@ -21,7 +21,7 @@
     "test": "jest --passWithNoTests",
     "test:changed": "jest --changedSince=main",
     "test:watch-lifecycle": "d=$(mktemp -d /tmp/omni-watch-lifecycle.XXXXXX) && swiftc -swift-version 5 -default-isolation MainActor -o \"$d/tests\" 'ios/OmniBikeWatch Watch App/WatchLifecycle.swift' native-tests/WatchLifecycleTests.swift && \"$d/tests\"; status=$?; rm -rf \"$d\"; exit $status",
-    "ci:gate": "npm run lint && npm run typecheck && npm test -- --ci --runInBand",
+    "ci:gate": "npm run check:dependencies && npm run lint && npm run typecheck && npm run test:tooling && npm test -- --ci --runInBand",
     "build:smoke": "expo export -p ios -p android",
     "eas:build:android": "npx eas-cli build --platform android --profile preview",
     "eas:build:android:dev": "npx eas-cli build --platform android --profile development",
@@ -30,7 +30,11 @@
     "postinstall": "node scripts/postinstall.mjs",
     "prepare": "husky",
     "metro:reload": "node scripts/metro.mjs reload",
-    "metro:menu": "node scripts/metro.mjs menu"
+    "metro:menu": "node scripts/metro.mjs menu",
+    "check:dependencies": "node scripts/check-dependencies.mjs",
+    "audit:report": "node scripts/dependency-audit.mjs",
+    "test:tooling": "node --test scripts/__tests__/*.test.mjs",
+    "ios:release:evidence": "node scripts/check-release-evidence.mjs"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,mjs}": "eslint --fix --max-warnings 0",
@@ -119,5 +123,8 @@
         "listUnknownPackages": false
       }
     }
+  },
+  "engines": {
+    "node": "^24.3.0"
   }
 }
