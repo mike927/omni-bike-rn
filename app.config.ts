@@ -16,6 +16,17 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     supportsTablet: false,
     bundleIdentifier: 'app.omnibike',
     infoPlist: {
+      UIApplicationSceneManifest: {
+        UIApplicationSupportsMultipleScenes: false,
+        UISceneConfigurations: {
+          UIWindowSceneSessionRoleApplication: [
+            {
+              UISceneConfigurationName: 'Default Configuration',
+              UISceneDelegateClassName: 'EXExpoAppSceneDelegate',
+            },
+          ],
+        },
+      },
       // Required for HKHealthStore.startWatchApp(toHandle:) to reliably wake
       // the paired Watch companion app when starting a workout.
       LSApplicationCategoryType: 'public.app-category.healthcare-fitness',

@@ -6,6 +6,7 @@
 - [x] Update compatible stable development tooling and CI; verify installation and quality gate.
 - [x] Update and build iOS while preserving the Apple Watch companion target.
 - [x] Add phone-only, Watch-only and combined Release update commands with bounded device retries; verify combined build and installation on both physical devices.
+- [x] Adopt Expo's scene lifecycle support for Xcode 27 and verify standalone Release launch on the physical iPhone.
 - [ ] Verify BLE, HealthKit and WatchConnectivity on physical devices after the upgrade.
 
 Versions, verification evidence and remaining upstream diagnostics: [tech stack](docs/tech-stack.md).
@@ -208,6 +209,8 @@ Android is not actively supported today — the product is iOS-first (watchOS co
 ---
 
 ## Future Considerations
+
+- Remediate inherited dependency audit findings while preserving the supported Expo matrix. The 2026-11-03 online comparison reports 69 findings after the Expo patch versus 72 on `main`, with no new vulnerable package names or advisory IDs; both retain the critical `shell-quote` advisory. See [tech stack diagnostics](docs/tech-stack.md#known-upstream-diagnostics).
 
 - Validate the [audit hypotheses H01/H02](docs/audits/2026-09-05/hypotheses.md): cross-ride delayed Watch commands and reconnect distance fallback. These are unconfirmed; promote evidence-backed defects to individual audit issues before scheduling remediation.
 
