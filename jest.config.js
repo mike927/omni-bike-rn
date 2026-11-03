@@ -1,5 +1,6 @@
 module.exports = {
-  preset: '@react-native/jest-preset',
+  preset: 'jest-expo',
+  resolver: 'react-native-reanimated/jest/resolver',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   clearMocks: true,
   transformIgnorePatterns: [

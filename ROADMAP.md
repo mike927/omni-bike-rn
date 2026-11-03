@@ -13,6 +13,12 @@ Versions, verification evidence and remaining upstream diagnostics: [tech stack]
 
 Active development roadmap. Update states as work progresses.
 
+## Dependency security remediation — November 2026
+
+- [~] Upgrade to the supported Expo SDK 58 matrix and remove high/critical dependency findings. [Review and remaining blockers](docs/audits/2026-11-03-dependencies.md).
+- [ ] Replace the legacy HealthKit bridge call removed by React Native 0.88; the unsigned Release compile currently fails at `react-native-health` `setBridge:`.
+- [ ] Verify SDK 58 Release startup and phone/Watch behavior on physical devices; prior SDK 57 evidence is not sufficient.
+
 ## Codebase Audit Remediation — September 2026
 
 - [~] Resolve or explicitly disposition the [2026-09-05 audit issues](docs/audits/2026-09-05/README.md) (A01 to A12). Per-issue status and ownership live in each ticket; use `[~]` here when remediation starts and `[x]` only when every issue has a documented outcome. Still `[~]`: A01, A02, A04, A06 and A07 are Done, but A03, A05, A08, A09 and A10 hold unticked device-only acceptance boxes, A11 is Blocked on the same hardware, and A12 (filed during this run) is Not started.

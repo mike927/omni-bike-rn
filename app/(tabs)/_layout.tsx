@@ -30,8 +30,12 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           headerShown: false,
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? 'home' : 'home-outline'} size={size} color={color} />
+          tabBarIcon: ({ size, focused }) => (
+            <Ionicons
+              name={focused ? 'home' : 'home-outline'}
+              size={size}
+              color={focused ? noir.indigoText : noir.ink3}
+            />
           ),
         }}
       />
@@ -40,8 +44,12 @@ export default function TabLayout() {
         options={{
           title: 'History',
           headerShown: false,
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? 'time' : 'time-outline'} size={size} color={color} />
+          tabBarIcon: ({ size, focused }) => (
+            <Ionicons
+              name={focused ? 'time' : 'time-outline'}
+              size={size}
+              color={focused ? noir.indigoText : noir.ink3}
+            />
           ),
         }}
       />
@@ -50,8 +58,12 @@ export default function TabLayout() {
         options={{
           title: 'Settings',
           headerShown: false,
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? 'settings' : 'settings-outline'} size={size} color={color} />
+          tabBarIcon: ({ size, focused }) => (
+            <Ionicons
+              name={focused ? 'settings' : 'settings-outline'}
+              size={size}
+              color={focused ? noir.indigoText : noir.ink3}
+            />
           ),
         }}
       />

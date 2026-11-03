@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AppState, type AppStateStatus } from 'react-native';
+import { AppState } from 'react-native';
 
 import { releaseReconnectSchedules, syncBikeReconnect, syncHrReconnect } from '../reconnectController';
 import { useDeviceConnectionStore } from '../../../store/deviceConnectionStore';
@@ -29,7 +29,7 @@ import { useSavedGearStore } from '../../../store/savedGearStore';
  * strap's next probe when a bike change reconciles", and its mirror).
  */
 export function useAutoReconnectLifecycle(): void {
-  const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
+  const [appState, setAppState] = useState(AppState.currentState);
 
   const hydrated = useSavedGearStore((s) => s.hydrated);
   const savedBike = useSavedGearStore((s) => s.savedBike);

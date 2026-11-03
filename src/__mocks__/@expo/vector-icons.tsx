@@ -1,21 +1,17 @@
-import { View } from 'react-native';
+import { View, type ViewProps } from 'react-native';
 
 type IconProps = {
   name?: string;
   size?: number;
   color?: string;
   accessibilityLabel?: string;
-  accessibilityRole?: string;
+  accessibilityRole?: ViewProps['accessibilityRole'];
 };
 
 function createIconMock() {
   return function IconMock(props: IconProps) {
     return (
-      <View
-        accessible
-        accessibilityLabel={props.accessibilityLabel}
-        accessibilityRole={props.accessibilityRole as View['props']['accessibilityRole']}
-      />
+      <View accessible accessibilityLabel={props.accessibilityLabel} accessibilityRole={props.accessibilityRole} />
     );
   };
 }
