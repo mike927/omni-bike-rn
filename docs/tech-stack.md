@@ -5,8 +5,8 @@ Version audit: 2026-09-03. The target is the latest mutually compatible stable v
 | Layer | Version / tools |
 | --- | --- |
 | Mobile runtime | Expo SDK 57.0.31, React Native 0.86.3, React 19.2.3, Hermes V1 |
-| Navigation | Expo Router 57.0.18; screen-focus hooks imported from `expo-router` |
-| State and data | Zustand 5.0.15, Drizzle ORM 0.45.2 / Kit 0.31.10, Expo SQLite 57.0.2 |
+| Navigation | Expo Router 57.0.29; screen-focus hooks imported from `expo-router` |
+| State and data | Zustand 5.0.15, Drizzle ORM 0.45.2 / Kit 0.31.10, Expo SQLite 57.0.4 |
 | Animation | Reanimated 4.5.1, Worklets 0.10.1 |
 | Hardware | BLE PLX 3.5.1, react-native-health 1.19.0, local Swift Expo modules for workout export and WatchConnectivity |
 | Language / formatting | TypeScript 6.0.3, Babel 7.29.7, Prettier 3.9.6 |
@@ -18,6 +18,7 @@ Version audit: 2026-09-03. The target is the latest mutually compatible stable v
 ## Compatibility decisions
 
 - Keep React and React Native on the [Expo SDK 57 matrix](https://expo.dev/changelog/sdk-57). Do not separately upgrade React, Reanimated, Worklets or the native navigation packages beyond that matrix.
+- The Expo 57.0.31 update includes the companion-package patch versions recommended by its bundled matrix. `EXPO_OFFLINE=1 npm exec -- expo install --check` reports that dependencies are up to date; the configured Jest exclusions remain intentional.
 - React DOM 19.2.3 and Gesture Handler 2.32 satisfy Expo Router's transitive peer dependencies; `@react-native/metro-config` 0.86.3 satisfies Worklets. The old `legacy-peer-deps` setting is removed. Both clean `npm ci` and `npm ls --all` succeed without bypasses.
 - TypeScript 7 is outside the installed `@typescript-eslint/typescript-estree` peer range (`<6.1`). TypeScript 6 is the latest compatible major.
 - ESLint 10 is outside `eslint-plugin-react`'s supported peer range. ESLint 9 and Unicorn 65 are the latest compatible majors (Unicorn 66+ requires ESLint 10).
@@ -40,7 +41,7 @@ The splash plugin uses its supported `enableFullScreenImage_legacy` option to pr
 
 ## Verification
 
-Verified locally on 2026-11-03 after adopting the scene lifecycle:
+Verified locally on 2026-11-03 after adopting the scene lifecycle and aligning Expo's companion-package patches:
 
 - Expo 57.0.31 and its updated pods compile in Debug and Release for the physical iPhone 16 Pro and Apple Watch Ultra 2 targets, using the iPhoneOS 27.2 and watchOS 27.2 SDKs. A clean Xcode build replaces the stale embedded ExpoModulesJSI framework left by the previous dependency versions.
 - The exact `npm run ci:gate` passes in a clean snapshot of the tracked files: lint, TypeScript, and 117 test suites / 1204 tests. The snapshot uses the installed dependencies and excludes local worktrees and generated build products.
