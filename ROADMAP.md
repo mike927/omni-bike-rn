@@ -207,6 +207,12 @@ Android is not actively supported today — the product is iOS-first (watchOS co
 
 ---
 
+## Development verification
+
+- [x] Check the Expo matrix and installed dependency tree before builds and in CI; reuse `.nvmrc` for Node selection.
+- [x] Record source-bound Release build/install receipts, invalidate stale native caches, and retain untested launch status.
+- [x] Report dependency advisories by identity and path, fail on unavailable audit data, and exclude nested worktrees from lint.
+
 ## Future Considerations
 
 - Validate the [audit hypotheses H01/H02](docs/audits/2026-09-05/hypotheses.md): cross-ride delayed Watch commands and reconnect distance fallback. These are unconfirmed; promote evidence-backed defects to individual audit issues before scheduling remediation.
