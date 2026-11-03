@@ -4,9 +4,9 @@ Version audit: 2026-09-03. The target is the latest mutually compatible stable v
 
 | Layer | Version / tools |
 | --- | --- |
-| Mobile runtime | Expo SDK 57.0.19, React Native 0.86.3, React 19.2.3, Hermes V1 |
-| Navigation | Expo Router 57.0.18; screen-focus hooks imported from `expo-router` |
-| State and data | Zustand 5.0.15, Drizzle ORM 0.45.2 / Kit 0.31.10, Expo SQLite 57.0.2 |
+| Mobile runtime | Expo SDK 57.0.31, React Native 0.86.3, React 19.2.3, Hermes V1 |
+| Navigation | Expo Router 57.0.29; screen-focus hooks imported from `expo-router` |
+| State and data | Zustand 5.0.15, Drizzle ORM 0.45.2 / Kit 0.31.10, Expo SQLite 57.0.4 |
 | Animation | Reanimated 4.5.1, Worklets 0.10.1 |
 | Hardware | BLE PLX 3.5.1, react-native-health 1.19.0, local Swift Expo modules for workout export and WatchConnectivity |
 | Language / formatting | TypeScript 6.0.3, Babel 7.29.7, Prettier 3.9.6 |
@@ -18,6 +18,7 @@ Version audit: 2026-09-03. The target is the latest mutually compatible stable v
 ## Compatibility decisions
 
 - Keep React and React Native on the [Expo SDK 57 matrix](https://expo.dev/changelog/sdk-57). Do not separately upgrade React, Reanimated, Worklets or the native navigation packages beyond that matrix.
+- The Expo 57.0.31 update includes the companion-package patch versions recommended by its bundled matrix. `EXPO_OFFLINE=1 npm exec -- expo install --check` reports that dependencies are up to date; the configured Jest exclusions remain intentional.
 - React DOM 19.2.3 and Gesture Handler 2.32 satisfy Expo Router's transitive peer dependencies; `@react-native/metro-config` 0.86.3 satisfies Worklets. The old `legacy-peer-deps` setting is removed. Both clean `npm ci` and `npm ls --all` succeed without bypasses.
 - TypeScript 7 is outside the installed `@typescript-eslint/typescript-estree` peer range (`<6.1`). TypeScript 6 is the latest compatible major.
 - ESLint 10 is outside `eslint-plugin-react`'s supported peer range. ESLint 9 and Unicorn 65 are the latest compatible majors (Unicorn 66+ requires ESLint 10).
@@ -30,6 +31,8 @@ Version audit: 2026-09-03. The target is the latest mutually compatible stable v
 
 The iOS project is checked in and includes a manually maintained Watch target. Never run `expo prebuild --clean`, or bare `expo prebuild` (clean is the SDK 57 default). Native changes must preserve the Watch target, embedding, signing, bundle identifiers, iPhone product name `omnibikern`, and Watch device family `4`.
 
+Xcode 27 builds require the UIKit scene lifecycle to launch on iOS 27. The app follows [Expo's SDK 57 migration for a hand-managed iOS project](https://github.com/expo/fyi/blob/main/ios-scene-lifecycle.md#staying-on-sdk-57-with-xcode-27): Expo 57.0.31 provides `EXExpoAppSceneDelegate`, and `AppDelegate` supplies its React Native factory through `ExpoReactNativeFactoryProvider`. The scene delegate owns window creation and React Native startup. Keep the scene manifest in both `app.config.ts` and the checked-in `Info.plist`.
+
 `react-native-health` 1.19 calls `RCTCallableJSModules#setBridge`, which is absent from React Native's default precompiled core. The Podfile uses the [official source-build compatibility flags](https://reactnative.dev/blog/2026/02/11/react-native-0.84): `RCT_USE_PREBUILT_RNCORE=0` and `RCT_REMOVE_LEGACY_ARCH=0`. This retains the compatibility API while continuing to run the New Architecture. The first native build takes longer. No dependency source is patched.
 
 The app uses a custom development client, not Expo Go. A native rebuild is mandatory after this upgrade. `npm run build:smoke` only exports both JavaScript bundles and intentionally does not regenerate the native project.
@@ -37,6 +40,17 @@ The app uses a custom development client, not Expo Go. A native rebuild is manda
 The splash plugin uses its supported `enableFullScreenImage_legacy` option to preserve the previous full-screen aspect-fit layout. Regenerated PNGs have identical dimensions and pixel data to the original assets.
 
 ## Verification
+
+Verified locally on 2026-11-03 after adopting the scene lifecycle and aligning Expo's companion-package patches:
+
+- Expo 57.0.31 and its updated pods compile in Debug and Release for the physical iPhone 16 Pro and Apple Watch Ultra 2 targets, using the iPhoneOS 27.2 and watchOS 27.2 SDKs. A clean Xcode build replaces the stale embedded ExpoModulesJSI framework left by the previous dependency versions.
+- The exact `npm run ci:gate` passes in a clean snapshot of the tracked files: lint, TypeScript, and 117 test suites / 1204 tests. The snapshot uses the installed dependencies and excludes local worktrees and generated build products.
+- `npm run build:smoke` exports iOS and Android successfully. `npm ls --all` reports no dependency problems, and an isolated `npm ci --dry-run --offline --ignore-scripts --no-audit` validates the lockfile without reinstalling dependencies. The native Watch lifecycle checks and plist validation also pass.
+- With Metro stopped, the iPhone displays Home, backgrounds, and reopens successfully. Native logs show `appEntersBackground`, followed by `appEntersForeground` and `appBecomesActive`.
+- Companion presence is confirmed by `emitCompanionState available=true paired=true installed=true activationState=2 reachable=false`; Home shows Apple Watch as Ready.
+- The Release companion is installed on the physical Apple Watch Ultra 2 and displays `Waiting for ride` / `Start on iPhone`.
+
+These checks establish standalone startup and companion presence. They do not replace the ride, BLE, HealthKit, and HR transport checks below.
 
 Verified locally on 2026-09-04:
 
@@ -71,4 +85,4 @@ Expo Doctor reports two known issues at this stage:
 
 Neither warning is hidden; Expo Doctor reports 19/21 checks passing.
 
-`npm audit` reports 22 affected packages (21 moderate, 1 high; no critical). The high finding is the old `@xmldom/xmldom` in react-native-health's build-plugin dependency tree. Other findings include Drizzle's legacy esbuild tooling and Expo Router's query-string dependency. These are not a clean security audit. No forced major override or audit-suggested downgrade was applied; updating/replacing the upstream dependencies is follow-up work.
+Online lockfile audits on 2026-11-03 report 72 findings on `main` (1 low, 60 moderate, 10 high, 1 critical) and 69 after this Expo patch (1 low, 60 moderate, 7 high, 1 critical). No new vulnerable package names or advisory IDs were detected; the patch removes the `compression`, `node-forge`, and `source-map-js` findings. Both lockfiles retain the critical [shell-quote command-injection advisory](https://github.com/advisories/GHSA-pqg4-j6r4-53mv). This is not a clean security audit. Remaining dependency remediation is tracked in the roadmap; no forced major override or audit-suggested SDK upgrade was applied.

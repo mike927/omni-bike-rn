@@ -10,7 +10,19 @@ import unusedImports from 'eslint-plugin-unused-imports';
 
 export default [
   // ── Ignored paths (transient inputs not part of the app) ──
-  { ignores: ['design_handoff_*/**'] },
+  {
+    ignores: [
+      'design_handoff_*/**',
+      '**/.claude/worktrees/**',
+      '**/.worktrees/**',
+      '**/node_modules/**',
+      'ios/build/**',
+      'ios/Pods/**',
+      'android/**',
+      'dist/**',
+      'logs/**',
+    ],
+  },
 
   // ── Layer 1: Expo defaults (React, React Native, TypeScript, import rules) ──
   ...expoConfig,
