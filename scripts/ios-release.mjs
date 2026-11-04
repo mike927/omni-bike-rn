@@ -1,7 +1,8 @@
 /* eslint sonarjs/no-os-command-from-path: off -- These developer commands intentionally use the active toolchain on PATH. */
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, mkdirSync, writeFileSync, openSync, closeSync } from 'node:fs';
 import { captureSource } from './verification.mjs';
+import { readDeviceInfo, isTransientDeviceTransportError } from './apple-device.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -18,6 +19,7 @@ const watchInstallDevice = process.env.OMNI_WATCH_DEVICE ?? '31EEC0B4-4AEC-5124-
 const deviceRetryDelayMs = Number(process.env.OMNI_IOS_DEVICE_RETRY_DELAY_MS ?? 3000);
 const mode = process.argv[2] ?? 'both';
 const preflightOnly = process.argv.includes('--check');
+let commandCount = 0;
 const targets = mode === 'both' ? ['phone', 'watch'] : [mode];
 const schemes =
   mode === 'both'
@@ -56,12 +58,24 @@ function loadDotEnv() {
 }
 
 function run(command, args) {
-  process.stdout.write(`\n$ ${[command, ...args].join(' ')}\n`);
-  execFileSync(command, args, {
-    cwd: projectRoot,
-    env: process.env,
-    stdio: 'inherit',
-  });
+  commandCount += 1;
+  const logPath = receiptPath.replace(/\.json$/, `-${commandCount}.log`);
+  const descriptor = openSync(logPath, 'w');
+  const step = receipt.steps.at(-1);
+  step.logs ??= [];
+  step.logs.push(logPath);
+  process.stdout.write(`Running ${path.basename(command)}; detailed output: ${logPath}\n`);
+  try {
+    execFileSync(command, args, { cwd: projectRoot, env: process.env, stdio: ['ignore', descriptor, descriptor] });
+  } catch (error) {
+    const lines = readFileSync(logPath, 'utf8').split('\n');
+    const errors = lines.filter((line) => line.includes('error:') || line.includes('FAILED')).slice(-8);
+    const excerpt = [...new Set([...errors, ...lines.slice(-8)])].map((line) => line.slice(0, 300));
+    process.stderr.write(excerpt.join('\n') + '\n');
+    throw error;
+  } finally {
+    closeSync(descriptor);
+  }
 }
 
 function runCaptured(command, args) {
@@ -80,18 +94,6 @@ function runCaptured(command, args) {
     process.stderr.write(error.stderr?.toString() ?? '');
     throw error;
   }
-}
-
-function isTransientDeviceTransportError(error) {
-  const output = [error.message, error.stdout?.toString(), error.stderr?.toString()].filter(Boolean).join('\n');
-
-  return [
-    /CoreDeviceError error 4000\b/,
-    /IXRemoteErrorDomain error [56]\b/,
-    /RemotePairingError error 1001/,
-    /com\.apple\.remote\.installcoordination_proxy/,
-    /Timed out waiting for CoreDeviceService/,
-  ].some((pattern) => pattern.test(output));
 }
 
 function waitBeforeDeviceRetry() {
@@ -173,22 +175,6 @@ function assertSigningIdentity() {
       'No valid code-signing identity. Open Xcode → Settings → Accounts and configure an Apple Development certificate for the project team.',
     );
   }
-}
-
-function readDeviceInfo(device, category) {
-  const output = readCommand('xcrun', [
-    'devicectl',
-    'device',
-    'info',
-    category,
-    '--device',
-    device,
-    '--timeout',
-    '15',
-    '--json-output',
-    '-',
-  ]);
-  return JSON.parse(output).result;
 }
 
 function assertDeviceReady(target, device) {
@@ -276,6 +262,7 @@ function recordStep(stage, action) {
   const step = { stage, status: 'running' };
   receipt.steps.push(step);
   saveReceipt();
+  process.stderr.write(`[release] ${stage}: running\n`);
   try {
     action();
     step.status = 'passed';
@@ -284,6 +271,7 @@ function recordStep(stage, action) {
     throw error;
   } finally {
     saveReceipt();
+    process.stderr.write(`[release] ${stage}: ${step.status}\n`);
   }
 }
 
@@ -294,6 +282,9 @@ try {
   );
   console.warn(
     'Xcode must be signed in to the project team. Keep requested devices unlocked with Developer Mode enabled, and trust this Mac/developer certificate. Prefer a USB-connected iPhone; keep the Watch nearby. Metro is not required.',
+  );
+  console.warn(
+    'Keep the devices awake through installation and log verification. If Auto-Lock interrupts the run, temporarily set iOS Settings → Display & Brightness → Auto-Lock → Never, then restore it afterward.',
   );
   recordStep('xcode', () => {
     try {

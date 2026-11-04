@@ -33,6 +33,7 @@ function runReleaseScript(
     signingIdentities?: number;
     deviceProblem?: 'locked' | 'unpaired' | 'developer-mode' | 'offline' | 'simulator';
     checkOnly?: boolean;
+    readinessFailures?: number;
   } = {},
 ): {
   derivedDataPath: string;
@@ -54,6 +55,7 @@ function runReleaseScript(
   const receiptDirectory = path.join(fixtureRoot, 'logs', 'releases');
   const beforeReceipts = existsSync(receiptDirectory) ? new Set(readdirSync(receiptDirectory)) : new Set<string>();
   const xcrunAttemptLog = path.join(testRoot, 'xcrun-attempts.txt');
+  const readinessAttemptLog = path.join(testRoot, 'readiness-attempts.txt');
   mkdirSync(path.join(fixtureRoot, 'scripts'), { recursive: true });
   mkdirSync(path.join(fixtureRoot, 'ios', 'omnibikern.xcworkspace'), { recursive: true });
   mkdirSync(path.join(fixtureRoot, 'ios', 'Pods'), { recursive: true });
@@ -66,7 +68,7 @@ function runReleaseScript(
     path.join(fixtureRoot, 'ios/Pods/Manifest.lock'),
     options.stalePods ? 'PODS: old\n' : 'PODS: current\n',
   );
-  for (const script of ['ios-release.mjs', 'verification.mjs']) {
+  for (const script of ['ios-release.mjs', 'verification.mjs', 'watch-log.mjs', 'apple-device.mjs']) {
     copyFileSync(path.join(projectRoot, 'scripts', script), path.join(fixtureRoot, 'scripts', script));
   }
   mkdirSync(fakeBin);
@@ -87,6 +89,13 @@ if (command === 'xcodebuild' && args.includes('-list')) {
 if (command === 'xcodebuild' && args.includes('clean')) process.exit(0);
 if (command === 'xcrun' && args[1] === 'list') { process.stdout.write('TEST-IPHONE TEST-WATCH'); process.exit(0); }
 if (command === 'xcrun' && args.includes('info')) {
+  const readinessLog = process.env.OMNI_RELEASE_TEST_READINESS_LOG;
+  const readinessAttempt = fs.existsSync(readinessLog) ? Number(fs.readFileSync(readinessLog, 'utf8')) + 1 : 1;
+  fs.writeFileSync(readinessLog, String(readinessAttempt));
+  if (readinessAttempt <= Number(process.env.OMNI_RELEASE_TEST_READINESS_FAILURES)) {
+    process.stderr.write('ERROR: Command timeout of 15.0 seconds exceeded. Assuming command got stuck and aborting.');
+    process.exit(2);
+  }
   const device = args[args.indexOf('--device') + 1];
   const problem = device === 'TEST-WATCH' ? process.env.OMNI_RELEASE_TEST_DEVICE_PROBLEM : '';
   if (problem === 'offline') { process.stderr.write('Connection could not be established'); process.exit(1); }
@@ -152,6 +161,8 @@ if (command === 'xcrun') {
         ),
         OMNI_RELEASE_TEST_IDENTITIES: String(options.signingIdentities ?? 1),
         OMNI_RELEASE_TEST_DEVICE_PROBLEM: options.deviceProblem ?? '',
+        OMNI_RELEASE_TEST_READINESS_LOG: readinessAttemptLog,
+        OMNI_RELEASE_TEST_READINESS_FAILURES: String(options.readinessFailures ?? 0),
         OMNI_RELEASE_TEST_XCODEBUILD_ATTEMPT_LOG: xcodebuildAttemptLog,
         OMNI_RELEASE_TEST_XCODEBUILD_FAILURES: String(options.xcodebuildFailures ?? 0),
         OMNI_RELEASE_TEST_XCODEBUILD_FAILURE_STATUS: String(options.xcodebuildFailureStatus ?? 1),
@@ -172,7 +183,7 @@ if (command === 'xcrun') {
       : [];
 
     const receiptName = existsSync(receiptDirectory)
-      ? readdirSync(receiptDirectory).find((name) => !beforeReceipts.has(name))
+      ? readdirSync(receiptDirectory).find((name) => name.endsWith('.json') && !beforeReceipts.has(name))
       : undefined;
     const receipt = receiptName ? JSON.parse(readFileSync(path.join(receiptDirectory, receiptName), 'utf8')) : null;
     if (receiptName) rmSync(path.join(receiptDirectory, receiptName));
@@ -214,6 +225,18 @@ function installInvocation(device: string, appPathSuffix: string): Invocation {
 }
 
 describe('iOS standalone release scripts', () => {
+  test('recovers from one transient readiness timeout before building', () => {
+    const execution = runReleaseScript('both', { checkOnly: true, readinessFailures: 1 });
+    expect(execution.status).toBe(0);
+    expect(execution.receipt.result).toBe('preflight-passed');
+  });
+
+  test('stops after two readiness timeouts without compiling or installing', () => {
+    const execution = runReleaseScript('both', { readinessFailures: 2 });
+    expect(execution.status).not.toBe(0);
+    expect(execution.invocations).toEqual([]);
+    expect(execution.stderr).toContain('retrying details (2/2)');
+  });
   test.each([
     ['unpaired', 'not paired with this Mac'],
     ['developer-mode', 'Enable Developer Mode'],

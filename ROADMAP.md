@@ -7,6 +7,7 @@
 - [x] Update and build iOS while preserving the Apple Watch companion target.
 - [x] Add phone-only, Watch-only and combined Release update commands with bounded device retries; verify combined build and installation on both physical devices.
 - [x] Add release preflight checks for native setup, signing and live physical-device readiness, with a check-only command and actionable failures before building.
+- [x] Add reusable Watch diagnostics, validate attached startup evidence, and streamline device preflight and build output after the companion-availability incident.
 - [x] Adopt Expo's scene lifecycle support for Xcode 27, align its SDK 57 companion-package patches, and verify standalone Release launch on the physical iPhone.
 - [ ] Verify BLE, HealthKit and WatchConnectivity on physical devices after the upgrade.
 

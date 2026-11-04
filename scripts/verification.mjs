@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, lstatSync } from 'node:fs';
 import path from 'node:path';
+import { parseWatchLog, WATCH_BUNDLE_IDS } from './watch-log.mjs';
 
 const hash = (value) => createHash('sha256').update(value).digest('hex');
 
@@ -55,13 +56,55 @@ export function captureSource(root) {
 
 export function validateEvidence(root, receipt) {
   const current = captureSource(root).digest === receipt.source.digest;
+  const targets = receipt.mode === 'both' ? ['phone', 'watch'] : [receipt.mode];
+  const evidence = Object.fromEntries(targets.map((target) => [target, validateLaunchEvidence(root, receipt, target)]));
   return {
     current,
     launchVerified:
       current &&
       receipt.result === 'installed' &&
-      (receipt.mode === 'both' ? ['phone', 'watch'] : [receipt.mode]).every(
-        (target) => receipt.launches[target] === 'verified',
-      ),
+      targets.every((target) => receipt.launches?.[target] === 'verified' && evidence[target].valid),
+    companionVerified:
+      current &&
+      receipt.result === 'installed' &&
+      evidence.phone?.valid === true &&
+      evidence.phone.companion?.available === true &&
+      evidence.phone.companion?.paired === true &&
+      evidence.phone.companion?.installed === true &&
+      evidence.phone.companion?.activationState === 2,
+    evidence,
   };
+}
+
+function validateLaunchEvidence(root, receipt, target) {
+  const saved = receipt.launchEvidence?.[target];
+  if (!saved || typeof saved !== 'object' || !saved.path) {
+    return { valid: false, reason: 'Capture device logs with npm run watch:diagnose -- --receipt <receipt.json>.' };
+  }
+  if (saved.device !== receipt.devices?.[target] || saved.bundleId !== WATCH_BUNDLE_IDS[target]) {
+    return { valid: false, reason: 'Evidence device or bundle does not match the release receipt.' };
+  }
+  try {
+    const contents = readFileSync(path.resolve(root, saved.path));
+    if (hash(contents) !== saved.sha256) {
+      return { valid: false, reason: 'Evidence log changed after capture.' };
+    }
+    const parsed = parseWatchLog(contents.toString(), target);
+    const installedAt = Date.parse(receipt.finishedAt);
+    const startedAt = Date.parse(parsed.startedAt);
+    const capturedAt = Date.parse(saved.capturedAt);
+    if (
+      ![installedAt, startedAt, capturedAt].every(Number.isFinite) ||
+      startedAt < installedAt ||
+      capturedAt < startedAt
+    ) {
+      return { valid: false, reason: 'Evidence must show an app launch after this installation.' };
+    }
+    if (!parsed.startupVerified) {
+      return { valid: false, reason: 'Evidence does not show successful app startup and WCSession activation.' };
+    }
+    return { valid: true, startedAt: parsed.startedAt, companion: parsed.companion };
+  } catch {
+    return { valid: false, reason: 'Evidence log cannot be read.' };
+  }
 }
