@@ -1,6 +1,6 @@
 # Development verification
 
-Use Node 24 (`nvm use`, or your version manager's equivalent). CI reads `.nvmrc`.
+Use Node 24 (`fnm use`, `nvm use`, or your version manager's equivalent). CI reads `.nvmrc`.
 
 ## Dependency changes
 
@@ -14,6 +14,22 @@ Inspect summaries before full dependency trees. Save verbose build and package-m
 ## Physical Release builds
 
 Run `npm run ios:release` (both devices), `ios:release:phone`, or `ios:release:watch`. The command prints Node/Xcode versions, destinations and the DerivedData directory before building. Device discovery does not imply readiness: an unavailable or locked device can still prevent the subsequent build/install.
+
+Run `npm run ios:release:check` to check prerequisites without building or installing. For one device, use `npm run ios:release:phone -- --check` or `npm run ios:release:watch -- --check`. The same preflight runs automatically before every Release build and saves its outcome in the release receipt.
+
+| Prerequisite | Automatic check / action |
+| --- | --- |
+| Node 24.3+ on the 24 line; healthy installed dependency tree aligned with Expo | Dependency validation; run `npm ci` after lockfile changes |
+| Full Xcode selected, initial setup and license completed | `xcodebuild -version`; select the full Xcode installation with `xcode-select` |
+| Installed Pods match `ios/Podfile.lock` | Compare `Pods/Manifest.lock`; run `cd ios && pod install --no-repo-update` when missing or stale |
+| Checked-in workspace and requested shared schemes exist | Query Xcode schemes; restore missing checked-in native files without clean prebuild |
+| Valid code-signing identity in the keychain | Query valid signing identities; configure the project team in Xcode → Settings → Accounts |
+| Requested physical devices paired with this Mac; Developer Mode enabled | Query each requested device; after enabling Developer Mode, restart and confirm Turn On |
+| Requested devices unlocked and reachable | Live lock-state query with a 15-second timeout; unlock and keep awake until installation finishes |
+
+Keep the iPhone connected by USB when possible and the Watch nearby. Trust this Mac on the devices. Xcode must be signed in to the correct project team; provisioning renewal can still need network access. The devices must meet the configured deployment targets, and Xcode must support their installed OS versions. Developer-certificate trust on the device, matching provisioning profiles, OS/destination compatibility and continued connectivity are established by the subsequent build/install/launch operations, not guaranteed by this preflight. Metro is not needed or started by these Release commands.
+
+The shared Watch scheme is checked in. Its default build destination is `generic/platform=watchOS`, which compiles for physical Watch hardware without waiting for a device tunnel. Installation still requires the paired Watch to be unlocked and reachable. `OMNI_WATCH_XCODE_DESTINATION` can override the build destination; `OMNI_WATCH_DEVICE` selects the installation device independently.
 
 A changed native input fingerprint or Xcode/Node version triggers Xcode's `clean` action before building. This cleans compiled products, never the checked-in native project. Native inputs include lockfiles, iOS sources, local modules, config, and plugins.
 

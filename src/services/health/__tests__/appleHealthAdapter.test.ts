@@ -36,15 +36,18 @@ jest.mock('apple-health-workout', () => ({
     saveCyclingWorkout: jest.fn(),
     requestHealthKitAuthorization: jest.fn(() => Promise.resolve()),
     queryBasalEnergyKcal: jest.fn(() => Promise.resolve(0)),
+    getBiologicalSex: jest.fn(() => Promise.resolve(null)),
+    getDateOfBirth: jest.fn(() => Promise.resolve(null)),
+    getLatestWeightKg: jest.fn(() => Promise.resolve(null)),
+    getLatestHeightCm: jest.fn(() => Promise.resolve(null)),
+    getWriteAuthorizationStatus: jest.fn(() => ({ HKWorkoutTypeIdentifier: 2 })),
   },
 }));
 
-const mockInit = jest.fn();
-const mockGetAuthStatus = jest.fn();
-const mockGetBiologicalSex = jest.fn();
-const mockGetDateOfBirth = jest.fn();
-const mockGetLatestWeight = jest.fn();
-const mockGetLatestHeight = jest.fn();
+const mockGetBiologicalSex = AppleHealthWorkout.getBiologicalSex as jest.Mock;
+const mockGetDateOfBirth = AppleHealthWorkout.getDateOfBirth as jest.Mock;
+const mockGetLatestWeight = AppleHealthWorkout.getLatestWeightKg as jest.Mock;
+const mockGetLatestHeight = AppleHealthWorkout.getLatestHeightCm as jest.Mock;
 const mockSaveCyclingWorkout = AppleHealthWorkout.saveCyclingWorkout as jest.Mock;
 const mockRequestAuth = AppleHealthWorkout.requestHealthKitAuthorization as jest.Mock;
 const mockQueryBasalEnergyKcal = AppleHealthWorkout.queryBasalEnergyKcal as jest.Mock;
@@ -94,22 +97,12 @@ beforeEach(() => {
   mockAppleHealthAvailable = true;
   jest.clearAllMocks();
   __resetHealthKitInitPromiseForTests();
-  NativeModules.AppleHealthKit = {
-    initHealthKit: mockInit,
-    getAuthStatus: mockGetAuthStatus,
-    getBiologicalSex: mockGetBiologicalSex,
-    getDateOfBirth: mockGetDateOfBirth,
-    getLatestWeight: mockGetLatestWeight,
-    getLatestHeight: mockGetLatestHeight,
-  };
-  mockGetAuthStatus.mockImplementation((_permissions, callback) =>
-    callback(null, {
-      permissions: {
-        read: [],
-        write: [2, 2, 2, 2],
-      },
-    }),
-  );
+  delete NativeModules.AppleHealthKit;
+  mockRequestAuth.mockResolvedValue(undefined);
+  mockGetBiologicalSex.mockResolvedValue(null);
+  mockGetDateOfBirth.mockResolvedValue(null);
+  mockGetLatestWeight.mockResolvedValue(null);
+  mockGetLatestHeight.mockResolvedValue(null);
   // Default: native basal query returns 0 so Apple Fitness renders Active = Total
   // for tests that don't care about the split.
   mockQueryBasalEnergyKcal.mockResolvedValue(0);
@@ -119,21 +112,22 @@ beforeEach(() => {
 });
 
 describe('initWithWritePermissions', () => {
-  // Regression guard: a fresh install used to hang on "Connecting..." because
-  // authorization was split into two back-to-back HealthKit sheets — the
-  // react-native-health `initHealthKit` request plus a separate native cycling
-  // request — and iOS never completed the second sheet presented mid-dismissal
-  // of the first. The native module now requests every type in one sheet, so
-  // react-native-health's `initHealthKit` must NOT be invoked here.
-  it('requests authorization through a single native sheet, not react-native-health initHealthKit', async () => {
+  it('requests authorization through a single native sheet without the legacy module', async () => {
     await expect(initWithWritePermissions()).resolves.toBeUndefined();
     expect(mockRequestAuth).toHaveBeenCalledTimes(1);
-    expect(mockInit).not.toHaveBeenCalled();
   });
 
   it('rejects when native authorization fails', async () => {
     mockRequestAuth.mockRejectedValueOnce(new Error('auth denied'));
     await expect(initWithWritePermissions()).rejects.toThrow('auth denied');
+  });
+
+  it('keeps authorization successful when optional write-status diagnostics fail', async () => {
+    (AppleHealthWorkout.getWriteAuthorizationStatus as jest.Mock).mockImplementationOnce(() => {
+      throw new Error('Status unavailable');
+    });
+
+    await expect(initWithWritePermissions()).resolves.toBeUndefined();
   });
 
   it('clears the memoized promise on failure so a later attempt can retry', async () => {
@@ -391,91 +385,95 @@ describe('saveWorkout pause history', () => {
 });
 
 describe('profile reads', () => {
-  it('getBiologicalSex returns "male" / "female" and null otherwise', async () => {
-    mockGetBiologicalSex.mockImplementationOnce((_o, cb) => cb(null, { value: 'male' }));
+  it('reads biological sex through the local module without the legacy bridge', async () => {
+    mockGetBiologicalSex.mockResolvedValueOnce('female');
+    await expect(getBiologicalSex()).resolves.toBe('female');
+  });
+
+  it('getBiologicalSex returns male or female and null for unsupported or denied values', async () => {
+    mockGetBiologicalSex.mockResolvedValueOnce('male');
     expect(await getBiologicalSex()).toBe('male');
-    mockGetBiologicalSex.mockImplementationOnce((_o, cb) => cb(null, { value: 'female' }));
+    mockGetBiologicalSex.mockResolvedValueOnce('female');
     expect(await getBiologicalSex()).toBe('female');
-    mockGetBiologicalSex.mockImplementationOnce((_o, cb) => cb(null, { value: 'other' }));
+    mockGetBiologicalSex.mockResolvedValueOnce('other');
     expect(await getBiologicalSex()).toBeNull();
-    mockGetBiologicalSex.mockImplementationOnce((_o, cb) => cb(null, { value: 'unknown' }));
+    mockGetBiologicalSex.mockResolvedValueOnce(null);
     expect(await getBiologicalSex()).toBeNull();
-    mockGetBiologicalSex.mockImplementationOnce((_o, cb) => cb('denied', null as never));
+    mockGetBiologicalSex.mockRejectedValueOnce(new Error('denied'));
     expect(await getBiologicalSex()).toBeNull();
   });
 
-  it('getDateOfBirth slices to yyyy-mm-dd and returns null on absent or empty value', async () => {
-    mockGetDateOfBirth.mockImplementationOnce((_o, cb) => cb(null, { value: '1985-03-10T00:00:00.000Z', age: 41 }));
+  it('getDateOfBirth keeps the date portion and returns null for absent or denied values', async () => {
+    mockGetDateOfBirth.mockResolvedValueOnce('1985-03-10T00:00:00.000Z');
     expect(await getDateOfBirth()).toBe('1985-03-10');
-    mockGetDateOfBirth.mockImplementationOnce((_o, cb) => cb(null, { value: null, age: null }));
+    mockGetDateOfBirth.mockResolvedValueOnce(null);
     expect(await getDateOfBirth()).toBeNull();
-    mockGetDateOfBirth.mockImplementationOnce((_o, cb) => cb('boom', null as never));
+    mockGetDateOfBirth.mockResolvedValueOnce('');
+    expect(await getDateOfBirth()).toBeNull();
+    mockGetDateOfBirth.mockRejectedValueOnce(new Error('denied'));
     expect(await getDateOfBirth()).toBeNull();
   });
 
-  it('getLatestWeightKg requests kg unit and returns positive numbers, null otherwise', async () => {
-    mockGetLatestWeight.mockImplementationOnce((opts, cb) => {
-      expect(opts).toEqual({ unit: 'kg' });
-      cb(null, { value: 80.5 });
-    });
+  it('getLatestWeightKg returns positive finite kilograms and null otherwise', async () => {
+    mockGetLatestWeight.mockResolvedValueOnce(80.5);
     expect(await getLatestWeightKg()).toBe(80.5);
-    mockGetLatestWeight.mockImplementationOnce((_o, cb) => cb(null, { value: 0 }));
+    mockGetLatestWeight.mockResolvedValueOnce(0);
     expect(await getLatestWeightKg()).toBeNull();
-    mockGetLatestWeight.mockImplementationOnce((_o, cb) => cb('no sample', null as never));
+    mockGetLatestWeight.mockResolvedValueOnce(Number.NaN);
+    expect(await getLatestWeightKg()).toBeNull();
+    mockGetLatestWeight.mockRejectedValueOnce(new Error('no sample'));
     expect(await getLatestWeightKg()).toBeNull();
   });
 
-  it('getLatestHeightCm requests cm unit and returns positive numbers, null otherwise', async () => {
-    mockGetLatestHeight.mockImplementationOnce((opts, cb) => {
-      expect(opts).toEqual({ unit: 'cm' });
-      cb(null, { value: 178 });
-    });
+  it('getLatestHeightCm returns positive finite centimeters and null otherwise', async () => {
+    mockGetLatestHeight.mockResolvedValueOnce(178);
     expect(await getLatestHeightCm()).toBe(178);
-    mockGetLatestHeight.mockImplementationOnce((_o, cb) => cb(null, { value: 0 }));
+    mockGetLatestHeight.mockResolvedValueOnce(0);
     expect(await getLatestHeightCm()).toBeNull();
-    mockGetLatestHeight.mockImplementationOnce((_o, cb) => cb('no sample', null as never));
+    mockGetLatestHeight.mockResolvedValueOnce(Number.POSITIVE_INFINITY);
+    expect(await getLatestHeightCm()).toBeNull();
+    mockGetLatestHeight.mockRejectedValueOnce(new Error('no sample'));
     expect(await getLatestHeightCm()).toBeNull();
   });
 
   it('loadProfileFromAppleHealth aggregates only the populated fields', async () => {
-    mockGetBiologicalSex.mockImplementation((_o, cb) => cb(null, { value: 'male' }));
-    mockGetDateOfBirth.mockImplementation((_o, cb) => cb(null, { value: '1985-03-10T00:00:00.000Z', age: 41 }));
-    mockGetLatestWeight.mockImplementation((_o, cb) => cb(null, { value: 80 }));
-    mockGetLatestHeight.mockImplementation((_o, cb) => cb('no sample', null as never));
+    mockGetBiologicalSex.mockResolvedValue('male');
+    mockGetDateOfBirth.mockResolvedValue('1985-03-10');
+    mockGetLatestWeight.mockResolvedValue(80);
+    mockGetLatestHeight.mockRejectedValue(new Error('no sample'));
 
     const partial = await loadProfileFromAppleHealth();
     expect(partial).toEqual({ sex: 'male', dateOfBirth: '1985-03-10', weightKg: 80 });
   });
 
-  it('loadProfileFromAppleHealth awaits authorization before reading characteristics', async () => {
-    const callOrder: string[] = [];
-    mockRequestAuth.mockImplementation(() => {
-      callOrder.push('auth');
-      return new Promise<void>((resolve) => setTimeout(resolve, 0));
-    });
-    mockGetBiologicalSex.mockImplementation((_o, cb) => {
-      callOrder.push('getBiologicalSex');
-      cb(null, { value: 'female' });
-    });
-    mockGetDateOfBirth.mockImplementation((_o, cb) => cb(null, { value: '1990-01-01T00:00:00.000Z', age: 36 }));
-    mockGetLatestWeight.mockImplementation((_o, cb) => cb(null, { value: 60 }));
-    mockGetLatestHeight.mockImplementation((_o, cb) => cb(null, { value: 165 }));
+  it('loadProfileFromAppleHealth waits for authorization to finish before reading characteristics', async () => {
+    let authorize: (() => void) | undefined;
+    mockRequestAuth.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          authorize = resolve;
+        }),
+    );
+    mockGetBiologicalSex.mockResolvedValue('female');
+    mockGetDateOfBirth.mockResolvedValue('1990-01-01');
+    mockGetLatestWeight.mockResolvedValue(60);
+    mockGetLatestHeight.mockResolvedValue(165);
 
-    await loadProfileFromAppleHealth();
-    expect(callOrder[0]).toBe('auth');
-    expect(callOrder).toContain('getBiologicalSex');
-    expect(callOrder.indexOf('auth')).toBeLessThan(callOrder.indexOf('getBiologicalSex'));
+    const loading = loadProfileFromAppleHealth();
+    expect(mockGetBiologicalSex).not.toHaveBeenCalled();
+    authorize?.();
+
+    await expect(loading).resolves.toEqual({ sex: 'female', dateOfBirth: '1990-01-01', weightKg: 60, heightCm: 165 });
   });
 
   it('initWithWritePermissions memoizes a single in-flight prompt across concurrent callers', async () => {
-    mockRequestAuth.mockImplementation(() => new Promise<void>((resolve) => setTimeout(resolve, 0)));
-    mockGetBiologicalSex.mockImplementation((_o, cb) => cb(null, { value: 'male' }));
-    mockGetDateOfBirth.mockImplementation((_o, cb) => cb(null, { value: '1985-03-10T00:00:00.000Z', age: 41 }));
-    mockGetLatestWeight.mockImplementation((_o, cb) => cb(null, { value: 80 }));
-    mockGetLatestHeight.mockImplementation((_o, cb) => cb(null, { value: 180 }));
+    mockRequestAuth.mockImplementationOnce(() => new Promise<void>((resolve) => setTimeout(resolve, 0)));
+    mockGetBiologicalSex.mockResolvedValue('male');
+    mockGetDateOfBirth.mockResolvedValue('1985-03-10');
+    mockGetLatestWeight.mockResolvedValue(80);
+    mockGetLatestHeight.mockResolvedValue(180);
 
     await Promise.all([initWithWritePermissions(), loadProfileFromAppleHealth(), initWithWritePermissions()]);
     expect(mockRequestAuth).toHaveBeenCalledTimes(1);
-    expect(mockInit).not.toHaveBeenCalled();
   });
 });

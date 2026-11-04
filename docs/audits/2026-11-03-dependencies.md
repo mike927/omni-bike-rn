@@ -22,10 +22,18 @@ Fresh online audit after main integration: **48 findings: 6 low, 42 moderate, 0 
 
 No advisory is suppressed and this is not a zero-vulnerability result. `npm run audit:report` retains all findings. Baseline acceptance is not used to claim remediation.
 
-## Validation
+## Validation at MR #123 merge
 
 - Clean Node 24 install, installed Expo matrix, and npm dependency tree pass.
 - The upload regression test passes after a verified red/green cycle.
 - iOS and Android bundle exports and Drizzle migration checks pass.
 - Full quality gate passes: lint, TypeScript, three tooling checks, and 117 suites / 1,205 tests. Unsigned Release compilation for physical device architectures **fails** in `react-native-health/RCTAppleHealthKit/RCTAppleHealthKit.m:844`: `RCTCallableJSModules` no longer declares `setBridge:` in React Native 0.88.1. The older source-build compatibility flags do not restore this API. This is a merge blocker; the HealthKit integration must migrate to a supported implementation before shipping SDK 58. No dependency source is patched.
 - No SDK 58 app has been installed or launch-verified on the physical iPhone/Watch. SDK 57 startup evidence does not establish SDK 58 behavior.
+
+## Native build follow-up — 2026-11-04
+
+The existing local `apple-health-workout` Expo module now handles the four profile reads and write-authorization diagnostics. `react-native-health` and its compatibility flags are removed. The signed iPhone Release build and the physical-hardware Watch Release build both pass. The shared Watch scheme is checked in; its build uses `generic/platform=watchOS` so compilation does not require an active device tunnel. Installation and runtime checks still require connected physical devices.
+
+The migration and release preflight pass the full quality gate (117 suites / 1,218 tests), including profile reads with no legacy module present. The Watch destination regression test separately reproduces the old physical-device build destination and passes with the generic hardware destination. No dependency source is patched.
+
+Phone-only, Watch-only and combined Release commands built and installed on the physical iPhone 16 Pro and Apple Watch Ultra 2. Both apps launched with Metro stopped; the user confirmed the normal Home and waiting-for-ride screens remain open. Fresh native logs confirm companion presence and Watch activation. The preflight also passed on both devices and rejected a locked iPhone before building. These checks establish standalone startup; profile import, ride telemetry and workout export still need functional device checks.
