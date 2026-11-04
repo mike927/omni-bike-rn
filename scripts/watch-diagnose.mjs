@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, realpathSync } from 'node:fs';
 import { execFileSync, spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { readDeviceInfo, runDeviceCommand } from './apple-device.mjs';
@@ -27,7 +27,30 @@ if (receipt && (!validateEvidence(projectRoot, receipt).current || receipt.resul
   throw new Error('The release receipt must describe an installed build of the current source.');
 }
 const capturedAt = new Date().toISOString();
-const outputDirectory = path.resolve(options.output ?? path.join('logs', 'watch-diagnostics', String(Date.now())));
+const requestedOutput = path.resolve(options.output ?? path.join('logs', 'watch-diagnostics', String(Date.now())));
+let existingAncestor = requestedOutput;
+const missingSegments = [];
+while (!existsSync(existingAncestor)) {
+  missingSegments.unshift(path.basename(existingAncestor));
+  existingAncestor = path.dirname(existingAncestor);
+}
+const outputDirectory = path.join(realpathSync(existingAncestor), ...missingSegments);
+const relativeOutput = path.relative(projectRoot, outputDirectory);
+if (relativeOutput !== '..' && !relativeOutput.startsWith(`..${path.sep}`) && !path.isAbsolute(relativeOutput)) {
+  const generatedPaths = ['phone.log', 'watch.log', 'summary.json'].map((name) => path.join(outputDirectory, name));
+  const unignoredPath = generatedPaths.find(
+    (filename) =>
+      // eslint-disable-next-line sonarjs/no-os-command-from-path -- Git resolves this repository's output ignore rules.
+      spawnSync('git', ['check-ignore', '--quiet', '--', filename], {
+        cwd: projectRoot,
+        stdio: 'ignore',
+      }).status !== 0,
+  );
+  if (unignoredPath)
+    throw new Error(
+      'Diagnostic output inside the repository must be Git-ignored. Use logs/watch-diagnostics or an external directory.',
+    );
+}
 mkdirSync(outputDirectory, { recursive: true });
 const devices = {
   phone: options.phone ?? receipt?.devices.phone ?? process.env.OMNI_IOS_DEVICE ?? 'iPhone 16 PRO (Michal)',

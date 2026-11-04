@@ -42,14 +42,14 @@ test('evidence expires when a tracked or new source file changes, without readin
   }
 });
 
-function withLaunchEvidence(verify) {
+function withLaunchEvidence(verify, headerTimestamp = '2026-11-04 21:15:08 +0000') {
   const root = mkdtempSync(path.join(tmpdir(), 'omni-launch-evidence-'));
   try {
     execFileSync('git', ['init', '-q', root]);
     writeFileSync(path.join(root, '.gitignore'), 'logs/\n');
     mkdirSync(path.join(root, 'logs'));
     const contents =
-      '=== iPhone WC log started 2026-11-04 21:15:08 +0000 ===\n' +
+      `=== iPhone WC log started ${headerTimestamp} ===\n` +
       '[22:15:08.264] [WC-iPhone] OnCreate: registering workoutSessionMirroringStartHandler\n' +
       '[22:15:08.336] [WC-iPhone] resolveActivation: error=nil state=2 reachable=false\n' +
       '[22:15:08.336] [WC-iPhone] emitCompanionState available=false paired=true installed=false activationState=2 reachable=false\n';
@@ -83,6 +83,20 @@ test('startup evidence does not certify companion availability', () => {
     assert.equal(verdict.launchVerified, true);
     assert.equal(verdict.companionVerified, false);
   });
+});
+
+test('accepts a millisecond startup after installation within the same second', () => {
+  withLaunchEvidence((root, receipt) => {
+    receipt.finishedAt = '2026-11-04T21:15:08.100Z';
+    assert.equal(validateEvidence(root, receipt).launchVerified, true);
+  }, '2026-11-04T21:15:08.900Z');
+});
+
+test('rejects a millisecond startup before installation within the same second', () => {
+  withLaunchEvidence((root, receipt) => {
+    receipt.finishedAt = '2026-11-04T21:15:08.100Z';
+    assert.equal(validateEvidence(root, receipt).launchVerified, false);
+  }, '2026-11-04T21:15:08.050Z');
 });
 
 for (const [name, mutate] of [

@@ -1,7 +1,7 @@
 /* eslint sonarjs/no-os-command-from-path: off -- The fixture supplies a controlled xcrun executable. */
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
@@ -34,10 +34,12 @@ test('a later activation snapshot supersedes an earlier reachability callback', 
 function diagnoseFixture(
   installed,
   verify,
-  { watchOffline = false, withReceipt = false, lockStateFailure = false } = {},
+  { watchOffline = false, withReceipt = false, lockStateFailure = false, output = 'report' } = {},
 ) {
   const root = mkdtempSync(path.join(tmpdir(), 'omni-watch-diagnose-'));
   try {
+    execFileSync('git', ['init', '-q', root]);
+    writeFileSync(path.join(root, '.gitignore'), 'logs/\nreport/\n');
     mkdirSync(path.join(root, 'bin'));
     writeFileSync(
       path.join(root, 'bin/xcrun'),
@@ -61,10 +63,8 @@ if (args.includes('copy')) {
 `,
       { mode: 0o755 },
     );
-    const args = [script, '--phone', 'PHONE', '--watch', 'WATCH', '--output', path.join(root, 'report')];
+    const args = [script, '--phone', 'PHONE', '--watch', 'WATCH', '--output', path.resolve(root, output)];
     if (withReceipt) {
-      execFileSync('git', ['init', '-q', root]);
-      writeFileSync(path.join(root, '.gitignore'), 'logs/\nreport/\n');
       mkdirSync(path.join(root, 'logs'));
       const receipt = {
         source: captureSource(root),
@@ -151,4 +151,50 @@ test('a lock-state timeout preserves later installed-app and Watch-log evidence'
     },
     { lockStateFailure: true },
   );
+});
+
+test('rejects an unignored output directory before changing a current receipt or creating reports', () => {
+  diagnoseFixture(
+    true,
+    (root, execution) => {
+      assert.notEqual(execution.status, 0);
+      assert.match(execution.stderr, /output.*Git-ignored/);
+      assert.equal(existsSync(path.join(root, 'diagnostics')), false);
+      const receipt = JSON.parse(readFileSync(path.join(root, 'logs/release.json'), 'utf8'));
+      assert.equal(validateEvidence(root, receipt).current, true);
+      assert.equal(receipt.launchEvidence, undefined);
+    },
+    { withReceipt: true, output: 'diagnostics' },
+  );
+});
+
+test('a custom ignored output directory preserves receipt freshness', () => {
+  diagnoseFixture(
+    true,
+    (root, execution) => {
+      assert.equal(execution.status, 0, execution.stderr);
+      const receipt = JSON.parse(readFileSync(path.join(root, 'logs/release.json'), 'utf8'));
+      assert.equal(validateEvidence(root, receipt).launchVerified, true);
+      assert.equal(existsSync(path.join(root, 'logs/custom-report/summary.json')), true);
+    },
+    { withReceipt: true, output: 'logs/custom-report' },
+  );
+});
+
+test('an external output directory preserves receipt freshness', () => {
+  const external = mkdtempSync(path.join(tmpdir(), 'omni-external-report-'));
+  try {
+    diagnoseFixture(
+      true,
+      (root, execution) => {
+        assert.equal(execution.status, 0, execution.stderr);
+        const receipt = JSON.parse(readFileSync(path.join(root, 'logs/release.json'), 'utf8'));
+        assert.equal(validateEvidence(root, receipt).launchVerified, true);
+        assert.equal(existsSync(path.join(external, 'summary.json')), true);
+      },
+      { withReceipt: true, output: external },
+    );
+  } finally {
+    rmSync(external, { recursive: true, force: true });
+  }
 });

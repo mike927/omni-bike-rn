@@ -39,6 +39,8 @@ Each invocation writes a receipt under `logs/releases/`, including source hashes
 
 After installation, open OmniBike on each requested device, then run `npm run watch:diagnose -- --receipt <receipt.json>`. It captures and attaches native startup evidence to that receipt. Check it with `npm run ios:release:evidence -- <receipt.json>`: `current` describes whether the source still matches; `launchVerified` requires logs from every requested device showing startup and successful WCSession activation after installation. Evidence includes the selected device, bundle ID, capture time and log hash. Missing, modified, mismatched, or pre-installation evidence fails verification. Older receipts containing only a manual `verified` flag or a bare log path need a fresh capture. The check exits nonzero for stale source or unverified startup.
 
+Native startup headers include ISO 8601 milliseconds after rebuilding the phone and Watch apps. Older whole-second headers remain supported when they establish launch order. If an older header falls within the installation's final second, relaunch the app after that second and capture its new log.
+
 `companionVerified` separately checks that the iPhone's captured log recognizes the paired, installed Watch companion. Successful startup alone does not establish companion detection, live reachability, HR streaming, or ride behavior.
 
 For manual startup, HR, BLE, WatchConnectivity, or background tests, use `ai/skills/manual-test-handoff/SKILL.md`. That procedure owns the handoff and evidence requirements.
@@ -46,6 +48,8 @@ For manual startup, HR, BLE, WatchConnectivity, or background tests, use `ai/ski
 ## Watch connection recovery
 
 Start with `npm run watch:diagnose`. It reads installed-app identities, device readiness and native WC logs, and inspects available local Release bundle IDs and signing teams. It does not launch apps, install builds, start workouts, or load `.env`. It saves raw logs and a JSON report under `logs/watch-diagnostics/`, and prints a short summary. Device choices follow the Release commands' `OMNI_IOS_DEVICE` / `OMNI_WATCH_DEVICE` overrides; `--phone <device>`, `--watch <device>` and `--output <directory>` override them for one run. With `--receipt`, selections default to that receipt's devices.
+
+Custom output directories must be outside the repository or Git-ignored. The command resolves filesystem aliases and checks generated file paths before creating reports or querying devices. An unignored destination is rejected before it can invalidate a receipt's source fingerprint.
 
 The report separates three axes:
 
