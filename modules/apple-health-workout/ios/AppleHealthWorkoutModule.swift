@@ -3,6 +3,27 @@ import HealthKit
 
 public class AppleHealthWorkoutModule: Module {
   private let healthStore = HKHealthStore()
+  private var writeTypes: Set<HKSampleType> {
+    [
+      HKObjectType.workoutType(),
+      HKQuantityType(.activeEnergyBurned),
+      HKQuantityType(.basalEnergyBurned),
+      HKQuantityType(.distanceCycling),
+      HKQuantityType(.heartRate),
+      HKQuantityType(.cyclingPower),
+      HKQuantityType(.cyclingCadence),
+      HKQuantityType(.cyclingSpeed),
+    ]
+  }
+  private var readTypes: Set<HKObjectType> {
+    [
+      HKQuantityType(.basalEnergyBurned),
+      HKCharacteristicType(.biologicalSex),
+      HKCharacteristicType(.dateOfBirth),
+      HKQuantityType(.bodyMass),
+      HKQuantityType(.height),
+    ]
+  }
   private let isoFormatter: ISO8601DateFormatter = {
     let f = ISO8601DateFormatter()
     f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -17,40 +38,43 @@ public class AppleHealthWorkoutModule: Module {
   public func definition() -> ModuleDefinition {
     Name("AppleHealthWorkout")
 
-    // Requests HealthKit authorization for EVERY read + write type the app
-    // uses, in a single sheet. This previously ran as two back-to-back
-    // requests — `react-native-health.initHealthKit` for the base types, then
-    // a second request here for the iOS 17+ cycling metric types
-    // (cyclingPower / cyclingCadence / cyclingSpeed) that react-native-health
-    // does not know about. On a fresh install that hung: iOS cannot present
-    // the second authorization sheet while the first is still dismissing, so
-    // the second request's completion handler never fired and the connect UI
-    // stuck on "Connecting..." forever. One request = one sheet = no conflict.
+    AsyncFunction("getBiologicalSex") { () throws -> String? in
+      switch try self.healthStore.biologicalSex().biologicalSex {
+      case .male: return "male"
+      case .female: return "female"
+      default: return nil
+      }
+    }
+
+    AsyncFunction("getDateOfBirth") { () throws -> String? in
+      let components = try self.healthStore.dateOfBirthComponents()
+      guard let year = components.year, let month = components.month, let day = components.day else {
+        return nil
+      }
+      return String(format: "%04d-%02d-%02d", year, month, day)
+    }
+
+    AsyncFunction("getLatestWeightKg") { (promise: Promise) in
+      self.queryLatestQuantity(.bodyMass, unit: .gramUnit(with: .kilo), promise: promise)
+    }
+
+    AsyncFunction("getLatestHeightCm") { (promise: Promise) in
+      self.queryLatestQuantity(.height, unit: .meterUnit(with: .centi), promise: promise)
+    }
+
+    Function("getWriteAuthorizationStatus") { () -> [String: Int] in
+      Dictionary(uniqueKeysWithValues: self.writeTypes.map { type in
+        (type.identifier, self.healthStore.authorizationStatus(for: type).rawValue)
+      })
+    }
+
     AsyncFunction("requestHealthKitAuthorization") { (promise: Promise) in
       guard HKHealthStore.isHealthDataAvailable() else {
         promise.reject("ERR_HEALTH_UNAVAILABLE", "Health data is not available on this device")
         return
       }
 
-      let typesToShare: Set<HKSampleType> = [
-        HKObjectType.workoutType(),
-        HKQuantityType(.activeEnergyBurned),
-        HKQuantityType(.basalEnergyBurned),
-        HKQuantityType(.distanceCycling),
-        HKQuantityType(.heartRate),
-        HKQuantityType(.cyclingPower),
-        HKQuantityType(.cyclingCadence),
-        HKQuantityType(.cyclingSpeed),
-      ]
-      let typesToRead: Set<HKObjectType> = [
-        HKQuantityType(.basalEnergyBurned),
-        HKCharacteristicType(.biologicalSex),
-        HKCharacteristicType(.dateOfBirth),
-        HKQuantityType(.bodyMass),
-        HKQuantityType(.height),
-      ]
-
-      self.healthStore.requestAuthorization(toShare: typesToShare, read: typesToRead) { success, error in
+      self.healthStore.requestAuthorization(toShare: self.writeTypes, read: self.readTypes) { success, error in
         if let error {
           promise.reject("ERR_AUTH_FAILED", error.localizedDescription)
           return
@@ -337,6 +361,26 @@ public class AppleHealthWorkoutModule: Module {
         }
       }
     }
+  }
+
+  private func queryLatestQuantity(_ identifier: HKQuantityTypeIdentifier, unit: HKUnit, promise: Promise) {
+    let query = HKSampleQuery(
+      sampleType: HKQuantityType(identifier),
+      predicate: nil,
+      limit: 1,
+      sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)]
+    ) { _, samples, error in
+      if let error {
+        promise.reject("ERR_PROFILE_QUERY_FAILED", error.localizedDescription)
+        return
+      }
+      guard let sample = samples?.first as? HKQuantitySample else {
+        promise.resolve(nil)
+        return
+      }
+      promise.resolve(sample.quantity.doubleValue(for: unit))
+    }
+    healthStore.execute(query)
   }
 
   private func buildWorkoutEvents(

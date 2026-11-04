@@ -1,5 +1,6 @@
 import {
   chmodSync,
+  copyFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -10,7 +11,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 
 type Invocation = {
   command: string;
@@ -26,6 +27,12 @@ function runReleaseScript(
     xcodebuildFailureStatus?: number;
     xcrunError?: string;
     xcrunFailures?: number;
+    useDefaultWatchDestination?: boolean;
+    stalePods?: boolean;
+    availableSchemes?: string[];
+    signingIdentities?: number;
+    deviceProblem?: 'locked' | 'unpaired' | 'developer-mode' | 'offline' | 'simulator';
+    checkOnly?: boolean;
   } = {},
 ): {
   derivedDataPath: string;
@@ -39,22 +46,60 @@ function runReleaseScript(
   status: number | null;
 } {
   const testRoot = mkdtempSync(path.join(tmpdir(), 'omni-ios-release-'));
+  const fixtureRoot = path.join(testRoot, 'project');
   const fakeBin = path.join(testRoot, 'bin');
   const derivedDataPath = path.join(testRoot, 'derived-data');
   const invocationLog = path.join(testRoot, 'invocations.jsonl');
   const xcodebuildAttemptLog = path.join(testRoot, 'xcodebuild-attempts.txt');
-  const receiptDirectory = path.join(projectRoot, 'logs', 'releases');
+  const receiptDirectory = path.join(fixtureRoot, 'logs', 'releases');
   const beforeReceipts = existsSync(receiptDirectory) ? new Set(readdirSync(receiptDirectory)) : new Set<string>();
   const xcrunAttemptLog = path.join(testRoot, 'xcrun-attempts.txt');
+  mkdirSync(path.join(fixtureRoot, 'scripts'), { recursive: true });
+  mkdirSync(path.join(fixtureRoot, 'ios', 'omnibikern.xcworkspace'), { recursive: true });
+  mkdirSync(path.join(fixtureRoot, 'ios', 'Pods'), { recursive: true });
+  // eslint-disable-next-line sonarjs/no-os-command-from-path -- The integration fixture uses the active Git installation.
+  execFileSync('git', ['init', '-q', fixtureRoot]);
+  writeFileSync(path.join(fixtureRoot, '.gitignore'), 'logs/\n');
+  writeFileSync(path.join(fixtureRoot, 'scripts/check-dependencies.mjs'), '');
+  writeFileSync(path.join(fixtureRoot, 'ios/Podfile.lock'), 'PODS: current\n');
+  writeFileSync(
+    path.join(fixtureRoot, 'ios/Pods/Manifest.lock'),
+    options.stalePods ? 'PODS: old\n' : 'PODS: current\n',
+  );
+  for (const script of ['ios-release.mjs', 'verification.mjs']) {
+    copyFileSync(path.join(projectRoot, 'scripts', script), path.join(fixtureRoot, 'scripts', script));
+  }
   mkdirSync(fakeBin);
   const fakeTool = `#!/usr/bin/env node
 const fs = require('node:fs');
 const path = require('node:path');
 const command = path.basename(process.argv[1]);
 const args = process.argv.slice(2);
+if (command === 'security') {
+  process.stdout.write(process.env.OMNI_RELEASE_TEST_IDENTITIES + ' valid identities found');
+  process.exit(0);
+}
 if (command === 'xcodebuild' && args[0] === '-version') { process.stdout.write('Xcode TEST'); process.exit(0); }
+if (command === 'xcodebuild' && args.includes('-list')) {
+  process.stdout.write(JSON.stringify({workspace: {schemes: JSON.parse(process.env.OMNI_RELEASE_TEST_SCHEMES)}}));
+  process.exit(0);
+}
 if (command === 'xcodebuild' && args.includes('clean')) process.exit(0);
 if (command === 'xcrun' && args[1] === 'list') { process.stdout.write('TEST-IPHONE TEST-WATCH'); process.exit(0); }
+if (command === 'xcrun' && args.includes('info')) {
+  const device = args[args.indexOf('--device') + 1];
+  const problem = device === 'TEST-WATCH' ? process.env.OMNI_RELEASE_TEST_DEVICE_PROBLEM : '';
+  if (problem === 'offline') { process.stderr.write('Connection could not be established'); process.exit(1); }
+  const deviceInfo = args.includes('lockState')
+    ? {passcodeRequired: problem === 'locked', unlockedSinceBoot: true}
+    : {properties: {
+        hardware: {reality: problem === 'simulator' ? 'simulated' : 'physical'},
+        state: {developerModeStatus: problem === 'developer-mode' ? {disabled: {}} : {enabled: {mode: 1}}},
+        connection: {pairingState: problem === 'unpaired' ? 'unpaired' : 'paired'},
+      }};
+  process.stdout.write(JSON.stringify({result: deviceInfo}));
+  process.exit(0);
+}
 fs.appendFileSync(process.env.OMNI_RELEASE_TEST_LOG, JSON.stringify({ command, args }) + '\\n');
 if (command === 'xcodebuild') {
   const attemptLog = process.env.OMNI_RELEASE_TEST_XCODEBUILD_ATTEMPT_LOG;
@@ -82,15 +127,17 @@ if (command === 'xcrun') {
 }
 `;
 
-  for (const command of ['xcodebuild', 'xcrun']) {
+  for (const command of ['xcodebuild', 'xcrun', 'security']) {
     const commandPath = path.join(fakeBin, command);
     writeFileSync(commandPath, fakeTool);
     chmodSync(commandPath, 0o755);
   }
 
   try {
-    const result = spawnSync(process.execPath, [path.join(projectRoot, 'scripts/ios-release.mjs'), mode], {
-      cwd: projectRoot,
+    const scriptArgs = [path.join(fixtureRoot, 'scripts/ios-release.mjs'), mode];
+    if (options.checkOnly) scriptArgs.push('--check');
+    const result = spawnSync(process.execPath, scriptArgs, {
+      cwd: fixtureRoot,
       encoding: 'utf8',
       env: {
         ...process.env,
@@ -100,6 +147,11 @@ if (command === 'xcrun') {
         OMNI_IOS_DEVICE_RETRY_DELAY_MS: '0',
         OMNI_IOS_XCODE_DESTINATION: 'platform=iOS,id=IPHONE-UDID',
         OMNI_RELEASE_TEST_LOG: invocationLog,
+        OMNI_RELEASE_TEST_SCHEMES: JSON.stringify(
+          options.availableSchemes ?? ['omnibikern', 'OmniBikeWatch Watch App'],
+        ),
+        OMNI_RELEASE_TEST_IDENTITIES: String(options.signingIdentities ?? 1),
+        OMNI_RELEASE_TEST_DEVICE_PROBLEM: options.deviceProblem ?? '',
         OMNI_RELEASE_TEST_XCODEBUILD_ATTEMPT_LOG: xcodebuildAttemptLog,
         OMNI_RELEASE_TEST_XCODEBUILD_FAILURES: String(options.xcodebuildFailures ?? 0),
         OMNI_RELEASE_TEST_XCODEBUILD_FAILURE_STATUS: String(options.xcodebuildFailureStatus ?? 1),
@@ -107,7 +159,7 @@ if (command === 'xcrun') {
         OMNI_RELEASE_TEST_XCRUN_ERROR: options.xcrunError ?? '',
         OMNI_RELEASE_TEST_XCRUN_FAILURES: String(options.xcrunFailures ?? 0),
         OMNI_WATCH_DEVICE: 'TEST-WATCH',
-        OMNI_WATCH_XCODE_DESTINATION: 'platform=watchOS,id=WATCH-UDID',
+        OMNI_WATCH_XCODE_DESTINATION: options.useDefaultWatchDestination ? undefined : 'platform=watchOS,id=WATCH-UDID',
       },
     });
 
@@ -162,6 +214,72 @@ function installInvocation(device: string, appPathSuffix: string): Invocation {
 }
 
 describe('iOS standalone release scripts', () => {
+  test.each([
+    ['unpaired', 'not paired with this Mac'],
+    ['developer-mode', 'Enable Developer Mode'],
+    ['offline', 'not reachable'],
+    ['simulator', 'must be a physical device'],
+  ] as const)('rejects a Watch that is %s before compiling', (deviceProblem, message) => {
+    const result = runReleaseScript('both', { deviceProblem });
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain(message);
+    expect(result.invocations).toEqual([]);
+  });
+
+  test('phone-only mode does not require a ready Watch or its shared scheme', () => {
+    const result = runReleaseScript('phone', {
+      checkOnly: true,
+      deviceProblem: 'locked',
+      availableSchemes: ['omnibikern'],
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.receipt.result).toBe('preflight-passed');
+    expect(result.invocations).toEqual([]);
+  });
+
+  test('check-only mode verifies readiness without building or installing', () => {
+    const result = runReleaseScript('both', { checkOnly: true });
+
+    expect(result.status).toBe(0);
+    expect(result.receipt.result).toBe('preflight-passed');
+    expect(result.invocations).toEqual([]);
+  });
+
+  test('a locked Watch stops the combined release before either app is built', () => {
+    const result = runReleaseScript('both', { deviceProblem: 'locked' });
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('Unlock the Watch');
+    expect(result.invocations).toEqual([]);
+  });
+
+  test('missing signing credentials stop before building', () => {
+    const result = runReleaseScript('both', { signingIdentities: 0 });
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('Xcode → Settings → Accounts');
+    expect(result.invocations).toEqual([]);
+  });
+
+  test('a missing shared Watch scheme stops before building', () => {
+    const result = runReleaseScript('watch', { availableSchemes: ['omnibikern'] });
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('Missing shared Xcode scheme: OmniBikeWatch Watch App');
+    expect(result.invocations).toEqual([]);
+  });
+
+  test('stale Pods stop the release before any build or installation', () => {
+    const result = runReleaseScript('both', { stalePods: true });
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain('pod install --no-repo-update');
+    expect(result.invocations).toEqual([]);
+    expect(result.receipt.result).toBe('failed');
+  });
+
   test('package exposes phone, Watch, combined, and legacy combined commands', () => {
     const packageJson = JSON.parse(readFileSync(path.join(projectRoot, 'package.json'), 'utf8')) as {
       scripts: Record<string, string>;
@@ -169,6 +287,7 @@ describe('iOS standalone release scripts', () => {
 
     expect(packageJson.scripts).toMatchObject({
       'ios:release': 'npm run ios:release:both',
+      'ios:release:check': 'node scripts/ios-release.mjs both --check',
       'ios:release:both': 'node scripts/ios-release.mjs both',
       'ios:release:phone': 'node scripts/ios-release.mjs phone',
       'ios:release:watch': 'node scripts/ios-release.mjs watch',
@@ -201,6 +320,18 @@ describe('iOS standalone release scripts', () => {
     expect(Object.values(result.receipt.launches)).toEqual(expect.arrayContaining(['not-tested']));
     expect(result.invocations).toEqual([
       buildInvocation('OmniBikeWatch Watch App', 'platform=watchOS,id=WATCH-UDID', result.derivedDataPath),
+      installInvocation('TEST-WATCH', '/Release-watchos/OmniBikeWatch Watch App\\.app$'),
+    ]);
+  });
+
+  test('default Watch build compiles for hardware without waiting for a device tunnel', () => {
+    const result = runReleaseScript('watch', {
+      useDefaultWatchDestination: true,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.invocations).toEqual([
+      buildInvocation('OmniBikeWatch Watch App', 'generic/platform=watchOS', result.derivedDataPath),
       installInvocation('TEST-WATCH', '/Release-watchos/OmniBikeWatch Watch App\\.app$'),
     ]);
   });

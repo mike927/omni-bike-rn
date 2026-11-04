@@ -1,7 +1,7 @@
 {
   "name": "apple-health-workout",
-  "version": "1.0.0",
-  "description": "Local Expo module that saves an HKWorkout with indoor-cycling metadata and kilocalorie units — bypasses react-native-health limitations.",
+  "version": "1.1.0",
+  "description": "Local Expo module for HealthKit authorization, profile reads, energy queries and indoor-cycling workout export.",
   "main": "src/index",
   "files": [
     "src",

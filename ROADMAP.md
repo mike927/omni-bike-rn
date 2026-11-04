@@ -6,6 +6,7 @@
 - [x] Update compatible stable development tooling and CI; verify installation and quality gate.
 - [x] Update and build iOS while preserving the Apple Watch companion target.
 - [x] Add phone-only, Watch-only and combined Release update commands with bounded device retries; verify combined build and installation on both physical devices.
+- [x] Add release preflight checks for native setup, signing and live physical-device readiness, with a check-only command and actionable failures before building.
 - [x] Adopt Expo's scene lifecycle support for Xcode 27, align its SDK 57 companion-package patches, and verify standalone Release launch on the physical iPhone.
 - [ ] Verify BLE, HealthKit and WatchConnectivity on physical devices after the upgrade.
 
@@ -16,8 +17,8 @@ Active development roadmap. Update states as work progresses.
 ## Dependency security remediation — November 2026
 
 - [~] Upgrade to the supported Expo SDK 58 matrix and remove high/critical dependency findings. [Review and remaining blockers](docs/audits/2026-11-03-dependencies.md).
-- [ ] Replace the legacy HealthKit bridge call removed by React Native 0.88; the unsigned Release compile currently fails at `react-native-health` `setBridge:`.
-- [ ] Verify SDK 58 Release startup and phone/Watch behavior on physical devices; prior SDK 57 evidence is not sufficient.
+- [x] Replace the legacy HealthKit bridge with profile reads and write-authorization diagnostics in the existing local Expo module; the signed iPhone Release build passes on SDK 58.
+- [~] Verify SDK 58 phone/Watch behavior on physical devices: standalone Release builds, installation and startup pass on both; ride, BLE and HealthKit functional checks remain pending.
 
 ## Codebase Audit Remediation — September 2026
 

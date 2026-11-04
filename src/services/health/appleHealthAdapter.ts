@@ -1,6 +1,3 @@
-import { NativeModules } from 'react-native';
-import type { HealthKitPermissions, HealthStatusResult } from 'react-native-health';
-
 import {
   AppleHealthWorkout,
   isAppleHealthWorkoutAvailable,
@@ -17,43 +14,6 @@ import type { PersistedTrainingSample, PersistedTrainingSession } from '../../ty
 import { toMifflinInputs, type BiologicalSex, type UserProfileField } from '../../types/userProfile';
 import { useUserProfileStore } from '../../store/userProfileStore';
 
-interface HealthValueResult {
-  value: number | string | null;
-}
-
-interface HealthDateOfBirthResult {
-  value: string | null;
-  age: number | null;
-}
-
-interface HealthQuantityOptions {
-  unit?: string;
-}
-
-interface HealthKitNativeModule {
-  initHealthKit: (permissions: HealthKitPermissions, callback: (error: HealthKitErrorLike) => void) => void;
-  getAuthStatus: (
-    permissions: HealthKitPermissions,
-    callback: (error: HealthKitErrorLike, result: HealthStatusResult) => void,
-  ) => void;
-  getBiologicalSex: (
-    options: HealthQuantityOptions,
-    callback: (error: HealthKitErrorLike, result: HealthValueResult) => void,
-  ) => void;
-  getDateOfBirth: (
-    options: HealthQuantityOptions,
-    callback: (error: HealthKitErrorLike, result: HealthDateOfBirthResult) => void,
-  ) => void;
-  getLatestWeight: (
-    options: HealthQuantityOptions,
-    callback: (error: HealthKitErrorLike, result: HealthValueResult) => void,
-  ) => void;
-  getLatestHeight: (
-    options: HealthQuantityOptions,
-    callback: (error: HealthKitErrorLike, result: HealthValueResult) => void,
-  ) => void;
-}
-
 interface HealthKitErrorObject {
   message?: string;
   code?: number | string;
@@ -63,63 +23,6 @@ interface HealthKitErrorObject {
 }
 
 type HealthKitErrorLike = HealthKitErrorObject | string | null | undefined;
-
-// react-native-health typings model write[] as a `HealthPermission` enum, but
-// the real native API accepts plain string literals. Use a local string-union
-// type to avoid importing a mismatched enum while keeping the array typed.
-type HealthPermissionName =
-  | 'Workout'
-  | 'ActiveEnergyBurned'
-  | 'DistanceCycling'
-  | 'HeartRate'
-  | 'BasalEnergyBurned'
-  | 'BiologicalSex'
-  | 'DateOfBirth'
-  | 'Weight'
-  | 'Height';
-const HEALTH_PERMISSION_WORKOUT: HealthPermissionName = 'Workout';
-const HEALTH_PERMISSION_ACTIVE_ENERGY_BURNED: HealthPermissionName = 'ActiveEnergyBurned';
-const HEALTH_PERMISSION_DISTANCE_CYCLING: HealthPermissionName = 'DistanceCycling';
-const HEALTH_PERMISSION_HEART_RATE: HealthPermissionName = 'HeartRate';
-const HEALTH_PERMISSION_BASAL_ENERGY_BURNED: HealthPermissionName = 'BasalEnergyBurned';
-const HEALTH_PERMISSION_BIOLOGICAL_SEX: HealthPermissionName = 'BiologicalSex';
-const HEALTH_PERMISSION_DATE_OF_BIRTH: HealthPermissionName = 'DateOfBirth';
-const HEALTH_PERMISSION_WEIGHT: HealthPermissionName = 'Weight';
-const HEALTH_PERMISSION_HEIGHT: HealthPermissionName = 'Height';
-const HEALTHKIT_STATUS_LABELS = ['NotDetermined', 'SharingDenied', 'SharingAuthorized'] as const;
-const HEALTHKIT_WRITE_PERMISSIONS: readonly HealthPermissionName[] = [
-  HEALTH_PERMISSION_WORKOUT,
-  HEALTH_PERMISSION_ACTIVE_ENERGY_BURNED,
-  HEALTH_PERMISSION_DISTANCE_CYCLING,
-  HEALTH_PERMISSION_HEART_RATE,
-  // Part B attaches a basalEnergyBurned sample to each saved workout so Apple
-  // Fitness can render the Active / Total split. Without the write permission
-  // HealthKit rejects `builder.add(samples)` with "Not authorized".
-  HEALTH_PERMISSION_BASAL_ENERGY_BURNED,
-];
-const HEALTHKIT_READ_PERMISSIONS: readonly HealthPermissionName[] = [
-  HEALTH_PERMISSION_BASAL_ENERGY_BURNED,
-  // Part C reads the user's biological sex, date of birth, latest weight, and
-  // latest height to personalize the Keytel calorie formula and the Mifflin
-  // basal fallback. All four are read-only; the user manages the source of
-  // truth in the Apple Health app.
-  HEALTH_PERMISSION_BIOLOGICAL_SEX,
-  HEALTH_PERMISSION_DATE_OF_BIRTH,
-  HEALTH_PERMISSION_WEIGHT,
-  HEALTH_PERMISSION_HEIGHT,
-];
-
-function getHealthKit(): HealthKitNativeModule {
-  const healthKit = NativeModules.AppleHealthKit as HealthKitNativeModule | undefined;
-
-  if (!healthKit?.initHealthKit || !healthKit?.getAuthStatus) {
-    throw new Error(
-      'Apple Health native module is unavailable. Rebuild the iOS app with the native dependency installed.',
-    );
-  }
-
-  return healthKit;
-}
 
 function assertAppleHealthAvailable(): void {
   if (!isAppleHealthWorkoutAvailable) {
@@ -161,90 +64,38 @@ function normalizeHealthKitError(error: unknown, fallbackMessage: string): Error
   return normalizedError;
 }
 
+const HEALTHKIT_STATUS_LABELS = ['NotDetermined', 'SharingDenied', 'SharingAuthorized'] as const;
+
 function logHealthKitAuthorizationStatus(context: string): void {
   if (!__DEV__) {
     return;
   }
 
-  // Dev-only visibility into the resulting grant state, read via
-  // react-native-health's getAuthStatus. Authorization itself no longer flows
-  // through that module, so if it happens to be absent we skip logging rather
-  // than fail the connect flow.
-  let healthKit: HealthKitNativeModule;
   try {
-    healthKit = getHealthKit();
-  } catch {
-    return;
-  }
-
-  healthKit.getAuthStatus(PERMISSIONS, (error: HealthKitErrorLike, result: HealthStatusResult) => {
-    if (error) {
-      appendAppleHealthDiagnostic('auth-status-read-failed', {
-        context,
-        error,
-      });
-      console.warn('[appleHealthAdapter] Failed to read HealthKit authorization status', {
-        context,
-        error,
-      });
-      return;
-    }
-
+    const raw = AppleHealthWorkout.getWriteAuthorizationStatus();
     const writeStatuses = Object.fromEntries(
-      HEALTHKIT_WRITE_PERMISSIONS.map((permission, index) => {
-        const statusCode = result.permissions.write[index];
-        const label =
-          typeof statusCode === 'number'
-            ? (HEALTHKIT_STATUS_LABELS[statusCode] ?? `Unknown(${statusCode})`)
-            : 'Missing';
-        return [permission, label];
-      }),
+      Object.entries(raw).map(([identifier, code]) => [
+        identifier,
+        HEALTHKIT_STATUS_LABELS[code] ?? `Unknown(${code})`,
+      ]),
     );
-
     appendAppleHealthDiagnostic('auth-status', {
       context,
-      permissions: PERMISSIONS.permissions,
       writeStatuses,
-      raw: result,
+      raw,
       diagnosticsFile: getAppleHealthDiagnosticsRelativePath(),
     });
-    console.warn('[appleHealthAdapter] HealthKit authorization status', {
-      context,
-      permissions: PERMISSIONS.permissions,
-      writeStatuses,
-      raw: result,
-    });
-  });
+    console.warn('[appleHealthAdapter] HealthKit authorization status', { context, writeStatuses, raw });
+  } catch (error: unknown) {
+    appendAppleHealthDiagnostic('auth-status-read-failed', { context, error });
+    console.warn('[appleHealthAdapter] Failed to read HealthKit authorization status', { context, error });
+  }
 }
 
-// Single cast at the react-native-health interop boundary because upstream
-// typings model `write[]` as a `HealthPermission` enum while the native API
-// expects plain string literals — see `HealthPermissionName` above.
-const PERMISSIONS: HealthKitPermissions = {
-  permissions: {
-    read: HEALTHKIT_READ_PERMISSIONS as unknown as HealthKitPermissions['permissions']['read'],
-    write: HEALTHKIT_WRITE_PERMISSIONS as unknown as HealthKitPermissions['permissions']['write'],
-  },
-};
-
-// Requests HealthKit authorization for every read + write type the app uses in
-// a SINGLE native sheet. The previous flow split this across two requests —
-// react-native-health's `initHealthKit` for the base types, then a separate
-// native request for the iOS 17+ cycling metric types (cyclingPower /
-// cyclingCadence / cyclingSpeed) that react-native-health does not know about.
-// On a fresh install that hung: iOS cannot present the second authorization
-// sheet while the first is still dismissing, so the second request's
-// completion handler never fired and the connect UI stuck on "Connecting..."
-// forever. The native module now owns the whole request — one sheet, no
-// presentation conflict.
 async function requestHealthKitAuthorization(): Promise<void> {
   appendAppleHealthDiagnostic('requestAuthorization-payload', {
-    permissions: PERMISSIONS.permissions,
     diagnosticsFile: getAppleHealthDiagnosticsRelativePath(),
   });
-  if (__DEV__) {
-    console.warn('[appleHealthAdapter] requestHealthKitAuthorization payload', PERMISSIONS.permissions);
-  }
 
   try {
     await AppleHealthWorkout.requestHealthKitAuthorization();
@@ -432,53 +283,32 @@ export type AppleHealthProfilePartial = Partial<{
   [F in UserProfileField]: F extends 'sex' ? BiologicalSex : F extends 'dateOfBirth' ? string : number;
 }>;
 
-function callBridge<R>(invoke: (callback: (error: HealthKitErrorLike, result: R) => void) => void): Promise<R | null> {
-  return new Promise((resolve) => {
-    try {
-      invoke((error, result) => {
-        if (error) {
-          resolve(null);
-          return;
-        }
-        resolve(result ?? null);
-      });
-    } catch {
-      resolve(null);
-    }
-  });
+async function readHealthValue<R>(query: () => Promise<R>): Promise<R | null> {
+  try {
+    return await query();
+  } catch {
+    return null;
+  }
 }
 
 export async function getBiologicalSex(): Promise<BiologicalSex | null> {
-  const healthKit = getHealthKit();
-  const result = await callBridge<HealthValueResult>((cb) => healthKit.getBiologicalSex({}, cb));
-  if (!result) return null;
-  if (result.value === 'male' || result.value === 'female') return result.value;
-  return null;
+  const sex = await readHealthValue(() => AppleHealthWorkout.getBiologicalSex());
+  return sex === 'male' || sex === 'female' ? sex : null;
 }
 
 export async function getDateOfBirth(): Promise<string | null> {
-  const healthKit = getHealthKit();
-  const result = await callBridge<HealthDateOfBirthResult>((cb) => healthKit.getDateOfBirth({}, cb));
-  const iso = result?.value;
-  if (typeof iso !== 'string' || iso.length === 0) return null;
-  // The native bridge returns a full ISO timestamp; profile storage canonicalizes
-  // on the date portion (yyyy-mm-dd) so the value renders cleanly in UI inputs
-  // and is stable across timezones.
-  return iso.slice(0, 10);
+  const date = await readHealthValue(() => AppleHealthWorkout.getDateOfBirth());
+  return typeof date === 'string' && date.length > 0 ? date.slice(0, 10) : null;
 }
 
 export async function getLatestWeightKg(): Promise<number | null> {
-  const healthKit = getHealthKit();
-  const result = await callBridge<HealthValueResult>((cb) => healthKit.getLatestWeight({ unit: 'kg' }, cb));
-  const value = result?.value;
-  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+  const weight = await readHealthValue(() => AppleHealthWorkout.getLatestWeightKg());
+  return typeof weight === 'number' && Number.isFinite(weight) && weight > 0 ? weight : null;
 }
 
 export async function getLatestHeightCm(): Promise<number | null> {
-  const healthKit = getHealthKit();
-  const result = await callBridge<HealthValueResult>((cb) => healthKit.getLatestHeight({ unit: 'cm' }, cb));
-  const value = result?.value;
-  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+  const height = await readHealthValue(() => AppleHealthWorkout.getLatestHeightCm());
+  return typeof height === 'number' && Number.isFinite(height) && height > 0 ? height : null;
 }
 
 export async function loadProfileFromAppleHealth(): Promise<AppleHealthProfilePartial> {

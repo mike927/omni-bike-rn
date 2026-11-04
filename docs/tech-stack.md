@@ -8,7 +8,7 @@ Version audit: 2026-09-03. The target is the latest mutually compatible stable v
 | Navigation | Expo Router 58.0.30; screen-focus hooks imported from `expo-router` |
 | State and data | Zustand 5.0.15, Drizzle ORM 0.45.2 / Kit 0.31.10, Expo SQLite 58.0.15 |
 | Animation | Reanimated 4.7.1, Worklets 0.13.0 |
-| Hardware | BLE PLX 3.5.1, react-native-health 1.19.0, local Swift Expo modules for workout export and WatchConnectivity |
+| Hardware | BLE PLX 3.5.1, local Swift Expo modules for HealthKit and WatchConnectivity |
 | Language / formatting | TypeScript 6.0.3, Babel 7.29.7, Prettier 3.9.6 |
 | Quality | ESLint 9.39.5, Jest 30.5.1, React Native Testing Library 14.0.1, test-renderer 1.2.0 |
 | CI | Node 24 LTS, checkout/setup-node v7, Expo GitHub Action v9 |
@@ -35,7 +35,7 @@ The iOS project is checked in and includes a manually maintained Watch target. N
 
 Xcode 27 builds require the UIKit scene lifecycle to launch on iOS 27. The app follows [Expo's SDK 57 migration for a hand-managed iOS project](https://github.com/expo/fyi/blob/main/ios-scene-lifecycle.md#staying-on-sdk-57-with-xcode-27): Expo provides `EXExpoAppSceneDelegate`, and `AppDelegate` supplies its React Native factory through `ExpoReactNativeFactoryProvider`. The scene delegate owns window creation and React Native startup. Keep the scene manifest in both `app.config.ts` and the checked-in `Info.plist`.
 
-`react-native-health` 1.19 calls `RCTCallableJSModules#setBridge`. SDK 57 retained that API through React Native's source-build compatibility flags. React Native 0.88 removes it even with those flags; the SDK 58 physical-architecture Release build currently fails at this call. The HealthKit integration needs a supported migration before this branch is ready. No dependency source is patched.
+`react-native-health` was removed because React Native 0.88 no longer provides its `RCTCallableJSModules#setBridge` API. The existing `apple-health-workout` Expo module now owns profile reads and write-authorization diagnostics as well as authorization, energy queries and workout export. Date of birth is read as calendar components; weight and height use the latest HealthKit samples in kilograms and centimeters. Read failures remain nullable. The standard prebuilt React Native configuration replaces the obsolete source-build compatibility flags. Signed SDK 58 Release builds, installation and standalone startup pass on the physical iPhone and Watch; functional ride and HealthKit verification remains pending.
 
 The app uses a custom development client, not Expo Go. A native rebuild is mandatory after this upgrade. `npm run build:smoke` only exports both JavaScript bundles and intentionally does not regenerate the native project.
 

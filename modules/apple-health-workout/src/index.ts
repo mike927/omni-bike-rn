@@ -62,13 +62,18 @@ export interface SaveCyclingWorkoutOptions {
 }
 
 declare class AppleHealthWorkoutNativeModule extends NativeModule {
+  getBiologicalSex(): Promise<string | null>;
+  getDateOfBirth(): Promise<string | null>;
+  getLatestWeightKg(): Promise<number | null>;
+  getLatestHeightCm(): Promise<number | null>;
+  getWriteAuthorizationStatus(): Record<string, number>;
+
   /**
    * Requests HealthKit authorization for every read + write type the app uses
    * — Workout, active/basal energy, cycling distance, heart rate, the iOS 17+
    * cycling metrics (`cyclingPower`/`cyclingCadence`/`cyclingSpeed`), and the
    * read-only profile characteristics — in a single authorization sheet.
-   * Presenting one sheet (rather than this plus `react-native-health`'s
-   * `initHealthKit`) avoids the iOS conflict where a second authorization
+   * Presenting one sheet avoids the iOS conflict where a second authorization
    * sheet requested mid-dismissal of the first never completes. Idempotent.
    */
   requestHealthKitAuthorization(): Promise<void>;

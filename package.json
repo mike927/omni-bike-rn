@@ -7,6 +7,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios --device",
     "ios:release": "npm run ios:release:both",
+    "ios:release:check": "node scripts/ios-release.mjs both --check",
     "ios:release:phone": "node scripts/ios-release.mjs phone",
     "ios:release:watch": "node scripts/ios-release.mjs watch",
     "ios:release:both": "node scripts/ios-release.mjs both",
@@ -67,7 +68,6 @@
     "react-native": "0.88.1",
     "react-native-ble-plx": "^3.5.1",
     "react-native-gesture-handler": "~3.3.0",
-    "react-native-health": "^1.19.0",
     "react-native-reanimated": "4.7.1",
     "react-native-safe-area-context": "~5.11.1",
     "react-native-screens": "~4.30.1",
@@ -128,7 +128,6 @@
     "doctor": {
       "reactNativeDirectoryCheck": {
         "exclude": [
-          "react-native-health",
           "apple-health-workout",
           "watch-connectivity"
         ],
