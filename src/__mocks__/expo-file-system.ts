@@ -36,7 +36,12 @@ export class File {
     return files.get(this.uri)?.content ?? '';
   }
 
-  write(content: string | Uint8Array): void {
+  async write(content: string | Uint8Array): Promise<void> {
+    await Promise.resolve();
+    this.writeSync(content);
+  }
+
+  writeSync(content: string | Uint8Array): void {
     const nextContent = typeof content === 'string' ? content : new TextDecoder().decode(content);
     const existing = files.get(this.uri);
     files.set(this.uri, {

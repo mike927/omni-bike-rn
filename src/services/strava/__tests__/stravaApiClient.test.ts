@@ -4,7 +4,7 @@ jest.mock('../stravaConstants', () => ({
   STRAVA_UPLOAD_URL: 'https://www.strava.com/api/v3/uploads',
 }));
 
-const { __expoFileSystemMock } = jest.requireMock('expo-file-system') as {
+const { __expoFileSystemMock } = jest.requireActual('expo-file-system') as {
   __expoFileSystemMock: {
     getFile: (uri: string) => unknown;
     reset: () => void;
@@ -37,6 +37,21 @@ afterEach(() => {
 });
 
 describe('uploadActivity', () => {
+  it('finishes writing the TCX file before sending it', async () => {
+    const tcxContent = '<TrainingCenterDatabase><Activities /></TrainingCenterDatabase>';
+    (global.fetch as jest.Mock).mockImplementation(async () => {
+      expect(__expoFileSystemMock.getFile('file://mock-cache/strava-upload-session-1.tcx')).toMatchObject({
+        content: tcxContent,
+      });
+      return {
+        ok: true,
+        json: async () => ({ id: UPLOAD_ID, status: 'processing', error: null, activity_id: null }),
+      };
+    });
+
+    await uploadActivity(ACCESS_TOKEN, tcxContent, 'Indoor Cycling', 'session-1.tcx');
+  });
+
   it('sends a POST with Authorization header and returns upload response', async () => {
     const mockResponse: Record<string, unknown> = {
       id: UPLOAD_ID,

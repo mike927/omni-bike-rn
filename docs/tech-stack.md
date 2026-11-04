@@ -4,10 +4,10 @@ Version audit: 2026-09-03. The target is the latest mutually compatible stable v
 
 | Layer | Version / tools |
 | --- | --- |
-| Mobile runtime | Expo SDK 57.0.31, React Native 0.86.3, React 19.2.3, Hermes V1 |
-| Navigation | Expo Router 57.0.29; screen-focus hooks imported from `expo-router` |
-| State and data | Zustand 5.0.15, Drizzle ORM 0.45.2 / Kit 0.31.10, Expo SQLite 57.0.4 |
-| Animation | Reanimated 4.5.1, Worklets 0.10.1 |
+| Mobile runtime | Expo SDK 58.0.23, React Native 0.88.1, React 19.3.0, Hermes V1 |
+| Navigation | Expo Router 58.0.30; screen-focus hooks imported from `expo-router` |
+| State and data | Zustand 5.0.15, Drizzle ORM 0.45.2 / Kit 0.31.10, Expo SQLite 58.0.15 |
+| Animation | Reanimated 4.7.1, Worklets 0.13.0 |
 | Hardware | BLE PLX 3.5.1, react-native-health 1.19.0, local Swift Expo modules for workout export and WatchConnectivity |
 | Language / formatting | TypeScript 6.0.3, Babel 7.29.7, Prettier 3.9.6 |
 | Quality | ESLint 9.39.5, Jest 30.5.1, React Native Testing Library 14.0.1, test-renderer 1.2.0 |
@@ -17,8 +17,10 @@ Version audit: 2026-09-03. The target is the latest mutually compatible stable v
 
 ## Compatibility decisions
 
-- Keep React and React Native on the [Expo SDK 57 matrix](https://expo.dev/changelog/sdk-57). Do not separately upgrade React, Reanimated, Worklets or the native navigation packages beyond that matrix.
-- The Expo 57.0.31 update includes the companion-package patch versions recommended by its bundled matrix. `EXPO_OFFLINE=1 npm exec -- expo install --check` reports that dependencies are up to date; the configured Jest exclusions remain intentional.
+SDK 58 security migration is under review; see [dependency review](audits/2026-11-03-dependencies.md) for current validation and blockers. Earlier SDK 57 device evidence below does not validate this runtime.
+
+- Keep React and React Native on the [Expo SDK 58 matrix](https://expo.dev/changelog/sdk-58). Do not separately upgrade React, Reanimated, Worklets or the native navigation packages beyond that matrix.
+- The Expo 58.0.23 update includes the companion-package patch versions recommended by its bundled matrix. `EXPO_OFFLINE=1 npm exec -- expo install --check` reports that dependencies are up to date; the configured Jest exclusions remain intentional.
 - React DOM 19.2.3 and Gesture Handler 2.32 satisfy Expo Router's transitive peer dependencies; `@react-native/metro-config` 0.86.3 satisfies Worklets. The old `legacy-peer-deps` setting is removed. Both clean `npm ci` and `npm ls --all` succeed without bypasses.
 - TypeScript 7 is outside the installed `@typescript-eslint/typescript-estree` peer range (`<6.1`). TypeScript 6 is the latest compatible major.
 - ESLint 10 is outside `eslint-plugin-react`'s supported peer range. ESLint 9 and Unicorn 65 are the latest compatible majors (Unicorn 66+ requires ESLint 10).
@@ -31,9 +33,9 @@ Version audit: 2026-09-03. The target is the latest mutually compatible stable v
 
 The iOS project is checked in and includes a manually maintained Watch target. Never run `expo prebuild --clean`, or bare `expo prebuild` (clean is the SDK 57 default). Native changes must preserve the Watch target, embedding, signing, bundle identifiers, iPhone product name `omnibikern`, and Watch device family `4`.
 
-Xcode 27 builds require the UIKit scene lifecycle to launch on iOS 27. The app follows [Expo's SDK 57 migration for a hand-managed iOS project](https://github.com/expo/fyi/blob/main/ios-scene-lifecycle.md#staying-on-sdk-57-with-xcode-27): Expo 57.0.31 provides `EXExpoAppSceneDelegate`, and `AppDelegate` supplies its React Native factory through `ExpoReactNativeFactoryProvider`. The scene delegate owns window creation and React Native startup. Keep the scene manifest in both `app.config.ts` and the checked-in `Info.plist`.
+Xcode 27 builds require the UIKit scene lifecycle to launch on iOS 27. The app follows [Expo's SDK 57 migration for a hand-managed iOS project](https://github.com/expo/fyi/blob/main/ios-scene-lifecycle.md#staying-on-sdk-57-with-xcode-27): Expo provides `EXExpoAppSceneDelegate`, and `AppDelegate` supplies its React Native factory through `ExpoReactNativeFactoryProvider`. The scene delegate owns window creation and React Native startup. Keep the scene manifest in both `app.config.ts` and the checked-in `Info.plist`.
 
-`react-native-health` 1.19 calls `RCTCallableJSModules#setBridge`, which is absent from React Native's default precompiled core. The Podfile uses the [official source-build compatibility flags](https://reactnative.dev/blog/2026/02/11/react-native-0.84): `RCT_USE_PREBUILT_RNCORE=0` and `RCT_REMOVE_LEGACY_ARCH=0`. This retains the compatibility API while continuing to run the New Architecture. The first native build takes longer. No dependency source is patched.
+`react-native-health` 1.19 calls `RCTCallableJSModules#setBridge`. SDK 57 retained that API through React Native's source-build compatibility flags. React Native 0.88 removes it even with those flags; the SDK 58 physical-architecture Release build currently fails at this call. The HealthKit integration needs a supported migration before this branch is ready. No dependency source is patched.
 
 The app uses a custom development client, not Expo Go. A native rebuild is mandatory after this upgrade. `npm run build:smoke` only exports both JavaScript bundles and intentionally does not regenerate the native project.
 
@@ -41,7 +43,7 @@ The splash plugin uses its supported `enableFullScreenImage_legacy` option to pr
 
 ## Verification
 
-Verified locally on 2026-11-03 after adopting the scene lifecycle and aligning Expo's companion-package patches:
+Verified on the previous SDK 57 runtime on 2026-11-03 after adopting the scene lifecycle and aligning Expo's companion-package patches:
 
 - Expo 57.0.31 and its updated pods compile in Debug and Release for the physical iPhone 16 Pro and Apple Watch Ultra 2 targets, using the iPhoneOS 27.2 and watchOS 27.2 SDKs. A clean Xcode build replaces the stale embedded ExpoModulesJSI framework left by the previous dependency versions.
 - The exact `npm run ci:gate` passes in a clean snapshot of the tracked files: lint, TypeScript, and 117 test suites / 1204 tests. The snapshot uses the installed dependencies and excludes local worktrees and generated build products.
@@ -78,7 +80,7 @@ Physical-device BLE, Apple Health save, pause/resume and extended background che
 
 ## Known upstream diagnostics
 
-Expo Doctor reports two known issues at this stage:
+On the previous SDK 57 runtime, Expo Doctor reported two known issues:
 
 - `react-native-health` brings an old `@expo/config-plugins` tree with `@expo/fingerprint` 0.6.1 alongside Expo's 0.20.12. This is build tooling, not a second runtime module. The old forced fingerprint override was removed; forcing a new major into the legacy plugin tree is not a supported repair.
 - App config/native-directory synchronization: intentional because iOS is checked in while Android is generated. EAS does not automatically apply app-config changes to the checked-in iOS project.

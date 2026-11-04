@@ -22,7 +22,7 @@ function createUploadFile(tcxData: string, externalId: string): File {
   const safeExternalId = externalId.replaceAll(/[^a-zA-Z0-9._-]/g, '-');
   const file = Paths.cache.createFile(`${STRAVA_UPLOAD_FILE_PREFIX}-${safeExternalId}`, STRAVA_TCX_MIME_TYPE);
 
-  file.write(tcxData);
+  file.writeSync(tcxData);
 
   return file;
 }

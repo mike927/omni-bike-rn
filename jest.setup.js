@@ -1,6 +1,6 @@
 /* global jest */
 jest.mock('react-native-worklets', () => require('react-native-worklets/lib/module/mock'));
-jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'));
+require('react-native-reanimated').setUpTests();
 
 // Mock console.error to keep test output clean, unless we explicitly want to see it
 const originalConsoleError = console.error;
