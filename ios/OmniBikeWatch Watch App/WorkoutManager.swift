@@ -8,7 +8,9 @@ enum WCFileLog {
     static let url: URL = {
         let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         let u = dir.appendingPathComponent("wc.log")
-        try? "=== Watch WC log started \(Date()) ===\n".write(to: u, atomically: false, encoding: .utf8)
+        let timestamp = ISO8601DateFormatter()
+        timestamp.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        try? "=== Watch WC log started \(timestamp.string(from: Date())) ===\n".write(to: u, atomically: false, encoding: .utf8)
         return u
     }()
     private static let formatter: DateFormatter = {

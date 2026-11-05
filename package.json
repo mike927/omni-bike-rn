@@ -13,6 +13,7 @@
     "ios:release:both": "node scripts/ios-release.mjs both",
     "ios:sim": "expo run:ios",
     "apple-health:pull-logs": "node scripts/pull-apple-health-diagnostics.mjs",
+    "watch:diagnose": "node scripts/watch-diagnose.mjs",
     "skills:install": "node scripts/install-skills.mjs",
     "db:generate": "drizzle-kit generate && prettier --single-quote --write drizzle/migrations.js",
     "db:check": "drizzle-kit check",
